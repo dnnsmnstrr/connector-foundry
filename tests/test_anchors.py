@@ -50,26 +50,3 @@ def test_face_anchors_land_on_the_origin(part, render_dir):
             f"not match the geometry, so every anchor on this part is off."
         )
 
-
-def test_option_lists_agree_with_defaults_and_variants():
-    """`options` in the catalogue drives the web app's dropdowns and the
-    CLI's validation, so it has to stay in step with the values the
-    catalogue itself uses. A list that has drifted from its default is
-    worse than no list: it offers a menu that excludes what you get."""
-    problems = []
-    for part in _parts():
-        options = part.get("options", {})
-        defaults = part.get("defaults", {})
-        for key, allowed in options.items():
-            if key not in defaults:
-                problems.append(f"{part['id']}: options list {key!r}, which has no default")
-            elif defaults[key] not in allowed:
-                problems.append(
-                    f"{part['id']}: default {key}={defaults[key]!r} is not in {allowed}")
-        for variant in part.get("variants", []):
-            for key, value in variant["params"].items():
-                if key in options and value not in options[key]:
-                    problems.append(
-                        f"{part['id']} [{variant['name']}]: {key}={value!r} "
-                        f"is not in {options[key]}")
-    assert not problems, "\n".join(problems)

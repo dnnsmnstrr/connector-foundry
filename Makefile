@@ -32,5 +32,6 @@ refs:
 verify:
 	$(VENV)/python tools/verify.py
 
+# The whole cache, fetched checkouts included — `refs` rebuilds it.
 clean-refs:
-	rm -rf refs/mesh refs/files
+	rm -rf refs

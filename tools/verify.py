@@ -161,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("filter", nargs="?", help="only run checks whose id contains this")
     ap.add_argument("--offline", action="store_true",
-                    help="fail instead of fetching an uncached source")
+                    help="never fetch; fail any check whose source is not cached")
     ap.add_argument("--json", type=Path, help="also write the full report here")
     args = ap.parse_args(argv)
 
@@ -184,8 +184,19 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             need = _needs(check)
             if need and need in unavailable:
-                results.append(Result(id=check["id"], kind=kind, passed=True,
-                                      skipped=unavailable[need]))
+                # Without --offline a missing source is a skip, so someone
+                # on a train still gets the submodule-backed checks. With
+                # it, it is a failure: --offline exists so a run cannot
+                # quietly reach the network, and a run that reports
+                # success having silently not checked anything is exactly
+                # what that flag is meant to prevent.
+                if args.offline:
+                    results.append(Result(
+                        id=check["id"], kind=kind, passed=False,
+                        failures=[f"not checked — {unavailable[need]}"]))
+                else:
+                    results.append(Result(id=check["id"], kind=kind, passed=True,
+                                          skipped=unavailable[need]))
                 continue
             try:
                 results.append(runner(check, available, scad_path))

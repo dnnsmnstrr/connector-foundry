@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,12 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOGUE_PATH = REPO_ROOT / "catalogue.yaml"
+
+# Every render needs --backend=Manifold, which the stable OpenSCAD
+# release predates. Distributions that ship only the stable build usually
+# also package the dev snapshot under another name, so let the binary be
+# named rather than assuming "openscad" is the right one.
+OPENSCAD_BIN = os.environ.get("OPENSCAD_BIN", "openscad")
 GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "dimensions.yaml"
 
 
@@ -80,7 +87,7 @@ def openscad_env() -> dict[str, str]:
 
 def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> None:
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["openscad", "--backend=Manifold", "-o", str(out_file)]
+    cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out_file)]
     for key, value in params.items():
         cmd += ["-D", f"{key}={openscad_value(value)}"]
     cmd.append(str(scad_file))
@@ -89,6 +96,58 @@ def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> 
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)
         raise typer.Exit(1)
+
+
+def module_parameters(part: dict) -> list[str]:
+    """The named parameters of a part's module, read from its source.
+
+    OpenSCAD does not treat an unknown named argument as an error — it
+    warns and carries on with the default, so `--set leg_height=20` on a
+    module whose parameter is `leg_h` reports a successful render of
+    something that ignored you entirely. The signature is the only real
+    answer to what a part accepts, so read it.
+    """
+    source = (REPO_ROOT / part["file"]).read_text()
+    match = re.search(rf"\bmodule\s+{re.escape(part['module'])}\s*\(", source)
+    if not match:
+        raise typer.BadParameter(
+            f"{part['id']}: no module {part['module']}() in {part['file']}")
+
+    # Walk to the matching close paren: defaults contain their own
+    # brackets ([0, 0, 1]) and calls (named_anchor(...)), so counting
+    # depth is the only way to find where the signature ends.
+    depth, start = 1, match.end()
+    index = start
+    while depth and index < len(source):
+        depth += {"(": 1, "[": 1, ")": -1, "]": -1}.get(source[index], 0)
+        index += 1
+    signature = source[start:index - 1]
+
+    names, depth, token = [], 0, ""
+    for char in signature + ",":
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        if char == "," and depth == 0:
+            name = token.split("=")[0].strip()
+            if name:
+                names.append(name)
+            token = ""
+        else:
+            token += char
+    return names
+
+
+def check_parameters(part: dict, overrides: dict[str, object]) -> None:
+    """Reject an override that is not a parameter of the part."""
+    known = module_parameters(part)
+    unknown = [key for key in overrides if key not in known]
+    if unknown:
+        raise typer.BadParameter(
+            f"{part['id']}: {', '.join(repr(k) for k in unknown)} "
+            f"{'is not a parameter' if len(unknown) == 1 else 'are not parameters'} "
+            f"of {part['module']}(). Accepts: {', '.join(known)}")
 
 
 def check_options(part: dict, params: dict[str, object]) -> None:
@@ -107,6 +166,7 @@ def check_options(part: dict, params: dict[str, object]) -> None:
 
 
 def render_part(part: dict, overrides: dict[str, object], out_dir: Path) -> Path:
+    check_parameters(part, overrides)
     params = {**part.get("defaults", {}), **overrides}
     check_options(part, params)
     call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
@@ -191,7 +251,7 @@ def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(
         stub = out / f".{part['id'].replace('/', '_')}_stub.scad"
         stub.write_text(f'include <{scad_source}>\n{part["module"]}({call_args});\n')
         png_path = out / f"{part['id'].replace('/', '_')}.png"
-        cmd = ["openscad", "--backend=Manifold", "--autocenter", "--viewall",
+        cmd = [OPENSCAD_BIN, "--backend=Manifold", "--autocenter", "--viewall",
                "--colorscheme=Tomorrow", "--imgsize=640,480", "-o", str(png_path), str(stub)]
         result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
                                 env=openscad_env())

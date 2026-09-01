@@ -13,6 +13,8 @@ result is a difference in the model rather than in the mesher.
 from __future__ import annotations
 
 import hashlib
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +23,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REFS_YAML = REPO_ROOT / "references.yaml"
+OPENSCAD_BIN = os.environ.get("OPENSCAD_BIN", "openscad")
+
 CACHE = REPO_ROOT / "refs"
 SRC_CACHE = CACHE / "src"
 MESH_CACHE = CACHE / "mesh"
@@ -63,8 +67,21 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
 
     commit = spec["commit"]
     dest = SRC_CACHE / f"{name}@{commit[:12]}"
+
+    # `.git` existing is not the same as the checkout being usable. A
+    # fetch interrupted after `git init` leaves the directory looking
+    # cached forever, and every later run would hand back an empty tree
+    # — the reference workflow silently broken until someone worked out
+    # to delete refs/src by hand. Ask git what is actually checked out.
     if (dest / ".git").exists():
-        return dest
+        try:
+            if _git("rev-parse", "HEAD", cwd=dest) == commit:
+                return dest
+        except RefError:
+            pass
+        print(f"  discarding incomplete checkout of {name}", file=sys.stderr)
+        shutil.rmtree(dest)
+
     if offline:
         raise RefError(
                 f"source {name} is not cached and --offline was given; "
@@ -254,11 +271,10 @@ def render(recipe: str, roots: dict[str, Path], tag: str,
 
     env = None
     if openscad_path:
-        import os
         env = {**os.environ,
                "OPENSCADPATH": ":".join(str(p) for p in openscad_path)}
 
-    cmd = ["openscad", "--backend=Manifold", "-o", str(out), str(scad)]
+    cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out), str(scad)]
     proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
     scad.unlink(missing_ok=True)
     # An empty result is an error to openscad but a legitimate answer

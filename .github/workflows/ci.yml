@@ -8,16 +8,48 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # OpenSCAD initialises Qt even for a command-line export, and the
+      # runner has no display.
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install OpenSCAD (nightly, Manifold backend)
+      - name: Install OpenSCAD (dev snapshot, for the Manifold backend)
         run: |
-          sudo add-apt-repository -y ppa:openscad/releases
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y openscad
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 libegl1 libxkbcommon-x11-0 libfontconfig1 libfreetype6
+
+          # Every part here renders with --backend=Manifold, which the
+          # stable OpenSCAD release predates, so a dev snapshot it is.
+          # (ppa:openscad/releases is not an option: it has not published
+          # past focal, so it 404s on the current runner image.)
+          #
+          # Snapshot filenames are dated and the directory keeps only a
+          # rolling window, so resolve the newest at run time — a pinned
+          # URL here would 404 a few months from now for reasons that
+          # have nothing to do with the change under test.
+          base=https://files.openscad.org/snapshots
+          file=$(curl -fsSL "$base/" \
+            | grep -oE 'OpenSCAD-[0-9.]+\.ai[0-9]+-x86_64\.AppImage' \
+            | sort -u | sort -t- -k2 -V | tail -1)
+          if [ -z "$file" ]; then
+            echo "::error::no OpenSCAD snapshot found at $base/"
+            exit 1
+          fi
+          echo "using $file"
+          curl -fsSL -o openscad.AppImage "$base/$file"
+          chmod +x openscad.AppImage
+
+          # Extract rather than execute: the runner image has no FUSE,
+          # which an AppImage needs to mount itself.
+          ./openscad.AppImage --appimage-extract > /dev/null
+          sudo mv squashfs-root /opt/openscad
+          sudo ln -s /opt/openscad/AppRun /usr/local/bin/openscad
           openscad --version
 
       - uses: actions/setup-python@v5
@@ -37,12 +69,16 @@ jobs:
         run: python tools/refcache.py
 
       - name: Render + validate whole catalogue
+        id: pytest
         run: pytest tests/ -v
 
       - name: Reference + fit report
         # Same checks pytest just ran, printed as the report so a failure
-        # shows the measured numbers and not just an assertion.
-        if: always()
+        # shows the measured numbers and not just an assertion. Runs even
+        # when pytest failed, but not when it never ran — otherwise a
+        # broken toolchain reports itself twice, the second time as a
+        # misleading ModuleNotFoundError.
+        if: always() && steps.pytest.outcome != 'skipped'
         run: python tools/verify.py
 
   web:
