@@ -1,0 +1,397 @@
+# Reference geometry, and what we check against it.
+#
+# The catalogue says how confident we are in each part. This file is how
+# that claim is actually tested: every "exact" part has to agree with a
+# reference produced by someone else's implementation of the same
+# standard, and every part that mates with real hardware has to be shown
+# to mate with a reference model of that hardware.
+#
+# Nothing here is vendored. Sources are either a submodule already in
+# vendor/ (MIT only — see README "Licensing") or a pinned git commit
+# fetched on demand into refs/, which is gitignored. That keeps sources
+# we may read and measure but may not redistribute (CC-BY-NC-SA, GPL)
+# out of this MIT repository entirely.
+#
+#   make refs     fetch/refresh the cache
+#   make verify   run every check and print the report
+#
+# Recipes are OpenSCAD. {repo} and each source name expand to absolute
+# paths. Reference meshes are rendered by the same openscad binary that
+# builds our parts, so a difference in the numbers is a difference in the
+# model and not in the mesher.
+
+openscad_path: ["{repo}/vendor"]   # lets a source's `include <BOSL2/...>` resolve
+
+sources:
+  gridfinity-rebuilt:
+    kind: submodule
+    path: vendor/gridfinity-rebuilt
+    license: MIT
+    url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    note: Vendored. parts/gridfinity/base.scad calls it directly.
+
+  goproscad:
+    kind: submodule
+    path: vendor/GoProScad
+    license: MIT
+    url: https://github.com/ridercz/GoProScad
+    note: Vendored. parts/gopro/*.scad call it directly.
+
+  quackworks:
+    kind: submodule
+    path: vendor/QuackWorks
+    license: CC-BY-NC-SA-4.0
+    url: https://github.com/AndyLevesque/QuackWorks
+    note: >
+      Vendored as a submodule, and parts/opengrid/*.scad call it
+      directly — so those two parts are CC-BY-NC-SA, not MIT. See the
+      per-part `license` field in catalogue.yaml and the README
+      "Licensing" section. openGrid design by David D; OpenSCAD
+      implementation by Andy (BlackjackDuck), snap by metasyntactic.
+      Because our parts are wrappers, the shape checks below are
+      guarding the wrapper (envelope, anchors, restated constants)
+      rather than re-deriving upstream's geometry.
+
+  # A CAD file you supply yourself — the usual shape of a real supplier
+  # reference, since manufacturer STEP downloads sit behind logins and
+  # cannot be fetched or redistributed. Drop the file in refs/manual/
+  # (gitignored) and uncomment. STEP is converted to a millimetre-scaled
+  # STL, which any recipe below can then pose with `import()`, exactly
+  # like every other reference:
+  #
+  #     a: |
+  #       include <{repo}/parts/extrusion2020/tab.scad>
+  #       translate([...]) rotate([0, 90, 0]) ex_tab(anchor = BOTTOM);
+  #     b: |
+  #       import("{supplier_rail}");
+  #
+  # `kind: file` also takes `url` + `sha256` instead of `path`, and a
+  # `scale` override for files that are not in millimetres. STEP needs
+  # the `cascadio` package (installed by the `dev` extra).
+  #
+  # supplier_rail:
+  #   kind: file
+  #   path: refs/manual/HFS5-2020.step
+  #   license: proprietary — not redistributable, supply your own copy
+
+  nopscadlib:
+    kind: git
+    url: https://github.com/nophead/NopSCADlib.git
+    commit: c9baa0ed0faa23e849141c3d8c6728545d6af910
+    license: GPL-3.0
+    note: >
+      NOT vendored — GPL cannot be redistributed from an MIT repository.
+      Fetched into refs/ and used only as a measured model of real
+      20-series extrusion to test our extrusion parts' fit against.
+
+# ---------------------------------------------------------------------
+# Shape checks: is our part the same solid as the reference?
+# ---------------------------------------------------------------------
+shape_checks:
+  - id: gridfinity/base-1x1
+    part: gridfinity/base
+    reference_source: gridfinity-rebuilt
+    ours: |
+      include <{repo}/parts/gridfinity/base.scad>
+      gf_base(anchor = BOTTOM);
+    reference: |
+      include <{gridfinity-rebuilt}/src/core/standard.scad>
+      use <{gridfinity-rebuilt}/src/core/base.scad>
+      gridfinityBase([1, 1]);
+    align: none
+    sections_z: [0.01, 0.4, 0.8, 2.6, 4.0, 4.74, 5.5, 6.9]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: gridfinity/base-2x1-magnets-screws
+    part: gridfinity/base
+    params: {gx: 2, magnets: true, screws: true}
+    reference_source: gridfinity-rebuilt
+    ours: |
+      include <{repo}/parts/gridfinity/base.scad>
+      gf_base(gx = 2, magnets = true, screws = true, anchor = BOTTOM);
+    reference: |
+      include <{gridfinity-rebuilt}/src/core/standard.scad>
+      use <{gridfinity-rebuilt}/src/core/base.scad>
+      use <{gridfinity-rebuilt}/src/core/gridfinity-rebuilt-holes.scad>
+      gridfinityBase([2, 1], hole_options = bundle_hole_options(
+          magnet_hole = true, screw_hole = true, crush_ribs = true, chamfer = true));
+    align: none
+    sections_z: [0.01, 0.8, 2.6, 4.74, 6.9]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # Guards the two GoProScad numbers we are forced to restate in
+  # lib/constants.scad (GP_LEG_T, GP_SLIT_W, GP_LEG_DIA) because `use <>`
+  # does not import upstream's file-private __gopro_* variables. If
+  # upstream changes them, our bounding box stops matching and this fails.
+  - id: gopro/male
+    part: gopro/male
+    reference_source: goproscad
+    ours: |
+      include <{repo}/parts/gopro/male.scad>
+      gopro_male(anchor = BOTTOM);
+    reference: |
+      use <{goproscad}/GoPro.scad>
+      translate([0, 0, 20]) rotate([180, 0, 0])
+          gopro_mount_m(base_height = 3, base_width = 20, leg_height = 17, center = true);
+    align: none
+    sections_z: [0.5, 5.0, 12.5, 18.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: gopro/female
+    part: gopro/female
+    reference_source: goproscad
+    ours: |
+      include <{repo}/parts/gopro/female.scad>
+      gopro_female(anchor = BOTTOM);
+    reference: |
+      use <{goproscad}/GoPro.scad>
+      translate([0, 0, 20]) rotate([180, 0, 0]) translate([0, -1.5, 0])
+          gopro_mount_f(base_height = 3, base_width = 20, leg_height = 17,
+                        nut_diameter = 11.5, nut_sides = 4, nut_depth = 3, center = true);
+    align: none
+    sections_z: [0.5, 5.0, 12.5, 18.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # openGrid cannot be vendored, so our board is an independent
+  # implementation and this is the only thing standing between it and
+  # silent incompatibility with real hardware. Chamfers, screw mounting
+  # and connector holes are switched off in the reference so the diff
+  # isolates the cell geometry, which is the part that has to fit.
+  - id: opengrid/board-full-2x2
+    part: opengrid/board
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 2, cells_y = 2, variant = "full", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/openGrid.scad>
+      openGrid(Board_Width = 2, Board_Height = 2, tileSize = 28, Tile_Thickness = 6.8,
+               Screw_Mounting = "None", Chamfers = "None", Connector_Holes = false,
+               anchor = BOT);
+    align: none
+    sections_z: [0.1, 1.0, 2.0, 3.4, 5.0, 6.0, 6.7]
+    tolerances:
+      max_bbox_mm: 0.05
+      max_volume_pct: 2.0
+      max_surface_rms_mm: 0.2
+      max_surface_max_mm: 1.0
+      min_section_iou: 0.98
+
+  - id: opengrid/board-lite-1x1
+    part: opengrid/board
+    params: {cells_x: 1, cells_y: 1, variant: lite}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 1, cells_y = 1, variant = "lite", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/openGrid.scad>
+      openGridLite(Board_Width = 1, Board_Height = 1, tileSize = 28,
+                   Screw_Mounting = "None", Chamfers = "None",
+                   Connector_Holes = false, anchor = BOT);
+    align: none
+    sections_z: [0.1, 1.0, 2.0, 3.0, 3.9]
+    tolerances:
+      max_bbox_mm: 0.05
+      max_volume_pct: 2.0
+      max_surface_rms_mm: 0.2
+      max_surface_max_mm: 1.0
+      min_section_iou: 0.98
+
+# ---------------------------------------------------------------------
+# Fit checks: do two solids actually go together?
+#
+# Both recipes render into one shared coordinate frame — the assembled
+# pose is expressed in OpenSCAD rather than in a YAML transform
+# mini-language, so the same tool does the transform algebra that does
+# the modelling. `a` is ours, `b` is what it has to mate with.
+#
+#   interference  volume the two solids try to occupy at once. Above a
+#                 print's worth of slop the parts do not go together.
+#   clearance     smallest surface-to-surface gap. Too large is a rattle.
+# ---------------------------------------------------------------------
+fit_checks:
+  - id: gopro/male-into-our-female
+    part: gopro/male
+    why: >
+      The buckles in this repo have to mate with each other. The pivot
+      axis is the "pivot" anchor on both; assembly is a half turn about
+      it, which is only possible if the bolt hole runs through the round
+      leg ends rather than through a block above them.
+    a: |
+      include <{repo}/parts/gopro/male.scad>
+      rotate([0, 180, 0]) gopro_male(anchor = "pivot");
+    b: |
+      include <{repo}/parts/gopro/female.scad>
+      gopro_female(anchor = "pivot");
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.6]
+
+  - id: gopro/male-into-upstream-female
+    part: gopro/male
+    reference_source: goproscad
+    why: Interoperability with real GoPro-standard hardware, not just with ourselves.
+    a: |
+      include <{repo}/parts/gopro/male.scad>
+      rotate([0, 180, 0]) gopro_male(anchor = "pivot");
+    b: |
+      use <{goproscad}/GoPro.scad>
+      // Upstream, posed by hand into the same frame: bolt axis on the
+      // origin, legs down. Upstream puts its hole at
+      // base_height + leg_height - 15/2 = 12.5. Nothing of ours is
+      // involved in placing it.
+      translate([0, 0, 12.5]) rotate([180, 0, 0])
+          gopro_mount_f(base_height = 3, base_width = 20, leg_height = 17,
+                        nut_diameter = 11.5, nut_sides = 4, nut_depth = 3, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.6]
+
+  - id: opengrid/snap-into-upstream-board
+    part: opengrid/snap
+    reference_source: quackworks
+    why: >
+      The whole point of an openGrid snap is that it goes into a real
+      openGrid board. Seated flush: the snap's flange top is level with
+      the board's top face, on a cell centre.
+    a: |
+      include <{repo}/parts/opengrid/snap.scad>
+      translate([14, 14, 0]) og_snap(variant = "full", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/openGrid.scad>
+      openGrid(Board_Width = 2, Board_Height = 2, tileSize = 28, Tile_Thickness = 6.8,
+               Screw_Mounting = "None", Chamfers = "None", Connector_Holes = false,
+               anchor = BOT);
+    expect:
+      max_interference_mm3: 5.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: opengrid/board-takes-upstream-snap
+    part: opengrid/board
+    reference_source: quackworks
+    why: >
+      The mirror of the check above — a real openGrid snap has to go into
+      our board. Note that interference alone cannot prove *retention*:
+      a board with no cell detail at all would also score zero here.
+      Retention is what the opengrid/board-* shape checks cover.
+    a: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 2, cells_y = 2, variant = "full", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      translate([14, 14, 0])
+          openGridSnap(lite = false, directional = false,
+                       anchor = BOTTOM, spin = 0, orient = UP);
+    expect:
+      max_interference_mm3: 5.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: extrusion2020/tab-in-slot
+    part: extrusion2020/tab
+    reference_source: nopscadlib
+    why: >
+      A T-slot tab that interferes with the extrusion does not go in; one
+      with too much clearance does not hold. NopSCADlib's E2020t is a
+      measured model of real 20-series T-slot extrusion.
+    a: |
+      include <{repo}/parts/extrusion2020/tab.scad>
+      // Assembled pose: head inside the +X slot, shaft out through the
+      // mouth, pulled outward until the head bears on the underside of
+      // the lip -- the position a tightened T-nut actually sits in.
+      // The extrusion is 20mm across (outer face at x=10) with a 1.8mm
+      // lip, so the head's outer face lands on x = 10 - 1.8 = 8.2.
+      // rotate([0,90,0]) sends the tab's +Z (shaft) to +X and its
+      // running length to the extrusion's Z.
+      translate([EX_PROFILE / 2 - EX_LIP_T - 2.0, 0, 0])
+          rotate([0, 90, 0]) ex_tab(head_t = 2.0, anchor = BOTTOM);
+    b: |
+      include <{nopscadlib}/lib.scad>
+      extrusion(E2020t, 40, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.8]
+
+  - id: extrusion2020/clip-in-slot
+    part: extrusion2020/clip
+    reference_source: nopscadlib
+    why: >
+      The snap-in clip is pushed straight into the slot mid-rail. Its
+      legs have to reach past the lip so the barbs have something to
+      spring out under, without the barbs fouling the channel walls or
+      the sloping floor.
+    a: |
+      include <{repo}/parts/extrusion2020/clip.scad>
+      // Seated: leg tips on the channel floor, spine flush with the
+      // outer face at x = EX_PROFILE/2.
+      translate([EX_PROFILE / 2 - EX_LIP_T - EX_CHANNEL_D, 0, 0])
+          rotate([0, 90, 0]) ex_clip(anchor = BOTTOM);
+      // Same transform as the tab: both parts put X along the rail.
+    b: |
+      include <{nopscadlib}/lib.scad>
+      extrusion(E2020t, 40, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.8]
+
+  - id: extrusion2020/endcap-on-end
+    part: extrusion2020/endcap
+    reference_source: nopscadlib
+    why: >
+      The end cap's locating cross drops into all four slots from an open
+      end of the rail. If the cross is oversized the cap will not seat;
+      the plate itself must not overhang the 20mm profile.
+    a: |
+      include <{repo}/parts/extrusion2020/endcap.scad>
+      // Seated on the +Z end of the 40mm rail (which ends at z = 20):
+      // keys sunk into the last boss_h of the rail, plate outside it.
+      // The cap's functional face is already BOTTOM, so it needs no
+      // flip -- it goes on keys-down exactly as it prints.
+      translate([0, 0, 20 - 2]) ex_endcap(boss_h = 2, anchor = BOTTOM);
+    b: |
+      include <{nopscadlib}/lib.scad>
+      extrusion(E2020t, 40, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.8]
+
+  - id: extrusion2020/c-clip-over-profile
+    part: extrusion2020/c-clip
+    reference_source: nopscadlib
+    why: >
+      The C-clip wraps the OUTSIDE of the profile. Real extrusion has
+      filleted corners, so a square bore of the nominal 20mm plus
+      clearance should clear it everywhere.
+    a: |
+      include <{repo}/parts/extrusion2020/c-clip.scad>
+      ex_c_clip(anchor = CENTER);
+    b: |
+      include <{nopscadlib}/lib.scad>
+      extrusion(E2020t, 40, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 1.0]

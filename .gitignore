@@ -11,3 +11,8 @@ web/public/scad-bundle.json
 web/public/catalogue.yaml
 .DS_Store
 .claude/worktrees/
+
+# Reference geometry cache: fetched upstreams, converted CAD files, and
+# rendered reference meshes. Never committed — some of it is under
+# licences this repository cannot redistribute (see references.yaml).
+refs/

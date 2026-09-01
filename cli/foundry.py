@@ -8,8 +8,10 @@
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import typer
@@ -19,6 +21,7 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOGUE_PATH = REPO_ROOT / "catalogue.yaml"
+GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "dimensions.yaml"
 
 
 def load_catalogue() -> dict:
@@ -32,12 +35,47 @@ def find_part(catalogue: dict, part_id: str) -> dict:
     raise typer.BadParameter(f"Unknown part '{part_id}'. Run `foundry list`.")
 
 
+def parse_scalar(raw: str):
+    """Parse a --set VALUE into the narrowest type OpenSCAD will accept."""
+    if raw in ("true", "false"):
+        return raw == "true"
+    for cast in (int, float):
+        try:
+            return cast(raw)
+        except ValueError:
+            pass
+    return raw
+
+
+class Raw(str):
+    """A value to emit into OpenSCAD verbatim rather than as a string.
+
+    BOSL2 anchors are vectors bound to bare names (TOP is [0,0,1]), so
+    passing anchor="TOP" gives OpenSCAD a string it cannot use. Raw("TOP")
+    passes the name through.
+    """
+
+
 def openscad_value(value) -> str:
+    if isinstance(value, Raw):
+        return str(value)
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
         return f'"{value}"'
     return str(value)
+
+
+def openscad_env() -> dict[str, str]:
+    """vendor/ on the OpenSCAD library path.
+
+    Vendored upstreams written for the OpenSCAD library folder ask for
+    their dependencies by library name (`include <BOSL2/std.scad>`)
+    rather than by relative path, so vendor/ has to be searchable for
+    those to resolve. Our own parts use relative includes and do not
+    depend on this.
+    """
+    return {**os.environ, "OPENSCADPATH": str(REPO_ROOT / "vendor")}
 
 
 def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> None:
@@ -46,7 +84,8 @@ def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> 
     for key, value in params.items():
         cmd += ["-D", f"{key}={openscad_value(value)}"]
     cmd.append(str(scad_file))
-    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
+                            env=openscad_env())
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)
         raise typer.Exit(1)
@@ -75,7 +114,11 @@ def list_parts():
     for system, parts in sorted(by_system.items()):
         typer.echo(f"\n{system}")
         for part in parts:
-            typer.echo(f"  {part['id']:<28} [{part['confidence']}]  {part['name']}")
+            # Licence varies per part now that some wrap non-MIT
+            # upstreams, so it belongs next to the part, not in a footnote.
+            licence = part.get("license", "MIT")
+            typer.echo(f"  {part['id']:<28} [{part['confidence']:<10}] "
+                       f"{licence:<15} {part['name']}")
 
 
 @app.command("render")
@@ -85,17 +128,23 @@ def render(
     gy: int = typer.Option(None),
     magnets: bool = typer.Option(None),
     screws: bool = typer.Option(None),
-    bridge: float = typer.Option(None),
+    set_: list[str] = typer.Option(
+        None, "--set", metavar="KEY=VALUE",
+        help="Any other module parameter, repeatable: --set thumbscrew=true"),
     out: Path = typer.Option(Path("out"), "-o", "--out"),
 ):
     """Render one catalogue part to STL."""
     catalogue = load_catalogue()
     part = find_part(catalogue, part_id)
     overrides = {}
-    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets),
-                         ("screws", screws), ("bridge", bridge)]:
+    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets), ("screws", screws)]:
         if value is not None:
             overrides[name] = value
+    for item in set_ or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"--set expects KEY=VALUE, got {item!r}")
+        key, _, raw = item.partition("=")
+        overrides[key.strip()] = parse_scalar(raw.strip())
     stl_path = render_part(part, overrides, out)
     typer.echo(f"wrote {stl_path}")
 
@@ -128,7 +177,8 @@ def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(
         png_path = out / f"{part['id'].replace('/', '_')}.png"
         cmd = ["openscad", "--backend=Manifold", "--autocenter", "--viewall",
                "--colorscheme=Tomorrow", "--imgsize=640,480", "-o", str(png_path), str(stub)]
-        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
+                                env=openscad_env())
         stub.unlink()
         if result.returncode != 0:
             typer.echo(result.stderr, err=True)
@@ -136,15 +186,67 @@ def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(
         typer.echo(f"wrote {png_path}")
 
 
+def catalogue_cases(catalogue: dict):
+    """Every (part, params, tag) the catalogue declares — defaults first,
+    then each named variant. The one place that enumeration lives."""
+    for part in catalogue["parts"]:
+        yield part, {}, "default"
+        for variant in part.get("variants", []):
+            yield part, variant["params"], variant["name"]
+
+
+@app.command("goldens")
+def goldens(update: bool = typer.Option(False, "--update",
+                                        help="rewrite tests/golden/dimensions.yaml")):
+    """Show, or regenerate, the recorded bounding box and volume per part.
+
+    These are a change detector, not a correctness claim: they catch a
+    part silently moving. Whether a part is *right* is what
+    references.yaml and `make verify` answer.
+    """
+    import trimesh
+
+    catalogue = load_catalogue()
+    recorded: dict[str, dict] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for part, params, tag in catalogue_cases(catalogue):
+            stl = render_part(part, params, Path(tmp) / tag)
+            mesh = trimesh.load(stl)
+            recorded.setdefault(part["id"], {})[tag] = {
+                "bbox": [round(float(v), 3) for v in mesh.extents],
+                "volume_mm3": round(float(mesh.volume), 2),
+            }
+            typer.echo(f"{part['id']:<28} {tag:<24} "
+                       f"{[round(float(v), 2) for v in mesh.extents]} "
+                       f"{mesh.volume:.2f}mm3")
+
+    if update:
+        GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+        GOLDEN_PATH.write_text(
+            "# Generated by `foundry goldens --update`. Do not hand-edit.\n"
+            "#\n"
+            "# A change detector for catalogue geometry: it catches a part\n"
+            "# moving when nobody meant to move it. It does NOT say a part is\n"
+            "# correct — a wrong part has a perfectly stable bounding box.\n"
+            "# Correctness lives in references.yaml (`make verify`).\n"
+            + yaml.safe_dump(recorded, sort_keys=True))
+        typer.echo(f"\nwrote {GOLDEN_PATH.relative_to(REPO_ROOT)}")
+
+
 @app.command("readme")
 def readme():
     """Regenerate the catalogue table in README.md from catalogue.yaml."""
     catalogue = load_catalogue()
-    lines = ["| Part | System | Confidence | Print note |", "| --- | --- | --- | --- |"]
+    lines = ["| Part | System | Confidence | Licence | Print note |",
+             "| --- | --- | --- | --- | --- |"]
     for part in catalogue["parts"]:
         img = f"docs/img/{part['id'].replace('/', '_')}.png"
-        cell = f"![{part['name']}]({img})<br>{part['name']}" if (REPO_ROOT / img).exists() else part["name"]
-        lines.append(f"| {cell} | {part['system']} | {part['confidence']} | {part['print_note']} |")
+        cell = (f"![{part['name']}]({img})<br>{part['name']}"
+                if (REPO_ROOT / img).exists() else part["name"])
+        licence = part.get("license", "MIT")
+        note = " ".join(part["print_note"].split())
+        lines.append(f"| {cell} | {part['system']} | {part['confidence']} "
+                     f"| {licence} | {note} |")
     table = "\n".join(lines)
 
     readme_path = REPO_ROOT / "README.md"

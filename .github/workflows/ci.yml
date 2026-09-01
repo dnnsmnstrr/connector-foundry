@@ -29,8 +29,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Fetch reference sources
+        # Submodule-backed references (gridfinity, GoPro, openGrid) are
+        # already present from the checkout. This pulls the ones that are
+        # deliberately NOT vendored because their licences cannot be
+        # redistributed from an MIT repo — see references.yaml.
+        run: python tools/refcache.py
+
       - name: Render + validate whole catalogue
         run: pytest tests/ -v
+
+      - name: Reference + fit report
+        # Same checks pytest just ran, printed as the report so a failure
+        # shows the measured numbers and not just an assertion.
+        if: always()
+        run: python tools/verify.py
 
   web:
     runs-on: ubuntu-latest
@@ -39,6 +52,10 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The bundler reads vendor/ — the browser compiles the same
+          # upstream sources the CLI does.
+          submodules: recursive
 
       - uses: actions/setup-node@v4
         with:
