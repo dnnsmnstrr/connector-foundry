@@ -1,16 +1,16 @@
 // Bundles every .scad source the browser needs (BOSL2 + lib + parts +
 // assemblies) into one JSON blob, and copies catalogue.yaml alongside
 // it, so the app can fetch its whole virtual filesystem in one request
-// instead of one per file. Run before dev/build (see package.json).
+// instead of one per file. Run before dev/build (see package.json), and
+// re-run live by vite-plugin-scad-watch.mjs while `npm run dev` is up.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
-
-const SOURCE_DIRS = ["vendor/BOSL2", "lib", "parts", "assemblies"];
+export const REPO_ROOT = path.resolve(__dirname, "..", "..");
+export const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
+export const SOURCE_DIRS = ["vendor/BOSL2", "lib", "parts", "assemblies"];
 
 function walk(dir, out) {
   if (!fs.existsSync(dir)) return;
@@ -25,18 +25,26 @@ function walk(dir, out) {
   }
 }
 
-const bundle = {};
-for (const dir of SOURCE_DIRS) {
-  const files = [];
-  walk(path.join(REPO_ROOT, dir), files);
-  for (const file of files) {
-    const rel = path.relative(REPO_ROOT, file).split(path.sep).join("/");
-    bundle[rel] = fs.readFileSync(file, "utf8");
+export function syncScad() {
+  const bundle = {};
+  for (const dir of SOURCE_DIRS) {
+    const files = [];
+    walk(path.join(REPO_ROOT, dir), files);
+    for (const file of files) {
+      const rel = path.relative(REPO_ROOT, file).split(path.sep).join("/");
+      bundle[rel] = fs.readFileSync(file, "utf8");
+    }
   }
+
+  fs.mkdirSync(WEB_PUBLIC, { recursive: true });
+  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify(bundle));
+  fs.copyFileSync(path.join(REPO_ROOT, "catalogue.yaml"), path.join(WEB_PUBLIC, "catalogue.yaml"));
+
+  return Object.keys(bundle).length;
 }
 
-fs.mkdirSync(WEB_PUBLIC, { recursive: true });
-fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify(bundle));
-fs.copyFileSync(path.join(REPO_ROOT, "catalogue.yaml"), path.join(WEB_PUBLIC, "catalogue.yaml"));
-
-console.log(`sync-scad: bundled ${Object.keys(bundle).length} .scad files, copied catalogue.yaml`);
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isMain) {
+  const count = syncScad();
+  console.log(`sync-scad: bundled ${count} .scad files, copied catalogue.yaml`);
+}
