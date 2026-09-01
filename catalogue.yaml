@@ -9,6 +9,12 @@
 #                `make verify` re-proves the claim.
 #   parametric — a starting point. Verify against real hardware.
 #
+# options: for a parameter whose values are a fixed set, list them. The
+#   web app turns those into a dropdown instead of a free-text box, and
+#   the CLI rejects a value that is not on the list — so nobody has to
+#   remember that a board variant is spelled "lite" and its chamfers are
+#   spelled "Corners". A test holds `options` and `defaults` together.
+#
 # license: omitted means the repository's MIT licence. A part that calls
 #   into a vendored upstream carries that upstream's terms instead — see
 #   the README "Licensing" section. This field is not decoration: it is
@@ -217,16 +223,30 @@ parts:
     print_note: >-
       Grid face up, flat on the bed. A tile is exactly cells x 28mm, so
       boards butt against each other with no border. "full" is the
-      default; "lite" is 4mm, "heavy" is 13.8mm.
+      default; "lite" is 4mm, "heavy" is 13.8mm. The heavy tile is two
+      halves back to back with a deliberate gap between them, so it
+      contains one sealed cavity per cell — expected, not a modelling
+      error, but it does mean the interior is unreachable once printed.
     defaults:
       cells_x: 2
       cells_y: 2
       variant: full
+      chamfers: "None"
+      connector_holes: false
+      screw_mounting: "None"
+    options:
+      variant: [full, lite, heavy]
+      # Spelling and capitalisation are upstream's, passed through
+      # verbatim — openGrid.scad compares these strings directly.
+      chamfers: ["None", Corners, Everywhere]
+      screw_mounting: ["None", Corners, Everywhere, "By Row and Column"]
     variants:
       - name: lite-1x1
         params: { cells_x: 1, cells_y: 1, variant: lite }
+      - name: heavy
+        params: { variant: heavy }
       - name: full-2x2-finished
-        params: { chamfers: Corners, connector_holes: true }
+        params: { chamfers: Corners, connector_holes: true, screw_mounting: Corners }
 
   - id: opengrid/snap
     system: openGrid
@@ -247,6 +267,8 @@ parts:
     defaults:
       variant: full
       directional: false
+    options:
+      variant: [full, lite]
     variants:
       - name: lite
         params: { variant: lite }

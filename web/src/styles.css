@@ -180,12 +180,30 @@ html, body, #root {
   color: #c9cacd;
 }
 
-.field input[type="text"], .field input[type="number"] {
+.field input[type="text"], .field input[type="number"], .field select {
   background: #1c1d20;
   border: 1px solid #33343a;
   color: #e6e6e6;
   padding: 0.4rem 0.5rem;
   border-radius: 4px;
+}
+
+.field select {
+  /* Without this the control renders at the platform default height and
+     sits a couple of pixels taller than the text inputs beside it. */
+  font: inherit;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #8b8c91 50%),
+    linear-gradient(135deg, #8b8c91 50%, transparent 50%);
+  background-position: right 0.85rem center, right 0.6rem center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 1.6rem;
+}
+
+.field select:focus-visible {
+  outline: 2px solid #4a63d8;
+  outline-offset: 1px;
 }
 
 .field-checkbox {

@@ -35,7 +35,25 @@ function matchesSearch(part, query) {
   );
 }
 
-function ParamField({ name, value, onChange }) {
+function ParamField({ name, value, options, onChange }) {
+  // A parameter with a fixed set of values is a dropdown, not a text
+  // box: these are strings OpenSCAD compares literally, so a typo or the
+  // wrong capitalisation silently renders the fallback branch rather
+  // than failing. The list comes from catalogue.yaml.
+  if (options) {
+    return (
+      <label className="field">
+        {name}
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
   if (typeof value === "boolean") {
     return (
       <label className="field field-checkbox">
@@ -175,6 +193,7 @@ export default function App() {
                     key={key}
                     name={key}
                     value={value}
+                    options={selected.options?.[key]}
                     onChange={(next) => setParams((p) => ({ ...p, [key]: next }))}
                   />
                 ))}

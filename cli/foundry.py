@@ -91,8 +91,24 @@ def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> 
         raise typer.Exit(1)
 
 
+def check_options(part: dict, params: dict[str, object]) -> None:
+    """Reject a value outside a parameter's declared option list.
+
+    OpenSCAD compares these strings literally, so a typo does not fail —
+    it quietly takes the fallback branch and renders something plausible
+    and wrong. Better to stop here and name the alternatives.
+    """
+    for key, allowed in part.get("options", {}).items():
+        value = params.get(key)
+        if value is not None and value not in allowed:
+            raise typer.BadParameter(
+                f"{part['id']}: {key}={value!r} is not one of "
+                + ", ".join(repr(a) for a in allowed))
+
+
 def render_part(part: dict, overrides: dict[str, object], out_dir: Path) -> Path:
     params = {**part.get("defaults", {}), **overrides}
+    check_options(part, params)
     call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
     scad_source = REPO_ROOT / part["file"]
     stub = out_dir / f".{part['id'].replace('/', '_')}_stub.scad"

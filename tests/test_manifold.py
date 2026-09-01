@@ -13,6 +13,13 @@ reasons no one can act on.
 What is worth asserting is the thing OpenSCAD will happily let through:
 geometry that renders fine but arrives as several disconnected lumps —
 a part that falls apart on the build plate.
+
+"Disconnected" has to mean disconnected *material*, though. A sealed
+internal cavity is a second shell that touches nothing else, so it
+splits out as its own component — with negative volume, because it is
+wound inward. openGrid's heavy tile has four of them, one per cell,
+where its two back-to-back halves leave a deliberate gap. Counting
+those as separate bodies would fail a part that is perfectly sound.
 """
 import sys
 from pathlib import Path
@@ -41,9 +48,13 @@ def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
     assert mesh.is_winding_consistent, f"{part['id']} [{tag}] has inconsistent winding"
     assert mesh.volume > 0, f"{part['id']} [{tag}] has non-positive volume"
 
-    bodies = [b for b in mesh.split(only_watertight=False)
-              if b.area > MIN_BODY_AREA_MM2]
-    assert len(bodies) == 1, (
-        f"{part['id']} [{tag}] rendered {len(bodies)} disconnected bodies "
-        f"(areas {sorted(round(b.area, 2) for b in bodies)}), expected 1 — "
-        f"this part would print as separate pieces")
+    components = [b for b in mesh.split(only_watertight=False)
+                  if b.area > MIN_BODY_AREA_MM2]
+    solids = [b for b in components if b.volume > 0]
+    cavities = len(components) - len(solids)
+
+    assert len(solids) == 1, (
+        f"{part['id']} [{tag}] rendered {len(solids)} disconnected solids "
+        f"(volumes {sorted(round(b.volume, 2) for b in solids)}), expected 1 — "
+        f"this part would print as separate pieces"
+        + (f" ({cavities} sealed internal cavities, which are fine)" if cavities else ""))

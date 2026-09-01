@@ -160,7 +160,13 @@ opengrid/board:
     - 56.0
     - 56.0
     - 6.8
-    volume_mm3: 4429.13
+    volume_mm3: 4293.86
+  heavy:
+    bbox:
+    - 56.0
+    - 56.0
+    - 13.8
+    volume_mm3: 9902.13
   lite-1x1:
     bbox:
     - 28.0
