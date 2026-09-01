@@ -24,6 +24,17 @@ function groupBySystem(parts) {
   return groups;
 }
 
+function matchesSearch(part, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    part.name.toLowerCase().includes(q) ||
+    part.system.toLowerCase().includes(q) ||
+    part.id.toLowerCase().includes(q) ||
+    part.confidence.toLowerCase().includes(q)
+  );
+}
+
 function ParamField({ name, value, onChange }) {
   if (typeof value === "boolean") {
     return (
@@ -56,36 +67,45 @@ function ParamField({ name, value, onChange }) {
 
 export default function App() {
   const { parts, error } = useCatalogue();
+  const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [params, setParams] = useState({});
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
 
-  const groups = useMemo(() => (parts ? groupBySystem(parts) : new Map()), [parts]);
+  const filteredParts = useMemo(
+    () => (parts ? parts.filter((p) => matchesSearch(p, search)) : []),
+    [parts, search],
+  );
+  const groups = useMemo(() => groupBySystem(filteredParts), [filteredParts]);
   const selected = useMemo(() => parts?.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
 
   useEffect(() => {
     if (parts && !selectedId) setSelectedId(parts[0].id);
   }, [parts, selectedId]);
 
-  useEffect(() => {
-    if (selected) setParams({ ...selected.defaults });
-  }, [selected]);
-
-  async function doRender() {
+  const doRender = async (renderParams) => {
     if (!selected) return;
     setStatus("rendering");
     setRenderError(null);
     try {
-      const buffer = await renderPart({ scadFile: selected.file, module: selected.module, params });
+      const buffer = await renderPart({ scadFile: selected.file, module: selected.module, params: renderParams });
       setStlBuffer(buffer);
       setStatus("done");
     } catch (err) {
       setRenderError(err.message);
       setStatus("error");
     }
-  }
+  };
+
+  useEffect(() => {
+    if (!selected) return;
+    const defaults = { ...selected.defaults };
+    setParams(defaults);
+    doRender(defaults);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   function downloadStl() {
     if (!stlBuffer) return;
@@ -106,6 +126,14 @@ export default function App() {
       <aside className="sidebar">
         <h1>Connector Foundry</h1>
         <p className="tagline">Printable mounting interfaces, compiled in your browser.</p>
+        <input
+          type="search"
+          className="search-input"
+          placeholder="Search parts…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {filteredParts.length === 0 && <p className="muted no-results">No parts match "{search}".</p>}
         {[...groups.entries()].map(([system, systemParts]) => (
           <div key={system} className="system-group">
             <h2>{system}</h2>
@@ -134,7 +162,7 @@ export default function App() {
                 <h2>{selected.name}</h2>
                 <p className="print-note">{selected.print_note}</p>
               </div>
-              <button className="render-button" onClick={doRender} disabled={status === "rendering"}>
+              <button className="render-button" onClick={() => doRender(params)} disabled={status === "rendering"}>
                 {status === "rendering" ? "Rendering…" : "Render"}
               </button>
             </header>

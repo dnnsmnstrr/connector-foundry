@@ -38,6 +38,30 @@ html, body, #root {
   margin: 0 0 1.5rem;
 }
 
+.search-input {
+  width: 100%;
+  background: #1c1d20;
+  border: 1px solid #33343a;
+  color: #e6e6e6;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.search-input::placeholder {
+  color: #6d6e73;
+}
+
+.muted {
+  color: #6d6e73;
+}
+
+.no-results {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.1rem;
+}
+
 .system-group h2 {
   font-size: 0.75rem;
   text-transform: uppercase;
