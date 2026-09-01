@@ -7,7 +7,7 @@ function useCatalogue() {
   const [parts, setParts] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    fetch("/catalogue.yaml")
+    fetch(`${import.meta.env.BASE_URL}catalogue.yaml`)
       .then((res) => res.text())
       .then((text) => setParts(yaml.load(text).parts))
       .catch((err) => setError(err.message));

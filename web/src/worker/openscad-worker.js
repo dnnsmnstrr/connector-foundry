@@ -11,7 +11,7 @@ let bundlePromise = null;
 
 function getBundle() {
   if (!bundlePromise) {
-    bundlePromise = fetch("/scad-bundle.json").then((res) => res.json());
+    bundlePromise = fetch(`${import.meta.env.BASE_URL}scad-bundle.json`).then((res) => res.json());
   }
   return bundlePromise;
 }
