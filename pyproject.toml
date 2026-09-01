@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "rtree>=1.0"]
 
 [project.scripts]
 foundry = "foundry:app"
