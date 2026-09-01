@@ -58,3 +58,45 @@ parts:
     golden:
       bbox: [15.0, 15.4, 19.0]
       volume_mm3: 2779.49
+
+  - id: opengrid/board
+    system: openGrid
+    name: Mounting board
+    file: parts/opengrid/board.scad
+    module: og_board
+    confidence: exact
+    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; geometry is an original implementation — see README Licensing"
+    print_note: Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet.
+    defaults:
+      cells_x: 2
+      cells_y: 2
+      variant: full
+    golden:
+      bbox: [57.6, 57.6, 6.8]
+      volume_mm3: 4520.60
+    variants:
+      - name: lite-1x1
+        params: { cells_x: 1, cells_y: 1, variant: lite }
+        golden:
+          bbox: [29.6, 29.6, 4.0]
+          volume_mm3: 733.82
+
+  - id: opengrid/snap
+    system: openGrid
+    name: Cell snap
+    file: parts/opengrid/snap.scad
+    module: og_snap
+    confidence: exact
+    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; the snap clip itself is an original design — see README Licensing"
+    print_note: Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed.
+    defaults:
+      board_t: 6.8
+    golden:
+      bbox: [26.7, 26.7, 11.25]
+      volume_mm3: 6595.69
+    variants:
+      - name: lite-board
+        params: { board_t: 4.0 }
+        golden:
+          bbox: [26.7, 26.7, 8.45]
+          volume_mm3: 5049.39

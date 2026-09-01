@@ -71,6 +71,8 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | Print as-is, functional face (feet) down. No supports needed. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
+| ![Mounting board](docs/img/opengrid_board.png)<br>Mounting board | openGrid | exact | Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet. |
+| ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed. |
 <!-- CATALOGUE:END -->
 
 ## Licensing
