@@ -12,7 +12,7 @@
 // Bolted/snap flanges are themselves attachable(): they consume the
 // parent/child's "mount" anchor and expose their own "mount" anchor on
 // the far face, so composition keeps working through a joint.
-include <BOSL2/std.scad>
+include <../vendor/BOSL2/std.scad>
 include <constants.scad>
 include <slots.scad>
 include <util.scad>

@@ -11,7 +11,7 @@
 //   just points) — it is a modelling convention, kept by only exposing
 //   one attachment per assembly step and documenting it in each part's
 //   header comment.
-include <BOSL2/std.scad>
+include <../vendor/BOSL2/std.scad>
 
 // Standard top-mount anchor, at height `h` above the part's local origin
 // (which is itself centered per attachable() convention).

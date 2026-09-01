@@ -4,7 +4,7 @@
 // Profile numbers adapted from gridfinity-rebuilt-openscad
 // (kennetek, MIT License) — see lib/constants.scad for the sourced
 // values and lib/joints.scad for how this composes with other parts.
-include <BOSL2/std.scad>
+include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 include <../../lib/util.scad>

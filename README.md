@@ -29,7 +29,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest tests/
 ```
 
-For the web app, see `web/README.md`.
+The web app (`cd web && npm install && npm run dev`) is the primary way most people will use
+this: pick a part, tweak parameters, preview it, export an STL — no local OpenSCAD install
+needed. It compiles the exact same `parts/`/`lib/` sources via `openscad-wasm` in a Web Worker.
+See `web/README.md` for how it's wired up.
 
 ## Slot convention
 

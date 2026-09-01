@@ -1,5 +1,5 @@
 // Shared helpers: hole patterns, profile sweeps, print-orientation notes.
-include <BOSL2/std.scad>
+include <../vendor/BOSL2/std.scad>
 
 // Runs children once at each of 4 corners of a [x,y]-centered rectangle,
 // offset inward from the full size by `inset` on each axis.

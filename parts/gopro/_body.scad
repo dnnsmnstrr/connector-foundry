@@ -6,7 +6,7 @@
 //
 // Functional face (the GoPro-standard interface) is BOTTOM: prong tips
 // point down, hinge block and "mount" anchor are on top.
-include <BOSL2/std.scad>
+include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 include <../../lib/util.scad>

@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +19,6 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOGUE_PATH = REPO_ROOT / "catalogue.yaml"
-VENDOR_DIR = REPO_ROOT / "vendor"
 
 
 def load_catalogue() -> dict:
@@ -48,8 +46,7 @@ def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> 
     for key, value in params.items():
         cmd += ["-D", f"{key}={openscad_value(value)}"]
     cmd.append(str(scad_file))
-    result = subprocess.run(cmd, cwd=REPO_ROOT, env={**os.environ, "OPENSCADPATH": str(VENDOR_DIR)},
-                             capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)
         raise typer.Exit(1)
@@ -131,8 +128,7 @@ def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(
         png_path = out / f"{part['id'].replace('/', '_')}.png"
         cmd = ["openscad", "--backend=Manifold", "--autocenter", "--viewall",
                "--colorscheme=Tomorrow", "--imgsize=640,480", "-o", str(png_path), str(stub)]
-        result = subprocess.run(cmd, cwd=REPO_ROOT, env={**os.environ, "OPENSCADPATH": str(VENDOR_DIR)},
-                                 capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
         stub.unlink()
         if result.returncode != 0:
             typer.echo(result.stderr, err=True)

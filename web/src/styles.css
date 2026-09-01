@@ -1,0 +1,208 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #111214;
+  color: #e6e6e6;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  background: #17181b;
+  border-right: 1px solid #2a2b2e;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.sidebar h1 {
+  font-size: 1.2rem;
+  margin: 0 0 0.25rem;
+}
+
+.tagline {
+  color: #9a9ba0;
+  font-size: 0.85rem;
+  margin: 0 0 1.5rem;
+}
+
+.system-group h2 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7d7e83;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.system-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.part-button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #d8d9db;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.part-button:hover {
+  background: #202126;
+}
+
+.part-button.active {
+  background: #24304a;
+  border-color: #3a5aa0;
+}
+
+.badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.badge-exact {
+  background: #1f4d33;
+  color: #7fe0a8;
+}
+
+.badge-parametric {
+  background: #4d3d1f;
+  color: #e0c07f;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #2a2b2e;
+}
+
+.part-header h2 {
+  margin: 0 0 0.25rem;
+}
+
+.print-note {
+  margin: 0;
+  color: #9a9ba0;
+  font-size: 0.85rem;
+  max-width: 60ch;
+}
+
+.render-button, .download-button {
+  background: #3a5aa0;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.render-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.workspace-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.params-panel {
+  padding: 1.25rem 1.5rem;
+  border-right: 1px solid #2a2b2e;
+  overflow-y: auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.9rem;
+  color: #c9cacd;
+}
+
+.field input[type="text"], .field input[type="number"] {
+  background: #1c1d20;
+  border: 1px solid #33343a;
+  color: #e6e6e6;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+}
+
+.field-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+
+.source-note {
+  font-size: 0.75rem;
+  color: #6d6e73;
+  margin-top: 1.5rem;
+}
+
+.error-text {
+  color: #e07f7f;
+  font-size: 0.82rem;
+}
+
+.viewer-panel {
+  position: relative;
+  min-height: 0;
+}
+
+.viewer-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6d6e73;
+}
+
+.download-button {
+  position: absolute;
+  bottom: 1.25rem;
+  right: 1.25rem;
+}
+
+.loading-screen, .error-screen {
+  display: flex;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  color: #9a9ba0;
+}
