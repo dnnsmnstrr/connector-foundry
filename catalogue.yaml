@@ -90,3 +90,74 @@ parts:
     golden:
       bbox: [31.4, 36.0, 7.4]
       volume_mm3: 4116.96
+
+  - id: extrusion2020/tab
+    system: 2020 Extrusion
+    name: T-slot tab (hammer-head)
+    file: parts/extrusion2020/tab.scad
+    module: ex_tab
+    confidence: parametric
+    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. tab_len <= 6mm (the default) drops into the slot face-first and twists 90 degrees to lock, anywhere along the rail; longer heads can't tilt through the 6.2mm mouth and must be fed in endwise from an open end of the extrusion."
+    defaults: {}
+    golden:
+      bbox: [6.0, 10.9, 13.65]
+      volume_mm3: 559.22
+    variants:
+      - name: end-feed-length
+        params: { tab_len: 16 }
+        golden:
+          bbox: [16.0, 10.9, 13.65]
+          volume_mm3: 1148.01
+
+  - id: extrusion2020/clip
+    system: 2020 Extrusion
+    name: Snap-in clip
+    file: parts/extrusion2020/clip.scad
+    module: ex_clip
+    confidence: parametric
+    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Push straight into the slot mid-rail, no end access needed; the legs flex through EX_SLOT_OPEN and the barbs spring out to grip EX_CHANNEL_W. Print in a flexible-enough filament (PETG/nylon) — stiff PLA legs may snap."
+    defaults: {}
+    golden:
+      bbox: [8.1, 7.0, 15.65]
+      volume_mm3: 259.03
+
+  - id: extrusion2020/endcap
+    system: 2020 Extrusion
+    name: End-face plate
+    file: parts/extrusion2020/endcap.scad
+    module: ex_endcap
+    confidence: parametric
+    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Locating cross prints face-down as oriented; the plate overhangs the cross at its four corners, so add a brim or light support there."
+    defaults: {}
+    golden:
+      bbox: [20.0, 20.0, 5.0]
+      volume_mm3: 1447.03
+
+  - id: extrusion2020/corner-bracket
+    system: 2020 Extrusion
+    name: Corner bracket
+    file: parts/extrusion2020/corner-bracket.scad
+    module: ex_corner_bracket
+    confidence: parametric
+    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Print with the base flange down as oriented; the upright flange is a self-supporting 90 degree wall. Bore centers assume the bracket sits centered on each extrusion face — check against your T-nut/bore spacing."
+    defaults: {}
+    golden:
+      bbox: [20.0, 20.0, 24.0]
+      volume_mm3: 3014.78
+
+  - id: extrusion2020/c-clip
+    system: 2020 Extrusion
+    name: Profile C-clip
+    file: parts/extrusion2020/c-clip.scad
+    module: ex_c_clip
+    confidence: parametric
+    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Snaps over the OUTSIDE of the extrusion through its open side; print with the ring axis vertical as oriented (zero overhang either way up). Confirm your printer's flex/tolerance can open the gap without cracking."
+    defaults: {}
+    golden:
+      bbox: [26.3, 26.3, 10.0]
+      volume_mm3: 2556.0
