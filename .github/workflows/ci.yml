@@ -49,7 +49,15 @@ jobs:
           # which an AppImage needs to mount itself.
           ./openscad.AppImage --appimage-extract > /dev/null
           sudo mv squashfs-root /opt/openscad
-          sudo ln -s /opt/openscad/AppRun /usr/local/bin/openscad
+
+          # A wrapper, not a symlink to AppRun: AppRun locates its Qt
+          # hook scripts relative to $0, so through a symlink it looks
+          # for them in /usr/local/bin and exits.
+          sudo tee /usr/local/bin/openscad > /dev/null <<'EOF'
+          #!/bin/sh
+          exec /opt/openscad/AppRun "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/openscad
           openscad --version
 
       - uses: actions/setup-python@v5
