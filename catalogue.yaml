@@ -58,3 +58,35 @@ parts:
     golden:
       bbox: [15.0, 15.4, 19.0]
       volume_mm3: 2779.49
+
+  - id: deckmate/outie
+    system: DeckMate
+    name: Dovetail rail (Outie)
+    file: parts/deckmate/outie.scad
+    module: deckmate_outie
+    confidence: parametric
+    source: "No dimensioned drawing published — prototype defaults, see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Prints tip-down, self-supporting; end_stop adds a tab at one end to keep an Innie from sliding off."
+    defaults: {}
+    golden:
+      bbox: [26.0, 36.0, 5.0]
+      volume_mm3: 4140.0
+    variants:
+      - name: with-end-stop
+        params: { end_stop: true }
+        golden:
+          bbox: [26.0, 36.0, 8.0]
+          volume_mm3: 4419.0
+
+  - id: deckmate/innie
+    system: DeckMate
+    name: Dovetail channel (Innie)
+    file: parts/deckmate/innie.scad
+    module: deckmate_innie
+    confidence: parametric
+    source: "No dimensioned drawing published — prototype defaults, see lib/constants.scad"
+    print_note: "Unmeasured — verify against your hardware before trusting the fit. Print mouth-down as oriented; channel is a through-slot, open at both ends for lengthwise assembly onto the Outie."
+    defaults: {}
+    golden:
+      bbox: [31.4, 36.0, 7.4]
+      volume_mm3: 4116.96

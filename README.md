@@ -71,6 +71,8 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | Print as-is, functional face (feet) down. No supports needed. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
+| ![Dovetail rail (Outie)](docs/img/deckmate_outie.png)<br>Dovetail rail (Outie) | DeckMate | parametric | Unmeasured — verify against your hardware before trusting the fit. Prints tip-down, self-supporting; end_stop adds a tab at one end to keep an Innie from sliding off. |
+| ![Dovetail channel (Innie)](docs/img/deckmate_innie.png)<br>Dovetail channel (Innie) | DeckMate | parametric | Unmeasured — verify against your hardware before trusting the fit. Print mouth-down as oriented; channel is a through-slot, open at both ends for lengthwise assembly onto the Outie. |
 <!-- CATALOGUE:END -->
 
 ## Licensing
