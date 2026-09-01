@@ -100,3 +100,47 @@ parts:
         golden:
           bbox: [26.7, 26.7, 8.45]
           volume_mm3: 5049.39
+
+  - id: basics/plate
+    system: Basics
+    name: Flat plate
+    file: parts/basics/plate.scad
+    module: basics_plate
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec"
+    print_note: Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom.
+    defaults:
+      w: 40
+      d: 40
+      t: 4
+      r: 3
+    golden:
+      bbox: [40.0, 40.0, 4.0]
+      volume_mm3: 6364.00
+    variants:
+      - name: with-bolts
+        params: { bolts: true }
+        golden:
+          bbox: [40.0, 40.0, 4.0]
+          volume_mm3: 6196.35
+
+  - id: basics/post
+    system: Basics
+    name: Round post
+    file: parts/basics/post.scad
+    module: basics_post
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec"
+    print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
+    defaults:
+      dia: 10
+      h: 20
+    golden:
+      bbox: [10.0, 10.0, 20.0]
+      volume_mm3: 1530.73
+    variants:
+      - name: bored
+        params: { bore: 4 }
+        golden:
+          bbox: [10.0, 10.0, 20.0]
+          volume_mm3: 1247.70

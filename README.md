@@ -73,6 +73,8 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
 | ![Mounting board](docs/img/opengrid_board.png)<br>Mounting board | openGrid | exact | Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet. |
 | ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed. |
+| ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom. |
+| ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | Stands upright on its "bot" anchor (flat end down), no supports needed. |
 <!-- CATALOGUE:END -->
 
 ## Licensing
