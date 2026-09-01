@@ -78,6 +78,10 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | ![End-face plate](docs/img/extrusion2020_endcap.png)<br>End-face plate | 2020 Extrusion | parametric | Unmeasured — verify against your hardware before trusting the fit. Locating cross prints face-down as oriented; the plate overhangs the cross at its four corners, so add a brim or light support there. |
 | ![Corner bracket](docs/img/extrusion2020_corner-bracket.png)<br>Corner bracket | 2020 Extrusion | parametric | Unmeasured — verify against your hardware before trusting the fit. Print with the base flange down as oriented; the upright flange is a self-supporting 90 degree wall. Bore centers assume the bracket sits centered on each extrusion face — check against your T-nut/bore spacing. |
 | ![Profile C-clip](docs/img/extrusion2020_c-clip.png)<br>Profile C-clip | 2020 Extrusion | parametric | Unmeasured — verify against your hardware before trusting the fit. Snaps over the OUTSIDE of the extrusion through its open side; print with the ring axis vertical as oriented (zero overhang either way up). Confirm your printer's flex/tolerance can open the gap without cracking. |
+| ![Mounting board](docs/img/opengrid_board.png)<br>Mounting board | openGrid | exact | Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet. |
+| ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed. |
+| ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom. |
+| ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | Stands upright on its "bot" anchor (flat end down), no supports needed. |
 <!-- CATALOGUE:END -->
 
 ## Licensing

@@ -161,3 +161,89 @@ parts:
     golden:
       bbox: [26.3, 26.3, 10.0]
       volume_mm3: 2556.0
+
+  - id: opengrid/board
+    system: openGrid
+    name: Mounting board
+    file: parts/opengrid/board.scad
+    module: og_board
+    confidence: exact
+    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; geometry is an original implementation — see README Licensing"
+    print_note: Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet.
+    defaults:
+      cells_x: 2
+      cells_y: 2
+      variant: full
+    golden:
+      bbox: [57.6, 57.6, 6.8]
+      volume_mm3: 4520.60
+    variants:
+      - name: lite-1x1
+        params: { cells_x: 1, cells_y: 1, variant: lite }
+        golden:
+          bbox: [29.6, 29.6, 4.0]
+          volume_mm3: 733.82
+
+  - id: opengrid/snap
+    system: openGrid
+    name: Cell snap
+    file: parts/opengrid/snap.scad
+    module: og_snap
+    confidence: exact
+    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; the snap clip itself is an original design — see README Licensing"
+    print_note: Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed.
+    defaults:
+      board_t: 6.8
+    golden:
+      bbox: [26.7, 26.7, 11.25]
+      volume_mm3: 6595.69
+    variants:
+      - name: lite-board
+        params: { board_t: 4.0 }
+        golden:
+          bbox: [26.7, 26.7, 8.45]
+          volume_mm3: 5049.39
+
+  - id: basics/plate
+    system: Basics
+    name: Flat plate
+    file: parts/basics/plate.scad
+    module: basics_plate
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec"
+    print_note: Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom.
+    defaults:
+      w: 40
+      d: 40
+      t: 4
+      r: 3
+    golden:
+      bbox: [40.0, 40.0, 4.0]
+      volume_mm3: 6364.00
+    variants:
+      - name: with-bolts
+        params: { bolts: true }
+        golden:
+          bbox: [40.0, 40.0, 4.0]
+          volume_mm3: 6196.35
+
+  - id: basics/post
+    system: Basics
+    name: Round post
+    file: parts/basics/post.scad
+    module: basics_post
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec"
+    print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
+    defaults:
+      dia: 10
+      h: 20
+    golden:
+      bbox: [10.0, 10.0, 20.0]
+      volume_mm3: 1530.73
+    variants:
+      - name: bored
+        params: { bore: 4 }
+        golden:
+          bbox: [10.0, 10.0, 20.0]
+          volume_mm3: 1247.70
