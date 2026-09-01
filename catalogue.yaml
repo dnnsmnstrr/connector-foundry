@@ -1,0 +1,34 @@
+# Single source of truth for what exists. The CLI, the tests, and the
+# generated README all read this file — adding a part means adding a
+# .scad file and one entry here.
+#
+# confidence: exact = published spec or reference implementation.
+#             parametric = a starting point; verify against real hardware.
+parts:
+  - id: gridfinity/base
+    system: Gridfinity
+    name: Bin base
+    file: parts/gridfinity/base.scad
+    module: gf_base
+    confidence: exact
+    source: "gridfinity-rebuilt-openscad (kennetek, MIT)"
+    print_note: Print as-is, functional face (feet) down. No supports needed.
+    defaults:
+      gx: 1
+      gy: 1
+      magnets: false
+      screws: false
+    golden:
+      bbox: [41.5, 41.5, 7.0]
+      volume_mm3: 9076.45
+    variants:
+      - name: with-magnets
+        params: { magnets: true }
+        golden:
+          bbox: [41.5, 41.5, 7.0]
+          volume_mm3: 8755.41
+      - name: with-magnets-and-screws
+        params: { magnets: true, screws: true }
+        golden:
+          bbox: [41.5, 41.5, 7.0]
+          volume_mm3: 8685.39

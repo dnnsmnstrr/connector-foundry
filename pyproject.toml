@@ -1,0 +1,26 @@
+[project]
+name = "connector-foundry"
+version = "0.1.0"
+description = "Parametric, printable mounting interfaces (Gridfinity, openGrid, GoPro, DeckMate, 2020 extrusion) in OpenSCAD"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.12",
+    "pyyaml>=6.0",
+    "trimesh>=4.0",
+    "numpy>=1.26",
+    "networkx>=3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+foundry = "foundry:app"
+
+[tool.setuptools]
+py-modules = ["foundry"]
+package-dir = { "" = "cli" }
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
