@@ -66,6 +66,12 @@ GP_BOLT_R       = 5.2 / 2; // M5 clearance
 GP_WIDTH_2PRONG = 9.2;  // two-prong (male) overall width
 GP_WIDTH_3PRONG = 15.4; // three-prong (female) overall width
 
+// Not part of the interchange spec (only thickness/pitch/width matter for
+// the buckle fit) — these are shape choices, free to override.
+GP_ARM_WIDTH = 2 * GP_END_R; // arm width, same for male and female
+GP_PRONG_LEN = 13;           // prong length below the hinge block
+GP_HINGE_T   = 6;            // hinge block thickness, holds the pivot bolt hole
+
 // ============================================================
 // DeckMate — parametric, unmeasured
 // No dimensioned drawing published. Prototype defaults, all editable.

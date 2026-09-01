@@ -66,6 +66,8 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | Part | System | Confidence | Print note |
 | --- | --- | --- | --- |
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | Print as-is, functional face (feet) down. No supports needed. |
+| ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
+| ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | Prongs face down for slot consistency; use a brim for first-layer adhesion. |
 <!-- CATALOGUE:END -->
 
 ## Licensing
