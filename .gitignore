@@ -10,3 +10,4 @@ web/dist/
 web/public/scad-bundle.json
 web/public/catalogue.yaml
 .DS_Store
+.claude/worktrees/
