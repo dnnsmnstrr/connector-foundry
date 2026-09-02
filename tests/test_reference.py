@@ -65,11 +65,17 @@ def test_every_exact_part_has_a_reference():
       (parts/bitbeam/pin.scad, shaft.scad). If one ever turns up, this
       exemption is what should get replaced with a real shape/fit
       check, not kept.
+    - "the manufacturer's own model": the part IS the reference — a
+      vendor's published mesh imported unmodified (parts/deckmate/). A
+      shape check would compare the file against itself; what can go
+      wrong is the wrapper's declared size and anchors, which
+      tests/test_anchors.py and tests/test_deckmate.py cover.
     """
     catalogue = yaml.safe_load((refcache.REPO_ROOT / "catalogue.yaml").read_text())
     checked = {c.get("part") for c in
                CONFIG.get("shape_checks", []) + CONFIG.get("fit_checks", [])}
-    exempt_phrases = ("not tied to an external spec", "no reference geometry to check against")
+    exempt_phrases = ("not tied to an external spec", "no reference geometry to check against",
+                      "the manufacturer's own model")
 
     unchecked = [
         part["id"] for part in catalogue["parts"]

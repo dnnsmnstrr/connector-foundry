@@ -33,9 +33,36 @@ export const ROOT_ID = "root";
 
 // Every way two parts can mate through their mount slots — see
 // lib/joints.scad and the root README's "Joints". "fused" is a plain
-// attach(); the rest add flanges (emitJointChild) and so each start a
-// new printable body (bodyTags).
-export const JOINTS = ["fused", "bolted", "snap", "pin"];
+// attach(); the rest add flanges (emitJointChild, emitScrewedChild) and
+// so each start a new printable body (bodyTags).
+export const JOINTS = ["fused", "bolted", "snap", "pin", "screwed"];
+
+export const JOINT_LABELS = {
+  fused: "fused",
+  bolted: "bolted",
+  snap: "snap",
+  pin: "pin",
+  screwed: "screwed (DeckMate holes)",
+};
+
+// The generated flange for each screw pattern a catalogue part can
+// declare (`screw_pattern`) — the flange goes on the side of a "screwed"
+// joint that has no holes of its own; see lib/joints.scad.
+const SCREW_FLANGES = { deckmate: "deckmate_screw_flange" };
+
+export function hasScrewPattern(part) {
+  return Boolean(part?.screw_pattern && SCREW_FLANGES[part.screw_pattern]);
+}
+
+// "screwed" needs holes on at least one side of the seam.
+export function screwedApplies(parentPart, childPart) {
+  return hasScrewPattern(parentPart) || hasScrewPattern(childPart);
+}
+
+// The joints offered for a child under a given parent.
+export function jointsFor(parentPart, childPart) {
+  return JOINTS.filter((joint) => joint !== "screwed" || screwedApplies(parentPart, childPart));
+}
 
 export function createAssembly(rootPartId, rootParams) {
   return { root: { id: ROOT_ID, partId: rootPartId, params: { ...rootParams } }, nodes: [] };
@@ -235,8 +262,65 @@ function emitChildren(assembly, partsById, nodeId, hide, indent) {
   return childrenOf(assembly, nodeId)
     .map((child) => (child.joint === "fused"
       ? emitFusedChild(assembly, partsById, child, hide, indent)
-      : emitJointChild(assembly, partsById, child, hide, indent)))
+      : child.joint === "screwed"
+        ? emitScrewedChild(assembly, partsById, child, hide, indent)
+        : emitJointChild(assembly, partsById, child, hide, indent)))
     .join("\n");
+}
+
+// A "screwed" child: one flange at most, on whichever side of the seam
+// has no screw holes of its own, fused to THAT side's body; the seam is
+// the body boundary. Three shapes (see lib/joints.scad's header):
+//   child has the pattern   — flange fused to the parent via "mount",
+//                             child screws onto the flange's "seat"
+//   parent has the pattern  — flange belongs to the child's body, its
+//                             "seat" on the parent's holes, child on its
+//                             "mount"
+//   both have it            — no flange; a plain attach with a body
+//                             boundary at the seam (Universal + Outie)
+// The flange's "mount"/"seat" and every DeckMate part's own anchors all
+// sit at the hole pattern's reference point, so hole lands on hole by
+// construction — tests/test_deckmate.py renders each of these shapes
+// and probes both sides of the seam. A "screwed" joint between two parts
+// with no pattern at all (the UI doesn't offer it) gets the first shape:
+// a flange whose bores face nothing, harmless.
+function emitScrewedChild(assembly, partsById, child, hide, indent) {
+  const childPart = partsById.get(child.partId);
+  const parentPart = partsById.get(getNode(assembly, child.parentId).partId);
+  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+  const overlap = overlapArg(child);
+  const pattern = childPart.screw_pattern ?? parentPart.screw_pattern ?? "deckmate";
+  const flange = SCREW_FLANGES[pattern] ?? SCREW_FLANGES.deckmate;
+  const childHas = hasScrewPattern(childPart);
+  const parentHas = hasScrewPattern(parentPart);
+  const hidden = (flag) => (flag ? "hide_this() " : "");
+
+  // `attachTo` + the child call + its own subtree, hidden or not, with
+  // the subtree's closing brace at `ind`.
+  const childUnit = (attachTo, unitHide, ind) => {
+    const grandkids = emitChildren(assembly, partsById, child.id, unitHide, ind + "    ");
+    const body = grandkids ? ` {\n${grandkids}\n${ind}}` : ";";
+    return `${attachTo} ${hidden(unitHide)}${call}${body}`;
+  };
+
+  if (childHas && parentHas) {
+    return dispatchBlock(child.id,
+      (unitHide) => childUnit(`attach("${child.slotName}", "${child.childAnchor}"${overlap})`, unitHide, indent + "    "),
+      indent);
+  }
+  if (parentHas) {
+    return dispatchBlock(child.id,
+      (unitHide) => `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() `
+        + childUnit(`attach("mount", "${child.childAnchor}"${overlap})`, unitHide, indent + "    "),
+      indent);
+  }
+  return [
+    `${indent}attach("${child.slotName}", "mount") ${hidden(hide)}${flange}() {`,
+    dispatchBlock(child.id,
+      (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${overlap})`, unitHide, indent + "        "),
+      indent + "    "),
+    `${indent}}`,
+  ].join("\n");
 }
 
 function emitFusedChild(assembly, partsById, child, hide, indent) {

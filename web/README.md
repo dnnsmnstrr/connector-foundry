@@ -14,6 +14,9 @@ running in a Web Worker.
    OpenSCAD sources — the app never transpiles or reimplements them. A source directory with no
    `.scad` files in it (a submodule that was never checked out) is reported, since the symptom
    in the browser is otherwise just an unhelpful "can't open include" on the parts that need it.
+   A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
+   under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
+   relative `import()` resolves in the browser exactly as it does on disk.
 2. `src/hooks/useCatalogue.js` reads `catalogue.yaml` for the part list, default parameters, and
    confidence labels; `src/Library.jsx` renders a picker + parameter form from it — same schema
    the CLI reads.
@@ -95,6 +98,13 @@ a part actually has anchors left over. A few implementation notes that don't bel
   node's id, to any depth. `getNode()`/`childrenOf()`/`occupiedSlotNames()` all take that id the
   same way for root and any child, which is what lets `src/lib/benchLayout.js`'s `slotsForNode()`
   and `components/bench/NodeTree.jsx` treat every node identically regardless of depth.
+- The "screwed" joint (`emitScrewedChild()`) is the one joint whose shape depends on the two parts:
+  a generated `deckmate_screw_flange()` goes on whichever side has no screw holes of its own
+  (catalogue `screw_pattern`), fused to that side's body, or on neither side when both carry the
+  pattern. `jointsFor()` decides where the joint is offered (a node's dropdown), and the attach
+  dialog narrows the part list to patterned parts when "screwed" is picked under a plain parent.
+  A patterned part's `mount`/`bot` anchors sit at the pattern's reference point, not the box
+  center — catalogue `mount_offset`, which `slots.js` applies to those two markers.
 - `compileToScad()` generates one `.scad` source per assembly state, through the *same*
   worker/render pipeline as everything else (a second request shape, `{ scadSource, part }`,
   alongside the single-part `{ scadFile, module, params }` one) — the Bench never has its own

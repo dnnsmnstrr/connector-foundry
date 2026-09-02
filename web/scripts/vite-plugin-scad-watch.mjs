@@ -6,7 +6,7 @@
 // page so the worker refetches the new bundle — the same thing
 // restarting `npm run dev` would do, without the restart.
 import path from "node:path";
-import { REPO_ROOT, SOURCE_DIRS, syncScad } from "./sync-scad.mjs";
+import { REPO_ROOT, SOURCE_DIRS, isBundledFile, syncScad } from "./sync-scad.mjs";
 
 const WATCH_DIRS = SOURCE_DIRS.map((dir) => path.join(REPO_ROOT, dir) + path.sep);
 const CATALOGUE_SRC = path.join(REPO_ROOT, "catalogue.yaml");
@@ -18,7 +18,7 @@ const WATCH_PATHS = [...SOURCE_DIRS.map((dir) => path.join(REPO_ROOT, dir)), CAT
 // resync would re-trigger itself forever.
 function isWatchedSource(file) {
   if (file === CATALOGUE_SRC) return true;
-  return WATCH_DIRS.some((dir) => file.startsWith(dir)) && file.endsWith(".scad");
+  return WATCH_DIRS.some((dir) => file.startsWith(dir)) && isBundledFile(file);
 }
 
 export default function scadWatchPlugin() {
@@ -34,8 +34,8 @@ export default function scadWatchPlugin() {
         if (!isWatchedSource(file)) return;
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          const count = syncScad();
-          server.config.logger.info(`[scad-watch] resynced ${count} .scad files (${path.relative(REPO_ROOT, file)} changed)`, {
+          const { files } = syncScad();
+          server.config.logger.info(`[scad-watch] resynced ${files} .scad files (${path.relative(REPO_ROOT, file)} changed)`, {
             timestamp: true,
           });
           server.ws.send({ type: "full-reload" });

@@ -78,6 +78,27 @@ bitbeam/shaft:
     - 4.15
     - 3.6
     volume_mm3: 42.23
+deckmate/innie:
+  default:
+    bbox:
+    - 35.679
+    - 35.679
+    - 5.25
+    volume_mm3: 2801.27
+deckmate/outie:
+  default:
+    bbox:
+    - 35.304
+    - 26.503
+    - 7.7
+    volume_mm3: 2139.7
+deckmate/universal:
+  default:
+    bbox:
+    - 56.706
+    - 28.4
+    - 3.0
+    volume_mm3: 3872.42
 extrusion2020/c-clip:
   default:
     bbox:

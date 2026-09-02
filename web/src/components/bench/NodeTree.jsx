@@ -1,4 +1,4 @@
-import { childrenOf, getNode } from "../../lib/assembly.js";
+import { childrenOf, getNode, jointsFor } from "../../lib/assembly.js";
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
@@ -14,6 +14,7 @@ import JointSelect from "./JointSelect.jsx";
 export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
+  const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
   const kids = childrenOf(assembly, nodeId);
   const isImported = part.kind === "imported";
   const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
@@ -29,7 +30,11 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
       </div>
       <div className="bench-child-meta">
         <span className="muted">{node.slotName}</span>
-        <JointSelect value={node.joint} onChange={(joint) => actions.setJoint(nodeId, joint)} />
+        <JointSelect
+          value={node.joint}
+          options={jointsFor(parentPart, part)}
+          onChange={(joint) => actions.setJoint(nodeId, joint)}
+        />
       </div>
       <label className="field bench-offset-field" title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
         Offset (mm)

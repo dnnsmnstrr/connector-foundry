@@ -475,3 +475,85 @@ parts:
       side_xneg: true
       side_ypos: true
       side_yneg: true
+
+  # DeckMate / Mechanism: three of Mechanism's own models, imported
+  # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry
+  # Mechanism's three-hole screw pattern; `screw_pattern: deckmate` is
+  # what makes the "screwed" joint available on them in the Bench (see
+  # lib/joints.scad's deckmate_screw_flange()), and `mount_offset` is
+  # where their "mount"/"bot" anchors sit relative to the bounding-box
+  # center — at the pattern's reference point, so mount-to-mount lines
+  # the holes up. The web editor reads it to place the markers;
+  # tests/test_anchors.py checks it against the rendered geometry.
+  - id: deckmate/innie
+    system: DeckMate / Mechanism
+    name: Innie (Universal Grip)
+    file: parts/deckmate/innie.scad
+    module: deckmate_innie
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own Universal Grip model (Mechanism_Universal_Grip_03.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+    print_note: >-
+      The socket half of the DeckMate interface. Oriented per the slot
+      convention: socket down, flat back up with "mount" at its center —
+      that back is where Mechanism puts the adhesive, and it is the face to
+      fuse a connector onto instead. The socket side has undercuts, so to
+      print the grip itself turn it flat-back-down in the slicer. "bot"
+      marks the center of the socket side's bounding box; it sits over the
+      socket recess, not on material, so attach there deliberately. No
+      screw pattern on this one — that is the Outie and the Universal.
+    anchors: [bot]
+
+  - id: deckmate/outie
+    system: DeckMate / Mechanism
+    name: Outie (Bot Print)
+    file: parts/deckmate/outie.scad
+    module: deckmate_outie
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own "Bot Print" model (Deck_Mate_Mechanism_Bot_Print_02.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+    print_note: >-
+      The rail half of the DeckMate interface — slides into an Innie.
+      Oriented per the slot convention: rail down, flat base up with
+      "mount" on it. Fuse it, or pick the "screwed" joint: its base has
+      Mechanism's three-hole pattern, so the other side gets a flange with
+      heat-set insert bores at the same spacing and the rail can be printed
+      in its own best orientation (rail up) and fastened on. The holes
+      taper from 4.45mm at the base face to 2.4mm at the rail face — a
+      self-tapping hole for a screw driven from the base side, or a seat
+      for an M3 insert in the wide end; nothing over 2.4mm passes through
+      from the rail side.
+    screw_pattern: deckmate
+    mount_offset: [0, 3.391]
+
+  - id: deckmate/universal
+    system: DeckMate / Mechanism
+    name: Universal base
+    file: parts/deckmate/universal.scad
+    module: deckmate_universal
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own "Deck Mate Universal" model (Deck_Mate_Universal_02.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+    print_note: >-
+      Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto:
+      the three-hole pattern (2.98mm through, countersunk on the adhesive
+      side) plus a 41mm round recess for the adhesive disc. Oriented per
+      the slot convention: pattern face down with "bot" on it, adhesive
+      face up as "mount" — fuse that face onto anything in place of the
+      adhesive, then stack an Outie on "bot" with the "screwed" joint (no
+      flange needed: both carry the pattern). Prints flat either way up.
+    anchors: [bot]
+    screw_pattern: deckmate
+    mount_offset: [0, 4.896]

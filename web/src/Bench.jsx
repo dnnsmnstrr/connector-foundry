@@ -17,6 +17,7 @@ import {
   getNode,
   occupiedSlotNames,
   removeChild,
+  screwedApplies,
   updateChildJoint,
   updateChildOverlap,
   updateNodeParams,
@@ -300,6 +301,10 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   }
 
   const pendingParentPart = pendingSlot && partsById.get(getNode(assembly, pendingSlot.parentId).partId);
+  // "screwed" needs a screw pattern on one side of the seam: if the
+  // parent has none, only parts that do are offered for that joint.
+  const screwedNeedsPatternedChild = pendingJoint === "screwed" && pendingParentPart && !screwedApplies(pendingParentPart, null);
+  const attachableParts = screwedNeedsPatternedChild ? parts.filter((p) => screwedApplies(pendingParentPart, p)) : parts;
 
   return (
     <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
@@ -386,9 +391,15 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
             Joint
             <JointSelect value={pendingJoint} onChange={setPendingJoint} />
           </label>
+          {screwedNeedsPatternedChild && (
+            <p className="muted">
+              Screwed joins through a part's own screw holes, so only parts that carry a pattern are listed
+              here — a flange with matching heat-set insert bores is generated on the {pendingParentPart.name} side.
+            </p>
+          )}
           <div className="bench-part-list">
             <PartBrowser
-              parts={parts}
+              parts={attachableParts}
               onPick={attachChild}
               autoFocus
               toolbar={

@@ -74,9 +74,22 @@ function writeFileAt(fsobj, virtualPath, content) {
   fsobj.writeFile(virtualPath, content);
 }
 
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// See sync-scad.mjs for the bundle shape: .scad sources as text under
+// `files`, binaries a part import()s (base64) under `assets`, both at
+// their repo-relative paths.
 function mountBundle(fsobj, bundle) {
-  for (const [relPath, content] of Object.entries(bundle)) {
+  for (const [relPath, content] of Object.entries(bundle.files)) {
     writeFileAt(fsobj, `${REPO_MOUNT}/${relPath}`, content);
+  }
+  for (const [relPath, base64] of Object.entries(bundle.assets ?? {})) {
+    writeFileAt(fsobj, `${REPO_MOUNT}/${relPath}`, base64ToBytes(base64));
   }
 }
 

@@ -15,14 +15,23 @@
 // same function. Nothing here needs to know where in a tree the part
 // sits.
 
+// `offset` is the catalogue's `mount_offset` ([x, y], default none): a
+// part whose module puts "mount" and "bot" somewhere other than the face
+// center — the DeckMate parts put both at their screw pattern's
+// reference point — declares it here so the markers land on the real
+// anchors. tests/test_anchors.py holds the declaration to the geometry.
 const FACE_ANCHOR_LOCAL = {
-  mount: (e) => [0, 0, e[2] / 2],
-  bot: (e) => [0, 0, -e[2] / 2],
+  mount: (e, [ox, oy]) => [ox, oy, e[2] / 2],
+  bot: (e, [ox, oy]) => [ox, oy, -e[2] / 2],
   xpos: (e) => [e[0] / 2, 0, 0],
   xneg: (e) => [-e[0] / 2, 0, 0],
   ypos: (e) => [0, e[1] / 2, 0],
   yneg: (e) => [0, -e[1] / 2, 0],
 };
+
+function mountOffset(part) {
+  return part.mount_offset ?? [0, 0];
+}
 
 function gridCounts(part, params, meshExtents) {
   const { pitch, count_params: countParams } = part.slots;
@@ -77,7 +86,7 @@ export function enumerateSlots(part, params, meshExtents) {
       }
     }
   } else {
-    const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents);
+    const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents, mountOffset(part));
     slots.push({ name: "mount", x, y, z });
   }
 
@@ -89,7 +98,7 @@ export function enumerateSlots(part, params, meshExtents) {
       console.warn(`slots: ${part.id} declares anchor "${name}", which has no face formula — skipped`);
       continue;
     }
-    const [x, y, z] = place(extents);
+    const [x, y, z] = place(extents, mountOffset(part));
     slots.push({ name, x, y, z });
   }
 

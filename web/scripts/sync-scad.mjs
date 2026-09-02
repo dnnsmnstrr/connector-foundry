@@ -4,6 +4,12 @@
 // filesystem in one request instead of one per file. Run before
 // dev/build (see package.json), and re-run live by
 // vite-plugin-scad-watch.mjs while `npm run dev` is up.
+//
+// Bundle shape: { files: { "lib/x.scad": "<source>" }, assets: {
+// "parts/deckmate/universal_grip.stl": "<base64>" } } — `files` is
+// every .scad as text, `assets` every binary a part import()s, mounted
+// at the same relative paths by openscad-worker.js so a relative
+// import() resolves identically in the browser and on disk.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +47,27 @@ const LIBRARY_INCLUDE = /^\s*(?:include|use)\s*<([^./][^>]*)>/gm;
 // never parse.
 const SKIP_DIRS = new Set([".git", "examples", "tests", "tutorials", "scripts"]);
 
+// Binary files a part may import() — shipped only from this repo's own
+// directories, never from vendor/ (an upstream's sample STLs are not
+// something any part here reaches for, and they would dwarf the sources).
+const ASSET_EXTENSIONS = new Set([".stl"]);
+
+function isAsset(file) {
+  return ASSET_EXTENSIONS.has(path.extname(file).toLowerCase());
+}
+
+function isVendored(relPath) {
+  return relPath.split("/")[0] === "vendor";
+}
+
+// Whether a change to `file` (absolute) should trigger a re-bundle — the
+// same rule the walk below uses to decide what goes in.
+export function isBundledFile(file) {
+  if (file.endsWith(".scad")) return true;
+  const rel = path.relative(REPO_ROOT, file).split(path.sep).join("/");
+  return isAsset(file) && !isVendored(rel);
+}
+
 function walk(dir, out) {
   if (!fs.existsSync(dir)) return;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -48,7 +75,7 @@ function walk(dir, out) {
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
       walk(full, out);
-    } else if (entry.name.endsWith(".scad")) {
+    } else if (isBundledFile(full)) {
       out.push(full);
     }
   }
@@ -122,12 +149,14 @@ function globalConstants() {
   return values;
 }
 
+// Returns { files, assets } counts. See the header for the bundle shape.
 export function syncScad() {
-  const bundle = {};
+  const files = {};
+  const assets = {};
   for (const dir of SOURCE_DIRS) {
-    const files = [];
-    walk(path.join(REPO_ROOT, dir), files);
-    if (files.length === 0) {
+    const found = [];
+    walk(path.join(REPO_ROOT, dir), found);
+    if (!found.some((f) => f.endsWith(".scad"))) {
       // Almost always a submodule that was never checked out. The bundle
       // still builds, but every part that includes from this directory
       // fails in the browser with an unhelpful "can't open include" —
@@ -137,23 +166,24 @@ export function syncScad() {
           (dir.startsWith("vendor/") ? " — submodule not checked out? Run `git submodule update --init --recursive`." : ""),
       );
     }
-    for (const file of files) {
+    for (const file of found) {
       const rel = path.relative(REPO_ROOT, file).split(path.sep).join("/");
-      bundle[rel] = fs.readFileSync(file, "utf8");
+      if (isAsset(file)) assets[rel] = fs.readFileSync(file).toString("base64");
+      else files[rel] = fs.readFileSync(file, "utf8");
     }
   }
-  Object.assign(bundle, addLibraryShims(bundle));
+  Object.assign(files, addLibraryShims(files));
 
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
-  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify(bundle));
+  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, assets }));
   fs.copyFileSync(path.join(REPO_ROOT, "catalogue.yaml"), path.join(WEB_PUBLIC, "catalogue.yaml"));
   fs.writeFileSync(path.join(WEB_PUBLIC, "global-defaults.json"), JSON.stringify(globalConstants()));
 
-  return Object.keys(bundle).length;
+  return { files: Object.keys(files).length, assets: Object.keys(assets).length };
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
-  const count = syncScad();
-  console.log(`sync-scad: bundled ${count} .scad files, copied catalogue.yaml`);
+  const { files, assets } = syncScad();
+  console.log(`sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), copied catalogue.yaml`);
 }

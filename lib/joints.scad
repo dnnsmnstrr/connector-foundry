@@ -16,6 +16,19 @@
 //            flange — see pin_flange()'s own comment for why, and the
 //            web editor's assembly.js for how body-splitting handles a
 //            joint contributing more than the usual two bodies.
+//   screwed - for a part that already carries Mechanism's DeckMate
+//            three-hole pattern (parts/deckmate/outie.scad,
+//            universal.scad). ONE flange, on the side that has no holes
+//            of its own: deckmate_screw_flange(), heat-set insert bores
+//            at the pattern, fused onto that side — the DeckMate part is
+//            the other printable body and needs nothing added, its own
+//            holes are the fastening. Two parts that both carry the
+//            pattern (Universal + Outie) need no flange at all: they
+//            attach directly and split into two bodies at the seam.
+//            Exists so a DeckMate rail can be printed in its own best
+//            orientation (or be Mechanism's own print) and fastened on,
+//            instead of fused in whatever orientation the rest of the
+//            assembly happens to print in.
 //
 // Bolted/snap/pin flanges are themselves attachable(): they consume the
 // parent/child's "mount" anchor and expose their own "mount" anchor on
@@ -112,6 +125,40 @@ module pin_flange(anchor = BOTTOM, spin = 0, orient = UP) {
         difference() {
             cuboid(_JOINT_PIN_SIZE, rounding = 2, edges = "Z");
             through_hole(BITBEAM_HOLE_DIA / 2, JOINT_PIN_FLANGE_T);
+        }
+        children();
+    }
+}
+
+// Screw flange for the DeckMate pattern: the footprint of an Outie's
+// base (DM_OUTIE_BASE) with the three holes (DM_SCREW_HOLES) bored
+// through, as heat-set insert bores by default or bolt clearance with
+// insert=false. Fuses onto the side of a joint that has no holes of its
+// own; the DeckMate part screws onto it.
+//
+// Two named anchors, one per face, both at the PATTERN's reference point
+// (0, DM_OUTIE_PATTERN_Y) rather than the flange's center — the same
+// rule every DeckMate part follows, so whichever face meets the DeckMate
+// part, mount-to-anchor puts hole on hole:
+//   "mount" (TOP)    — toward the part this flange is fused to
+//   "seat"  (BOTTOM) — toward the DeckMate part that screws onto it
+// The bores go straight through, so the flange has no handedness; the
+// codegen in web/src/lib/assembly.js uses "seat" for the DeckMate side
+// whether that is the parent or the child.
+_DM_FLANGE_SIZE = [DM_OUTIE_BASE.x, DM_OUTIE_BASE.y, JOINT_FLANGE_T];
+
+module deckmate_screw_flange(insert = true, anchor = BOTTOM, spin = 0, orient = UP) {
+    r = insert ? JOINT_INSERT_R : JOINT_CLEARANCE_R;
+    anchors = [
+        named_anchor("mount", [0, DM_OUTIE_PATTERN_Y,  _DM_FLANGE_SIZE.z / 2], UP,   0),
+        named_anchor("seat",  [0, DM_OUTIE_PATTERN_Y, -_DM_FLANGE_SIZE.z / 2], DOWN, 0),
+    ];
+    attachable(anchor, spin, orient, size = _DM_FLANGE_SIZE, anchors = anchors) {
+        difference() {
+            cuboid(_DM_FLANGE_SIZE, rounding = 2, edges = "Z");
+            translate([0, DM_OUTIE_PATTERN_Y, 0])
+                for (p = DM_SCREW_HOLES)
+                    translate([p.x, p.y, 0]) through_hole(r, JOINT_FLANGE_T);
         }
         children();
     }

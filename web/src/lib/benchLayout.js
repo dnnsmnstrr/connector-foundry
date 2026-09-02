@@ -82,20 +82,24 @@ export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, no
 }
 
 // World position of `nodeId`'s own "bot" anchor, i.e. where a further
-// part could stack on top of it. `bot` sits on the part's local Z axis
-// (x=0, y=0), directly opposite "mount" — every catalogue part attaches
-// via its own "mount" (attachChild() never overrides childAnchor), and
-// BOSL2's attach() flips the child 180° about *some* horizontal axis so
-// mount ends up touching the parent. For a point already on the axis of
-// that rotation, which horizontal axis BOSL2 picked doesn't matter: any
-// 180° turn about a horizontal axis sends (0,0,h) to (0,0,-h), full
-// stop. So "bot" ends up exactly `extents.z` above wherever "mount"
-// landed, with x/y unchanged — no need to know or replicate BOSL2's
-// actual rotation to place this marker correctly. That equivalence
-// breaks for an off-axis point (x!=0 or y!=0 — a plate's "xpos", "ypos",
-// etc.), where the two candidate rotations genuinely disagree; those
-// stay text-only in the sidebar for now rather than risk a wrong 3D
-// position.
+// part could stack on top of it. `bot` sits directly opposite "mount"
+// on the same vertical line (same local x/y — at the face center, or at
+// the catalogue's `mount_offset` for both; tests/test_anchors.py holds
+// every part to that). Every catalogue part attaches via its own "mount"
+// (attachChild() never overrides childAnchor), and BOSL2's attach()
+// flips the child 180° about a horizontal axis so mount ends up touching
+// the parent. For a point on the axis of that rotation through the
+// anchor, which horizontal axis BOSL2 picked doesn't matter: any 180°
+// turn sends (0,0,h) to (0,0,-h) relative to the anchor, full stop. So
+// "bot" ends up exactly `extents.z` above wherever "mount" landed, with
+// x/y unchanged — no need to replicate BOSL2's actual rotation to place
+// this marker correctly. That equivalence breaks for an anchor NOT on
+// mount's vertical (a plate's "xpos", "ypos", etc.), where the axis
+// matters; those stay text-only in the sidebar for now rather than risk
+// a wrong 3D position. (For the record, BOSL2's flip is about Y — see
+// lib/constants.scad's DeckMate section — which is what lets an
+// x-symmetric hole pattern survive a chain; this code just doesn't need
+// to rely on it.)
 export function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
   const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
   const extents = nodeExtents.get(nodeId);

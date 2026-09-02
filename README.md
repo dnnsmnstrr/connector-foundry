@@ -2,8 +2,10 @@
 
 A library of printable mounting interfaces — Gridfinity, openGrid, GoPro, 2020 extrusion,
 BitBeam — that you can pull as an STL and drop into Tinkercad, and that compose with each
-other through named slots. DeckMate is supported too, via STL import in the web Bench rather
-than modelled geometry — see "Bench" below for why.
+other through named slots. DeckMate is covered by three of Mechanism's own models — the Innie
+(Universal Grip), the Outie (Bot Print) and the Universal base — wrapped as catalogue parts under
+their CC BY-NC 4.0 terms (see "Licensing"), plus STL import in the web Bench for any other
+Mechanism part; this repo models no DeckMate geometry of its own. See "Bench" below for why.
 
 OpenSCAD `.scad` files are the source of truth. The same sources drive three ways to get a
 part:
@@ -71,7 +73,7 @@ reference check fails if they drift. Printer fit tolerance goes through one glob
 
 ## Joints
 
-`lib/joints.scad` implements four ways to mate two parts through their mount slots:
+`lib/joints.scad` implements five ways to mate two parts through their mount slots:
 
 - **fused** — plain `attach("mount", "mount")`. One printed body.
 - **bolted** — a flange fused onto each side's mount face, on a shared 4-hole pattern: an
@@ -82,10 +84,22 @@ reference check fails if they drift. Printer fit tolerance goes through one glob
   integral to either flange, unlike bolted/snap's fasteners. Thicker flanges than the other
   three (BITBEAM_UNIT, 8mm, not JOINT_FLANGE_T) for the same reason `basics/pinhole_plate` needs
   real thickness: a 4.8mm bore needs actual wall around it.
+- **screwed** — for a part that already carries a screw pattern of its own: the two DeckMate parts
+  that do (`deckmate/outie`, `deckmate/universal`) have Mechanism's three-hole triangle in their
+  base. One flange at most, on whichever side has no holes, with heat-set insert bores at that
+  exact spacing (`deckmate_screw_flange()`, sized to the Outie's base); the DeckMate part is the
+  other printable body as-is, its own holes being the fastening. Two parts that both carry the
+  pattern (a Universal with an Outie on it) need no flange — they attach directly and split into two
+  bodies at the seam. The point of it: a DeckMate rail can be printed in its own best orientation
+  (or be Mechanism's own print) and fastened on, instead of fused in whatever orientation the rest of
+  the assembly happens to print in. Every DeckMate part puts its `mount`/`bot` anchor at the
+  pattern's reference point rather than its box center, which is what makes hole land on hole
+  through any chain — `tests/test_deckmate.py` renders each shape the Bench can generate and probes
+  both sides of the seam.
 
-Bolted, snap, and pin assemblies expose `part = "all" | "a" | "b"` (or, in the Bench, one tag per
-body — a pin joint contributes three, not two) so each printable body renders to its own STL —
-see `assemblies/`.
+Bolted, snap, pin, and screwed assemblies expose `part = "all" | "a" | "b"` (or, in the Bench, one
+tag per body — a pin joint contributes three, not two) so each printable body renders to its own
+STL — see `assemblies/`.
 
 ## Bench: combine connectors visually
 
@@ -157,11 +171,17 @@ imports are session-local, never committed to this repo, shipped as fixtures, or
 programmatically from a model site. You supply the file; it lives in your browser tab and
 nowhere else.
 
-This is the intended path for DeckMate: there's no modelled DeckMate geometry in this catalogue
-at all (see "Catalogue" below for why one attempt at it didn't survive), so bring in the real
-part — [Mechanism](https://getmechanism.com/pages/digital-files)'s own STL, or a Printables
-model — and it becomes a first-class Bench part with the same slot/joint support as everything
-else here, without this repo ever guessing at dimensions it can't verify.
+DeckMate is the case in point. This repo models no DeckMate geometry of its own (see "Catalogue"
+below for why one attempt at it didn't survive); the three `deckmate/*` parts are
+[Mechanism](https://getmechanism.com/pages/digital-files)'s own STLs, imported unmodified and
+redistributed under their CC BY-NC 4.0 terms: the **Innie** (Universal Grip, the socket) with a
+`mount` slot on its flat back — the face a connector fuses onto in place of the adhesive — and a
+`bot` slot on the socket side; the **Outie** (Bot Print, the rail) with `mount` on its base; and
+the **Universal** base plate with `mount` on its adhesive face and `bot` on its pattern face. The
+Outie and the Universal carry Mechanism's three-hole screw pattern, which is what the **screwed**
+joint (see "Joints") builds on. Any other Mechanism part — or a Printables model — comes in
+through the import path and becomes a first-class Bench part with the same slot/joint support,
+without this repo ever guessing at dimensions it can't verify.
 
 ## Catalogue
 
@@ -169,19 +189,23 @@ else here, without this repo ever guessing at dimensions it can't verify.
 default parameters, confidence, and a print note. The CLI, the tests, and this table are all
 generated from it — run `foundry readme` after adding a part. Confidence:
 
-- `exact` — published spec or reference implementation; checked in `references.yaml`. Two ways to
-  be exempt from that check, kept deliberately distinct in each part's `source` field: generic
+- `exact` — published spec or reference implementation; checked in `references.yaml`. Three ways
+  to be exempt from that check, kept deliberately distinct in each part's `source` field: generic
   geometry with no external spec at all ("not tied to an external spec" — nothing to diverge
-  from, e.g. `basics/plate`), or a real published spec with no reference geometry anywhere to
-  check it against ("no reference geometry to check against" — e.g. `bitbeam/pin`: bitbeam.cc's
-  numbers are real, but nobody publishes a CAD model of just a pin). `tests/test_reference.py`'s
+  from, e.g. `basics/plate`); a real published spec with no reference geometry anywhere to check
+  it against ("no reference geometry to check against" — e.g. `bitbeam/pin`: bitbeam.cc's
+  numbers are real, but nobody publishes a CAD model of just a pin); or a vendor's own mesh
+  imported unmodified ("the manufacturer's own model" — the `deckmate/*` parts: a shape check
+  would compare the file with itself, and what can be wrong, the wrapper's declared size and
+  anchors, is what `tests/test_anchors.py` and `tests/test_deckmate.py` check). `tests/test_reference.py`'s
   `test_every_exact_part_has_a_reference()` enforces that every `exact` part is either checked or
-  carries one of those two phrases, so a claim never just goes unchecked by omission.
+  carries one of those phrases, so a claim never just goes unchecked by omission.
 - `parametric` — a starting point. Verify against real hardware before trusting it.
 - `unverified` — worse than parametric: known or strongly suspected to be dimensionally wrong.
   No part currently carries this label — the one that used to (a hand-guessed DeckMate dovetail)
   turned out to just be a generic dovetail with nothing DeckMate-specific about it, so it moved to
-  Basics as that instead. Real DeckMate parts now come in via STL import — see "Bench" above.
+  Basics as that instead. Real DeckMate geometry is Mechanism's own: the `deckmate/*` parts in
+  the catalogue, or STL import for anything else — see "Bench" above.
 - `imported` — Bench-only, never in this file. See "Bench" above.
 
 <!-- CATALOGUE:START -->
@@ -205,6 +229,9 @@ generated from it — run `foundry readme` after adding a part. Confidence:
 | ![Friction pin](docs/img/bitbeam_pin.png)<br>Friction pin | BitBeam | exact | MIT | Prints standing up, no supports needed. Grips a beam's hole by interference, not a snug published tolerance — how oversized it needs to be depends on filament and printer, same caveat bitbeam.cc's own docs give. Tune FIT_CLEARANCE (Settings in the web app) rather than the diameter directly: more for a firmer grip, less (even negative) for an easier push. |
 | ![Axle shaft](docs/img/bitbeam_shaft.png)<br>Axle shaft | BitBeam | exact | MIT | Prints standing up, no supports needed. Sized to spin freely in a beam's hole (a wheel/gear axle, not a fixed grip — for that, use bitbeam/pin instead). Tune FIT_CLEARANCE (Settings in the web app) for how much play it has: more clearance for a freer spin, less for a snugger one. |
 | ![Pinhole plate](docs/img/basics_pinhole_plate.png)<br>Pinhole plate | Basics | exact | MIT | Flat on the bed, no supports needed. Every hole (top grid and side rows alike) is a fixed 4.8mm bore, same as a real beam's — fit is tuned entirely on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side holes need real wall around them: the default thickness (8mm) is what keeps that sane and keeps the side rows in register with the top grid; go thinner and side_xpos/side_xneg/side_ypos/ side_yneg have to come off, or the render refuses outright rather than emit an undersized bore. |
+| Innie (Universal Grip) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The socket half of the DeckMate interface. Oriented per the slot convention: socket down, flat back up with "mount" at its center — that back is where Mechanism puts the adhesive, and it is the face to fuse a connector onto instead. The socket side has undercuts, so to print the grip itself turn it flat-back-down in the slicer. "bot" marks the center of the socket side's bounding box; it sits over the socket recess, not on material, so attach there deliberately. No screw pattern on this one — that is the Outie and the Universal. |
+| Outie (Bot Print) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The rail half of the DeckMate interface — slides into an Innie. Oriented per the slot convention: rail down, flat base up with "mount" on it. Fuse it, or pick the "screwed" joint: its base has Mechanism's three-hole pattern, so the other side gets a flange with heat-set insert bores at the same spacing and the rail can be printed in its own best orientation (rail up) and fastened on. The holes taper from 4.45mm at the base face to 2.4mm at the rail face — a self-tapping hole for a screw driven from the base side, or a seat for an M3 insert in the wide end; nothing over 2.4mm passes through from the rail side. |
+| Universal base | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto: the three-hole pattern (2.98mm through, countersunk on the adhesive side) plus a 41mm round recess for the adhesive disc. Oriented per the slot convention: pattern face down with "bot" on it, adhesive face up as "mount" — fuse that face onto anything in place of the adhesive, then stack an Outie on "bot" with the "screwed" joint (no flange needed: both carry the pattern). Prints flat either way up. |
 <!-- CATALOGUE:END -->
 
 ## User overrides
@@ -322,11 +349,12 @@ shipping, and three of them were labelled `confidence: exact`:
 
 ## Licensing
 
-This repository's own files are MIT. **Three parts are not**, and the catalogue says so per entry:
+This repository's own files are MIT. **Six parts are not**, and the catalogue says so per entry:
 
 | Part | Licence | Why |
 | --- | --- | --- |
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They call into `vendor/QuackWorks`, which is CC-BY-NC-SA repo-wide. Rendering either part runs that code, so NonCommercial applies to that use and ShareAlike applies to adaptations. |
+| `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC-BY-NC 4.0** | `parts/deckmate/*.stl` are [Mechanism](https://getmechanism.com/pages/digital-files)'s own models (Universal Grip, Bot Print, Deck Mate Universal), redistributed unmodified under the licence Mechanism publishes its digital files under. The only meshes committed to this repo as sources rather than outputs (`.gitignore` excepts that directory). Attribution is in each catalogue entry; NonCommercial applies to the files, to anything printed from them, and to anything the Bench fuses onto them. The screw pattern's dimensions, measured from two of these files into `lib/constants.scad`, are facts, not expression — the generated `deckmate_screw_flange()` is this repo's own MIT code. |
 | `bitbeam/beam` | **BSD-3-Clause** | Calls into `vendor/bitbeam-lib` — permissive (attribution + no-endorsement, no NC/SA restriction), but not textually MIT, so it gets the same explicit `license:` field rather than folding it into "MIT, unstated." |
 | everything else | MIT | — |
 
@@ -388,4 +416,6 @@ Specifications: [gridfinity.xyz](https://gridfinity.xyz/specification/) ·
 [opengrid.world](https://www.opengrid.world/guides/board/) ·
 [bitbeam.cc](https://bitbeam.cc/) (dimensions only — its CC-BY-NC-SA 4.0 content and STL pack are
 not used here; see "Licensing") ·
-[Mechanism](https://getmechanism.com/pages/digital-files) (DeckMate — no dimensioned drawing published)
+[Mechanism](https://getmechanism.com/pages/digital-files) (DeckMate — the Universal Grip, Bot
+Print and Universal STLs are redistributed here under their CC BY-NC 4.0 terms; no dimensioned
+drawing is published, so the screw pattern in `lib/constants.scad` is measured from those files)

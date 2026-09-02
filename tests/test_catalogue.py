@@ -13,6 +13,9 @@ import foundry
 # names catalogue.yaml's `anchors` field may use (see FACE_ANCHOR_LOCAL).
 FACE_ANCHORS = {"bot", "xpos", "xneg", "ypos", "yneg"}
 
+# Screw patterns web/src/lib/assembly.js has a generated flange for.
+SCREW_PATTERNS = {"deckmate"}
+
 
 def _parts():
     return foundry.load_catalogue()["parts"]
@@ -99,6 +102,25 @@ def test_side_slot_params_are_real_parameters():
                     problems.append(
                         f"{part['id']}: side_slots face {face.get('name')!r} {field}={name!r} "
                         f"is not a parameter of {part['module']}()")
+    assert not problems, "\n".join(problems)
+
+
+def test_screw_pattern_and_mount_offset_are_well_formed():
+    """`screw_pattern` names a flange the web editor can generate;
+    `mount_offset` is an [x, y] pair (the "mount"/"bot" anchors' position
+    relative to the bounding-box center). tests/test_anchors.py checks the
+    offset against the rendered geometry; this only checks the shape."""
+    problems = []
+    for part in _parts():
+        pattern = part.get("screw_pattern")
+        if pattern is not None and pattern not in SCREW_PATTERNS:
+            problems.append(f"{part['id']}: screw_pattern {pattern!r} is not one of {sorted(SCREW_PATTERNS)}")
+        offset = part.get("mount_offset")
+        if offset is not None and not (
+            isinstance(offset, list) and len(offset) == 2
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in offset)
+        ):
+            problems.append(f"{part['id']}: mount_offset must be [x, y] in mm, got {offset!r}")
     assert not problems, "\n".join(problems)
 
 

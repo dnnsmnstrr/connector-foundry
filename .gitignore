@@ -4,6 +4,9 @@ __pycache__/
 .pytest_cache/
 out/
 *.stl
+# The only meshes that are sources, not outputs: Mechanism's DeckMate
+# models, redistributed under their CC BY-NC 4.0 terms — see README "Licensing".
+!parts/deckmate/*.stl
 !web/public/**/*.wasm
 node_modules/
 web/dist/

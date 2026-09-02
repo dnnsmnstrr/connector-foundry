@@ -162,3 +162,47 @@ EX_BORE_R       = 5.2 / 2; // center bore clearance
 // ============================================================
 
 FIT_CLEARANCE = 0.15;
+
+// ============================================================
+// DeckMate / Mechanism — measured from Mechanism's own models
+// (parts/deckmate/*.stl, CC BY-NC 4.0), not designed here. The two
+// models that carry the screw pattern (the Outie's base and the
+// Universal plate) agree on it to 0.01mm; these are the numbers the
+// generated screw flange (lib/joints.scad's deckmate_screw_flange())
+// and the parts' own "mount"/"bot" anchors are built from, and
+// tests/test_deckmate.py probes the rendered meshes at exactly these
+// points so they cannot drift from the files.
+//
+// The pattern is an isosceles triangle. Its reference point is the
+// midpoint between the two side holes; the third hole sits DM_SCREW_DROP
+// toward -y from there. Every DeckMate part places its "mount" (and
+// "bot") anchor at that reference point rather than at its bounding-box
+// center, so attaching mount-to-mount lines the holes up regardless of
+// each part's footprint. BOSL2's attach() flips a child 180° about Y
+// (see vendor/BOSL2/attachments.scad's _attach_transform() and
+// vector_axis(UP, DOWN)), which preserves y — the pattern is symmetric
+// in x, so it survives every hop in a chain unmirrored.
+// ============================================================
+DM_SCREW_SPAN  = 29.106;   // side-hole center distance, along x
+DM_SCREW_DROP  = 10.59;    // third hole, this far toward -y from the side pair's midpoint
+DM_SCREW_HOLES = [[DM_SCREW_SPAN / 2, 0], [-DM_SCREW_SPAN / 2, 0], [0, -DM_SCREW_DROP]];
+
+// Where the pattern's reference point sits relative to each part's own
+// bounding-box center (x is always 0).
+DM_OUTIE_PATTERN_Y     = 3.391;
+DM_UNIVERSAL_PATTERN_Y = 4.896;
+
+// The Outie's base footprint — the size deckmate_screw_flange() takes,
+// so a printed flange matches the part that screws onto it.
+DM_OUTIE_BASE = [35.304, 26.503];
+
+// The holes themselves, for choosing hardware. The Outie's taper from
+// its base face to its rail face means: a screw driven from the base
+// side self-taps as the hole narrows (Mechanism's own scheme), an M3
+// heat-set insert (4.0mm) seats in the wide end, and nothing over 2.4mm
+// passes through from the rail side. The Universal's holes are plain
+// through-holes with a countersink on the adhesive side.
+DM_OUTIE_HOLE_D_BASE    = 4.45;
+DM_OUTIE_HOLE_D_RAIL    = 2.4;
+DM_UNIVERSAL_HOLE_D     = 2.98;
+DM_UNIVERSAL_CSK_D      = 4.96;
