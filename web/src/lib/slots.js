@@ -82,7 +82,14 @@ export function enumerateSlots(part, params, meshExtents) {
   }
 
   for (const name of part.anchors ?? []) {
-    const [x, y, z] = FACE_ANCHOR_LOCAL[name](extents);
+    const place = FACE_ANCHOR_LOCAL[name];
+    if (!place) {
+      // tests/test_catalogue.py rejects this at commit time; at runtime a
+      // skipped marker beats taking the whole Bench down.
+      console.warn(`slots: ${part.id} declares anchor "${name}", which has no face formula — skipped`);
+      continue;
+    }
+    const [x, y, z] = place(extents);
     slots.push({ name, x, y, z });
   }
 

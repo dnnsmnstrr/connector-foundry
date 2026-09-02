@@ -16,49 +16,43 @@
 // triangle adjacency is meaningless on a raw STL triangle soup, where
 // no two triangles share a vertex index even across a shared edge.
 import * as THREE from "three";
+import { triangleNeighbors } from "./meshTopology.js";
 
 const DEFAULT_ANGLE_TOL_DEG = 3;
 const DEFAULT_PLANE_TOL_MM = 0.05;
 
-function buildAdjacency(index, triCount) {
-  const edgeMap = new Map(); // edgeKey -> [triIndex, ...] (0, 1, or rarely more)
-  const adjacency = Array.from({ length: triCount }, () => []);
-  for (let t = 0; t < triCount; t++) {
-    const a = index.getX(3 * t), b = index.getX(3 * t + 1), c = index.getX(3 * t + 2);
-    for (const [v1, v2] of [[a, b], [b, c], [c, a]]) {
-      const key = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-      let occurrences = edgeMap.get(key);
-      if (!occurrences) {
-        occurrences = [];
-        edgeMap.set(key, occurrences);
-      }
-      for (const other of occurrences) {
-        adjacency[t].push(other);
-        adjacency[other].push(t);
-      }
-      occurrences.push(t);
-    }
-  }
-  return adjacency;
+// Adjacency is a property of the geometry, not of the click: building
+// it is the expensive part of a pick (one pass over every triangle),
+// and the same imported mesh gets clicked many times while its slots
+// are placed. Keyed on the geometry, invalidated if its index is ever
+// swapped for another.
+const neighborsByGeometry = new WeakMap();
+
+function neighborsFor(geometry) {
+  const index = geometry.index;
+  const cached = neighborsByGeometry.get(geometry);
+  if (cached && cached.index === index) return cached.neighbors;
+  const neighbors = triangleNeighbors(index.array, geometry.attributes.position.count);
+  neighborsByGeometry.set(geometry, { index, neighbors });
+  return neighbors;
 }
 
-function triVerts(position, index, t) {
-  const a = index.getX(3 * t), b = index.getX(3 * t + 1), c = index.getX(3 * t + 2);
-  return [
-    new THREE.Vector3().fromBufferAttribute(position, a),
-    new THREE.Vector3().fromBufferAttribute(position, b),
-    new THREE.Vector3().fromBufferAttribute(position, c),
-  ];
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+
+function loadTriangle(position, index, t) {
+  _a.fromBufferAttribute(position, index.getX(3 * t));
+  _b.fromBufferAttribute(position, index.getX(3 * t + 1));
+  _c.fromBufferAttribute(position, index.getX(3 * t + 2));
 }
 
-function triNormal(position, index, t) {
-  const [v0, v1, v2] = triVerts(position, index, t);
-  return v1.clone().sub(v0).cross(v2.clone().sub(v0)).normalize();
+function triNormal(position, index, t, out) {
+  loadTriangle(position, index, t);
+  return out.subVectors(_b, _a).cross(_c.sub(_a)).normalize();
 }
 
-function triCentroid(position, index, t) {
-  const [v0, v1, v2] = triVerts(position, index, t);
-  return v0.add(v1).add(v2).multiplyScalar(1 / 3);
+function triCentroid(position, index, t, out) {
+  loadTriangle(position, index, t);
+  return out.copy(_a).add(_b).add(_c).multiplyScalar(1 / 3);
 }
 
 // `geometry`: indexed BufferGeometry (validateAndRepair()'s output).
@@ -72,24 +66,24 @@ export function clusterFace(geometry, faceIndex, options = {}) {
 
   const position = geometry.attributes.position;
   const index = geometry.index;
-  const triCount = index.count / 3;
-  const adjacency = buildAdjacency(index, triCount);
+  const neighbors = neighborsFor(geometry);
 
-  const startNormal = triNormal(position, index, faceIndex);
-  const planePoint = triCentroid(position, index, faceIndex);
+  const startNormal = triNormal(position, index, faceIndex, new THREE.Vector3());
+  const planePoint = triCentroid(position, index, faceIndex, new THREE.Vector3());
 
+  const normal = new THREE.Vector3();
+  const centroid = new THREE.Vector3();
   const visited = new Set([faceIndex]);
-  const queue = [faceIndex];
-  while (queue.length) {
-    const t = queue.pop();
-    for (const nb of adjacency[t]) {
+  const stack = [faceIndex];
+  while (stack.length) {
+    const t = stack.pop();
+    for (const nb of neighbors[t]) {
       if (visited.has(nb)) continue;
-      const n = triNormal(position, index, nb);
-      if (n.dot(startNormal) < cosTol) continue;
-      const c = triCentroid(position, index, nb);
-      if (Math.abs(c.clone().sub(planePoint).dot(startNormal)) > planeTol) continue;
+      if (triNormal(position, index, nb, normal).dot(startNormal) < cosTol) continue;
+      triCentroid(position, index, nb, centroid);
+      if (Math.abs(centroid.sub(planePoint).dot(startNormal)) > planeTol) continue;
       visited.add(nb);
-      queue.push(nb);
+      stack.push(nb);
     }
   }
 
@@ -99,17 +93,18 @@ export function clusterFace(geometry, faceIndex, options = {}) {
   // pull off visual-center).
   const up = startNormal;
   const arbitrary = Math.abs(up.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-  const u = arbitrary.clone().cross(up).normalize();
+  const u = arbitrary.cross(up).normalize();
   const v = up.clone().cross(u).normalize();
 
   let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
   const seenVerts = new Set();
+  const p = new THREE.Vector3();
   for (const t of visited) {
-    const a = index.getX(3 * t), b = index.getX(3 * t + 1), c = index.getX(3 * t + 2);
-    for (const vi of [a, b, c]) {
+    for (let k = 0; k < 3; k++) {
+      const vi = index.getX(3 * t + k);
       if (seenVerts.has(vi)) continue;
       seenVerts.add(vi);
-      const p = new THREE.Vector3().fromBufferAttribute(position, vi).sub(planePoint);
+      p.fromBufferAttribute(position, vi).sub(planePoint);
       const du = p.dot(u);
       const dv = p.dot(v);
       if (du < minU) minU = du;
@@ -120,8 +115,8 @@ export function clusterFace(geometry, faceIndex, options = {}) {
   }
   const center = planePoint
     .clone()
-    .add(u.clone().multiplyScalar((minU + maxU) / 2))
-    .add(v.clone().multiplyScalar((minV + maxV) / 2));
+    .addScaledVector(u, (minU + maxU) / 2)
+    .addScaledVector(v, (minV + maxV) / 2);
 
   return {
     point: [center.x, center.y, center.z],

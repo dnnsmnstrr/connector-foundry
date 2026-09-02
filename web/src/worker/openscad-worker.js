@@ -15,6 +15,20 @@
 // each render still resolves/rejects independently, only the underlying
 // work is serialized.
 import { createOpenSCAD } from "openscad-wasm";
+import { fetchPublic } from "../lib/publicAsset.js";
+import { callArgs, defineArgs, scadLiteral } from "../lib/scadLiteral.js";
+
+// Where the source bundle is mounted inside the WASM filesystem. It
+// mirrors the real repo layout because every .scad file here uses
+// relative includes (`../../vendor/BOSL2/std.scad`), so the depth has to
+// match for those to resolve.
+const REPO_MOUNT = "/repo";
+// A generated Bench assembly lives where assemblies/*.scad live, for the
+// same reason — its includes use that directory's `../` convention, and
+// it is the literal file a "download .scad" export hands someone to drop
+// into assemblies/.
+const BENCH_DIR = `${REPO_MOUNT}/assemblies`;
+const BENCH_MAIN = `${BENCH_DIR}/_bench.scad`;
 
 let queue = Promise.resolve();
 function enqueue(work) {
@@ -30,7 +44,14 @@ let bundlePromise = null;
 
 function getBundle() {
   if (!bundlePromise) {
-    bundlePromise = fetch(`${import.meta.env.BASE_URL}scad-bundle.json`).then((res) => res.json());
+    bundlePromise = fetchPublic("scad-bundle.json")
+      .then((res) => res.json())
+      .catch((err) => {
+        // Don't cache the failure: a transient network error on the very
+        // first render would otherwise fail every later one too.
+        bundlePromise = null;
+        throw err;
+      });
   }
   return bundlePromise;
 }
@@ -48,18 +69,15 @@ function mkdirp(fsobj, dirPath) {
   }
 }
 
-function mountBundle(fsobj, bundle) {
-  for (const [relPath, content] of Object.entries(bundle)) {
-    const virtualPath = "/repo/" + relPath;
-    mkdirp(fsobj, virtualPath.slice(0, virtualPath.lastIndexOf("/")));
-    fsobj.writeFile(virtualPath, content);
-  }
+function writeFileAt(fsobj, virtualPath, content) {
+  mkdirp(fsobj, virtualPath.slice(0, virtualPath.lastIndexOf("/")));
+  fsobj.writeFile(virtualPath, content);
 }
 
-function scadLiteral(value) {
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") return JSON.stringify(value);
-  return String(value);
+function mountBundle(fsobj, bundle) {
+  for (const [relPath, content] of Object.entries(bundle)) {
+    writeFileAt(fsobj, `${REPO_MOUNT}/${relPath}`, content);
+  }
 }
 
 self.onmessage = (event) => {
@@ -86,41 +104,26 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     // lib/constants.scad's FIT_CLEARANCE=0.15 is overridden by
     // `-D FIT_CLEARANCE=0.3` the same way for a native `openscad` run
     // as it is here) — same mechanism the CLI uses (run_openscad()).
-    const extraArgs = [];
-    if (part) extraArgs.push("-D", `part=${scadLiteral(part)}`);
-    for (const [key, value] of Object.entries(globalOverrides || {})) {
-      extraArgs.push("-D", `${key}=${scadLiteral(value)}`);
-    }
+    const extraArgs = [...(part ? ["-D", `part=${scadLiteral(part)}`] : []), ...defineArgs(globalOverrides)];
 
     // Two request shapes: a single catalogue part (scadFile + module +
     // params -> `include <..>; module(args);`), or a fully generated
     // source (scadSource) for a Bench assembly — see
-    // web/src/lib/assembly.js's compileToScad(). The generated source
-    // uses assemblies/*.scad's own include convention (`../vendor/...`
-    // etc.), so it's mounted at that same depth for its relative
-    // includes to resolve, and it's also the literal file a "download
-    // .scad" export would hand someone to drop into assemblies/.
+    // web/src/lib/assembly.js's compileToScad().
     let mainPath;
     if (scadSource) {
-      mainPath = "/repo/assemblies/_bench.scad";
-      mkdirp(os.FS, "/repo/assemblies");
-      os.FS.writeFile(mainPath, scadSource);
-
-      // Imported STL files (assembly.js's compileToScad() generates
+      mainPath = BENCH_MAIN;
+      writeFileAt(os.FS, mainPath, scadSource);
+      // Imported STL files (compileToScad() generates
       // `import("imports/<id>.stl")` inside the module it writes for
-      // each one) — same relative-include resolution rule as the
-      // .scad tree itself, so they're mounted next to _bench.scad.
+      // each one) — same relative resolution rule as the .scad tree
+      // itself, so they're mounted next to _bench.scad.
       for (const [relPath, bytes] of importedFiles || []) {
-        const virtualPath = "/repo/assemblies/" + relPath;
-        mkdirp(os.FS, virtualPath.slice(0, virtualPath.lastIndexOf("/")));
-        os.FS.writeFile(virtualPath, new Uint8Array(bytes));
+        writeFileAt(os.FS, `${BENCH_DIR}/${relPath}`, new Uint8Array(bytes));
       }
     } else {
-      const args = Object.entries(params || {})
-        .map(([key, value]) => `${key}=${scadLiteral(value)}`)
-        .join(", ");
       mainPath = "/main.scad";
-      os.FS.writeFile(mainPath, `include </repo/${scadFile}>\n${module}(${args});\n`);
+      os.FS.writeFile(mainPath, `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`);
     }
 
     const rc = os.callMain([mainPath, "-o", "/output.stl", "--backend=Manifold", ...extraArgs]);

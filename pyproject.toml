@@ -28,8 +28,17 @@ dev = [
 foundry = "foundry:app"
 
 [tool.setuptools]
-py-modules = ["foundry"]
+# foundry imports userconfig as a sibling module, so a non-editable
+# install needs both or the console script fails on import.
+py-modules = ["foundry", "userconfig"]
 package-dir = { "" = "cli" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The CLI (cli/) and the reference tooling (tools/) are plain modules,
+# not packages; this is what lets the tests `import foundry` and
+# `import refcache` without every file editing sys.path first.
+pythonpath = ["cli", "tools"]
 
 [build-system]
 requires = ["setuptools>=68"]

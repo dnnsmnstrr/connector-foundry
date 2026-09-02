@@ -12,31 +12,15 @@ first run, and its checks skip rather than fail without one:
     make refs      populate the cache
     make verify    run the checks with the full report
 """
-import sys
-from pathlib import Path
-
 import pytest
+import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-import refcache  # noqa: E402
-import verify  # noqa: E402
+import refcache
+import verify
 
 CONFIG = refcache.load()
-
-
-def _sources():
-    """Resolve every source once, remembering why any failed."""
-    available, unavailable = {"repo": refcache.REPO_ROOT}, {}
-    for name, spec in CONFIG.get("sources", {}).items():
-        try:
-            available[name] = refcache.resolve_source(name, spec)
-        except refcache.RefError as exc:
-            unavailable[name] = str(exc)
-    return available, unavailable
-
-
-AVAILABLE, UNAVAILABLE = _sources()
-SCAD_PATH = verify._paths(CONFIG, AVAILABLE)
+AVAILABLE, UNAVAILABLE = refcache.resolve_available(CONFIG)
+SCAD_PATH = verify.openscad_path(CONFIG, AVAILABLE)
 
 
 def _run(check, runner):
@@ -82,8 +66,6 @@ def test_every_exact_part_has_a_reference():
       exemption is what should get replaced with a real shape/fit
       check, not kept.
     """
-    import yaml
-
     catalogue = yaml.safe_load((refcache.REPO_ROOT / "catalogue.yaml").read_text())
     checked = {c.get("part") for c in
                CONFIG.get("shape_checks", []) + CONFIG.get("fit_checks", [])}

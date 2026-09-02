@@ -7,12 +7,16 @@ running in a Web Worker.
 
 ## How it works
 
-1. `npm run sync-scad` (runs automatically before `dev`/`build`) bundles every `.scad` file under
-   `vendor/BOSL2`, `lib`, `parts`, and `assemblies` into `public/scad-bundle.json`, and copies
-   `catalogue.yaml` into `public/`. This is the only "build step" that touches the OpenSCAD
-   sources — the app never transpiles or reimplements them.
-2. `src/App.jsx` reads `catalogue.yaml` for the part list, default parameters, and confidence
-   labels, and renders a picker + parameter form from it — same schema the CLI reads.
+1. `npm run sync-scad` (runs automatically before `dev`/`build`) bundles every `.scad` file the
+   parts reach into — `lib`, `parts`, `assemblies`, and the vendored upstreams (`SOURCE_DIRS` in
+   `scripts/sync-scad.mjs`, narrowed to the subtrees actually used) — into `public/scad-bundle.json`,
+   and copies `catalogue.yaml` into `public/`. This is the only "build step" that touches the
+   OpenSCAD sources — the app never transpiles or reimplements them. A source directory with no
+   `.scad` files in it (a submodule that was never checked out) is reported, since the symptom
+   in the browser is otherwise just an unhelpful "can't open include" on the parts that need it.
+2. `src/hooks/useCatalogue.js` reads `catalogue.yaml` for the part list, default parameters, and
+   confidence labels; `src/Library.jsx` renders a picker + parameter form from it — same schema
+   the CLI reads.
 3. `src/worker/openscad-worker.js` fetches `scad-bundle.json` once, writes it into the WASM
    virtual filesystem at `/repo/...` (mirroring the real repo layout, since every `.scad` file
    uses relative `include`s), then on each render request writes a one-line stub —
@@ -30,7 +34,32 @@ with an opaque WASM trap), and can't run two instances concurrently either — b
 testing, not assumed. So `openscad-worker.js` spins up a fresh instance per render and serialises
 every request through one FIFO queue; see the worker's header comment for the full story,
 including a separate, still-unresolved WASM resource limit that shows up for some bolted/snap
-joint combinations in the Bench (`src/lib/assembly.js`'s `attachChildScad()` has that one).
+joint combinations in the Bench (`src/lib/assembly.js`'s `emitJointChild()` has that one).
+
+If the worker itself dies (a script error, a message that can't be deserialised), every render
+waiting on it is rejected with a message saying so and the worker is discarded, so the next
+render starts a fresh one — a request whose worker is gone would otherwise hang forever.
+
+## Module layout
+
+Shared UI pieces live in `src/components/`; everything with no React in it lives in `src/lib/`.
+
+| Module | What |
+| --- | --- |
+| `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference |
+| `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
+| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers |
+| `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
+| `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
+| `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `JointSelect` |
+| `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
+| `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
+| `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
+| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
+| `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides, sidebar collapsed |
+| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs |
 
 ## Shell (`src/App.jsx`)
 
@@ -64,8 +93,8 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - `src/lib/assembly.js` holds the tree: `{ root: {id:"root", partId, params}, nodes: [...] }`,
   where every node but root carries a `parentId` naming what it's attached to — "root" or another
   node's id, to any depth. `getNode()`/`childrenOf()`/`occupiedSlotNames()` all take that id the
-  same way for root and any child, which is what lets `Bench.jsx`'s `slotsForNode()` and
-  `NodeTree` treat every node identically regardless of depth.
+  same way for root and any child, which is what lets `src/lib/benchLayout.js`'s `slotsForNode()`
+  and `components/bench/NodeTree.jsx` treat every node identically regardless of depth.
 - `compileToScad()` generates one `.scad` source per assembly state, through the *same*
   worker/render pipeline as everything else (a second request shape, `{ scadSource, part }`,
   alongside the single-part `{ scadFile, module, params }` one) — the Bench never has its own
@@ -86,7 +115,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   render time via `-D part=...`, not just the one you happen to be looking at.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
   prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
-  its "bot" anchor open (`Bench.jsx`'s `stackSlotFor()`). A named-anchor position is in the part's
+  its "bot" anchor open (`src/lib/benchLayout.js`'s `stackSlotFor()`; everything about where a
+  marker goes lives in that module, as pure functions over the tree, the parts map and each node's
+  own extents — `Bench.jsx` only wires state to them). A named-anchor position is in the part's
   own centered local frame; root is the only node BOSL2 places with no rotation, so its markers are
   a plain height/2 shift (`centeredToWorld()`). A non-root node's own axes don't line up with world
   space in general, because `attach()` flips the child to make its anchor antiparallel to the
@@ -105,7 +136,10 @@ a part actually has anchors left over. A few implementation notes that don't bel
   that goes through real BOSL2, not this shortcut.
 - Every node's own standalone extents (needed to place its own marker and enumerate its slots)
   come from rendering its part alone with its own params — the same computation for root and any
-  descendant, since a part's own size never depends on where it sits in the tree. Catalogue.yaml's
+  descendant, since a part's own size never depends on where it sits in the tree. The render is
+  cached in `openscad-client.js` and the bounding-box parse of its result is memoised per buffer
+  (`src/lib/meshExtents.js`), so an assembly edit that changes nothing about a node costs two
+  lookups for it, not a compile and a re-parse of its mesh. Catalogue.yaml's
   `anchors` field (`[bot, xpos, xneg, ypos, yneg]`) is what makes a multi-anchor part like Basics
   plate/post enumerable this way without parsing its `.scad`: each name is just the center of that
   face of the part's own rendered bounding box (`src/lib/slots.js`'s `FACE_ANCHOR_LOCAL`) — no
@@ -129,9 +163,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `type: "log"` messages (the detailed OpenSCAD stderr behind a generic "check the parameters"
   failure) to `console.error` instead of silently dropping them — previously dead code, since
   those messages have no `id` to match a pending request against.
-- Every node — root or any depth of child — gets a parameter editor in the sidebar
-  (`NodeParamsPanel`), the exact same catalogue-default diff/reset/save-as-default flow as Library
-  mode's params panel (`src/components/ParamField.jsx`, shared between the two).
+- Every node — root or any depth of child — gets a parameter editor in the sidebar: the same
+  `src/components/ParamsEditor.jsx` Library mode's params panel is, so the catalogue-default
+  diff/reset/save-as-default flow is one implementation, not two that agree.
 - Each child carries an `overlap` field (mm, default 0) — the root README's "Offset" — that
   becomes BOSL2 `attach()`'s own `overlap=` on the *final* attach in that child's chain (the plain
   attach for a fused joint, or the child-onto-flangeB attach for bolted/snap — never the flanges'
@@ -152,11 +186,14 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `onSurfacePick`. That center becomes a `named_anchor()` on the generated wrapper, same as any
   catalogue part's. Since `clusterFace()` is deterministic per coplanar patch, clicking an
   already-slotted face again recomputes the same center regardless of which triangle in it was
-  actually hit — `Bench.jsx`'s `placeSlot()` checks new-point-vs-existing-anchors distance
-  (`DUPLICATE_SLOT_TOLERANCE_MM`) and re-selects the existing anchor instead of stacking a second
-  marker on it. The uploaded/repaired bytes travel to the worker as a `Map` in the render
-  request (`importedFiles`), written into the WASM filesystem right next to the generated
-  `.scad` before it compiles.
+  actually hit — `components/bench/ImportFlow.jsx`'s `placeSlot()` asks `importedPart.js`'s
+  `findAnchorNear()` (within `DUPLICATE_SLOT_TOLERANCE_MM`) and re-selects the existing anchor
+  instead of stacking a second marker on it. Both `meshValidate.js` and `faceCluster.js` build
+  their edge/adjacency structures through `src/lib/meshTopology.js`, which keys edges on a packed
+  number rather than a string; `faceCluster.js` also caches the adjacency per geometry, so only
+  the first click on an imported mesh pays for building it. The uploaded/repaired bytes travel to
+  the worker as a `Map` in the render request (`importedFiles`), written into the WASM filesystem
+  right next to the generated `.scad` before it compiles.
 
 ## User overrides (`src/lib/userOverrides.js`)
 

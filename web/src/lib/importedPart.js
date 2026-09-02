@@ -40,13 +40,39 @@ function exportStlBytesFor(geometry) {
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
 }
 
-export function addAnchor(part, name, worldPoint, worldNormal) {
-  const point = [
-    worldPoint[0] - part.center[0],
-    worldPoint[1] - part.center[1],
-    worldPoint[2] - part.center[2],
+// Anchors are stored relative to the part's bounding-box center (the
+// frame the generated attachable() wrapper puts the geometry in — see
+// assembly.js's importedModuleSource()); `part.geometry` itself is still
+// in the file's own un-centered coordinates. These two convert between
+// the frames — the import viewer shows the raw geometry, so it places
+// markers and reads clicks in that un-centered frame.
+export function anchorDisplayPoint(part, anchor) {
+  return [
+    anchor.point[0] + part.center[0],
+    anchor.point[1] + part.center[1],
+    anchor.point[2] + part.center[2],
   ];
-  return { ...part, anchors: [...part.anchors, { name, point, normal: [...worldNormal] }] };
+}
+
+export function addAnchor(part, name, displayPoint, normal) {
+  const point = [
+    displayPoint[0] - part.center[0],
+    displayPoint[1] - part.center[1],
+    displayPoint[2] - part.center[2],
+  ];
+  return { ...part, anchors: [...part.anchors, { name, point, normal: [...normal] }] };
+}
+
+// The existing anchor within `toleranceMm` of `displayPoint`, if any.
+// clusterFace() is deterministic per connected coplanar patch, so
+// clicking the same flat face again (anywhere on it) recomputes the same
+// center regardless of which triangle was hit — "very close to an
+// existing anchor" means "that one", not a second marker on top of it.
+export function findAnchorNear(part, displayPoint, toleranceMm) {
+  return part.anchors.find((a) => {
+    const [x, y, z] = anchorDisplayPoint(part, a);
+    return Math.hypot(x - displayPoint[0], y - displayPoint[1], z - displayPoint[2]) < toleranceMm;
+  });
 }
 
 export function removeAnchor(part, name) {

@@ -11,6 +11,13 @@ export function groupBySystem(parts) {
   return groups;
 }
 
+// A part id as a filename stem — gridfinity/base -> gridfinity_base, the
+// same as cli/foundry.py's slug(), so a browser download and a CLI
+// render of the same part get the same name.
+export function slugify(partId) {
+  return partId.replace(/\//g, "_");
+}
+
 export function matchesSearch(part, query) {
   const q = query.trim().toLowerCase();
   if (!q) return true;

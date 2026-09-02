@@ -44,6 +44,9 @@ def _override_path(part_id: str) -> Path:
 
 
 def _read(part_id: str) -> dict:
+    """The saved preset, or {} for a missing, unreadable, or malformed
+    file — a hand-edited config that no longer parses should degrade to
+    "no overrides", never take `foundry render` down with a traceback."""
     path = _override_path(part_id)
     if not path.exists():
         return {}
@@ -51,14 +54,23 @@ def _read(part_id: str) -> dict:
         doc = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return {}
-    return doc.get("parameterSets", {}).get(PRESET_NAME, {})
+    if not isinstance(doc, dict):
+        return {}
+    sets = doc.get("parameterSets")
+    preset = sets.get(PRESET_NAME) if isinstance(sets, dict) else None
+    return preset if isinstance(preset, dict) else {}
 
 
 def _write(part_id: str, params: dict) -> None:
+    """Write via a sibling temp file and an atomic replace, so a crash
+    mid-write leaves the previous config intact rather than a truncated
+    file that _read() would then silently treat as empty."""
     path = _override_path(part_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     doc = {"parameterSets": {PRESET_NAME: params}, "fileFormatVersion": "1"}
-    path.write_text(json.dumps(doc, indent=2) + "\n")
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(doc, indent=2) + "\n")
+    os.replace(tmp, path)
 
 
 def get_overrides(part_id: str) -> dict:

@@ -21,16 +21,11 @@ wound inward. openGrid's heavy tile has four of them, one per cell,
 where its two back-to-back halves leave a deliberate gap. Counting
 those as separate bodies would fail a part that is perfectly sound.
 """
-import sys
-from pathlib import Path
-
 import pytest
 import trimesh
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cli"))
-import foundry  # noqa: E402
-
-from conftest import render_variant  # noqa: E402
+import foundry
+from conftest import render_variant
 
 # Below this a "body" is an export artifact, not geometry.
 MIN_BODY_AREA_MM2 = 1e-6

@@ -25,10 +25,17 @@
 // generated wrapper module per import). Both are looked up through the
 // same `partsById` map passed to compileToScad(); imported entries
 // carry `kind: "imported"` so the codegen below can tell them apart.
+import { callArgs } from "./scadLiteral.js";
+
 let nextChildId = 1;
 
-const ROOT_ID = "root";
-export { ROOT_ID };
+export const ROOT_ID = "root";
+
+// Every way two parts can mate through their mount slots — see
+// lib/joints.scad and the root README's "Joints". "fused" is a plain
+// attach(); the rest add flanges (emitJointChild) and so each start a
+// new printable body (bodyTags).
+export const JOINTS = ["fused", "bolted", "snap", "pin"];
 
 export function createAssembly(rootPartId, rootParams) {
   return { root: { id: ROOT_ID, partId: rootPartId, params: { ...rootParams } }, nodes: [] };
@@ -60,8 +67,8 @@ export function occupiedSlotNames(assembly, parentId) {
 // `overlap` (mm, default 0): how far the child sinks into whatever it's
 // directly touching (the parent for a fused joint, the far flange for
 // bolted/snap) — negative pulls it out instead, leaving a gap. See
-// attachChildScad()'s overlapArg() for the sign flip against BOSL2's
-// own `overlap=`, which goes the other way.
+// overlapArg() for the sign flip against BOSL2's own `overlap=`, which
+// goes the other way.
 export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0 }) {
   const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap };
   return { ...assembly, nodes: [...assembly.nodes, child] };
@@ -108,18 +115,6 @@ export function updateNodeParams(assembly, id, params) {
     ...assembly,
     nodes: assembly.nodes.map((n) => (n.id === id ? { ...n, params: { ...params } } : n)),
   };
-}
-
-function scadLiteral(value) {
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") return JSON.stringify(value);
-  return String(value);
-}
-
-function callArgs(params) {
-  return Object.entries(params || {})
-    .map(([key, value]) => `${key}=${scadLiteral(value)}`)
-    .join(", ");
 }
 
 function importedModuleName(part) {
@@ -337,7 +332,11 @@ export function compileToScad(assembly, partsById, importedFiles) {
   const needsJoints = assembly.nodes.some((c) => c.joint !== "fused");
   if (needsJoints) includes.add(`include <../lib/joints.scad>`);
   const needsPin = assembly.nodes.some((c) => c.joint === "pin");
-  if (needsPin) includes.add(`include <../${partsById.get("bitbeam/pin").file}>`);
+  if (needsPin) {
+    const pin = partsById.get("bitbeam/pin");
+    if (!pin) throw new Error('A pin joint needs the catalogue part "bitbeam/pin", which is not in this catalogue.');
+    includes.add(`include <../${pin.file}>`);
+  }
 
   const generatedModules = [];
   const allParts = [rootPart, ...assembly.nodes.map((c) => partsById.get(c.partId))];

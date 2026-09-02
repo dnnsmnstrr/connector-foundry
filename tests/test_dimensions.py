@@ -8,17 +8,12 @@ references.yaml and tests/test_reference.py.
 
 Regenerate after an intended change:  foundry goldens --update
 """
-import sys
-from pathlib import Path
-
 import pytest
 import trimesh
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cli"))
-import foundry  # noqa: E402
-
-from conftest import render_variant  # noqa: E402
+import foundry
+from conftest import render_variant
 
 BBOX_TOL_MM = 0.05
 VOLUME_TOL_PCT = 0.5
@@ -27,8 +22,7 @@ GOLDEN = yaml.safe_load(foundry.GOLDEN_PATH.read_text()) if foundry.GOLDEN_PATH.
 
 
 def cases():
-    catalogue = foundry.load_catalogue()
-    return [(part, params, tag) for part, params, tag in foundry.catalogue_cases(catalogue)]
+    return list(foundry.catalogue_cases(foundry.load_catalogue()))
 
 
 def test_every_catalogue_entry_is_recorded():
@@ -47,7 +41,7 @@ def test_recorded_dimensions(part, params, tag, render_dir):
     if expected is None:
         pytest.skip("not recorded; covered by test_every_catalogue_entry_is_recorded")
 
-    mesh = trimesh.load(render_variant(part, params, render_dir, f"golden-{tag}"))
+    mesh = trimesh.load(render_variant(part, params, render_dir, tag))
 
     for axis, (actual, want) in enumerate(zip(mesh.extents, expected["bbox"])):
         assert actual == pytest.approx(want, abs=BBOX_TOL_MM), (

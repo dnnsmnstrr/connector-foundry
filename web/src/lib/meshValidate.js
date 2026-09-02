@@ -19,43 +19,33 @@
 // refuse.
 import * as THREE from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { buildTopology, faceAdjacency } from "./meshTopology.js";
 
 const WELD_TOLERANCE_MM = 1e-3;
 const MIN_COMPONENT_AREA_MM2 = 1e-6;
 
-function edgeKey(a, b) {
-  return a < b ? `${a}_${b}` : `${b}_${a}`;
+// Scratch vectors for the per-triangle loops: an uploaded scan can run
+// to hundreds of thousands of faces, and allocating three Vector3s per
+// face was most of the cost of the area and volume passes.
+const _v0 = new THREE.Vector3(), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+
+function triangleArea(position, a, b, c) {
+  _v0.fromBufferAttribute(position, a);
+  _v1.fromBufferAttribute(position, b).sub(_v0);
+  _v2.fromBufferAttribute(position, c).sub(_v0);
+  return _v1.cross(_v2).length() / 2;
 }
 
-function buildTopology(geometry) {
-  const index = geometry.index.array;
-  const triCount = index.length / 3;
-  const faces = new Array(triCount);
-  const edgeMap = new Map(); // edgeKey -> [{tri, dir: [v1,v2]}, ...]
-
-  for (let t = 0; t < triCount; t++) {
-    const a = index[3 * t], b = index[3 * t + 1], c = index[3 * t + 2];
-    faces[t] = [a, b, c];
-    for (const [v1, v2] of [[a, b], [b, c], [c, a]]) {
-      const key = edgeKey(v1, v2);
-      if (!edgeMap.has(key)) edgeMap.set(key, []);
-      edgeMap.get(key).push({ tri: t, dir: [v1, v2] });
-    }
+function signedVolume(faces, members, position) {
+  let volume = 0;
+  for (const f of members) {
+    const [a, b, c] = faces[f];
+    _v0.fromBufferAttribute(position, a);
+    _v1.fromBufferAttribute(position, b);
+    _v2.fromBufferAttribute(position, c);
+    volume += _v0.dot(_v1.cross(_v2));
   }
-  return { faces, edgeMap, triCount };
-}
-
-function faceAdjacency(faces, edgeMap) {
-  const adjacency = Array.from({ length: faces.length }, () => []);
-  for (const occurrences of edgeMap.values()) {
-    for (let i = 0; i < occurrences.length; i++) {
-      for (let j = i + 1; j < occurrences.length; j++) {
-        adjacency[occurrences[i].tri].push({ face: occurrences[j].tri, edge: occurrences[i] });
-        adjacency[occurrences[j].tri].push({ face: occurrences[i].tri, edge: occurrences[j] });
-      }
-    }
-  }
-  return adjacency;
+  return volume / 6;
 }
 
 function connectedComponents(faces, adjacency) {
@@ -65,15 +55,15 @@ function connectedComponents(faces, adjacency) {
     if (componentOf[start] !== -1) continue;
     const id = components.length;
     const members = [];
-    const queue = [start];
+    const stack = [start];
     componentOf[start] = id;
-    while (queue.length) {
-      const f = queue.pop();
+    while (stack.length) {
+      const f = stack.pop();
       members.push(f);
       for (const { face } of adjacency[f]) {
         if (componentOf[face] === -1) {
           componentOf[face] = id;
-          queue.push(face);
+          stack.push(face);
         }
       }
     }
@@ -98,47 +88,48 @@ function analyzeEdges(edgeMap) {
   return { openEdges, nonManifoldEdges, inconsistentEdges };
 }
 
+// Does `face` traverse the edge v1 -> v2 in that direction? Read from the
+// face's CURRENT index order, since faces get flipped in place below and
+// the direction recorded at topology-build time may be stale.
+function traversesForward(face, v1, v2) {
+  return (face[0] === v1 && face[1] === v2) ||
+    (face[1] === v1 && face[2] === v2) ||
+    (face[2] === v1 && face[0] === v2);
+}
+
+function flipFace(face) {
+  const tmp = face[1];
+  face[1] = face[2];
+  face[2] = tmp;
+}
+
 // BFS orientation propagation within one component: make every face's
 // winding consistent with its neighbors, relative to an arbitrary seed
-// face. Mutates `faces` in place (swaps two indices to flip a face).
-function fixWindingConsistency(faces, adjacency, members) {
-  const visited = new Set();
+// face. Mutates `faces` in place. `visited` is shared across components
+// (each face belongs to exactly one). The queue is an array with a head
+// pointer rather than shift() — shift() is O(n) on a large array, which
+// made this quadratic on a big component.
+function fixWindingConsistency(faces, adjacency, members, visited) {
   const seed = members[0];
-  visited.add(seed);
+  visited[seed] = 1;
   const queue = [seed];
+  let head = 0;
   let flips = 0;
 
-  while (queue.length) {
-    const f = queue.shift();
+  while (head < queue.length) {
+    const f = queue[head++];
+    const fFace = faces[f];
     for (const { face: g, edge } of adjacency[f]) {
-      if (visited.has(g)) continue;
-      visited.add(g);
+      if (visited[g]) continue;
+      visited[g] = 1;
       queue.push(g);
-
-      // `edge` is one of the two occurrences of the shared edge; find
-      // both directions to see whether f and g already disagree
-      // correctly (opposite directions = consistent) or not.
-      const [v1, v2] = edge.dir;
-      const gFace = faces[g];
-      const gHasForward = (gFace[0] === v1 && gFace[1] === v2) ||
-        (gFace[1] === v1 && gFace[2] === v2) ||
-        (gFace[2] === v1 && gFace[0] === v2);
-      // f's occurrence of this edge is `edge.dir` itself if edge.tri === f,
-      // otherwise we need the other occurrence — but since we only need
-      // to know f's direction for this edge, and f is already visited
-      // (fixed), derive it directly from faces[f].
-      const fFace = faces[f];
-      const fHasForward = (fFace[0] === v1 && fFace[1] === v2) ||
-        (fFace[1] === v1 && fFace[2] === v2) ||
-        (fFace[2] === v1 && fFace[0] === v2);
 
       // Consistent mating means f and g traverse the shared edge in
       // opposite directions. If both traverse it the same way, g is
-      // backwards relative to f — flip it.
-      if (fHasForward === gHasForward) {
-        const tmp = gFace[1];
-        gFace[1] = gFace[2];
-        gFace[2] = tmp;
+      // backwards relative to f (already fixed) — flip it.
+      const [v1, v2] = edge.dir;
+      if (traversesForward(fFace, v1, v2) === traversesForward(faces[g], v1, v2)) {
+        flipFace(faces[g]);
         flips++;
       }
     }
@@ -146,30 +137,8 @@ function fixWindingConsistency(faces, adjacency, members) {
   return flips;
 }
 
-function signedVolume(faces, members, position) {
-  let volume = 0;
-  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
-  for (const f of members) {
-    const [a, b, c] = faces[f];
-    v0.fromBufferAttribute(position, a);
-    v1.fromBufferAttribute(position, b);
-    v2.fromBufferAttribute(position, c);
-    volume += v0.dot(v1.clone().cross(v2));
-  }
-  return volume / 6;
-}
-
-function flipComponent(faces, members) {
-  for (const f of members) {
-    const face = faces[f];
-    const tmp = face[1];
-    face[1] = face[2];
-    face[2] = tmp;
-  }
-}
-
-function facesToIndex(faces) {
-  const out = new (faces.length * 3 > 65535 ? Uint32Array : Uint16Array)(faces.length * 3);
+function facesToIndex(faces, vertexCount) {
+  const out = new (vertexCount > 65535 ? Uint32Array : Uint16Array)(faces.length * 3);
   for (let t = 0; t < faces.length; t++) {
     out[3 * t] = faces[t][0];
     out[3 * t + 1] = faces[t][1];
@@ -178,11 +147,14 @@ function facesToIndex(faces) {
   return out;
 }
 
-function triangleArea(position, a, b, c) {
-  const v0 = new THREE.Vector3().fromBufferAttribute(position, a);
-  const v1 = new THREE.Vector3().fromBufferAttribute(position, b);
-  const v2 = new THREE.Vector3().fromBufferAttribute(position, c);
-  return v1.clone().sub(v0).cross(v2.clone().sub(v0)).length() / 2;
+// Write `faces` back as the geometry's index and rebuild the topology
+// from it. A typed array goes straight in as the attribute — no detour
+// through a plain Array, which for a large mesh was a multi-megabyte
+// copy per call.
+function commitFaces(geometry, faces) {
+  const vertexCount = geometry.attributes.position.count;
+  geometry.setIndex(new THREE.BufferAttribute(facesToIndex(faces, vertexCount), 1));
+  return buildTopology(geometry.index.array, vertexCount);
 }
 
 // Returns { geometry, ok, report, extents, center }. `geometry` is
@@ -207,8 +179,8 @@ export function validateAndRepair(rawGeometry) {
     return { geometry, ok: false, report: ["Mesh has no triangles after welding — empty or degenerate file."] };
   }
 
-  let { faces, edgeMap } = buildTopology(geometry);
   const position = geometry.attributes.position;
+  let { faces, edgeMap } = buildTopology(geometry.index.array, position.count);
 
   // Drop near-zero-area triangles (degenerate slivers, common in
   // exports) before topology analysis — they otherwise show up as
@@ -218,22 +190,22 @@ export function validateAndRepair(rawGeometry) {
   if (faces.length !== before) {
     report.push(`Dropped ${before - faces.length} degenerate (near-zero-area) triangles.`);
   }
-  geometry.setIndex(Array.from(facesToIndex(faces)));
-  ({ faces, edgeMap } = buildTopology(geometry));
+  ({ faces, edgeMap } = commitFaces(geometry, faces));
 
   let adjacency = faceAdjacency(faces, edgeMap);
   let { components } = connectedComponents(faces, adjacency);
 
+  const visited = new Uint8Array(faces.length);
   let totalFlips = 0;
   for (const members of components) {
-    totalFlips += fixWindingConsistency(faces, adjacency, members);
+    totalFlips += fixWindingConsistency(faces, adjacency, members, visited);
   }
   if (totalFlips > 0) report.push(`Fixed winding direction on ${totalFlips} triangle(s).`);
 
   let flippedComponents = 0;
   for (const members of components) {
     if (signedVolume(faces, members, position) < 0) {
-      flipComponent(faces, members);
+      for (const f of members) flipFace(faces[f]);
       flippedComponents++;
     }
   }
@@ -241,8 +213,7 @@ export function validateAndRepair(rawGeometry) {
     report.push(`Flipped ${flippedComponents} inside-out shell(s) to face outward.`);
   }
 
-  geometry.setIndex(Array.from(facesToIndex(faces)));
-  ({ faces, edgeMap } = buildTopology(geometry));
+  ({ faces, edgeMap } = commitFaces(geometry, faces));
   adjacency = faceAdjacency(faces, edgeMap);
   ({ components } = connectedComponents(faces, adjacency));
 

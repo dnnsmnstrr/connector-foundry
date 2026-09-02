@@ -16,27 +16,47 @@ const pending = new Map();
 const cache = new Map();
 const inFlight = new Map();
 
+// Every request the worker still owes an answer for fails with `error`.
+// Used when the worker itself dies: a request whose worker is gone would
+// otherwise hang forever, since no "result"/"error" message is coming.
+function failAllPending(error) {
+  for (const entry of pending.values()) entry.reject(error);
+  pending.clear();
+}
+
+function onWorkerMessage(event) {
+  const { id, type } = event.data;
+  // The worker's own printErr forwards any OpenSCAD stderr line
+  // matching /error/i this way, untied to a specific request (no
+  // `id`) — surface it to the console rather than silently drop it,
+  // since it's often the only place the REAL reason a render failed
+  // (as opposed to the generic "check the parameters" thrown on a
+  // non-zero exit code) actually shows up.
+  if (type === "log") {
+    console.error("[openscad]", event.data.text);
+    return;
+  }
+  const entry = pending.get(id);
+  if (!entry) return;
+  pending.delete(id);
+  if (type === "result") entry.resolve(event.data.stl);
+  else entry.reject(new Error(event.data.message));
+}
+
+// A worker that failed to load, or threw outside any request, is
+// replaced on the next render rather than kept as a dead letterbox.
+function onWorkerFailure(detail) {
+  failAllPending(new Error(`OpenSCAD worker failed: ${detail}`));
+  worker?.terminate();
+  worker = null;
+}
+
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL("../worker/openscad-worker.js", import.meta.url), { type: "module" });
-    worker.onmessage = (event) => {
-      const { id, type } = event.data;
-      // The worker's own printErr forwards any OpenSCAD stderr line
-      // matching /error/i this way, untied to a specific request (no
-      // `id`) — surface it to the console rather than silently drop it,
-      // since it's often the only place the REAL reason a render failed
-      // (as opposed to the generic "check the parameters" thrown on a
-      // non-zero exit code) actually shows up.
-      if (type === "log") {
-        console.error("[openscad]", event.data.text);
-        return;
-      }
-      const entry = pending.get(id);
-      if (!entry) return;
-      pending.delete(id);
-      if (type === "result") entry.resolve(event.data.stl);
-      else entry.reject(new Error(event.data.message));
-    };
+    worker.onmessage = onWorkerMessage;
+    worker.onerror = (event) => onWorkerFailure(event.message || "script error");
+    worker.onmessageerror = () => onWorkerFailure("message could not be deserialised");
   }
   return worker;
 }
@@ -104,16 +124,21 @@ export function renderPart(request) {
 
   const { scadFile, module, params, scadSource, part, importedFiles, globalOverrides } = request;
   const id = nextId++;
-  const w = getWorker();
   const promise = new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    // importedFiles' ArrayBuffers are NOT in the transfer list on
-    // purpose: the same imported part can feed many renders as the
-    // assembly evolves, and transferring would detach the buffer after
-    // the first one, leaving it unusable for the next. Structured
-    // clone copies it instead — a bit more work per render, but the
-    // bytes stay valid for the imported part's whole session lifetime.
-    w.postMessage({ id, scadFile, module, params, scadSource, part, importedFiles, globalOverrides });
+    try {
+      // importedFiles' ArrayBuffers are NOT in the transfer list on
+      // purpose: the same imported part can feed many renders as the
+      // assembly evolves, and transferring would detach the buffer after
+      // the first one, leaving it unusable for the next. Structured
+      // clone copies it instead — a bit more work per render, but the
+      // bytes stay valid for the imported part's whole session lifetime.
+      getWorker().postMessage({ id, scadFile, module, params, scadSource, part, importedFiles, globalOverrides });
+    } catch (err) {
+      // e.g. a DataCloneError — nothing was sent, so nothing will answer.
+      pending.delete(id);
+      reject(err);
+    }
   }).then(
     (stl) => {
       inFlight.delete(key);

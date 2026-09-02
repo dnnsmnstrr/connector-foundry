@@ -12,6 +12,7 @@ result is a difference in the model rather than in the mesher.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import os
 import shutil
@@ -100,10 +101,26 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
 
 
 def resolve_all(config: dict, offline: bool = False) -> dict[str, Path]:
+    """Every source's root, or the first RefError — for `make refs`,
+    where an unavailable source is a failure."""
     roots = {"repo": REPO_ROOT}
     for name, spec in config.get("sources", {}).items():
         roots[name] = resolve_source(name, spec, offline=offline)
     return roots
+
+
+def resolve_available(config: dict, offline: bool = False) -> tuple[dict[str, Path], dict[str, str]]:
+    """Every source that resolves, plus why each of the rest did not —
+    for the checks (verify.py, tests/test_reference.py), which skip a
+    check whose source is missing rather than refusing to run at all."""
+    available: dict[str, Path] = {"repo": REPO_ROOT}
+    unavailable: dict[str, str] = {}
+    for name, spec in config.get("sources", {}).items():
+        try:
+            available[name] = resolve_source(name, spec, offline=offline)
+        except RefError as exc:
+            unavailable[name] = str(exc)
+    return available, unavailable
 
 
 # ------------------------------------------------------------ file sources
@@ -117,18 +134,30 @@ DEFAULT_SCALE = {".step": 1000.0, ".stp": 1000.0}
 FILES_CACHE = CACHE / "files"
 
 
+DOWNLOAD_TIMEOUT_S = 60
+
+
 def _download(url: str, sha256: str, dest: Path) -> Path:
+    import urllib.error
     import urllib.request
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     print(f"  downloading {url}", file=sys.stderr)
-    with urllib.request.urlopen(url) as response:
-        payload = response.read()
+    try:
+        with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_S) as response:
+            payload = response.read()
+    except (urllib.error.URLError, OSError) as exc:
+        raise RefError(f"could not download {url}: {exc}") from exc
     got = hashlib.sha256(payload).hexdigest()
     if got != sha256:
         raise RefError(
             f"checksum mismatch for {url}\n  expected {sha256}\n  got      {got}")
-    dest.write_bytes(payload)
+    # Only a verified payload ever lands at `dest`: the existence check in
+    # _resolve_file_source() is the cache, so a partial write there would
+    # be served as the reference forever after.
+    tmp = dest.with_name(dest.name + ".part")
+    tmp.write_bytes(payload)
+    os.replace(tmp, dest)
     return dest
 
 
@@ -221,6 +250,7 @@ def expand(recipe: str, roots: dict[str, Path]) -> str:
 SCAD_DIRS = ("lib", "parts", "assemblies")
 
 
+@functools.cache
 def source_fingerprint() -> str:
     """A hash over everything a recipe's output can depend on.
 
@@ -229,12 +259,9 @@ def source_fingerprint() -> str:
     the cache serving its old geometry — a verify run that reports on
     code you have already changed, which is worse than having no checks
     at all. Hash our own .scad tree by content, and each vendored
-    upstream by its checked-out commit.
+    upstream by its checked-out commit. Computed once per process: the
+    sources do not change under a running check.
     """
-    global _FINGERPRINT
-    if _FINGERPRINT is not None:
-        return _FINGERPRINT
-
     digest = hashlib.sha256()
     for directory in SCAD_DIRS:
         for path in sorted((REPO_ROOT / directory).rglob("*.scad")):
@@ -247,11 +274,7 @@ def source_fingerprint() -> str:
             digest.update(_git("rev-parse", "HEAD", cwd=sub).encode())
         except RefError:
             digest.update(b"unknown")
-    _FINGERPRINT = digest.hexdigest()
-    return _FINGERPRINT
-
-
-_FINGERPRINT: str | None = None
+    return digest.hexdigest()
 
 
 def render(recipe: str, roots: dict[str, Path], tag: str,

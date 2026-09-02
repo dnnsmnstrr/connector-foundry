@@ -1,0 +1,141 @@
+// Where things are in the Bench scene: which slots a node still offers,
+// and the world position of each clickable marker. Pure functions over
+// the assembly tree (assembly.js), the parts map, and each node's own
+// standalone extents — no React, no three.js — so Bench.jsx only wires
+// state to them.
+import { ROOT_ID, getNode, occupiedSlotNames } from "./assembly.js";
+import { enumerateSlots } from "./slots.js";
+
+// The one further anchor a catalogue part offers for stacking once
+// attached. Deliberately narrower than the part's full anchor set: see
+// exposedTopWorldPosition() for why "bot" is the one whose 3D position
+// can be placed without reproducing BOSL2's attach() rotation.
+export const STACK_ANCHOR = "bot";
+
+// A marker's id names the node it belongs to and the slot it stands on,
+// so one click handler resolves a click on root's marker and on any
+// depth of child's the same way.
+const MARKER_ID_SEPARATOR = "::";
+
+export function markerId(parentId, slotName) {
+  return `${parentId}${MARKER_ID_SEPARATOR}${slotName}`;
+}
+
+export function parseMarkerId(id) {
+  const at = id.indexOf(MARKER_ID_SEPARATOR);
+  return { parentId: id.slice(0, at), slotName: id.slice(at + MARKER_ID_SEPARATOR.length) };
+}
+
+// A named-anchor position is always expressed relative to the part's
+// own centered local origin (BOSL2's attachable() convention — every
+// module in this repo follows it, generated imported-part wrappers
+// included). Rendered as a root with the default anchor=BOTTOM, the
+// whole part additionally shifts up by half its height so its bottom
+// lands on world z=0 — so a centered-frame anchor position converts to
+// a world marker position by adding height/2 on Z only.
+export function centeredToWorld([x, y, z], extents) {
+  return [x, y, z + extents[2] / 2];
+}
+
+// Root's slots as { name, point } in root's centered local frame — a
+// catalogue part's enumerated grid/faces/rows, or an imported part's
+// user-placed anchors.
+export function rootSlots(rootPart, rootParams, rootExtents) {
+  if (!rootPart || !rootExtents) return [];
+  if (rootPart.kind === "imported") {
+    return rootPart.anchors.map((a) => ({ name: a.name, point: a.point }));
+  }
+  return enumerateSlots(rootPart, rootParams, rootExtents).map((s) => ({
+    name: s.name,
+    point: [s.x, s.y, s.z],
+  }));
+}
+
+// Whether `nodeId` currently has its "bot" anchor open for stacking —
+// catalogue parts only, for now: imported parts still use
+// slotsForNode()'s general button UI, since their anchors are arbitrary
+// user-placed points, not a predictable "straight up from here" one.
+export function stackSlotFor(assembly, partsById, nodeId) {
+  const node = getNode(assembly, nodeId);
+  const part = node && partsById.get(node.partId);
+  if (!node || !part || part.kind === "imported") return null;
+  if (!part.anchors?.includes(STACK_ANCHOR)) return null;
+  if (occupiedSlotNames(assembly, nodeId).has(STACK_ANCHOR)) return null;
+  return STACK_ANCHOR;
+}
+
+// World position of the point where `nodeId` itself touches its own
+// parent. For a root child this is just a lookup in `rootSlotWorldPositions`
+// (root's own slots are already computed in the part's local frame and
+// converted once). For anything deeper, it's the parent's own exposed
+// "bot" point (see exposedTopWorldPosition) — which only has a stable
+// meaning if this node actually attached through that exact anchor, so
+// this bails to null rather than guess for anything else (an imported
+// parent, or — currently unreachable via the UI, but defensive — a
+// catalogue node attached through some other anchor).
+export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
+  const node = getNode(assembly, nodeId);
+  if (node.parentId === ROOT_ID) return rootSlotWorldPositions.get(node.slotName) ?? null;
+  const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
+  if (parentPart.kind === "imported" || node.slotName !== STACK_ANCHOR) return null;
+  return exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, node.parentId);
+}
+
+// World position of `nodeId`'s own "bot" anchor, i.e. where a further
+// part could stack on top of it. `bot` sits on the part's local Z axis
+// (x=0, y=0), directly opposite "mount" — every catalogue part attaches
+// via its own "mount" (attachChild() never overrides childAnchor), and
+// BOSL2's attach() flips the child 180° about *some* horizontal axis so
+// mount ends up touching the parent. For a point already on the axis of
+// that rotation, which horizontal axis BOSL2 picked doesn't matter: any
+// 180° turn about a horizontal axis sends (0,0,h) to (0,0,-h), full
+// stop. So "bot" ends up exactly `extents.z` above wherever "mount"
+// landed, with x/y unchanged — no need to know or replicate BOSL2's
+// actual rotation to place this marker correctly. That equivalence
+// breaks for an off-axis point (x!=0 or y!=0 — a plate's "xpos", "ypos",
+// etc.), where the two candidate rotations genuinely disagree; those
+// stay text-only in the sidebar for now rather than risk a wrong 3D
+// position.
+export function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
+  const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
+  const extents = nodeExtents.get(nodeId);
+  if (!attachPoint || !extents) return null;
+  return [attachPoint[0], attachPoint[1], attachPoint[2] + extents[2]];
+}
+
+// A non-root node's open slots for the sidebar's "+ Attach" buttons —
+// now only reached for an imported part (a catalogue part's one
+// possible further slot, "bot", gets a real 3D marker instead; see
+// stackSlotFor() and sceneMarkers()).
+export function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
+  const node = getNode(assembly, nodeId);
+  const part = node && partsById.get(node.partId);
+  const extents = nodeExtents.get(nodeId);
+  if (!node || !part || !extents) return [];
+  const all = part.kind === "imported"
+    ? part.anchors.map((a) => ({ name: a.name }))
+    : enumerateSlots(part, node.params, extents);
+  // A slot with a grandchild attached is occupied; so, for a non-root
+  // node, is the anchor it used to attach to ITS OWN parent
+  // (childAnchor) — that face is already touching the parent, it can't
+  // also host something else.
+  const occupied = occupiedSlotNames(assembly, nodeId);
+  if (nodeId !== ROOT_ID) occupied.add(node.childAnchor);
+  return all.filter((s) => !occupied.has(s.name));
+}
+
+// Every clickable marker in the scene: root's own open slots, plus one
+// more per stacked node that still has its "bot" anchor open.
+export function sceneMarkers({ assembly, partsById, openRootSlots, rootExtents, rootSlotWorldPositions, nodeExtents }) {
+  if (!assembly || !rootExtents) return [];
+  const markers = openRootSlots.map((s) => {
+    const [x, y, z] = centeredToWorld(s.point, rootExtents);
+    return { id: markerId(ROOT_ID, s.name), x, y, z };
+  });
+  for (const node of assembly.nodes) {
+    if (!stackSlotFor(assembly, partsById, node.id)) continue;
+    const pos = exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, node.id);
+    if (pos) markers.push({ id: markerId(node.id, STACK_ANCHOR), x: pos[0], y: pos[1], z: pos[2] });
+  }
+  return markers;
+}

@@ -21,6 +21,7 @@ export const SOURCE_DIRS = [
   "vendor/gridfinity-rebuilt/src",
   "vendor/GoProScad",
   "vendor/QuackWorks/openGrid",
+  "vendor/bitbeam-lib",
   "lib",
   "parts",
   "assemblies",
@@ -126,6 +127,16 @@ export function syncScad() {
   for (const dir of SOURCE_DIRS) {
     const files = [];
     walk(path.join(REPO_ROOT, dir), files);
+    if (files.length === 0) {
+      // Almost always a submodule that was never checked out. The bundle
+      // still builds, but every part that includes from this directory
+      // fails in the browser with an unhelpful "can't open include" —
+      // so say what's missing here, at the one point that can tell.
+      console.warn(
+        `sync-scad: no .scad files under ${dir}` +
+          (dir.startsWith("vendor/") ? " — submodule not checked out? Run `git submodule update --init --recursive`." : ""),
+      );
+    }
     for (const file of files) {
       const rel = path.relative(REPO_ROOT, file).split(path.sep).join("/");
       bundle[rel] = fs.readFileSync(file, "utf8");

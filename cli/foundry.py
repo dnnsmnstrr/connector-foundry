@@ -11,14 +11,22 @@
     foundry settings set --fit-clearance 0.25        # printer runs tight
     foundry render gridfinity/base                   # picks both up automatically
     foundry render gridfinity/base --no-user-config  # true catalogue defaults (what CI does)
+
+The module doubles as the library the test suite and tools import:
+everything above the `# CLI` marker has no typer in its signatures and
+raises OpenSCADError (a render failed) or typer.BadParameter (the input
+named something that does not exist) rather than exiting the process.
 """
 from __future__ import annotations
 
+import functools
+import json
 import os
 import re
 import subprocess
-import sys
 import tempfile
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 import typer
@@ -30,14 +38,25 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOGUE_PATH = REPO_ROOT / "catalogue.yaml"
+CONSTANTS_PATH = REPO_ROOT / "lib" / "constants.scad"
+GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "dimensions.yaml"
 
 # Every render needs --backend=Manifold, which the stable OpenSCAD
 # release predates. Distributions that ship only the stable build usually
 # also package the dev snapshot under another name, so let the binary be
 # named rather than assuming "openscad" is the right one.
 OPENSCAD_BIN = os.environ.get("OPENSCAD_BIN", "openscad")
-GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "dimensions.yaml"
 
+# openscad flags that turn an STL export into the README gallery's PNG.
+PREVIEW_ARGS = ("--autocenter", "--viewall", "--colorscheme=Tomorrow", "--imgsize=640,480")
+
+
+class OpenSCADError(RuntimeError):
+    """An `openscad` invocation failed. The message is its stderr, or why
+    it could not be started at all."""
+
+
+# ------------------------------------------------------------- catalogue
 
 def load_catalogue() -> dict:
     return yaml.safe_load(CATALOGUE_PATH.read_text())
@@ -48,6 +67,49 @@ def find_part(catalogue: dict, part_id: str) -> dict:
         if part["id"] == part_id:
             return part
     raise typer.BadParameter(f"Unknown part '{part_id}'. Run `foundry list`.")
+
+
+def slug(part_id: str) -> str:
+    """A part id as a filename stem: gridfinity/base -> gridfinity_base."""
+    return part_id.replace("/", "_")
+
+
+def catalogue_cases(catalogue: dict) -> Iterator[tuple[dict, dict, str]]:
+    """Every (part, params, tag) the catalogue declares — defaults first,
+    then each named variant. The one place that enumeration lives."""
+    for part in catalogue["parts"]:
+        yield part, {}, "default"
+        for variant in part.get("variants", []):
+            yield part, variant["params"], variant["name"]
+
+
+# ------------------------------------------------------- OpenSCAD values
+
+class Raw(str):
+    """A value to emit into OpenSCAD verbatim rather than as a string.
+
+    BOSL2 anchors are vectors bound to bare names (TOP is [0,0,1]), so
+    passing anchor="TOP" gives OpenSCAD a string it cannot use. Raw("TOP")
+    passes the name through.
+    """
+
+
+def openscad_value(value) -> str:
+    """A Python value as an OpenSCAD literal.
+
+    Strings go through json.dumps: OpenSCAD's string escapes (\\" and \\\\)
+    are JSON's, so a value containing a quote arrives intact instead of
+    ending the literal early. web/src/lib/scadLiteral.js does the same.
+    """
+    if isinstance(value, Raw):
+        return str(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, (list, tuple)):
+        return "[" + ", ".join(openscad_value(v) for v in value) + "]"
+    return str(value)
 
 
 def parse_scalar(raw: str):
@@ -62,64 +124,14 @@ def parse_scalar(raw: str):
     return raw
 
 
-class Raw(str):
-    """A value to emit into OpenSCAD verbatim rather than as a string.
+# ------------------------------------------------------------ signatures
 
-    BOSL2 anchors are vectors bound to bare names (TOP is [0,0,1]), so
-    passing anchor="TOP" gives OpenSCAD a string it cannot use. Raw("TOP")
-    passes the name through.
-    """
-
-
-def openscad_value(value) -> str:
-    if isinstance(value, Raw):
-        return str(value)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, str):
-        return f'"{value}"'
-    return str(value)
-
-
-def openscad_env() -> dict[str, str]:
-    """vendor/ on the OpenSCAD library path.
-
-    Vendored upstreams written for the OpenSCAD library folder ask for
-    their dependencies by library name (`include <BOSL2/std.scad>`)
-    rather than by relative path, so vendor/ has to be searchable for
-    those to resolve. Our own parts use relative includes and do not
-    depend on this.
-    """
-    return {**os.environ, "OPENSCADPATH": str(REPO_ROOT / "vendor")}
-
-
-def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object]) -> None:
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out_file)]
-    for key, value in params.items():
-        cmd += ["-D", f"{key}={openscad_value(value)}"]
-    cmd.append(str(scad_file))
-    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
-                            env=openscad_env())
-    if result.returncode != 0:
-        typer.echo(result.stderr, err=True)
-        raise typer.Exit(1)
-
-
-def module_parameters(part: dict) -> list[str]:
-    """The named parameters of a part's module, read from its source.
-
-    OpenSCAD does not treat an unknown named argument as an error — it
-    warns and carries on with the default, so `--set leg_height=20` on a
-    module whose parameter is `leg_h` reports a successful render of
-    something that ignored you entirely. The signature is the only real
-    answer to what a part accepts, so read it.
-    """
-    source = (REPO_ROOT / part["file"]).read_text()
-    match = re.search(rf"\bmodule\s+{re.escape(part['module'])}\s*\(", source)
+@functools.lru_cache(maxsize=None)
+def _module_parameters(scad_file: str, module: str) -> tuple[str, ...]:
+    source = (REPO_ROOT / scad_file).read_text()
+    match = re.search(rf"\bmodule\s+{re.escape(module)}\s*\(", source)
     if not match:
-        raise typer.BadParameter(
-            f"{part['id']}: no module {part['module']}() in {part['file']}")
+        raise typer.BadParameter(f"no module {module}() in {scad_file}")
 
     # Walk to the matching close paren: defaults contain their own
     # brackets ([0, 0, 1]) and calls (named_anchor(...)), so counting
@@ -144,7 +156,29 @@ def module_parameters(part: dict) -> list[str]:
             token = ""
         else:
             token += char
-    return names
+    return tuple(names)
+
+
+def module_parameters(part: dict) -> list[str]:
+    """The named parameters of a part's module, read from its source.
+
+    OpenSCAD does not treat an unknown named argument as an error — it
+    warns and carries on with the default, so `--set leg_height=20` on a
+    module whose parameter is `leg_h` reports a successful render of
+    something that ignored you entirely. The signature is the only real
+    answer to what a part accepts, so read it (once per file/module —
+    a build renders every part and this is called per render).
+    """
+    return list(_module_parameters(part["file"], part["module"]))
+
+
+def constants_names() -> list[str]:
+    """Top-level constant names declared in lib/constants.scad — the
+    same idea as module_parameters(), applied to `foundry settings` so
+    an unknown -D name is caught here instead of silently doing nothing
+    at render time (OpenSCAD ignores a -D that names nothing)."""
+    source = CONSTANTS_PATH.read_text()
+    return re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", source, re.MULTILINE)
 
 
 def check_parameters(part: dict, overrides: dict[str, object]) -> None:
@@ -188,20 +222,115 @@ def resolve_params(part: dict, overrides: dict[str, object], use_user_config: bo
     return {**part.get("defaults", {}), **user, **overrides}
 
 
+# ------------------------------------------------------------- rendering
+
+def openscad_env() -> dict[str, str]:
+    """vendor/ on the OpenSCAD library path.
+
+    Vendored upstreams written for the OpenSCAD library folder ask for
+    their dependencies by library name (`include <BOSL2/std.scad>`)
+    rather than by relative path, so vendor/ has to be searchable for
+    those to resolve. Our own parts use relative includes and do not
+    depend on this.
+    """
+    return {**os.environ, "OPENSCADPATH": str(REPO_ROOT / "vendor")}
+
+
+def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object],
+                 extra_args: Sequence[str] = ()) -> None:
+    """Render `scad_file` to `out_file` (format by extension) with each
+    param passed as a -D override. Raises OpenSCADError on failure."""
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [OPENSCAD_BIN, "--backend=Manifold", *extra_args, "-o", str(out_file)]
+    for key, value in params.items():
+        cmd += ["-D", f"{key}={openscad_value(value)}"]
+    cmd.append(str(scad_file))
+    try:
+        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
+                                env=openscad_env())
+    except FileNotFoundError as exc:
+        raise OpenSCADError(
+            f"{OPENSCAD_BIN!r} not found. Install an OpenSCAD dev snapshot (the "
+            f"Manifold backend needs one) or point OPENSCAD_BIN at it.") from exc
+    if result.returncode != 0:
+        raise OpenSCADError(
+            result.stderr.strip() or f"openscad exited {result.returncode} without output")
+
+
+def stub_source(part: dict, params: dict[str, object]) -> str:
+    """The two-line .scad that renders one catalogue part: include its
+    file, call its module with these parameters."""
+    call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
+    return f'include <{REPO_ROOT / part["file"]}>\n{part["module"]}({call_args});\n'
+
+
+@contextmanager
+def _stub_file(part: dict, params: dict[str, object], out_dir: Path) -> Iterator[Path]:
+    """Write the stub next to the output and remove it afterwards — on a
+    failed render too, so a broken part does not leave a stray .scad
+    behind for the next `git status` to find."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stub = out_dir / f".{slug(part['id'])}_stub.scad"
+    stub.write_text(stub_source(part, params))
+    try:
+        yield stub
+    finally:
+        stub.unlink(missing_ok=True)
+
+
 def render_part(part: dict, overrides: dict[str, object], out_dir: Path,
-                 use_user_config: bool = False) -> Path:
+                use_user_config: bool = False) -> Path:
+    """Render one catalogue part to <out_dir>/<slug>.stl and return that path."""
     params = resolve_params(part, overrides, use_user_config)
     check_options(part, params)
-    call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
-    scad_source = REPO_ROOT / part["file"]
-    stub = out_dir / f".{part['id'].replace('/', '_')}_stub.scad"
-    stub.parent.mkdir(parents=True, exist_ok=True)
-    stub.write_text(f'include <{scad_source}>\n{part["module"]}({call_args});\n')
-    out_stl = out_dir / f"{part['id'].replace('/', '_')}.stl"
+    out_stl = out_dir / f"{slug(part['id'])}.stl"
     global_overrides = userconfig.get_global_overrides() if use_user_config else {}
-    run_openscad(stub, out_stl, global_overrides)
-    stub.unlink()
+    with _stub_file(part, params, out_dir) as stub:
+        run_openscad(stub, out_stl, global_overrides)
     return out_stl
+
+
+def render_preview(part: dict, out_dir: Path) -> Path:
+    """Render one catalogue part at its defaults to <out_dir>/<slug>.png."""
+    out_png = out_dir / f"{slug(part['id'])}.png"
+    with _stub_file(part, part.get("defaults", {}), out_dir) as stub:
+        run_openscad(stub, out_png, {}, extra_args=PREVIEW_ARGS)
+    return out_png
+
+
+# =================================================================== CLI
+
+def _exits_on_render_failure(command):
+    """A failed render is an error message and exit status 1, not a
+    traceback. Library callers (the tests) still get the exception."""
+    @functools.wraps(command)
+    def wrapper(*args, **kwargs):
+        try:
+            return command(*args, **kwargs)
+        except OpenSCADError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
+    return wrapper
+
+
+def parse_set_items(items: list[str] | None, metavar: str = "KEY=VALUE") -> dict[str, object]:
+    """--set KEY=VALUE, repeatable, into {key: typed value}."""
+    overrides: dict[str, object] = {}
+    for item in items or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"--set expects {metavar}, got {item!r}")
+        key, _, raw = item.partition("=")
+        overrides[key.strip()] = parse_scalar(raw.strip())
+    return overrides
+
+
+def _collect_overrides(gx, gy, magnets, screws, set_) -> dict[str, object]:
+    overrides: dict[str, object] = {}
+    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets), ("screws", screws)]:
+        if value is not None:
+            overrides[name] = value
+    overrides.update(parse_set_items(set_))
+    return overrides
 
 
 @app.command("list")
@@ -221,20 +350,8 @@ def list_parts():
                        f"{licence:<15} {part['name']}")
 
 
-def _collect_overrides(gx, gy, magnets, screws, set_) -> dict[str, object]:
-    overrides = {}
-    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets), ("screws", screws)]:
-        if value is not None:
-            overrides[name] = value
-    for item in set_ or []:
-        if "=" not in item:
-            raise typer.BadParameter(f"--set expects KEY=VALUE, got {item!r}")
-        key, _, raw = item.partition("=")
-        overrides[key.strip()] = parse_scalar(raw.strip())
-    return overrides
-
-
 @app.command("render")
+@_exits_on_render_failure
 def render(
     part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
     gx: int = typer.Option(None),
@@ -313,6 +430,7 @@ def defaults_clear(
     param: list[str] = typer.Option(
         None, "--param", help="Clear only these; omit to clear every saved override for this part."),
 ):
+    """Forget this part's saved user defaults (all, or just --param ones)."""
     userconfig.clear_overrides(part_id, param or None)
     typer.echo(f"{part_id}: cleared {'all' if not param else ', '.join(param)} saved override(s)")
 
@@ -327,15 +445,6 @@ def defaults_list():
         return
     for part_id in ids:
         typer.echo(f"{part_id}: {userconfig.get_overrides(part_id)}")
-
-
-def constants_names() -> list[str]:
-    """Top-level constant names declared in lib/constants.scad — the
-    same idea as module_parameters(), applied to `foundry settings` so
-    an unknown -D name is caught here instead of silently doing nothing
-    at render time (OpenSCAD ignores a -D that names nothing)."""
-    source = (REPO_ROOT / "lib" / "constants.scad").read_text()
-    return re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", source, re.MULTILINE)
 
 
 settings_app = typer.Typer(add_completion=False, help=(
@@ -354,14 +463,10 @@ def settings_set(
         None, "--set", metavar="NAME=VALUE",
         help="Any constant from lib/constants.scad, repeatable."),
 ):
-    overrides = {}
+    """Save (merging into any already saved) printer-level constants."""
+    overrides = parse_set_items(set_, metavar="NAME=VALUE")
     if fit_clearance is not None:
         overrides["FIT_CLEARANCE"] = fit_clearance
-    for item in set_ or []:
-        if "=" not in item:
-            raise typer.BadParameter(f"--set expects NAME=VALUE, got {item!r}")
-        key, _, raw = item.partition("=")
-        overrides[key.strip()] = parse_scalar(raw.strip())
     if not overrides:
         raise typer.BadParameter("nothing to save — pass --fit-clearance or --set")
     known = constants_names()
@@ -374,6 +479,7 @@ def settings_set(
 
 @settings_app.command("show")
 def settings_show():
+    """Every saved printer-level constant."""
     saved = userconfig.get_global_overrides()
     typer.echo(saved if saved else "no saved global settings")
 
@@ -383,11 +489,13 @@ def settings_clear(
     param: list[str] = typer.Option(
         None, "--param", help="Clear only these; omit to clear every saved global setting."),
 ):
+    """Forget saved printer-level constants (all, or just --param ones)."""
     userconfig.clear_global_overrides(param or None)
     typer.echo(f"cleared {'all' if not param else ', '.join(param)} saved global setting(s)")
 
 
 @app.command("build")
+@_exits_on_render_failure
 def build(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Path("out"), "-o", "--out")):
     """Render every catalogue entry at defaults."""
     catalogue = load_catalogue()
@@ -400,40 +508,20 @@ def build(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Pa
 
 
 @app.command("preview")
+@_exits_on_render_failure
 def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Path("docs/img"), "-o", "--out")):
     """Render a PNG per catalogue entry, for the README gallery."""
     catalogue = load_catalogue()
     if not all_:
         typer.echo("pass --all to preview the whole catalogue")
         raise typer.Exit(1)
-    out.mkdir(parents=True, exist_ok=True)
     for part in catalogue["parts"]:
-        call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in part.get("defaults", {}).items())
-        scad_source = REPO_ROOT / part["file"]
-        stub = out / f".{part['id'].replace('/', '_')}_stub.scad"
-        stub.write_text(f'include <{scad_source}>\n{part["module"]}({call_args});\n')
-        png_path = out / f"{part['id'].replace('/', '_')}.png"
-        cmd = [OPENSCAD_BIN, "--backend=Manifold", "--autocenter", "--viewall",
-               "--colorscheme=Tomorrow", "--imgsize=640,480", "-o", str(png_path), str(stub)]
-        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
-                                env=openscad_env())
-        stub.unlink()
-        if result.returncode != 0:
-            typer.echo(result.stderr, err=True)
-            raise typer.Exit(1)
+        png_path = render_preview(part, out)
         typer.echo(f"wrote {png_path}")
 
 
-def catalogue_cases(catalogue: dict):
-    """Every (part, params, tag) the catalogue declares — defaults first,
-    then each named variant. The one place that enumeration lives."""
-    for part in catalogue["parts"]:
-        yield part, {}, "default"
-        for variant in part.get("variants", []):
-            yield part, variant["params"], variant["name"]
-
-
 @app.command("goldens")
+@_exits_on_render_failure
 def goldens(update: bool = typer.Option(False, "--update",
                                         help="rewrite tests/golden/dimensions.yaml")):
     """Show, or regenerate, the recorded bounding box and volume per part.
@@ -478,7 +566,7 @@ def readme():
     lines = ["| Part | System | Confidence | Licence | Print note |",
              "| --- | --- | --- | --- | --- |"]
     for part in catalogue["parts"]:
-        img = f"docs/img/{part['id'].replace('/', '_')}.png"
+        img = f"docs/img/{slug(part['id'])}.png"
         cell = (f"![{part['name']}]({img})<br>{part['name']}"
                 if (REPO_ROOT / img).exists() else part["name"])
         licence = part.get("license", "MIT")

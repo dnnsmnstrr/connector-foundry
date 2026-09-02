@@ -7,14 +7,12 @@ renders directly via foundry.run_openscad with -D part=... instead of
 going through render_part/render_variant.
 """
 import re
-import sys
 from pathlib import Path
 
 import pytest
 import trimesh
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cli"))
-import foundry  # noqa: E402
+import foundry
 
 REPO_ROOT = foundry.REPO_ROOT
 ASSEMBLIES_DIR = REPO_ROOT / "assemblies"
@@ -51,12 +49,18 @@ ASSEMBLIES = {
     },
 }
 
+_RENDERED: dict[tuple[str, str], Path] = {}
+
 
 def render_assembly(name: str, part: str, render_dir: Path) -> Path:
-    out_dir = render_dir / name.replace("-", "_")
-    out = out_dir / f"{part}.stl"
-    foundry.run_openscad(ASSEMBLIES_DIR / f"{name}.scad", out, {"part": part})
-    return out
+    """Both tests below want both halves of every assembly; render each
+    half once per session."""
+    key = (name, part)
+    if key not in _RENDERED:
+        out = render_dir / name.replace("-", "_") / f"{part}.stl"
+        foundry.run_openscad(ASSEMBLIES_DIR / f"{name}.scad", out, {"part": part})
+        _RENDERED[key] = out
+    return _RENDERED[key]
 
 
 @pytest.mark.parametrize("name", sorted(ASSEMBLIES))

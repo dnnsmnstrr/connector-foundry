@@ -11,16 +11,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import trimesh
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import geometry  # noqa: E402
-import refcache  # noqa: E402
+# Sibling modules: on the path as the script's own directory when run as
+# `python tools/verify.py`, and via pyproject's pytest `pythonpath` when
+# imported by tests/test_reference.py.
+import geometry
+import refcache
 
 REPO_ROOT = refcache.REPO_ROOT
 
@@ -47,9 +47,10 @@ def _load(path: Path) -> trimesh.Trimesh:
     return mesh
 
 
-def _paths(config: dict, roots: dict[str, Path]) -> list[Path]:
-    return [Path(p.format(**{k: str(v) for k, v in roots.items()}))
-            for p in config.get("openscad_path", [])]
+def openscad_path(config: dict, roots: dict[str, Path]) -> list[Path]:
+    """references.yaml's `openscad_path` entries with their {source}
+    placeholders resolved — what every recipe render gets as OPENSCADPATH."""
+    return [Path(refcache.expand(p, roots)) for p in config.get("openscad_path", [])]
 
 
 # ----------------------------------------------------------------- shape
@@ -166,15 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     config = refcache.load()
-    available: dict[str, Path] = {"repo": REPO_ROOT}
-    unavailable: dict[str, str] = {}
-    for name, spec in config.get("sources", {}).items():
-        try:
-            available[name] = refcache.resolve_source(name, spec, offline=args.offline)
-        except refcache.RefError as exc:
-            unavailable[name] = str(exc)
-
-    scad_path = _paths(config, available)
+    available, unavailable = refcache.resolve_available(config, offline=args.offline)
+    scad_path = openscad_path(config, available)
 
     results: list[Result] = []
     for kind, key, runner in (("shape", "shape_checks", run_shape_check),

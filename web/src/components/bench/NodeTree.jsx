@@ -1,0 +1,81 @@
+import { childrenOf, getNode } from "../../lib/assembly.js";
+import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
+import ParamsEditor from "../ParamsEditor.jsx";
+import JointSelect from "./JointSelect.jsx";
+
+// One node in the "Attached" tree (always a non-root node — root gets
+// its own params panel above this list in Bench's sidebar). Renders
+// itself and recurses into whatever's attached to IT, to any depth. A
+// catalogue part's own further slot (if it has one — see
+// benchLayout.js's stackSlotFor()) is a real 3D marker in the scene, not
+// shown here beyond a one-line hint; an imported part's arbitrary
+// user-placed anchors still use the "attach here" buttons below, since
+// there's no single predictable "up" for those.
+export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions }) {
+  const node = getNode(assembly, nodeId);
+  const part = partsById.get(node.partId);
+  const kids = childrenOf(assembly, nodeId);
+  const isImported = part.kind === "imported";
+  const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
+  const stackable = !isImported && stackSlotFor(assembly, partsById, nodeId) != null;
+
+  return (
+    <li className="bench-tree-node">
+      <div className="bench-child-row">
+        <span>{part.name}</span>
+        <button className="bench-remove" onClick={() => actions.remove(nodeId)} title="Remove (and anything attached to it)">
+          ✕
+        </button>
+      </div>
+      <div className="bench-child-meta">
+        <span className="muted">{node.slotName}</span>
+        <JointSelect value={node.joint} onChange={(joint) => actions.setJoint(nodeId, joint)} />
+      </div>
+      <label className="field bench-offset-field" title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
+        Offset (mm)
+        <input
+          type="number"
+          step="any"
+          value={node.overlap ?? 0}
+          onChange={(e) => {
+            if (e.target.value !== "") actions.setOverlap(nodeId, Number(e.target.value));
+          }}
+        />
+      </label>
+      <details className="bench-node-params-details">
+        <summary>Parameters</summary>
+        <ParamsEditor
+          className="bench-node-params"
+          part={part}
+          params={node.params}
+          onChange={(params) => actions.setParams(nodeId, params)}
+          allowSavedDefaults={!isImported}
+        />
+      </details>
+      {stackable && <p className="muted bench-stack-hint">Has an open slot on top — click its marker in the scene.</p>}
+      {openSlots.length > 0 && (
+        <div className="bench-node-slots">
+          {openSlots.map((slot) => (
+            <button key={slot.name} className="bench-attach-here" onClick={() => actions.attachAt(nodeId, slot.name)}>
+              + Attach: {slot.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {kids.length > 0 && (
+        <ul className="bench-child-list bench-child-list-nested">
+          {kids.map((kid) => (
+            <NodeTree
+              key={kid.id}
+              assembly={assembly}
+              partsById={partsById}
+              nodeExtents={nodeExtents}
+              nodeId={kid.id}
+              actions={actions}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}

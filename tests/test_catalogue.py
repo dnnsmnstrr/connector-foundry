@@ -7,12 +7,11 @@ is a warning, not an error, and the render proceeds with the default. So
 a typo in this file does not fail anywhere — it quietly produces the
 wrong part, and every test that only checks the part renders will pass.
 """
-import sys
-from pathlib import Path
+import foundry
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cli"))
-
-import foundry  # noqa: E402
+# The face anchors web/src/lib/slots.js knows how to place — the only
+# names catalogue.yaml's `anchors` field may use (see FACE_ANCHOR_LOCAL).
+FACE_ANCHORS = {"bot", "xpos", "xneg", "ypos", "yneg"}
 
 
 def _parts():
@@ -81,4 +80,37 @@ def test_slot_count_params_are_real_defaults():
         for key in count_params:
             if key not in part.get("defaults", {}):
                 problems.append(f"{part['id']}: slots.count_params names {key!r}, which has no default")
+    assert not problems, "\n".join(problems)
+
+
+def test_side_slot_params_are_real_parameters():
+    """`side_slots.faces[].enabled_param`/`count_param` point at the
+    part's own module parameters the same way count_params does; the web
+    editor reads them to decide which side rows exist right now."""
+    problems = []
+    for part in _parts():
+        for face in part.get("side_slots", {}).get("faces", []):
+            known = set(foundry.module_parameters(part))
+            for field in ("enabled_param", "count_param"):
+                name = face.get(field)
+                if name is None:
+                    problems.append(f"{part['id']}: side_slots face {face.get('name')!r} has no {field}")
+                elif name not in known:
+                    problems.append(
+                        f"{part['id']}: side_slots face {face.get('name')!r} {field}={name!r} "
+                        f"is not a parameter of {part['module']}()")
+    assert not problems, "\n".join(problems)
+
+
+def test_declared_anchors_are_placeable():
+    """catalogue.yaml's `anchors` lists face names the web editor turns
+    into positions by formula (the center of that face of the bounding
+    box). A name outside that set has no formula, so the editor could
+    not place it — better caught here than as a marker that never shows."""
+    problems = [
+        f"{part['id']}: anchors names {name!r}, not one of {sorted(FACE_ANCHORS)}"
+        for part in _parts()
+        for name in part.get("anchors", [])
+        if name not in FACE_ANCHORS
+    ]
     assert not problems, "\n".join(problems)
