@@ -1,7 +1,9 @@
 import yaml from "js-yaml";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
+import ParamField from "./components/ParamField.jsx";
 import StlViewer from "./components/StlViewer.jsx";
+import { groupBySystem, matchesSearch } from "./lib/catalogueUtils.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import {
   clearGlobalOverrides,
@@ -34,87 +36,6 @@ function useGlobalDefaults() {
       .catch(() => setDefaults({}));
   }, []);
   return defaults;
-}
-
-function groupBySystem(parts) {
-  const groups = new Map();
-  for (const part of parts) {
-    if (!groups.has(part.system)) groups.set(part.system, []);
-    groups.get(part.system).push(part);
-  }
-  return groups;
-}
-
-function matchesSearch(part, query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    part.name.toLowerCase().includes(q) ||
-    part.system.toLowerCase().includes(q) ||
-    part.id.toLowerCase().includes(q) ||
-    part.confidence.toLowerCase().includes(q)
-  );
-}
-
-// catalogueDefault + onReset: an "obvious way to see that a value
-// differs from the catalogue default and reset it back" — a dot next
-// to the label plus a reset button, shown only when the current value
-// actually differs (deep-enough for the primitives every param is).
-function ParamField({ name, value, options, catalogueDefault, onChange, onReset }) {
-  const differs = catalogueDefault !== undefined && value !== catalogueDefault;
-  const label = (
-    <span className="field-label">
-      {differs && <span className="field-differs" title={`Catalogue default: ${catalogueDefault}`} />}
-      {name}
-      {differs && onReset && (
-        <button type="button" className="field-reset" title="Reset to catalogue default" onClick={onReset}>
-          ↺
-        </button>
-      )}
-    </span>
-  );
-
-  if (options) {
-    return (
-      <label className="field">
-        {label}
-        <select value={value} onChange={(e) => onChange(e.target.value)}>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
-    );
-  }
-  if (typeof value === "boolean") {
-    return (
-      <label className="field field-checkbox">
-        <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-        {label}
-      </label>
-    );
-  }
-  if (typeof value === "number") {
-    return (
-      <label className="field">
-        {label}
-        <input
-          type="number"
-          value={value}
-          step="any"
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-      </label>
-    );
-  }
-  return (
-    <label className="field">
-      {label}
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
 }
 
 // Shared by Library and the Bench settings entry point: FIT_CLEARANCE

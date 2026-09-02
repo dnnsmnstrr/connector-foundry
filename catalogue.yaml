@@ -44,6 +44,17 @@
 #   own rendered bounding box ÷ pitch, same formula as slot_count() in
 #   lib/slots.scad. tests/test_slots.py renders and probes the grid
 #   either way, so this can't drift from the geometry.
+#
+# anchors: for a part with named anchors beyond the default "mount" on
+#   its own faces — see parts/basics/plate.scad and post.scad — the
+#   list of which of "bot"/"xpos"/"xneg"/"ypos"/"yneg" it declares.
+#   Every name here sits at the exact center of that face of the part's
+#   own rendered bounding box, so the web editor derives its position
+#   the same way for any part, without parsing the .scad: no formula to
+#   restate here, just which faces exist. Mutually exclusive with
+#   `slots` in this catalogue (a part either has a handful of fixed
+#   named faces or a pitched grid, never both) — nothing stops a part
+#   from declaring both if a future one legitimately needs to.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -325,6 +336,7 @@ parts:
     print_note: >-
       Flat on the bed, no supports needed. Named anchors on all 6 faces —
       branch composition off any side, not just top/bottom.
+    anchors: [bot, xpos, xneg, ypos, yneg]
     defaults:
       w: 40
       d: 40
@@ -342,6 +354,7 @@ parts:
     confidence: exact
     source: "Generic geometry, not tied to an external spec — nothing to check it against"
     print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
+    anchors: [bot]
     defaults:
       dia: 10
       h: 20

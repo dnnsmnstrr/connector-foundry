@@ -1,13 +1,28 @@
 // Slot enumeration for a catalogue part — the JS mirror of
-// lib/slots.scad's grid_mount_anchors(), kept honest against the real
-// geometry by tests/test_slots.py. Never parses .scad or asks OpenSCAD
-// "what anchors does this have" at runtime: a part's slots.pitch (plus,
-// for a feature-locked grid, slots.count_params) is enough to compute
-// every anchor name and its local (x, y) position.
+// lib/slots.scad's grid_mount_anchors() and mount_anchor(), kept honest
+// against the real geometry by tests/test_slots.py. Never parses .scad
+// or asks OpenSCAD "what anchors does this have" at runtime: a part's
+// slots.pitch (plus, for a feature-locked grid, slots.count_params), or
+// its anchors list (catalogue.yaml's `anchors` field), is enough to
+// compute every anchor name and its local (x, y, z) position — always
+// the exact center of one face of the part's own rendered bounding box,
+// per lib/slots.scad's convention.
 //
-// A part without a `slots` field in catalogue.yaml gets the single
-// default slot, "mount", at local (0, 0) — unchanged from before
-// multi-slot existed.
+// Every slot returned here carries a full local (x, y, z) — this is
+// what makes a non-root Bench node's own open slots computable the same
+// way root's are: render that node's part standalone (its own params,
+// no attach() context) to get its own extents, then run it through this
+// same function. Nothing here needs to know where in a tree the part
+// sits.
+
+const FACE_ANCHOR_LOCAL = {
+  mount: (e) => [0, 0, e[2] / 2],
+  bot: (e) => [0, 0, -e[2] / 2],
+  xpos: (e) => [e[0] / 2, 0, 0],
+  xneg: (e) => [-e[0] / 2, 0, 0],
+  ypos: (e) => [0, e[1] / 2, 0],
+  yneg: (e) => [0, -e[1] / 2, 0],
+};
 
 function gridCounts(part, params, meshExtents) {
   const { pitch, count_params: countParams } = part.slots;
@@ -21,24 +36,33 @@ function gridCounts(part, params, meshExtents) {
   return [nearestOdd(meshExtents[0]), nearestOdd(meshExtents[1])];
 }
 
-// meshExtents is only consulted for a part without count_params (a free
-// subdivision grid, e.g. Gridfinity) — pass the part's own rendered
-// bounding box [x, y, z] in mm; omit it for a feature-locked grid.
+// meshExtents is the part's own rendered bounding box [x, y, z] in mm —
+// required for a free-subdivision grid (Gridfinity) or any face anchor;
+// only a feature-locked grid (count_params set) can do without it.
 export function enumerateSlots(part, params, meshExtents) {
-  if (!part.slots) return [{ name: "mount", i: 0, j: 0, x: 0, y: 0 }];
+  const extents = meshExtents ?? [0, 0, 0];
 
-  const pitch = part.slots.pitch;
-  const [nx, ny] = gridCounts(part, params, meshExtents ?? [0, 0, 0]);
-  const i0 = -(nx - 1) / 2;
-  const j0 = -(ny - 1) / 2;
+  if (part.slots) {
+    const pitch = part.slots.pitch;
+    const [nx, ny] = gridCounts(part, params, extents);
+    const i0 = -(nx - 1) / 2;
+    const j0 = -(ny - 1) / 2;
+    const z = extents[2] / 2;
 
-  const slots = [];
-  for (let i = i0; i <= (nx - 1) / 2; i++) {
-    for (let j = j0; j <= (ny - 1) / 2; j++) {
-      slots.push({ name: `mount_${i}_${j}`, i, j, x: i * pitch, y: j * pitch });
+    const slots = [];
+    for (let i = i0; i <= (nx - 1) / 2; i++) {
+      for (let j = j0; j <= (ny - 1) / 2; j++) {
+        slots.push({ name: `mount_${i}_${j}`, i, j, x: i * pitch, y: j * pitch, z });
+      }
     }
+    return slots;
   }
-  return slots;
+
+  const names = ["mount", ...(part.anchors ?? [])];
+  return names.map((name) => {
+    const [x, y, z] = FACE_ANCHOR_LOCAL[name](extents);
+    return { name, x, y, z };
+  });
 }
 
 export function nearestSlot(slots, localX, localY) {

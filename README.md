@@ -82,14 +82,31 @@ its own STL — see `assemblies/`.
 ## Bench: combine connectors visually
 
 The web app's Bench tab (`web/src/Bench.jsx`) is a visual editor: pick a base part, click one of
-its slots, attach something else there with a joint type, repeat, then export the STL(s) or the
-generated `.scad`. It's one root plus direct children for now (no grandchildren yet) — see
-`web/src/lib/assembly.js` for why that scope is deliberate, not a shortcut.
+its slots, attach something else there with a joint type, repeat — and, if what you just attached
+has anchors of its own beyond the one it used, keep going: a Basics plate fused onto a Gridfinity
+base still offers its other five faces afterward, so a GoPro mount can go on top of *that*. This
+is "stacking" — the assembly is a tree of any depth, not just root-plus-children. It only goes
+anywhere for a part built to branch (Basics plate/post, or any multi-slot grid): a terminal
+connector (GoPro, 2020-extrusion, DeckMate) only ever has the one anchor it just spent attaching
+itself, so nothing further shows up on it — that's expected, not a missing feature. Root's own
+open slots are still clickable 3D markers in the viewer; a deeper node's open slots show as
+"+ Attach: `<name>`" buttons in its own row in the sidebar instead, since a non-root node's own
+axes don't line up with world space the way root's do (see `web/src/lib/assembly.js`'s comment on
+BOSL2's attach() flip). Every part placed in the Bench — root or any depth of child — has its own
+parameter editor in the sidebar, the same catalogue-default diff/reset/save-as-default flow as
+Library mode. Export and the part picker are unaffected by depth: STL/`.scad` export still walks
+the whole tree, and both pickers (start a bench, attach to a slot) group parts by system the same
+way Library's sidebar does.
 
 **STL import** lets you bring in a part that isn't in the catalogue — a Mechanism or Printables
 download, say — and use it exactly like any other Bench part: pick it as the root or a child,
-click points on its surface to place slots (the hit point and face normal become the slot's
-position and mating direction), and attach real catalogue parts to it. Every upload goes through
+click a point on its surface to place a slot there. Rather than dropping the slot at the exact
+pixel you clicked, it walks out across every connected, coplanar triangle from the hit point
+(`web/src/lib/faceCluster.js`) to find the whole flat face under the cursor and centers the slot
+on *that* — click anywhere on a mounting face and land in the middle of it, not wherever the ray
+happened to hit. A curved or faceted region has no such flat neighbor, so this degrades to the hit
+triangle's own point — never worse than a raw click, and exact on any genuinely flat CAD-exported
+face. Every upload goes through
 a validate-and-repair gate first (`web/src/lib/meshValidate.js`): weld coincident vertices,
 check for open/non-manifold edges, fix inconsistent winding and inside-out shells where that's
 safe, and refuse — with a plain explanation — a mesh with an actual hole rather than pass it

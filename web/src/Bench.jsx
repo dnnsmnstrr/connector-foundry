@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import ParamField from "./components/ParamField.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import {
+  ROOT_ID,
   addChild,
   bodyTags,
+  childrenOf,
   compileToScad,
   createAssembly,
+  getNode,
   occupiedSlotNames,
   removeChild,
   updateChildJoint,
+  updateNodeParams,
 } from "./lib/assembly.js";
+import { groupBySystem, matchesSearch } from "./lib/catalogueUtils.js";
 import { addAnchor, createImportedPart, nextAnchorName, removeAnchor } from "./lib/importedPart.js";
 import { validateAndRepair } from "./lib/meshValidate.js";
 import { renderPart } from "./lib/openscad-client.js";
 import { enumerateSlots } from "./lib/slots.js";
-import { getGlobalOverrides, resolveParams } from "./lib/userOverrides.js";
+import { clearOverrides, getGlobalOverrides, getOverrides, resolveParams, setOverrides } from "./lib/userOverrides.js";
 
 const JOINTS = ["fused", "bolted", "snap"];
 
@@ -26,10 +32,22 @@ const JOINTS = ["fused", "bolted", "snap"];
 // browser-preview-only limitation, so say so instead of showing a raw
 // WASM trap message.
 function friendlyRenderError(message) {
-  if (/table index|memory access out of bounds/i.test(message)) {
+  // openscad-wasm@0.0.4 wraps every WASM export in an abort handler
+  // (see node_modules/openscad-wasm/openscad.js's makeAbortWrapper());
+  // when the same resource limit corrupts that export table, the
+  // symptom isn't always the same string — "table index out of
+  // bounds"/"memory access out of bounds" from earlier testing, but
+  // "original is not a function" from a bolted joint nested one level
+  // deeper (a Basics plate — itself a rounded cuboid — fused onto root,
+  // then something bolted onto ONE of the plate's own further anchors:
+  // that's the plate plus both bolted flanges, three rounded cuboids in
+  // one attach() chain, the same limit as bolting a plate directly).
+  // All of these are the one known cause, not three different bugs.
+  if (/table index|memory access out of bounds|is not a function/i.test(message)) {
     return "This browser's OpenSCAD build can't preview this bolted/snap combination " +
-      "(a known limitation, not a bad connection) — try \"fused\" for this joint instead. " +
-      "The generated .scad still renders correctly with a native OpenSCAD install.";
+      "(a known limitation, not a bad connection) — try \"fused\" for this joint instead, or for a stacked " +
+      "part, fuse just one of the joints in the chain. The generated .scad still renders correctly with a " +
+      "native OpenSCAD install.";
   }
   return message;
 }
@@ -51,19 +69,39 @@ function meshExtents(stlBuffer) {
 // whole part additionally shifts up by half its height so its bottom
 // lands on world z=0 — so a centered-frame anchor position converts to
 // a world marker position by adding height/2 on Z only.
+//
+// This only holds for the ROOT: it's the only node BOSL2 places with no
+// rotation (attach()'s own flip means a non-root node's local axes
+// don't line up with world space in general — see lib/assembly.js's
+// attachChildScad() comment). So 3D slot markers are root-only; a
+// deeper node's own open slots are listed as buttons in the sidebar
+// instead (see NodeTree below) rather than guessed at with the wrong
+// transform.
 function centeredToWorld([x, y, z], extents) {
   return [x, y, z + extents[2] / 2];
 }
 
+function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
+  const node = getNode(assembly, nodeId);
+  const part = node && partsById.get(node.partId);
+  const extents = nodeExtents.get(nodeId);
+  if (!node || !part || !extents) return [];
+  const all = part.kind === "imported"
+    ? part.anchors.map((a) => ({ name: a.name }))
+    : enumerateSlots(part, node.params, extents);
+  // A slot with a grandchild attached is occupied; so, for a non-root
+  // node, is the anchor it used to attach to ITS OWN parent
+  // (childAnchor) — that face is already touching the parent, it can't
+  // also host something else.
+  const occupied = occupiedSlotNames(assembly, nodeId);
+  if (nodeId !== ROOT_ID) occupied.add(node.childAnchor);
+  return all.filter((s) => !occupied.has(s.name));
+}
+
 function PartList({ parts, onPick, onImport }) {
   const [search, setSearch] = useState("");
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return parts;
-    return parts.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.system.toLowerCase().includes(q) || p.id.toLowerCase().includes(q),
-    );
-  }, [parts, search]);
+  const filtered = useMemo(() => parts.filter((p) => matchesSearch(p, search)), [parts, search]);
+  const groups = useMemo(() => groupBySystem(filtered), [filtered]);
 
   return (
     <div className="bench-part-list">
@@ -80,16 +118,22 @@ function PartList({ parts, onPick, onImport }) {
           Import STL…
         </button>
       )}
-      <ul>
-        {filtered.map((part) => (
-          <li key={part.id}>
-            <button className="part-button" onClick={() => onPick(part)}>
-              <span>{part.name}</span>
-              <span className={`badge badge-${part.confidence}`}>{part.confidence}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {filtered.length === 0 && <p className="muted no-results">No parts match "{search}".</p>}
+      {[...groups.entries()].map(([system, systemParts]) => (
+        <div key={system} className="system-group">
+          <h2>{system}</h2>
+          <ul>
+            {systemParts.map((part) => (
+              <li key={part.id}>
+                <button className="part-button" onClick={() => onPick(part)}>
+                  <span>{part.name}</span>
+                  <span className={`badge badge-${part.confidence}`}>{part.confidence}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -188,8 +232,8 @@ function ImportFlow({ mode, onCancel, onConfirm }) {
               ))}
             </ul>
             <p className="muted">
-              Click a point on the surface to place a slot there — the hit point and face normal become the slot's
-              position and mating direction.
+              Click anywhere on a flat face to place a slot there — it centers on that whole surface automatically
+              (not just the exact pixel you clicked), using the face's own normal as the mating direction.
             </p>
             <div className="bench-import-viewer">
               <StlViewer geometry={part.geometry} markers={markers} placingMode onSurfacePick={placeSlot} />
@@ -234,6 +278,142 @@ function ImportFlow({ mode, onCancel, onConfirm }) {
   );
 }
 
+// A part's parameter editor within the Bench — same catalogue-default
+// diff/reset/save-as-default machinery as Library mode's params panel
+// (App.jsx), just scoped to one node in the tree instead of the whole
+// screen. `nodeId` may be "root" or a child id; updateNodeParams()
+// (lib/assembly.js) resolves either the same way.
+function NodeParamsPanel({ nodeId, node, part, onUpdateParams }) {
+  const [savedVersion, setSavedVersion] = useState(0);
+  const isImported = part.kind === "imported";
+  const params = node.params ?? {};
+  const entries = Object.entries(params);
+  const savedOverride = useMemo(
+    () => (isImported ? {} : getOverrides(part.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [part.id, isImported, savedVersion],
+  );
+  const hasSavedOverride = Object.keys(savedOverride).length > 0;
+
+  function setParam(key, value) {
+    onUpdateParams(nodeId, { ...params, [key]: value });
+  }
+
+  function resetAllToCatalogue() {
+    onUpdateParams(nodeId, { ...(part.defaults ?? {}) });
+  }
+
+  function saveAsDefault() {
+    const diff = {};
+    for (const [key, value] of entries) {
+      if (value !== part.defaults?.[key]) diff[key] = value;
+    }
+    setOverrides(part.id, diff);
+    setSavedVersion((v) => v + 1);
+  }
+
+  function clearSavedDefault() {
+    clearOverrides(part.id);
+    setSavedVersion((v) => v + 1);
+  }
+
+  if (entries.length === 0) return <p className="muted">No parameters.</p>;
+
+  return (
+    <div className="bench-node-params">
+      {entries.map(([key, value]) => (
+        <ParamField
+          key={key}
+          name={key}
+          value={value}
+          options={part.options?.[key]}
+          catalogueDefault={part.defaults?.[key]}
+          onChange={(next) => setParam(key, next)}
+          onReset={() => setParam(key, part.defaults?.[key])}
+        />
+      ))}
+      {!isImported && (
+        <div className="params-defaults-row">
+          <button className="bench-modal-cancel params-defaults-button" onClick={resetAllToCatalogue}>
+            Reset all to catalogue
+          </button>
+          <button className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
+            Save as my default
+          </button>
+          {hasSavedOverride && (
+            <button className="bench-modal-cancel params-defaults-button" onClick={clearSavedDefault}>
+              Clear my saved default
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One node in the "Attached" tree (always a non-root node — root gets
+// its own params panel above this list in Bench's sidebar). Renders
+// itself, its own open slots as "attach here" buttons (text, not a 3D
+// marker — see centeredToWorld()'s comment for why), and recurses into
+// whatever's attached to IT, to any depth.
+function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRemove, onJointChange, onUpdateParams }) {
+  const node = getNode(assembly, nodeId);
+  const part = partsById.get(node.partId);
+  const kids = childrenOf(assembly, nodeId);
+  const openSlots = slotsForNode(assembly, partsById, nodeExtents, nodeId);
+
+  return (
+    <li className="bench-tree-node">
+      <div className="bench-child-row">
+        <span>{part.name}</span>
+        <button className="bench-remove" onClick={() => onRemove(nodeId)} title="Remove (and anything attached to it)">
+          ✕
+        </button>
+      </div>
+      <div className="bench-child-meta">
+        <span className="muted">{node.slotName}</span>
+        <select value={node.joint} onChange={(e) => onJointChange(nodeId, e.target.value)}>
+          {JOINTS.map((j) => (
+            <option key={j} value={j}>
+              {j}
+            </option>
+          ))}
+        </select>
+      </div>
+      <details className="bench-node-params-details">
+        <summary>Parameters</summary>
+        <NodeParamsPanel nodeId={nodeId} node={node} part={part} onUpdateParams={onUpdateParams} />
+      </details>
+      {openSlots.length > 0 && (
+        <div className="bench-node-slots">
+          {openSlots.map((slot) => (
+            <button key={slot.name} className="bench-attach-here" onClick={() => onAttachSlot(nodeId, slot.name)}>
+              + Attach: {slot.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {kids.length > 0 && (
+        <ul className="bench-child-list bench-child-list-nested">
+          {kids.map((kid) => (
+            <NodeTree
+              key={kid.id}
+              assembly={assembly}
+              partsById={partsById}
+              nodeExtents={nodeExtents}
+              nodeId={kid.id}
+              onAttachSlot={onAttachSlot}
+              onRemove={onRemove}
+              onJointChange={onJointChange}
+              onUpdateParams={onUpdateParams}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export default function Bench({ parts }) {
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
   const [importedParts, setImportedParts] = useState(new Map());
@@ -243,8 +423,8 @@ export default function Bench({ parts }) {
   );
 
   const [assembly, setAssembly] = useState(null); // null until a root is chosen
-  const [rootExtents, setRootExtents] = useState(null);
-  const [pendingSlot, setPendingSlot] = useState(null); // slot name awaiting a part choice
+  const [nodeExtents, setNodeExtents] = useState(new Map()); // node id ("root" or child id) -> [x,y,z]
+  const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
   const [stlBuffer, setStlBuffer] = useState(null);
@@ -254,33 +434,42 @@ export default function Bench({ parts }) {
 
   const rootPart = assembly ? partsById.get(assembly.root.partId) : null;
 
-  // The root's own standalone bounding box, independent of whatever is
-  // attached to it — needed for a free-subdivision grid (Gridfinity).
-  // An imported root already knows its own extents from validation, no
-  // render needed; a catalogue root's is cached by openscad-client the
-  // same as any Library-mode render.
+  // Every node's own standalone bounding box (its part rendered alone,
+  // with its own params, no attach() context) — needed to enumerate
+  // that node's own slots. A node's position elsewhere in the tree
+  // never changes its own size, so this is exactly the same computation
+  // for root and for any descendant. Cached by (file, module, params)
+  // in openscad-client, so re-deriving nodes nothing changed about on
+  // every assembly edit is a cache hit, not a wasted compile.
   useEffect(() => {
-    if (!rootPart) {
-      setRootExtents(null);
-      return;
-    }
-    if (rootPart.kind === "imported") {
-      setRootExtents(rootPart.extents);
+    if (!assembly) {
+      setNodeExtents(new Map());
       return;
     }
     let cancelled = false;
-    renderPart({
-      scadFile: rootPart.file,
-      module: rootPart.module,
-      params: assembly.root.params,
-      globalOverrides: getGlobalOverrides(),
-    }).then((buf) => {
-      if (!cancelled) setRootExtents(meshExtents(buf));
-    });
+    const allNodes = [{ id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params }, ...assembly.nodes];
+    (async () => {
+      const entries = await Promise.all(
+        allNodes.map(async (n) => {
+          const part = partsById.get(n.partId);
+          if (part.kind === "imported") return [n.id, part.extents];
+          const buf = await renderPart({
+            scadFile: part.file,
+            module: part.module,
+            params: n.params,
+            globalOverrides: getGlobalOverrides(),
+          });
+          return [n.id, meshExtents(buf)];
+        }),
+      );
+      if (!cancelled) setNodeExtents(new Map(entries));
+    })();
     return () => {
       cancelled = true;
     };
-  }, [rootPart, assembly?.root.params]);
+  }, [assembly, partsById]);
+
+  const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
 
   const allSlots = useMemo(() => {
     if (!rootPart || !rootExtents) return [];
@@ -289,11 +478,11 @@ export default function Bench({ parts }) {
     }
     return enumerateSlots(rootPart, assembly.root.params, rootExtents).map((s) => ({
       name: s.name,
-      point: [s.x, s.y, rootExtents[2] / 2], // grid slots sit on the top face, size.z/2 in centered frame
+      point: [s.x, s.y, s.z],
     }));
   }, [rootPart, rootExtents, assembly?.root.params]);
 
-  const occupied = useMemo(() => (assembly ? occupiedSlotNames(assembly) : new Set()), [assembly]);
+  const occupied = useMemo(() => (assembly ? occupiedSlotNames(assembly, ROOT_ID) : new Set()), [assembly]);
   const openSlots = useMemo(() => allSlots.filter((s) => !occupied.has(s.name)), [allSlots, occupied]);
 
   const markers = useMemo(() => {
@@ -337,7 +526,9 @@ export default function Bench({ parts }) {
 
   function attachChild(part) {
     const params = resolveParams(part, {});
-    setAssembly((a) => addChild(a, { partId: part.id, params, slotName: pendingSlot, joint: pendingJoint }));
+    setAssembly((a) =>
+      addChild(a, { parentId: pendingSlot.parentId, partId: part.id, params, slotName: pendingSlot.slotName, joint: pendingJoint }),
+    );
     setPendingSlot(null);
     setPendingJoint("fused");
   }
@@ -356,9 +547,10 @@ export default function Bench({ parts }) {
     registerImport(importedPart);
     setAssembly((a) =>
       addChild(a, {
+        parentId: pendingSlot.parentId,
         partId: importedPart.id,
         params: {},
-        slotName: pendingSlot,
+        slotName: pendingSlot.slotName,
         joint: pendingJoint,
         childAnchor: anchorName,
       }),
@@ -366,6 +558,10 @@ export default function Bench({ parts }) {
     setPendingSlot(null);
     setPendingJoint("fused");
     setImportMode(null);
+  }
+
+  function updateParams(nodeId, params) {
+    setAssembly((a) => updateNodeParams(a, nodeId, params));
   }
 
   function downloadBody(tag) {
@@ -414,6 +610,8 @@ export default function Bench({ parts }) {
     );
   }
 
+  const pendingParentPart = pendingSlot && partsById.get(getNode(assembly, pendingSlot.parentId).partId);
+
   return (
     <div className="bench">
       <aside className="sidebar bench-sidebar">
@@ -423,32 +621,27 @@ export default function Bench({ parts }) {
           Start over
         </button>
 
-        <h3>Attached ({assembly.children.length})</h3>
-        {assembly.children.length === 0 && <p className="muted">Nothing attached yet.</p>}
+        <details className="bench-node-params-details">
+          <summary>Root parameters</summary>
+          <NodeParamsPanel nodeId={ROOT_ID} node={assembly.root} part={rootPart} onUpdateParams={updateParams} />
+        </details>
+
+        <h3>Attached ({assembly.nodes.length})</h3>
+        {assembly.nodes.length === 0 && <p className="muted">Nothing attached yet.</p>}
         <ul className="bench-child-list">
-          {assembly.children.map((child) => {
-            const childPart = partsById.get(child.partId);
-            return (
-              <li key={child.id}>
-                <div className="bench-child-row">
-                  <span>{childPart.name}</span>
-                  <button className="bench-remove" onClick={() => setAssembly((a) => removeChild(a, child.id))}>
-                    ✕
-                  </button>
-                </div>
-                <div className="bench-child-meta">
-                  <span className="muted">{child.slotName}</span>
-                  <select value={child.joint} onChange={(e) => setAssembly((a) => updateChildJoint(a, child.id, e.target.value))}>
-                    {JOINTS.map((j) => (
-                      <option key={j} value={j}>
-                        {j}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </li>
-            );
-          })}
+          {childrenOf(assembly, ROOT_ID).map((child) => (
+            <NodeTree
+              key={child.id}
+              assembly={assembly}
+              partsById={partsById}
+              nodeExtents={nodeExtents}
+              nodeId={child.id}
+              onAttachSlot={(parentId, slotName) => setPendingSlot({ parentId, slotName })}
+              onRemove={(id) => setAssembly((a) => removeChild(a, id))}
+              onJointChange={(id, joint) => setAssembly((a) => updateChildJoint(a, id, joint))}
+              onUpdateParams={updateParams}
+            />
+          ))}
         </ul>
 
         <h3>Export</h3>
@@ -469,14 +662,20 @@ export default function Bench({ parts }) {
           <div>
             <h2>Bench</h2>
             <p className="print-note">
-              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}.
+              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. A part with its own
+              extra faces (a Basics plate or post, or another multi-slot part) keeps offering them once attached —
+              expand it in the sidebar to stack something onto it.
               {status === "rendering" && " Rendering…"}
             </p>
           </div>
         </header>
         <div className="viewer-panel bench-viewer">
           {stlBuffer ? (
-            <StlViewer stlBuffer={stlBuffer} markers={markers} onMarkerClick={(id) => setPendingSlot(id)} />
+            <StlViewer
+              stlBuffer={stlBuffer}
+              markers={markers}
+              onMarkerClick={(id) => setPendingSlot({ parentId: ROOT_ID, slotName: id })}
+            />
           ) : (
             <div className="viewer-placeholder">Rendering…</div>
           )}
@@ -487,7 +686,10 @@ export default function Bench({ parts }) {
       {pendingSlot && !importMode && (
         <div className="bench-modal-backdrop" onClick={() => setPendingSlot(null)}>
           <div className="bench-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Attach to {pendingSlot}</h3>
+            <h3>
+              Attach to {pendingSlot.slotName}
+              {pendingSlot.parentId !== ROOT_ID && ` on ${pendingParentPart.name}`}
+            </h3>
             <label className="field">
               Joint
               <select value={pendingJoint} onChange={(e) => setPendingJoint(e.target.value)}>

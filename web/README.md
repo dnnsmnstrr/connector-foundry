@@ -34,25 +34,53 @@ joint combinations in the Bench (`src/lib/assembly.js`'s `attachChildScad()` has
 
 ## Bench (`src/Bench.jsx`)
 
-The visual editor: one root part, direct children snapped onto its slots, each with a joint type
-— see the root README's "Bench" section for what it does. A few implementation notes that don't
-belong there:
+The visual editor: a root part plus a tree of parts snapped onto open slots, each connection with
+its own joint type — see the root README's "Bench" section for what it does, including how
+stacking (attaching onto something that's itself attached) works and why it's only offered where
+a part actually has anchors left over. A few implementation notes that don't belong there:
 
-- `src/lib/assembly.js`'s `compileToScad()` generates one `.scad` source per assembly state,
-  through the *same* worker/render pipeline as everything else (a second request shape,
-  `{ scadSource, part }`, alongside the single-part `{ scadFile, module, params }` one) — the
-  Bench never has its own bespoke renderer.
+- `src/lib/assembly.js` holds the tree: `{ root: {id:"root", partId, params}, nodes: [...] }`,
+  where every node but root carries a `parentId` naming what it's attached to — "root" or another
+  node's id, to any depth. `getNode()`/`childrenOf()`/`occupiedSlotNames()` all take that id the
+  same way for root and any child, which is what lets `Bench.jsx`'s `slotsForNode()` and
+  `NodeTree` treat every node identically regardless of depth.
+- `compileToScad()` generates one `.scad` source per assembly state, through the *same*
+  worker/render pipeline as everything else (a second request shape, `{ scadSource, part }`,
+  alongside the single-part `{ scadFile, module, params }` one) — the Bench never has its own
+  bespoke renderer. It recurses depth-first now instead of the old single flat pass, nesting each
+  node's `attach()` call around whatever's attached to it; `bodyTagOf()`/`bodyTags()` generalise
+  "one printable body per fused subtree" to any depth the same way.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
-  prop), raycast-clickable; a named-anchor position is always in the part's centered local frame
-  (BOSL2's `attachable()` convention), so placing one in world space and mapping it back needs a
-  small, consistent conversion — see Bench.jsx's `centeredToWorld()`.
+  prop), raycast-clickable, but **root-only**: a named-anchor position is in the part's own
+  centered local frame, and root is the only node BOSL2 places with no rotation, so converting
+  that to a world position is a plain height/2 shift (`Bench.jsx`'s `centeredToWorld()`). A
+  non-root node's own axes don't line up with world space in general, because `attach()` flips the
+  child to make its anchor antiparallel to the parent's — reproducing that transform in JS just to
+  place a marker is a correctness trap for no real gain, so a deeper node's open slots are listed
+  as plain "+ Attach: `<name>`" buttons in the sidebar (`slotsForNode()`) instead of guessed-at 3D
+  points. The rendered/exported geometry is unaffected either way, since that goes through real
+  BOSL2, not this shortcut.
+- Every node's own standalone extents (needed to enumerate its slots) come from rendering its
+  part alone with its own params — the same computation for root and any descendant, since a
+  part's own size never depends on where it sits in the tree. Catalogue.yaml's `anchors` field
+  (`[bot, xpos, xneg, ypos, yneg]`) is what makes a multi-anchor part like Basics plate/post
+  enumerable this way without parsing its `.scad`: each name is just the center of that face of
+  the part's own rendered bounding box (`src/lib/slots.js`'s `FACE_ANCHOR_LOCAL`) — no per-part
+  formula to restate.
+- Every node — root or any depth of child — gets a parameter editor in the sidebar
+  (`NodeParamsPanel`), the exact same catalogue-default diff/reset/save-as-default flow as Library
+  mode's params panel (`src/components/ParamField.jsx`, shared between the two).
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
   parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
   reimplemented in JS because the Bench has no Python available, not because the criteria
   differ), then — if it passes — becomes an `attachable()` wrapper module generated inline in the
   compiled assembly source, importing the validated (not raw) STL bytes via OpenSCAD's own
-  `import()`. Slots the user clicks become `named_anchor()`s on that wrapper, same as any
+  `import()`. A click on the mesh doesn't place a slot at the raw hit point: `src/lib/faceCluster.js`
+  flood-fills out from the hit triangle across every connected, coplanar neighbor (tight angle and
+  coplanarity tolerances) to find the whole flat face under the cursor, then reports its 2D-bbox
+  center and normal — `StlViewer.jsx`'s raycast handler runs this and hands the result to
+  `onSurfacePick`. That center becomes a `named_anchor()` on the generated wrapper, same as any
   catalogue part's. The uploaded/repaired bytes travel to the worker as a `Map` in the render
   request (`importedFiles`), written into the WASM filesystem right next to the generated
   `.scad` before it compiles.
