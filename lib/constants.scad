@@ -3,74 +3,64 @@
 // "parametric") match the ones in catalogue.yaml.
 
 // ============================================================
-// Gridfinity — exact
-// Source: gridfinity-rebuilt-openscad, src/core/standard.scad (MIT)
-// https://github.com/kennetek/gridfinity-rebuilt-openscad
-// Checked 2026-09-01 against a local clone. Values here are the ones
-// actually used by that codebase, which differ slightly from the
-// gridfinity.xyz spec page's rounded numbers (e.g. base height is
-// 4.75 mm there, not 4.95 mm) — the reference implementation wins.
+// Gridfinity — exact, and NOT duplicated here.
+//
+// Gridfinity dimensions live in the upstream reference implementation,
+// vendored as the submodule vendor/gridfinity-rebuilt (kennetek, MIT):
+//   vendor/gridfinity-rebuilt/src/core/standard.scad
+// parts/gridfinity/base.scad includes that file directly and calls
+// upstream's gridfinityBase(), so there is no second copy of these
+// numbers to drift. Re-stating them here is what previously let this
+// repo ship a base whose feet were 5.9mm undersized — the constants
+// were right, the geometry built from them was not.
 // ============================================================
 
-GF_PITCH        = 42;        // grid pitch, x and y
-GF_TOP_SIZE     = [41.5, 41.5]; // top-of-base footprint (0.5mm gap from pitch)
-GF_GAP          = GF_PITCH - GF_TOP_SIZE.x; // 0.5
-
-// Base profile: [outward offset, z] pairs, innermost point first.
-// Swept as a rounded rectangle profile (offset_sweep bottom rounding).
-GF_BASE_PROFILE = [[0, 0], [0.8, 0.8], [0.8, 2.6], [2.95, 4.75]];
-GF_PROFILE_H    = GF_BASE_PROFILE[3][1]; // 4.75
-GF_PROFILE_R    = GF_BASE_PROFILE[3][0]; // 2.95 (outward offset at top of profile)
-
-GF_TOP_RADIUS    = 3.75;                    // corner radius at top of base
-GF_BOTTOM_RADIUS = GF_TOP_RADIUS - GF_PROFILE_R; // 0.8, corner radius at bottom
-
-GF_BRIDGE   = 2.25; // bridge slab above the profile, so profile + bridge = 1U
-GF_UNIT_H   = 7;     // height unit (GF_PROFILE_H + GF_BRIDGE == GF_UNIT_H)
-
-GF_MAGNET_R = 6.5 / 2;   // magnet pocket radius
-GF_MAGNET_D = 2 + 0.2 * 2; // magnet pocket depth (magnet height + 2 layers @ 0.2mm)
-GF_SCREW_R  = 3 / 2;     // M3 hole radius (through-hole, not clearance-widened)
-GF_HOLE_FROM_SIDE = 8;   // hole center distance from the top-of-base edge
-GF_HOLE_OFFSET    = GF_TOP_SIZE.x / 2 - GF_HOLE_FROM_SIDE; // 12.75, hole center from part center
-
 // ============================================================
-// openGrid — exact
-// Source: AndyLevesque/QuackWorks openGrid/openGrid.scad, read for the
-// published numbers only (that file is CC-BY-NC-SA 4.0 and is NOT
-// vendored here — see README "Licensing"). Cross-checked against
-// opengrid.world/guides/board/. Checked 2026-09-01.
+// openGrid — exact, geometry owned upstream.
+//
+// The cell geometry lives in vendor/QuackWorks (CC-BY-NC-SA 4.0), which
+// parts/opengrid/*.scad call directly. Upstream keeps these as top-level
+// customizer variables, which `use <>` does not import, so the few we
+// need for a bounding box are restated here. They ARE duplicates and can
+// drift — references.yaml has shape checks against upstream renders that
+// fail if they do.
 // ============================================================
 
-OG_PITCH        = 28;   // grid pitch, x and y
+OG_PITCH           = 28;    // grid pitch, x and y. A tile is exactly
+                            // cells x pitch: no border beyond the grid.
 OG_THICKNESS_FULL  = 6.8;
 OG_THICKNESS_LITE  = 4.0;
 OG_THICKNESS_HEAVY = 13.8;
-OG_TILE_INNER   = 25;   // cell opening (clear interior size)
-OG_OUTSIDE_EXT  = 0.8;  // extrusion beyond the tile boundary
-OG_TOP_INSET    = 2.4;  // top capture inset
-OG_CHAMFER_TOP  = 0.4;
-OG_CHAMFER_MID  = 1.0;
+OG_SNAP_SIZE       = 25.58; // snap envelope across its widest (the wings)
+OG_SNAP_H_FULL     = 6.8;   // a full snap spans a full tile
+OG_SNAP_H_LITE     = 3.4;   // ...a lite snap is half height, not lite-tile height
+OG_SNAP_DIR_EXTRA  = 0.4;   // the directional variant adds this much, on +X only
 
 // ============================================================
-// GoPro — exact
-// Source: community-standard "Modular Mounting System" geometry,
-// thingiverse.com/thing:2194278. Checked 2026-09-01.
+// GoPro — exact, interface geometry owned upstream.
+//
+// The buckle interface itself (Ø15 leg ends, 3mm legs, 3.5mm slits, M5
+// pivot) lives in vendor/GoProScad (ridercz/GoProScad, MIT), which
+// parts/gopro/*.scad call directly. Only two kinds of number live here:
+//
+//  1. Shape choices upstream leaves to the caller (plate size, leg
+//     height, nut pocket). Free to override.
+//  2. GP_LEG_T / GP_SLIT_W, which upstream keeps as file-private
+//     __gopro_* variables that `use <>` does not import, so they have to
+//     be restated to compute a bounding box. These two ARE a duplicate
+//     of upstream and can drift — references.yaml has a shape check that
+//     compares our render against upstream's and fails if they do.
 // ============================================================
 
-GP_PRONG_T      = 3.0;  // prong thickness
-GP_SLOT_W       = 3.2;  // slot width (clearance for one prong)
-GP_PRONG_PITCH  = 6.2;  // center-to-center prong spacing
-GP_END_R        = 7.5;  // end radius (Ø15 rounded end)
-GP_BOLT_R       = 5.2 / 2; // M5 clearance
-GP_WIDTH_2PRONG = 9.2;  // two-prong (male) overall width
-GP_WIDTH_3PRONG = 15.4; // three-prong (female) overall width
+GP_LEG_T   = 3.0;   // == GoProScad __gopro_leg_width   (duplicate, checked)
+GP_SLIT_W  = 3.5;   // == GoProScad __gopro_slit_width  (duplicate, checked)
+GP_LEG_DIA = 15;    // == GoProScad __gopro_outer_diameter (duplicate, checked)
 
-// Not part of the interchange spec (only thickness/pitch/width matter for
-// the buckle fit) — these are shape choices, free to override.
-GP_ARM_WIDTH = 2 * GP_END_R; // arm width, same for male and female
-GP_PRONG_LEN = 13;           // prong length below the hinge block
-GP_HINGE_T   = 6;            // hinge block thickness, holds the pivot bolt hole
+GP_BASE_T    = 3;     // mount plate thickness
+GP_BASE_W    = 20;    // mount plate width
+GP_LEG_H     = 17;    // leg height; upstream asserts >= 15
+GP_NUT_DEPTH = 3;     // captive nut pocket depth in the far leg (0 = none)
+GP_NUT_DIA   = 11.5;  // square M5 nut across corners
 
 // ============================================================
 // DeckMate — parametric, unmeasured
@@ -86,16 +76,49 @@ DM_SLIDE_CLEARANCE = 0.3; // Innie only
 DM_WALL_T         = 2.4;  // Innie only
 
 // ============================================================
-// 2020 extrusion — parametric, supplier-dependent
-// 20-series defaults; every dimension is meant to be overridden.
-// Checked 2026-09-01.
+// 2020 extrusion — parametric, supplier-dependent, but no longer guessed.
+//
+// Real 20-series T-slot varies between suppliers, so every value here is
+// meant to be overridable. The defaults are measured off NopSCADlib's
+// E2020t profile, which is itself modelled from real extrusion
+// (nophead/NopSCADlib, GPL-3.0 — measured against, NOT vendored and NOT
+// called by any part here; see references.yaml). Measured 2026-09-01 by
+// slicing a rendered E2020t, and re-measured by the extrusion2020 fit
+// checks on every `make verify`, so drift shows up as a failed check
+// rather than as a part that will not go in.
+//
+// Cross-section of one slot, from the outer face inward:
+//
+//     |<-- EX_RECESS_W -->|            outer face
+//     +---+           +---+   ---
+//     |   |  recess   |   |    | EX_RECESS_D
+//     |   +--+     +--+   |   ---
+//     |      | 6.2 |      |    | EX_LIP_T   (lip / slot mouth)
+//     +------+     +------+   ---
+//     |                   |    | EX_CHANNEL_D  (usable, at full width)
+//     \                 /     |
+//      \_______________/     ---   floor, sloping up at 45 deg
+//     |<-- EX_CHANNEL_W ->|
 // ============================================================
 
-EX_PROFILE      = 20;   // profile is EX_PROFILE x EX_PROFILE
-EX_SLOT_OPEN    = 6.2;
-EX_CHANNEL_W    = 11.2;
-EX_CHANNEL_D    = 5.8;
-EX_LIP_T        = 1.9;
+EX_PROFILE      = 20;      // profile is EX_PROFILE x EX_PROFILE
+EX_SLOT_OPEN    = 6.2;     // slot mouth width
+EX_RECESS_W     = 7.2;     // shallow recess at the outer face
+EX_RECESS_D     = 0.5;     // ...and its depth
+EX_CHANNEL_W    = 11.0;    // internal channel width, at the lip
+EX_LIP_T        = 1.8;     // outer face to the channel ceiling
+
+// Usable thickness in the channel AT FULL WIDTH — not the channel's
+// maximum depth. The floor slopes up toward the walls at 45 degrees, so
+// anything as wide as EX_CHANNEL_W only gets this much before it fouls.
+// Reading the centre depth (~3.1mm) as if it were available across the
+// whole width is what made the old tab head 5.65mm thick and 105mm3
+// interfering — it could not be pushed into a slot at all. Parts that
+// fill the channel taper their flanks at EX_FLOOR_ANGLE to follow the
+// floor and can then be thicker than this.
+EX_CHANNEL_D    = 2.0;
+EX_FLOOR_ANGLE  = 45;      // channel floor rise, degrees from the lip plane
+
 EX_BORE_R       = 5.2 / 2; // center bore clearance
 
 // ============================================================

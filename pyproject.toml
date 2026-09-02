@@ -12,7 +12,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "rtree>=1.0"]
+# scipy: nearest-point queries behind the surface-distance metric, and
+#        the section/traversal code trimesh defers to it for.
+# shapely: 2D boolean area on cross-sections.
+# cascadio: STEP -> mesh, for supplier CAD references (see references.yaml).
+dev = [
+    "pytest>=8.0",
+    "rtree>=1.0",
+    "scipy>=1.11",
+    "shapely>=2.0",
+    "cascadio>=0.0.14",
+]
 
 [project.scripts]
 foundry = "foundry:app"

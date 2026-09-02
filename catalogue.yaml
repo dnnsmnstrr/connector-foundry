@@ -1,9 +1,24 @@
-# Single source of truth for what exists. The CLI, the tests, and the
-# generated README all read this file — adding a part means adding a
-# .scad file and one entry here.
+# Single source of truth for what exists. The CLI, the tests, the web app
+# and the generated README all read this file — adding a part means adding
+# a .scad file and one entry here.
 #
-# confidence: exact = published spec or reference implementation.
-#             parametric = a starting point; verify against real hardware.
+# confidence:
+#   exact      — the geometry comes from, or is checked against, a
+#                reference implementation of the standard. Every part at
+#                this level has entries in references.yaml, and
+#                `make verify` re-proves the claim.
+#   parametric — a starting point. Verify against real hardware.
+#
+# options: for a parameter whose values are a fixed set, list them. The
+#   web app turns those into a dropdown instead of a free-text box, and
+#   the CLI rejects a value that is not on the list — so nobody has to
+#   remember that a board variant is spelled "lite" and its chamfers are
+#   spelled "Corners". A test holds `options` and `defaults` together.
+#
+# license: omitted means the repository's MIT licence. A part that calls
+#   into a vendored upstream carries that upstream's terms instead — see
+#   the README "Licensing" section. This field is not decoration: it is
+#   what a downstream user has to read before shipping a part.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -11,27 +26,22 @@ parts:
     file: parts/gridfinity/base.scad
     module: gf_base
     confidence: exact
-    source: "gridfinity-rebuilt-openscad (kennetek, MIT)"
+    source: "Wraps gridfinity-rebuilt-openscad (kennetek, MIT), vendored at vendor/gridfinity-rebuilt"
     print_note: Print as-is, functional face (feet) down. No supports needed.
     defaults:
       gx: 1
       gy: 1
       magnets: false
       screws: false
-    golden:
-      bbox: [41.5, 41.5, 7.0]
-      volume_mm3: 9076.45
     variants:
       - name: with-magnets
         params: { magnets: true }
-        golden:
-          bbox: [41.5, 41.5, 7.0]
-          volume_mm3: 8755.41
       - name: with-magnets-and-screws
         params: { magnets: true, screws: true }
-        golden:
-          bbox: [41.5, 41.5, 7.0]
-          volume_mm3: 8685.39
+      - name: 2x2-corners-only
+        params: { gx: 2, gy: 2, magnets: true, only_corners: true }
+      - name: thumbscrew
+        params: { thumbscrew: true }
 
   - id: gopro/male
     system: GoPro
@@ -39,12 +49,18 @@ parts:
     file: parts/gopro/male.scad
     module: gopro_male
     confidence: exact
-    source: "Modular Mounting System, thingiverse.com/thing:2194278"
-    print_note: Prongs face down for slot consistency; use a brim for first-layer adhesion.
-    defaults: {}
-    golden:
-      bbox: [15.0, 9.2, 19.0]
-      volume_mm3: 1638.25
+    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
+    print_note: >-
+      Legs face down for slot consistency; use a brim for first-layer
+      adhesion. Mates with any GoPro-standard three-prong buckle — proved
+      against the upstream model, not just against our own female.
+    defaults:
+      base_h: 3
+      base_w: 20
+      leg_h: 17
+    variants:
+      - name: wide-plate
+        params: { base_w: 30 }
 
   - id: gopro/female
     system: GoPro
@@ -52,12 +68,19 @@ parts:
     file: parts/gopro/female.scad
     module: gopro_female
     confidence: exact
-    source: "Modular Mounting System, thingiverse.com/thing:2194278"
-    print_note: Prongs face down for slot consistency; use a brim for first-layer adhesion.
-    defaults: {}
-    golden:
-      bbox: [15.0, 15.4, 19.0]
-      volume_mm3: 2779.49
+    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
+    print_note: >-
+      Legs face down for slot consistency; use a brim for first-layer
+      adhesion. nut_depth sinks a captive square-nut pocket in the far
+      leg; set it to 0 for a plain through-hole.
+    defaults:
+      base_h: 3
+      base_w: 20
+      leg_h: 17
+      nut_depth: 3
+    variants:
+      - name: no-nut-pocket
+        params: { nut_depth: 0 }
 
   - id: deckmate/outie
     system: DeckMate
@@ -65,18 +88,17 @@ parts:
     file: parts/deckmate/outie.scad
     module: deckmate_outie
     confidence: parametric
-    source: "No dimensioned drawing published — prototype defaults, see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Prints tip-down, self-supporting; end_stop adds a tab at one end to keep an Innie from sliding off."
+    source: >-
+      No dimensioned drawing published and no reference model to check
+      against — prototype defaults, see lib/constants.scad
+    print_note: >-
+      Unmeasured — verify against your hardware before trusting the fit.
+      Prints tip-down, self-supporting; end_stop adds a tab at one end to
+      keep an Innie from sliding off.
     defaults: {}
-    golden:
-      bbox: [26.0, 36.0, 5.0]
-      volume_mm3: 4140.0
     variants:
       - name: with-end-stop
         params: { end_stop: true }
-        golden:
-          bbox: [26.0, 36.0, 8.0]
-          volume_mm3: 4419.0
 
   - id: deckmate/innie
     system: DeckMate
@@ -84,12 +106,14 @@ parts:
     file: parts/deckmate/innie.scad
     module: deckmate_innie
     confidence: parametric
-    source: "No dimensioned drawing published — prototype defaults, see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Print mouth-down as oriented; channel is a through-slot, open at both ends for lengthwise assembly onto the Outie."
+    source: >-
+      No dimensioned drawing published and no reference model to check
+      against — prototype defaults, see lib/constants.scad
+    print_note: >-
+      Unmeasured — verify against your hardware before trusting the fit.
+      Print mouth-down as oriented; channel is a through-slot, open at
+      both ends for lengthwise assembly onto the Outie.
     defaults: {}
-    golden:
-      bbox: [31.4, 36.0, 7.4]
-      volume_mm3: 4116.96
 
   - id: extrusion2020/tab
     system: 2020 Extrusion
@@ -97,18 +121,22 @@ parts:
     file: parts/extrusion2020/tab.scad
     module: ex_tab
     confidence: parametric
-    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. tab_len <= 6mm (the default) drops into the slot face-first and twists 90 degrees to lock, anywhere along the rail; longer heads can't tilt through the 6.2mm mouth and must be fed in endwise from an open end of the extrusion."
-    defaults: {}
-    golden:
-      bbox: [6.0, 10.9, 13.65]
-      volume_mm3: 559.22
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the
+      channel floor. tab_len <= 6mm (the default) drops into the slot
+      face-first and twists 90 degrees to lock, anywhere along the rail;
+      longer heads must be fed in endwise from an open end.
+    defaults:
+      tab_len: 6
+      head_t: 2.0
+      shaft_len: 8
     variants:
       - name: end-feed-length
         params: { tab_len: 16 }
-        golden:
-          bbox: [16.0, 10.9, 13.65]
-          volume_mm3: 1148.01
 
   - id: extrusion2020/clip
     system: 2020 Extrusion
@@ -116,12 +144,18 @@ parts:
     file: parts/extrusion2020/clip.scad
     module: ex_clip
     confidence: parametric
-    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Push straight into the slot mid-rail, no end access needed; the legs flex through EX_SLOT_OPEN and the barbs spring out to grip EX_CHANNEL_W. Print in a flexible-enough filament (PETG/nylon) — stiff PLA legs may snap."
-    defaults: {}
-    golden:
-      bbox: [8.1, 7.0, 15.65]
-      volume_mm3: 259.03
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Push straight into the slot mid-rail, no end access needed;
+      the legs flex through EX_SLOT_OPEN and the barbs spring out under
+      the lip. Print in a flexible-enough filament (PETG/nylon) — stiff
+      PLA legs may snap.
+    defaults:
+      leg_len: 7
+      post_h: 8
 
   - id: extrusion2020/endcap
     system: 2020 Extrusion
@@ -129,12 +163,17 @@ parts:
     file: parts/extrusion2020/endcap.scad
     module: ex_endcap
     confidence: parametric
-    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Locating cross prints face-down as oriented; the plate overhangs the cross at its four corners, so add a brim or light support there."
-    defaults: {}
-    golden:
-      bbox: [20.0, 20.0, 5.0]
-      volume_mm3: 1447.03
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Locating keys print face-down as oriented; the plate
+      overhangs them at its four corners, so add a brim or light support
+      there.
+    defaults:
+      plate_t: 3
+      boss_h: 2
 
   - id: extrusion2020/corner-bracket
     system: 2020 Extrusion
@@ -142,12 +181,16 @@ parts:
     file: parts/extrusion2020/corner-bracket.scad
     module: ex_corner_bracket
     confidence: parametric
-    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Print with the base flange down as oriented; the upright flange is a self-supporting 90 degree wall. Bore centers assume the bracket sits centered on each extrusion face — check against your T-nut/bore spacing."
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Print with the base flange down as oriented; the upright
+      flange is a self-supporting 90 degree wall. Bore centers assume the
+      bracket sits centered on each extrusion face — check against your
+      T-nut/bore spacing.
     defaults: {}
-    golden:
-      bbox: [20.0, 20.0, 24.0]
-      volume_mm3: 3014.78
 
   - id: extrusion2020/c-clip
     system: 2020 Extrusion
@@ -155,12 +198,16 @@ parts:
     file: parts/extrusion2020/c-clip.scad
     module: ex_c_clip
     confidence: parametric
-    source: "Supplier-dependent 20-series slot geometry — see lib/constants.scad"
-    print_note: "Unmeasured — verify against your hardware before trusting the fit. Snaps over the OUTSIDE of the extrusion through its open side; print with the ring axis vertical as oriented (zero overhang either way up). Confirm your printer's flex/tolerance can open the gap without cracking."
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Snaps over the OUTSIDE of the extrusion through its open
+      side; print with the ring axis vertical as oriented (zero overhang
+      either way up). Confirm your printer's flex/tolerance can open the
+      gap without cracking.
     defaults: {}
-    golden:
-      bbox: [26.3, 26.3, 10.0]
-      volume_mm3: 2556.0
 
   - id: opengrid/board
     system: openGrid
@@ -168,21 +215,38 @@ parts:
     file: parts/opengrid/board.scad
     module: og_board
     confidence: exact
-    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; geometry is an original implementation — see README Licensing"
-    print_note: Grid face up, flat on the bed. "full" thickness recommended over "lite" — the lite variant leaves ~0.5mm walls around the capture rabbet.
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Wraps QuackWorks openGrid.scad, vendored at vendor/QuackWorks.
+      openGrid design by David D; OpenSCAD implementation by Andy
+      (BlackjackDuck). NOT MIT — see README "Licensing".
+    print_note: >-
+      Grid face up, flat on the bed. A tile is exactly cells x 28mm, so
+      boards butt against each other with no border. "full" is the
+      default; "lite" is 4mm, "heavy" is 13.8mm. The heavy tile is two
+      halves back to back with a deliberate gap between them, so it
+      contains one sealed cavity per cell — expected, not a modelling
+      error, but it does mean the interior is unreachable once printed.
     defaults:
       cells_x: 2
       cells_y: 2
       variant: full
-    golden:
-      bbox: [57.6, 57.6, 6.8]
-      volume_mm3: 4520.60
+      chamfers: "None"
+      connector_holes: false
+      screw_mounting: "None"
+    options:
+      variant: [full, lite, heavy]
+      # Spelling and capitalisation are upstream's, passed through
+      # verbatim — openGrid.scad compares these strings directly.
+      chamfers: ["None", Corners, Everywhere]
+      screw_mounting: ["None", Corners, Everywhere, "By Row and Column"]
     variants:
       - name: lite-1x1
         params: { cells_x: 1, cells_y: 1, variant: lite }
-        golden:
-          bbox: [29.6, 29.6, 4.0]
-          volume_mm3: 733.82
+      - name: heavy
+        params: { variant: heavy }
+      - name: full-2x2-finished
+        params: { chamfers: Corners, connector_holes: true, screw_mounting: Corners }
 
   - id: opengrid/snap
     system: openGrid
@@ -190,19 +254,26 @@ parts:
     file: parts/opengrid/snap.scad
     module: og_snap
     confidence: exact
-    source: "Dimensions from AndyLevesque/QuackWorks openGrid.scad (CC-BY-NC-SA), read for numbers only; the snap clip itself is an original design — see README Licensing"
-    print_note: Tip down (functional face). Print in a material with some flex (PETG/PLA+ with thin walls) so the 4 corner fingers can compress; no supports needed.
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Wraps QuackWorks opengrid-snap.scad, vendored at vendor/QuackWorks.
+      openGrid design by David D; snap implementation by metasyntactic.
+      NOT MIT — see README "Licensing".
+    print_note: >-
+      Print in a material with some flex (PETG/PLA+) so the retaining
+      wings can compress; no supports needed. A snap sits within the
+      board's thickness. Note the "lite" snap is a half-height snap
+      (3.4mm), which is not the same thing as a lite tile (4.0mm).
     defaults:
-      board_t: 6.8
-    golden:
-      bbox: [26.7, 26.7, 11.25]
-      volume_mm3: 6595.69
+      variant: full
+      directional: false
+    options:
+      variant: [full, lite]
     variants:
-      - name: lite-board
-        params: { board_t: 4.0 }
-        golden:
-          bbox: [26.7, 26.7, 8.45]
-          volume_mm3: 5049.39
+      - name: lite
+        params: { variant: lite }
+      - name: directional
+        params: { directional: true }
 
   - id: basics/plate
     system: Basics
@@ -210,22 +281,18 @@ parts:
     file: parts/basics/plate.scad
     module: basics_plate
     confidence: exact
-    source: "Generic geometry, not tied to an external spec"
-    print_note: Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom.
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: >-
+      Flat on the bed, no supports needed. Named anchors on all 6 faces —
+      branch composition off any side, not just top/bottom.
     defaults:
       w: 40
       d: 40
       t: 4
       r: 3
-    golden:
-      bbox: [40.0, 40.0, 4.0]
-      volume_mm3: 6364.00
     variants:
       - name: with-bolts
         params: { bolts: true }
-        golden:
-          bbox: [40.0, 40.0, 4.0]
-          volume_mm3: 6196.35
 
   - id: basics/post
     system: Basics
@@ -233,17 +300,11 @@ parts:
     file: parts/basics/post.scad
     module: basics_post
     confidence: exact
-    source: "Generic geometry, not tied to an external spec"
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
     print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
     defaults:
       dia: 10
       h: 20
-    golden:
-      bbox: [10.0, 10.0, 20.0]
-      volume_mm3: 1530.73
     variants:
       - name: bored
         params: { bore: 4 }
-        golden:
-          bbox: [10.0, 10.0, 20.0]
-          volume_mm3: 1247.70

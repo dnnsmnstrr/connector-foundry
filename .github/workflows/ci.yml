@@ -8,17 +8,72 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # OpenSCAD initialises Qt even for a command-line export, and the
+      # runner has no display.
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install OpenSCAD (nightly, Manifold backend)
+      - name: Install OpenSCAD (dev snapshot, for the Manifold backend)
         run: |
-          sudo add-apt-repository -y ppa:openscad/releases
+          set -euo pipefail
+          # The AppImage bundles Qt but not the system graphics stack it
+          # links against. libopengl0 is the one that bites: it provides
+          # libOpenGL.so.0, which libgl1 (libGL.so.1) does not.
           sudo apt-get update
-          sudo apt-get install -y openscad
-          openscad --version
+          sudo apt-get install -y --no-install-recommends \
+            libopengl0 libgl1 libglx0 libglu1-mesa libegl1 \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+            libxcb-xinerama0 libxcb-xkb1 \
+            libfontconfig1 libfreetype6 libharfbuzz0b libdbus-1-3
+
+          # Every part here renders with --backend=Manifold, which the
+          # stable OpenSCAD release predates, so a dev snapshot it is.
+          # (ppa:openscad/releases is not an option: it has not published
+          # past focal, so it 404s on the current runner image.)
+          #
+          # Snapshot filenames are dated and the directory keeps only a
+          # rolling window, so resolve the newest at run time — a pinned
+          # URL here would 404 a few months from now for reasons that
+          # have nothing to do with the change under test.
+          base=https://files.openscad.org/snapshots
+          file=$(curl -fsSL "$base/" \
+            | grep -oE 'OpenSCAD-[0-9.]+\.ai[0-9]+-x86_64\.AppImage' \
+            | sort -u | sort -t- -k2 -V | tail -1)
+          if [ -z "$file" ]; then
+            echo "::error::no OpenSCAD snapshot found at $base/"
+            exit 1
+          fi
+          echo "using $file"
+          curl -fsSL -o openscad.AppImage "$base/$file"
+          chmod +x openscad.AppImage
+
+          # Extract rather than execute: the runner image has no FUSE,
+          # which an AppImage needs to mount itself.
+          ./openscad.AppImage --appimage-extract > /dev/null
+          sudo mv squashfs-root /opt/openscad
+
+          # A wrapper, not a symlink to AppRun: AppRun locates its Qt
+          # hook scripts relative to $0, so through a symlink it looks
+          # for them in /usr/local/bin and exits.
+          sudo tee /usr/local/bin/openscad > /dev/null <<'EOF'
+          #!/bin/sh
+          exec /opt/openscad/AppRun "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/openscad
+
+          # Name every still-missing library at once rather than
+          # rediscovering them one CI run at a time.
+          if ! openscad --version; then
+            echo "::group::unresolved shared libraries"
+            ldd /opt/openscad/AppRun.wrapped 2>/dev/null | grep "not found" || true
+            echo "::endgroup::"
+            exit 1
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -29,8 +84,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Fetch reference sources
+        # Submodule-backed references (gridfinity, GoPro, openGrid) are
+        # already present from the checkout. This pulls the ones that are
+        # deliberately NOT vendored because their licences cannot be
+        # redistributed from an MIT repo — see references.yaml.
+        run: python tools/refcache.py
+
       - name: Render + validate whole catalogue
+        id: pytest
         run: pytest tests/ -v
+
+      - name: Reference + fit report
+        # Same checks pytest just ran, printed as the report so a failure
+        # shows the measured numbers and not just an assertion. Runs even
+        # when pytest failed, but not when it never ran — otherwise a
+        # broken toolchain reports itself twice, the second time as a
+        # misleading ModuleNotFoundError.
+        if: always() && steps.pytest.outcome != 'skipped'
+        run: python tools/verify.py
 
   web:
     runs-on: ubuntu-latest
@@ -39,6 +111,10 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The bundler reads vendor/ — the browser compiles the same
+          # upstream sources the CLI does.
+          submodules: recursive
 
       - uses: actions/setup-node@v4
         with:

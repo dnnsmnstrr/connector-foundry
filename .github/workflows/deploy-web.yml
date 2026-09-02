@@ -9,7 +9,7 @@ on:
       - "parts/**"
       - "assemblies/**"
       - "catalogue.yaml"
-      - "vendor/BOSL2/**"
+      - "vendor/**"
       - ".github/workflows/deploy-web.yml"
   workflow_dispatch:
 

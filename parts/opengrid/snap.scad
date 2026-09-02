@@ -1,55 +1,42 @@
-// openGrid snap: the small clip that mounts into a board's cell grid (see
-// board.scad). Functional face is BOTTOM (also print orientation, tip
-// down); mates through the "mount" anchor on TOP, for stacking any other
-// part onto a board.
+// openGrid snap: the clip that mounts into a board's cell grid (see
+// board.scad). Functional face is BOTTOM; mates through the "mount"
+// anchor on TOP, for stacking any other part onto a board.
 //
-// Original design (not reverse-engineered — see README "Licensing"): a
-// square post sized to the board's OG_TILE_INNER aperture, with a barb
-// near the tip that flares past the aperture width and springs out below
-// the board once fully seated, and a flange on top that seats flush in
-// the board's rabbet. Two perpendicular relief slits split the post into
-// four independent corner fingers so the barb can actually compress on
-// the way in; the barb's entry ramp is long and gentle (easy insertion),
-// its return ramp short and steep (the retaining shoulder).
+// As with board.scad, this is a thin wrapper — openGridSnap() from
+// QuackWorks (vendor/QuackWorks), openGrid design by David D, OpenSCAD
+// snap implementation by metasyntactic.
+//
+// LICENSE: CC-BY-NC-SA 4.0, not MIT. See board.scad's header and the
+// README "Licensing" section.
+//
+// A real snap sits entirely inside the board's thickness: it is exactly
+// as tall as the tile, and retains by wings that spring into the recess
+// at mid-thickness. The hand-written version this replaced stood 11.25mm
+// tall and reached a barb out past the far face of the board — geometry
+// for a board that does not exist.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
-include <../../lib/util.scad>
+use <../../vendor/QuackWorks/openGrid/opengrid-snap.scad>
 
-_OG_SNAP_BARB_H_IN  = 1.6; // entry ramp height, gentle
-_OG_SNAP_BARB_H_OUT = 0.6; // return ramp height, steep — the retaining shoulder
-_OG_SNAP_BARB_OVERSIZE = 0.7; // barb flare beyond OG_TILE_INNER, each side
-_OG_SNAP_SLIT_W = 1.2;         // flex-relief slit width, splits the post into 4 fingers
+module og_snap(variant = "full", directional = false,
+               anchor = BOTTOM, spin = 0, orient = UP) {
+    assert(variant == "full" || variant == "lite",
+           "variant must be \"full\" or \"lite\"");
 
-module og_snap(board_t = OG_THICKNESS_FULL, anchor = BOTTOM, spin = 0, orient = UP) {
-    shaft_w = OG_TILE_INNER - 2 * FIT_CLEARANCE;
-    barb_w  = OG_TILE_INNER + 2 * _OG_SNAP_BARB_OVERSIZE;
-    barb_h  = _OG_SNAP_BARB_H_IN + _OG_SNAP_BARB_H_OUT;
-    tab_h   = board_t + barb_h; // barb clears the board's far face and springs open flush with it
-
-    flange_w = OG_TILE_INNER + 2 * OG_CHAMFER_MID - 2 * FIT_CLEARANCE; // seats in the board's rabbet
-    flange_t = OG_TOP_INSET - FIT_CLEARANCE;
-
-    total_h = tab_h + flange_t;
-    size    = [flange_w, flange_w, total_h];
+    // A lite snap is HALF HEIGHT (3.4mm), which is not the lite tile's
+    // thickness (4.0mm) — the two "lite"s mean different things upstream.
+    extra = directional ? OG_SNAP_DIR_EXTRA : 0;
+    size  = [OG_SNAP_SIZE + extra, OG_SNAP_SIZE,
+             variant == "lite" ? OG_SNAP_H_LITE : OG_SNAP_H_FULL];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
-        translate([0, 0, -total_h / 2])
-        difference() {
-            union() {
-                prismoid(size1 = [shaft_w, shaft_w], size2 = [barb_w, barb_w], h = _OG_SNAP_BARB_H_IN, anchor = BOTTOM);
-                up(_OG_SNAP_BARB_H_IN)
-                    prismoid(size1 = [barb_w, barb_w], size2 = [shaft_w, shaft_w], h = _OG_SNAP_BARB_H_OUT, anchor = BOTTOM);
-                up(barb_h)
-                    cuboid([shaft_w, shaft_w, tab_h - barb_h], anchor = BOTTOM);
-                up(tab_h)
-                    cuboid([flange_w, flange_w, flange_t], rounding = 1.5, edges = "Z", anchor = BOTTOM);
-            }
-            for (rot = [0, 90])
-                zrot(rot)
-                    up(tab_h / 2)
-                        cuboid([barb_w + 2, _OG_SNAP_SLIT_W, tab_h + 2]);
-        }
+        // The directional variant grows on +X only, so upstream's own
+        // envelope sits half of that off-centre; recentre it or every
+        // anchor on this part is out by OG_SNAP_DIR_EXTRA / 2.
+        left(extra / 2)
+            openGridSnap(lite = variant == "lite", directional = directional,
+                         anchor = CENTER, spin = 0, orient = UP);
         children();
     }
 }
