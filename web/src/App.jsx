@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StlViewer from "./components/StlViewer.jsx";
-import { renderPart } from "./lib/openscad-client.js";
+import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 
 function useCatalogue() {
   const [parts, setParts] = useState(null);
@@ -91,6 +91,10 @@ export default function App() {
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
+  // Renders resolve out of order — a cached part swaps in instantly while
+  // a slower one is still compiling — so only the newest request may
+  // touch the viewer.
+  const renderSeq = useRef(0);
 
   const filteredParts = useMemo(
     () => (parts ? parts.filter((p) => matchesSearch(p, search)) : []),
@@ -105,13 +109,29 @@ export default function App() {
 
   const doRender = async (renderParams) => {
     if (!selected) return;
+    const request = { scadFile: selected.file, module: selected.module, params: renderParams };
+
+    const seq = ++renderSeq.current;
+
+    // Still-warm result: show it straight away rather than flashing a
+    // "Rendering…" state for a render that isn't going to happen.
+    const cached = getCachedRender(request);
+    if (cached) {
+      setStlBuffer(cached);
+      setRenderError(null);
+      setStatus("done");
+      return;
+    }
+
     setStatus("rendering");
     setRenderError(null);
     try {
-      const buffer = await renderPart({ scadFile: selected.file, module: selected.module, params: renderParams });
+      const buffer = await renderPart(request);
+      if (seq !== renderSeq.current) return;
       setStlBuffer(buffer);
       setStatus("done");
     } catch (err) {
+      if (seq !== renderSeq.current) return;
       setRenderError(err.message);
       setStatus("error");
     }

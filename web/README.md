@@ -20,6 +20,10 @@ running in a Web Worker.
    `--backend=Manifold`.
 4. The resulting STL bytes come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
+5. `src/lib/openscad-client.js` keeps each result for five minutes, keyed on the exact
+   (file, module, parameters) triple, so switching back to a part — or to parameters tried a
+   moment ago — is instant instead of a fresh multi-second compile. Stale entries are dropped,
+   and the cache is capped at 64 MB of meshes.
 
 ## Local dev
 
