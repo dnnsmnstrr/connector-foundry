@@ -200,6 +200,18 @@ html, body, #root {
   cursor: pointer;
 }
 
+.part-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.bench-open-button {
+  background: transparent;
+  border: 1px solid #3a5aa0;
+  color: #9db4e8;
+}
+
 .render-button:disabled {
   opacity: 0.6;
   cursor: wait;

@@ -414,7 +414,7 @@ function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRe
   );
 }
 
-export default function Bench({ parts }) {
+export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
   const [importedParts, setImportedParts] = useState(new Map());
   const partsById = useMemo(
@@ -423,6 +423,18 @@ export default function Bench({ parts }) {
   );
 
   const [assembly, setAssembly] = useState(null); // null until a root is chosen
+
+  // Library's "Open in Bench" seeds a root here, carrying over whatever
+  // params were showing there (not necessarily catalogue defaults) —
+  // fires once, on the mount that follows the mode switch (Bench fully
+  // unmounts when not the active tab, so there's no "already have an
+  // assembly" case to reconcile with).
+  useEffect(() => {
+    if (!pendingRoot) return;
+    setAssembly(createAssembly(pendingRoot.part.id, pendingRoot.params));
+    onConsumePendingRoot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRoot]);
   const [nodeExtents, setNodeExtents] = useState(new Map()); // node id ("root" or child id) -> [x,y,z]
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");

@@ -91,7 +91,7 @@ function SettingsModal({ globalDefaults, onClose }) {
   );
 }
 
-function Library({ parts, globalDefaults }) {
+function Library({ parts, globalDefaults, onOpenInBench }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [params, setParams] = useState({});
@@ -236,9 +236,18 @@ function Library({ parts, globalDefaults }) {
                 <h2>{selected.name}</h2>
                 <p className="print-note">{selected.print_note}</p>
               </div>
-              <button className="render-button" onClick={() => doRender(params)} disabled={status === "rendering"}>
-                {status === "rendering" ? "Rendering…" : "Render"}
-              </button>
+              <div className="part-header-actions">
+                <button
+                  className="render-button bench-open-button"
+                  onClick={() => onOpenInBench(selected, params)}
+                  title="Start a new Bench with this part (and its current parameters) as the root"
+                >
+                  Open in Bench
+                </button>
+                <button className="render-button" onClick={() => doRender(params)} disabled={status === "rendering"}>
+                  {status === "rendering" ? "Rendering…" : "Render"}
+                </button>
+              </div>
             </header>
 
             <div className="workspace-body">
@@ -306,9 +315,20 @@ export default function App() {
   const globalDefaults = useGlobalDefaults();
   const [mode, setMode] = useState("library"); // "library" | "bench"
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // { part, params } | null — set by Library's "Open in Bench", carrying
+  // over whatever's currently showing there (not necessarily catalogue
+  // defaults). Bench consumes it once, on the mount that follows the
+  // mode switch (it fully unmounts when not the active mode, so this
+  // never needs to re-seed an already-running Bench session).
+  const [pendingBenchRoot, setPendingBenchRoot] = useState(null);
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
   if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
+
+  function openInBench(part, params) {
+    setPendingBenchRoot({ part, params });
+    setMode("bench");
+  }
 
   return (
     <div className="shell">
@@ -325,7 +345,11 @@ export default function App() {
         </button>
       </nav>
       <div className="shell-body">
-        {mode === "library" ? <Library parts={parts} globalDefaults={globalDefaults} /> : <Bench parts={parts} />}
+        {mode === "library" ? (
+          <Library parts={parts} globalDefaults={globalDefaults} onOpenInBench={openInBench} />
+        ) : (
+          <Bench parts={parts} pendingRoot={pendingBenchRoot} onConsumePendingRoot={() => setPendingBenchRoot(null)} />
+        )}
       </div>
       {settingsOpen && <SettingsModal globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />}
     </div>
