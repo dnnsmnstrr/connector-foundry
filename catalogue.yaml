@@ -3,11 +3,22 @@
 # a .scad file and one entry here.
 #
 # confidence:
-#   exact      — the geometry comes from, or is checked against, a
-#                reference implementation of the standard. Every part at
-#                this level has entries in references.yaml, and
-#                `make verify` re-proves the claim.
-#   parametric — a starting point. Verify against real hardware.
+#   exact       — the geometry comes from, or is checked against, a
+#                 reference implementation of the standard. Every part at
+#                 this level has entries in references.yaml, and
+#                 `make verify` re-proves the claim.
+#   parametric  — a starting point. Verify against real hardware.
+#   unverified  — worse than parametric: a starting point that is known
+#                 or strongly suspected to be dimensionally wrong, kept
+#                 in the catalogue for the module/slot scaffolding but
+#                 not fit to print. Say why in print_note, and say what
+#                 the real fix is (usually: import the real part — see
+#                 web/src/lib/importedPart.js — rather than guess again).
+#   imported    — never written here. It's what the web Bench labels a
+#                 part a user dragged in via STL import at runtime: "we
+#                 didn't derive this, the user brought it." Session-
+#                 local, never persisted to this file — see the Bench
+#                 "Licensing/hygiene" note in web/README.md.
 #
 # options: for a parameter whose values are a fixed set, list them. The
 #   web app turns those into a dropdown instead of a free-text box, and
@@ -103,14 +114,19 @@ parts:
     name: Dovetail rail (Outie)
     file: parts/deckmate/outie.scad
     module: deckmate_outie
-    confidence: parametric
+    confidence: unverified
     source: >-
-      No dimensioned drawing published and no reference model to check
-      against — prototype defaults, see lib/constants.scad
+      Guessed dimensions with no dimensioned drawing and no reference
+      model — confirmed wrong against a real DeckMate part. Do not
+      trust this geometry; see print_note.
     print_note: >-
-      Unmeasured — verify against your hardware before trusting the fit.
-      Prints tip-down, self-supporting; end_stop adds a tab at one end to
-      keep an Innie from sliding off.
+      KNOWN WRONG — does not mate with a real DeckMate part. Kept for
+      its module/slot scaffolding only, not for printing. The fix isn't
+      another guess at the numbers: import the real Mechanism STL
+      (getmechanism.com/pages/digital-files) or a Printables model into
+      the web Bench instead, where it becomes an "imported"-confidence
+      part with the same slot/joint support as anything else in the
+      catalogue.
     defaults: {}
     variants:
       - name: with-end-stop
@@ -121,14 +137,19 @@ parts:
     name: Dovetail channel (Innie)
     file: parts/deckmate/innie.scad
     module: deckmate_innie
-    confidence: parametric
+    confidence: unverified
     source: >-
-      No dimensioned drawing published and no reference model to check
-      against — prototype defaults, see lib/constants.scad
+      Guessed dimensions with no dimensioned drawing and no reference
+      model — confirmed wrong against a real DeckMate part. Do not
+      trust this geometry; see print_note.
     print_note: >-
-      Unmeasured — verify against your hardware before trusting the fit.
-      Print mouth-down as oriented; channel is a through-slot, open at
-      both ends for lengthwise assembly onto the Outie.
+      KNOWN WRONG — does not mate with a real DeckMate part. Kept for
+      its module/slot scaffolding only, not for printing. The fix isn't
+      another guess at the numbers: import the real Mechanism STL
+      (getmechanism.com/pages/digital-files) or a Printables model into
+      the web Bench instead, where it becomes an "imported"-confidence
+      part with the same slot/joint support as anything else in the
+      catalogue.
     defaults: {}
 
   - id: extrusion2020/tab

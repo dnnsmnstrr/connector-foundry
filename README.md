@@ -79,12 +79,42 @@ reference check fails if they drift. Printer fit tolerance goes through one glob
 Bolted and snap assemblies expose `part = "all" | "a" | "b"` so each printable body renders to
 its own STL — see `assemblies/`.
 
+## Bench: combine connectors visually
+
+The web app's Bench tab (`web/src/Bench.jsx`) is a visual editor: pick a base part, click one of
+its slots, attach something else there with a joint type, repeat, then export the STL(s) or the
+generated `.scad`. It's one root plus direct children for now (no grandchildren yet) — see
+`web/src/lib/assembly.js` for why that scope is deliberate, not a shortcut.
+
+**STL import** lets you bring in a part that isn't in the catalogue — a Mechanism or Printables
+download, say — and use it exactly like any other Bench part: pick it as the root or a child,
+click points on its surface to place slots (the hit point and face normal become the slot's
+position and mating direction), and attach real catalogue parts to it. Every upload goes through
+a validate-and-repair gate first (`web/src/lib/meshValidate.js`): weld coincident vertices,
+check for open/non-manifold edges, fix inconsistent winding and inside-out shells where that's
+safe, and refuse — with a plain explanation — a mesh with an actual hole rather than pass it
+through and let the boolean fail (or worse, silently produce garbage). STL only for now; STEP
+would need OpenCASCADE, which OpenSCAD can't read natively — see `meshValidate.js`'s header for
+where that would slot in later.
+
+An imported part gets `confidence: imported` ("we didn't derive this, the user brought it") —
+distinct from `exact`/`parametric`/`unverified` below, and never written to `catalogue.yaml`:
+imports are session-local, never committed to this repo, shipped as fixtures, or fetched
+programmatically from a model site. You supply the file; it lives in your browser tab and
+nowhere else.
+
 ## Catalogue
 
 `catalogue.yaml` is the single source of truth for what exists: part id, system, module,
-default parameters, confidence (`exact` = published spec or reference implementation,
-`parametric` = a starting point, verify against real hardware), and a print note. The CLI, the
-tests, and this table are all generated from it — run `foundry readme` after adding a part.
+default parameters, confidence, and a print note. The CLI, the tests, and this table are all
+generated from it — run `foundry readme` after adding a part. Confidence:
+
+- `exact` — published spec or reference implementation; checked in `references.yaml`.
+- `parametric` — a starting point. Verify against real hardware before trusting it.
+- `unverified` — worse than parametric: known or strongly suspected to be dimensionally wrong
+  (currently both DeckMate parts — see their print notes). Kept for the module/slot scaffolding,
+  not for printing.
+- `imported` — Bench-only, never in this file. See "Bench" above.
 
 <!-- CATALOGUE:START -->
 | Part | System | Confidence | Licence | Print note |
@@ -92,8 +122,8 @@ tests, and this table are all generated from it — run `foundry readme` after a
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | MIT | Print as-is, functional face (feet) down. No supports needed. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. Mates with any GoPro-standard three-prong buckle — proved against the upstream model, not just against our own female. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. nut_depth sinks a captive square-nut pocket in the far leg; set it to 0 for a plain through-hole. |
-| ![Dovetail rail (Outie)](docs/img/deckmate_outie.png)<br>Dovetail rail (Outie) | DeckMate | parametric | MIT | Unmeasured — verify against your hardware before trusting the fit. Prints tip-down, self-supporting; end_stop adds a tab at one end to keep an Innie from sliding off. |
-| ![Dovetail channel (Innie)](docs/img/deckmate_innie.png)<br>Dovetail channel (Innie) | DeckMate | parametric | MIT | Unmeasured — verify against your hardware before trusting the fit. Print mouth-down as oriented; channel is a through-slot, open at both ends for lengthwise assembly onto the Outie. |
+| ![Dovetail rail (Outie)](docs/img/deckmate_outie.png)<br>Dovetail rail (Outie) | DeckMate | unverified | MIT | KNOWN WRONG — does not mate with a real DeckMate part. Kept for its module/slot scaffolding only, not for printing. The fix isn't another guess at the numbers: import the real Mechanism STL (getmechanism.com/pages/digital-files) or a Printables model into the web Bench instead, where it becomes an "imported"-confidence part with the same slot/joint support as anything else in the catalogue. |
+| ![Dovetail channel (Innie)](docs/img/deckmate_innie.png)<br>Dovetail channel (Innie) | DeckMate | unverified | MIT | KNOWN WRONG — does not mate with a real DeckMate part. Kept for its module/slot scaffolding only, not for printing. The fix isn't another guess at the numbers: import the real Mechanism STL (getmechanism.com/pages/digital-files) or a Printables model into the web Bench instead, where it becomes an "imported"-confidence part with the same slot/joint support as anything else in the catalogue. |
 | ![T-slot tab (hammer-head)](docs/img/extrusion2020_tab.png)<br>T-slot tab (hammer-head) | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the channel floor. tab_len <= 6mm (the default) drops into the slot face-first and twists 90 degrees to lock, anywhere along the rail; longer heads must be fed in endwise from an open end. |
 | ![Snap-in clip](docs/img/extrusion2020_clip.png)<br>Snap-in clip | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Push straight into the slot mid-rail, no end access needed; the legs flex through EX_SLOT_OPEN and the barbs spring out under the lip. Print in a flexible-enough filament (PETG/nylon) — stiff PLA legs may snap. |
 | ![End-face plate](docs/img/extrusion2020_endcap.png)<br>End-face plate | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Locating keys print face-down as oriented; the plate overhangs them at its four corners, so add a brim or light support there. |

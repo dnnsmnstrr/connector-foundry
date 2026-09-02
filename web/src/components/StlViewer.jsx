@@ -6,14 +6,24 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 const MARKER_COLOR = 0x2ecc71;
 const MARKER_HOVER_COLOR = 0xffd23f;
 
+// stlBuffer or geometry: one model source. `geometry` (a THREE.BufferGeometry,
+// e.g. straight from meshValidate.js) skips a wasted serialize/reparse
+// round-trip when the caller already has one parsed — the STL-import
+// slot-placement view uses this.
+//
 // markers: optional [{ id, x, y, z, radius? }] — small clickable spheres
-// overlaid on the model, in the model's own mm coordinates (the Bench
-// uses these for open mount slots; Library mode passes none).
+// overlaid on the model, in the model's own mm coordinates (existing
+// slots to attach something to).
 // onMarkerClick(id): called when a marker is clicked.
-export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
+//
+// placingMode + onSurfacePick([x,y,z], [nx,ny,nz]): when placingMode is
+// true, clicking anywhere on the model itself (not a marker) raycasts
+// against its real triangles and reports the hit point and face normal
+// in world/model space — the STL-import flow's "click to place a slot".
+export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick, placingMode, onSurfacePick }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
-  const markersRef = useRef(null);
+  const callbacksRef = useRef(null);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -45,30 +55,59 @@ export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const onClick = (event) => {
-      const markerGroup = scene.getObjectByName("markers");
-      if (!markerGroup || !markerGroup.children.length) return;
+    const setPointer = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(markerGroup.children);
-      if (hits.length) markersRef.current?.onMarkerClick?.(hits[0].object.userData.id);
+    };
+
+    const onClick = (event) => {
+      setPointer(event);
+
+      const markerGroup = scene.getObjectByName("markers");
+      if (markerGroup && markerGroup.children.length) {
+        const hits = raycaster.intersectObjects(markerGroup.children);
+        if (hits.length) {
+          callbacksRef.current?.onMarkerClick?.(hits[0].object.userData.id);
+          return;
+        }
+      }
+
+      if (callbacksRef.current?.placingMode) {
+        const model = scene.getObjectByName("model");
+        if (!model) return;
+        const hits = raycaster.intersectObject(model);
+        if (!hits.length) return;
+        const hit = hits[0];
+        const normal = hit.face.normal.clone().transformDirection(model.matrixWorld).normalize();
+        callbacksRef.current?.onSurfacePick?.(
+          [hit.point.x, hit.point.y, hit.point.z],
+          [normal.x, normal.y, normal.z],
+        );
+      }
     };
     renderer.domElement.addEventListener("click", onClick);
 
     const onPointerMove = (event) => {
+      setPointer(event);
       const markerGroup = scene.getObjectByName("markers");
-      if (!markerGroup || !markerGroup.children.length) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hits = new Set(raycaster.intersectObjects(markerGroup.children).map((h) => h.object));
-      for (const marker of markerGroup.children) {
-        marker.material.color.setHex(hits.has(marker) ? MARKER_HOVER_COLOR : MARKER_COLOR);
+      const hasMarkers = markerGroup && markerGroup.children.length;
+      const markerHits = hasMarkers ? raycaster.intersectObjects(markerGroup.children) : [];
+      if (hasMarkers) {
+        const hitSet = new Set(markerHits.map((h) => h.object));
+        for (const marker of markerGroup.children) {
+          marker.material.color.setHex(hitSet.has(marker) ? MARKER_HOVER_COLOR : MARKER_COLOR);
+        }
       }
-      renderer.domElement.style.cursor = hits.size ? "pointer" : "default";
+
+      let cursor = "default";
+      if (markerHits.length) cursor = "pointer";
+      else if (callbacksRef.current?.placingMode) {
+        const model = scene.getObjectByName("model");
+        if (model && raycaster.intersectObject(model).length) cursor = "crosshair";
+      }
+      renderer.domElement.style.cursor = cursor;
     };
     renderer.domElement.addEventListener("pointermove", onPointerMove);
 
@@ -102,8 +141,9 @@ export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
   }, []);
 
   useEffect(() => {
-    if (!stlBuffer || !sceneRef.current) return;
+    if (!sceneRef.current) return;
     const { scene, camera, controls } = sceneRef.current;
+    if (!stlBuffer && !geometry) return;
 
     const previous = scene.getObjectByName("model");
     if (previous) {
@@ -112,16 +152,16 @@ export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
       previous.material.dispose();
     }
 
-    const geometry = new STLLoader().parse(stlBuffer);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
+    const geom = geometry || new STLLoader().parse(stlBuffer);
+    geom.computeVertexNormals();
+    geom.computeBoundingBox();
 
     const material = new THREE.MeshStandardMaterial({ color: 0x5b8ff9, metalness: 0.1, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(geom, material);
     mesh.name = "model";
     scene.add(mesh);
 
-    const bbox = geometry.boundingBox;
+    const bbox = geom.boundingBox;
     const center = new THREE.Vector3();
     bbox.getCenter(center);
     const size = new THREE.Vector3();
@@ -134,11 +174,11 @@ export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
     camera.far = radius * 20;
     camera.updateProjectionMatrix();
     controls.update();
-  }, [stlBuffer]);
+  }, [stlBuffer, geometry]);
 
   useEffect(() => {
-    markersRef.current = { onMarkerClick };
-  }, [onMarkerClick]);
+    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick };
+  }, [onMarkerClick, placingMode, onSurfacePick]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -157,9 +197,9 @@ export default function StlViewer({ stlBuffer, markers, onMarkerClick }) {
     const group = new THREE.Group();
     group.name = "markers";
     for (const marker of markers) {
-      const geometry = new THREE.SphereGeometry(marker.radius ?? 2, 16, 16);
+      const geom = new THREE.SphereGeometry(marker.radius ?? 2, 16, 16);
       const material = new THREE.MeshBasicMaterial({ color: MARKER_COLOR });
-      const sphere = new THREE.Mesh(geometry, material);
+      const sphere = new THREE.Mesh(geom, material);
       sphere.position.set(marker.x, marker.y, marker.z);
       sphere.userData.id = marker.id;
       group.add(sphere);

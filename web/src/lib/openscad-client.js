@@ -85,12 +85,18 @@ export function renderPart(request) {
   const existing = inFlight.get(key);
   if (existing) return existing;
 
-  const { scadFile, module, params, scadSource, part } = request;
+  const { scadFile, module, params, scadSource, part, importedFiles } = request;
   const id = nextId++;
   const w = getWorker();
   const promise = new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    w.postMessage({ id, scadFile, module, params, scadSource, part });
+    // importedFiles' ArrayBuffers are NOT in the transfer list on
+    // purpose: the same imported part can feed many renders as the
+    // assembly evolves, and transferring would detach the buffer after
+    // the first one, leaving it unusable for the next. Structured
+    // clone copies it instead — a bit more work per render, but the
+    // bytes stay valid for the imported part's whole session lifetime.
+    w.postMessage({ id, scadFile, module, params, scadSource, part, importedFiles });
   }).then(
     (stl) => {
       inFlight.delete(key);

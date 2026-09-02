@@ -66,7 +66,7 @@ self.onmessage = (event) => {
   enqueue(() => renderOne(event.data));
 };
 
-async function renderOne({ id, scadFile, module, params, scadSource, part }) {
+async function renderOne({ id, scadFile, module, params, scadSource, part, importedFiles }) {
   try {
     const bundle = await getBundle();
     const instance = await createOpenSCAD({
@@ -92,6 +92,16 @@ async function renderOne({ id, scadFile, module, params, scadSource, part }) {
       mkdirp(os.FS, "/repo/assemblies");
       os.FS.writeFile(mainPath, scadSource);
       if (part) extraArgs = ["-D", `part=${scadLiteral(part)}`];
+
+      // Imported STL files (assembly.js's compileToScad() generates
+      // `import("imports/<id>.stl")` inside the module it writes for
+      // each one) — same relative-include resolution rule as the
+      // .scad tree itself, so they're mounted next to _bench.scad.
+      for (const [relPath, bytes] of importedFiles || []) {
+        const virtualPath = "/repo/assemblies/" + relPath;
+        mkdirp(os.FS, virtualPath.slice(0, virtualPath.lastIndexOf("/")));
+        os.FS.writeFile(virtualPath, new Uint8Array(bytes));
+      }
     } else {
       const args = Object.entries(params || {})
         .map(([key, value]) => `${key}=${scadLiteral(value)}`)
