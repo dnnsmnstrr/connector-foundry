@@ -52,6 +52,21 @@ sources:
       guarding the wrapper (envelope, anchors, restated constants)
       rather than re-deriving upstream's geometry.
 
+  bitbeam-lib:
+    kind: submodule
+    path: vendor/bitbeam-lib
+    license: BSD-3-Clause
+    url: https://github.com/ondratu/bitbeam-lib
+    note: >
+      Vendored. parts/bitbeam/beam.scad calls its cube_arm() directly —
+      a separate, permissively licensed OpenSCAD implementation by
+      bitbeam.cc's own author, not the CC-BY-NC-SA bitbeam.cc site
+      itself. bitbeam.cc's published dimensions (unit=8mm, hole=4.8mm)
+      are restated in lib/constants.scad and used to override this
+      library's own matching defaults, so drift between "the numbers we
+      believe" and "the numbers the wrapper actually renders" shows up
+      here rather than silently.
+
   # A CAD file you supply yourself — the usual shape of a real supplier
   # reference, since manufacturer STEP downloads sit behind logins and
   # cannot be fetched or redistributed. Drop the file in refs/manual/
@@ -219,6 +234,32 @@ shape_checks:
       max_surface_rms_mm: 0.2
       max_surface_max_mm: 1.0
       min_section_iou: 0.98
+
+  # Guards the wrapper (envelope, anchor, the unit/hole reassignment
+  # from lib/constants.scad) against calling vendor/bitbeam-lib's
+  # cube_arm() directly with the same numbers — same purpose as the
+  # gridfinity/gopro checks above, not a re-derivation of the geometry.
+  - id: bitbeam/beam-5-holes
+    part: bitbeam/beam
+    params: {len: 5}
+    reference_source: bitbeam-lib
+    ours: |
+      include <{repo}/parts/bitbeam/beam.scad>
+      bitbeam_beam(len = 5, anchor = BOTTOM);
+    reference: |
+      include <{bitbeam-lib}/bitbeam-lib.scad>
+      unit = 8;
+      hole = 4.8;
+      translate([-unit * 4 / 2, 0, unit / 2])
+          cube_arm(5, 1, true, [], []);
+    align: none
+    sections_z: [0.5, 2.0, 4.0, 6.0, 7.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
 
 # ---------------------------------------------------------------------
 # Fit checks: do two solids actually go together?

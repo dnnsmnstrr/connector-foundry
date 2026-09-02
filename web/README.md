@@ -69,9 +69,21 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - `compileToScad()` generates one `.scad` source per assembly state, through the *same*
   worker/render pipeline as everything else (a second request shape, `{ scadSource, part }`,
   alongside the single-part `{ scadFile, module, params }` one) — the Bench never has its own
-  bespoke renderer. It recurses depth-first now instead of the old single flat pass, nesting each
-  node's `attach()` call around whatever's attached to it; `bodyTagOf()`/`bodyTags()` generalise
-  "one printable body per fused subtree" to any depth the same way.
+  bespoke renderer. It recurses depth-first, nesting each node's `attach()` call around whatever's
+  attached to it; `bodyTags()` generalises "one printable body per fused subtree" to
+  any depth, and — for a pin joint — one further tag for the pin itself
+  (`"<childId>_pin"`, since the pin is its own third printable body, not integral to either
+  flange; see the root README's "Joints" section). Getting an isolated body's export right for
+  anything deeper than one level needed more than gating the whole tree with one `if (part == tag)`:
+  BOSL2's `hide_this()` (an "invisible parent that still positions its children" — see its own doc
+  comment in `vendor/BOSL2/attachments.scad`) only suppresses geometry ONE level at a time, so
+  `emitChildren()`/`emitJointChild()`/`dispatchBlock()` thread an explicit `hide` flag through
+  *every* module call between the root and whatever body is actually wanted, re-deciding
+  shown-vs-hidden at each new tag boundary (root itself, and each joint child's own flangeB+part) —
+  a fused child just inherits its parent's `hide` state unchanged, since it introduces no boundary
+  of its own. Worth knowing if you're reading the generated `.scad`: it looks more repetitive than
+  it needs to for any one specific export, because it has to stay correct for *any* tag chosen at
+  render time via `-D part=...`, not just the one you happen to be looking at.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
   prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
   its "bot" anchor open (`Bench.jsx`'s `stackSlotFor()`). A named-anchor position is in the part's
@@ -100,6 +112,23 @@ a part actually has anchors left over. A few implementation notes that don't bel
   per-part formula to restate. The Bench currently only *offers* `bot` for stacking (see the root
   README); the rest of the field, and `FACE_ANCHOR_LOCAL`'s other entries, stay there for root's
   own display and as the seam for whenever off-axis stacking is worth the marker-placement work.
+- `slots.js`'s `enumerateSlots()` combines every slot source a part declares — a top grid
+  (`slots`), single box-face anchors (`anchors`), and now a per-face row (`side_slots`) — instead
+  of picking exactly one, matching catalogue.yaml's own schema comment that these were always
+  meant to be combinable. `basics/pinhole_plate` is the first part to actually use all three at
+  once: its top grid and side rows both come from `side_slots.faces`' `enabled_param`/`count_param`
+  pointing back at the part's own `side_xpos`/`grid_y`-style params, so a disabled side or a
+  resized grid changes what's clickable in the Bench the same render it changes the geometry —
+  see catalogue.yaml's `side_slots` schema comment for the field shapes.
+- Fetching every node's own standalone extents (the bullet above) is a `Promise.allSettled`, not
+  `Promise.all`: one node's render hitting the same openscad-wasm resource limit
+  `friendlyRenderError()` already has a message for shouldn't cost every *other* node its markers,
+  or surface as an unhandled promise rejection — it's logged (`console.warn`) and that one node's
+  slots just don't show, same as if nothing had asked for them yet. Relatedly,
+  `openscad-client.js`'s worker message handler now actually forwards the worker's own
+  `type: "log"` messages (the detailed OpenSCAD stderr behind a generic "check the parameters"
+  failure) to `console.error` instead of silently dropping them — previously dead code, since
+  those messages have no `id` to match a pending request against.
 - Every node — root or any depth of child — gets a parameter editor in the sidebar
   (`NodeParamsPanel`), the exact same catalogue-default diff/reset/save-as-default flow as Library
   mode's params panel (`src/components/ParamField.jsx`, shared between the two).

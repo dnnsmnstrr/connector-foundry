@@ -36,11 +36,34 @@ function gridCounts(part, params, meshExtents) {
   return [nearestOdd(meshExtents[0]), nearestOdd(meshExtents[1])];
 }
 
+// Local (x, y, z) of the i-th anchor in a side row on `faceName` — the
+// JS mirror of lib/slots.scad's side_row_anchors(), same face/pitch/i
+// meaning, same position. The row runs along the OTHER horizontal axis
+// from the face's own fixed coordinate (half the matching extent, +/-
+// depending on which face), centered at 0.
+function sideRowLocal(faceName, extents, pitch, i) {
+  const rowOnX = faceName === "xpos" || faceName === "xneg";
+  const fixed = rowOnX
+    ? (faceName === "xpos" ? extents[0] / 2 : -extents[0] / 2)
+    : (faceName === "ypos" ? extents[1] / 2 : -extents[1] / 2);
+  return rowOnX ? [fixed, i * pitch, 0] : [i * pitch, fixed, 0];
+}
+
 // meshExtents is the part's own rendered bounding box [x, y, z] in mm —
-// required for a free-subdivision grid (Gridfinity) or any face anchor;
-// only a feature-locked grid (count_params set) can do without it.
+// required for a free-subdivision grid (Gridfinity), any face anchor,
+// or any side row; only a feature-locked grid (count_params set) can do
+// without it.
+//
+// A part can combine a top grid (`slots`), single box-face anchors
+// (`anchors`), and side rows (`side_slots`) all at once — see
+// catalogue.yaml's schema comments and parts/basics/pinhole_plate.scad,
+// which declares all three. `slots` alone still skips a separate
+// "mount" entry, same as before: mount_0_0 already sits at that exact
+// point (lib/slots.scad's own convention), so a plain part-without-a-
+// grid is the only case that needs "mount" listed explicitly.
 export function enumerateSlots(part, params, meshExtents) {
   const extents = meshExtents ?? [0, 0, 0];
+  const slots = [];
 
   if (part.slots) {
     const pitch = part.slots.pitch;
@@ -48,21 +71,34 @@ export function enumerateSlots(part, params, meshExtents) {
     const i0 = -(nx - 1) / 2;
     const j0 = -(ny - 1) / 2;
     const z = extents[2] / 2;
-
-    const slots = [];
     for (let i = i0; i <= (nx - 1) / 2; i++) {
       for (let j = j0; j <= (ny - 1) / 2; j++) {
         slots.push({ name: `mount_${i}_${j}`, i, j, x: i * pitch, y: j * pitch, z });
       }
     }
-    return slots;
+  } else {
+    const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents);
+    slots.push({ name: "mount", x, y, z });
   }
 
-  const names = ["mount", ...(part.anchors ?? [])];
-  return names.map((name) => {
+  for (const name of part.anchors ?? []) {
     const [x, y, z] = FACE_ANCHOR_LOCAL[name](extents);
-    return { name, x, y, z };
-  });
+    slots.push({ name, x, y, z });
+  }
+
+  for (const face of part.side_slots?.faces ?? []) {
+    const enabled = params[face.enabled_param] ?? part.defaults?.[face.enabled_param] ?? true;
+    if (!enabled) continue;
+    const count = params[face.count_param] ?? part.defaults?.[face.count_param];
+    if (!count) continue;
+    const i0 = -(count - 1) / 2;
+    for (let i = i0; i <= (count - 1) / 2; i++) {
+      const [x, y, z] = sideRowLocal(face.name, extents, part.side_slots.pitch, i);
+      slots.push({ name: `${face.name}_${i}`, x, y, z });
+    }
+  }
+
+  return slots;
 }
 
 export function nearestSlot(slots, localX, localY) {

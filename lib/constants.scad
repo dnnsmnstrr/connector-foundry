@@ -63,17 +63,51 @@ GP_NUT_DEPTH = 3;     // captive nut pocket depth in the far leg (0 = none)
 GP_NUT_DIA   = 11.5;  // square M5 nut across corners
 
 // ============================================================
-// DeckMate — parametric, unmeasured
-// No dimensioned drawing published. Prototype defaults, all editable.
-// Take calipers to a real plate before trusting these. Checked 2026-09-01.
+// Basics dovetail — exact, generic geometry not tied to an external
+// spec (see parts/basics/dovetail_rail.scad's header for why this
+// isn't in DeckMate: it started as a guess at DeckMate's dimensions,
+// was confirmed wrong against a real part, and is kept as a generic
+// dovetail on its own merits instead). Nothing external to check
+// these against — the only thing that has to hold is the rail and the
+// channel agreeing with each other, which sharing these constants
+// makes true by construction rather than something to test for.
 // ============================================================
 
-DM_RAIL_LEN       = 36;
-DM_WIDTH_TOP      = 20;
-DM_WIDTH_BASE     = 26;
-DM_RAIL_H         = 5;
-DM_SLIDE_CLEARANCE = 0.3; // Innie only
-DM_WALL_T         = 2.4;  // Innie only
+DOVETAIL_RAIL_LEN        = 36;
+DOVETAIL_WIDTH_TOP       = 20;
+DOVETAIL_WIDTH_BASE      = 26;
+DOVETAIL_RAIL_H          = 5;
+DOVETAIL_SLIDE_CLEARANCE = 0.3; // channel only
+DOVETAIL_WALL_T          = 2.4; // channel only
+
+// ============================================================
+// BitBeam — exact, published spec.
+//
+// Numbers from the "Specification" section of https://bitbeam.cc/ —
+// checked 2026-09-02. That page's own content (including its STL pack)
+// is CC-BY-NC-SA 4.0 (c) Ondrej Tuma, which this repo cannot vendor
+// under an MIT licence (the openGrid situation again — see "Licensing"
+// in the README) — but the dimensions themselves are facts, not
+// copyrightable expression, so restating them here is fine.
+//
+// The beam geometry is NOT reimplemented here: parts/bitbeam/beam.scad
+// wraps cube_arm() from vendor/bitbeam-lib (ondratu/bitbeam-lib,
+// BSD-3-Clause), a *different, separately and permissively licensed*
+// OpenSCAD implementation by the same author as bitbeam.cc — its own
+// `unit`/`hole` defaults already match the numbers below, and
+// beam.scad reassigns them from BITBEAM_UNIT/BITBEAM_HOLE_DIA anyway so
+// this section stays the one place that can change them. Pin and shaft
+// have no upstream module to call (bitbeam-lib only has beam-shaped
+// parts), so those are modelled directly from the spec.
+// ============================================================
+
+BITBEAM_UNIT      = 8;    // beam cross-section and hole pitch
+BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
+
+BITBEAM_PIN_DIA   = 4.6;  // friction pin: grips BITBEAM_HOLE_DIA by interference
+BITBEAM_PIN_LEN   = 4;
+BITBEAM_SHAFT_DIA = 4.3;  // axle: sized to spin freely in BITBEAM_HOLE_DIA
+BITBEAM_SHAFT_LEN = 3.6;
 
 // ============================================================
 // 2020 extrusion — parametric, supplier-dependent, but no longer guessed.

@@ -206,55 +206,109 @@ function overlapArg(child) {
   return child.overlap ? `, overlap=${-child.overlap}` : "";
 }
 
-// `innerBlock` is already-rendered .scad for this child's OWN children
-// (from a recursive emitChildren() call) — "" for a leaf. Returns one
-// complete, self-terminated statement either way: a bare module call
-// ends in `;`, one with a children block needs none (the `}` closes it).
-function attachChildScad(childPart, child, innerBlock) {
-  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
-  const body = innerBlock ? ` {\n${innerBlock}\n    }` : ";";
-  const overlap = overlapArg(child);
-  if (child.joint === "fused") {
-    return `attach("${child.slotName}", "${child.childAnchor}"${overlap}) ${call}${body}`;
-  }
-  const [flangeA, flangeB] = child.joint === "bolted"
-    ? ["bolted_flange_a", "bolted_flange_b"]
-    : ["snap_flange_a", "snap_flange_b"];
-  // Two bodies: flangeA is fused to the parent (part of the parent's
-  // own body), flangeB + the child (+ its own descendants) are their
-  // own body (part.tag == this child's id). `overlap` applies to the
-  // final placement of the child itself, not the flanges — that's the
-  // join a user is actually looking at when they reach for this.
+// hide_this() only suppresses ONE level's own geometry — its own
+// attach()'d children stay visible by default ("Use an invisible
+// parent to position children", per BOSL2's own doc example). So
+// wrapping a whole multi-level chain (flange + the part fused onto it)
+// in a single outer hide_this() does NOT hide the part — only the
+// flange. Getting a hidden-but-positioned SUBTREE right means putting
+// hide_this() in front of every module call in that chain individually
+// (each `emitX(hide)` below takes that as an explicit flag), while a
+// DEEPER child's own visibility is decided completely independently by
+// ITS OWN tag comparison — an ancestor being hidden has no bearing on
+// whether a descendant further down turns out to be the one requested.
+// This is the fix for what used to be either a silently empty export
+// (for any tag but "all"/"root") or, briefly during development, a
+// body that leaked its own children into an unrelated export.
+function dispatchBlock(tag, unitFn, indent) {
   return (
-    `attach("${child.slotName}", "mount") ${flangeA}()\n` +
-    `        if (part == "all" || part == "${child.id}")\n` +
-    `            attach(BOTTOM, "mount") ${flangeB}()\n` +
-    `                attach(BOTTOM, "${child.childAnchor}"${overlap}) ${call}${body}`
+    `${indent}if (part == "all" || part == "${tag}")\n` +
+    `${indent}    ${unitFn(false)}\n` +
+    `${indent}else\n` +
+    `${indent}    ${unitFn(true)}`
   );
 }
 
-// Every FUSED node, plus every bolted/snap flangeA half, is rigidly
-// joined to whatever it's fused to, transitively up to the root — one
-// body per nearest non-fused boundary. bodyTagOf() walks a node's
-// ancestor chain and stops at the first bolted/snap joint (or the
-// root); bodyTags() collects one tag per such boundary in the whole
-// tree. This generalises "connected components restricted to fused
-// edges" from a one-level tree to any depth: a bolted child two levels
-// down is its own body regardless of whether anything between it and
-// the root is also bolted.
-export function bodyTagOf(assembly, nodeId) {
-  let id = nodeId;
-  while (id !== ROOT_ID) {
-    const node = getNode(assembly, id);
-    if (node.joint !== "fused") return node.id;
-    id = node.parentId;
-  }
-  return ROOT_ID;
+// Every direct child of `nodeId`, each inheriting `hide` from its
+// parent UNLESS it's a bolted/snap/pin child — those introduce a NEW
+// tag boundary of their own (see emitJointChild), so `hide` stops
+// propagating there and a fresh dispatchBlock takes over instead. A
+// fused child has no boundary of its own: it's the same body as its
+// parent, so it just carries `hide` straight through, unchanged, to
+// whatever it's attached to and its own further children alike.
+function emitChildren(assembly, partsById, nodeId, hide, indent) {
+  return childrenOf(assembly, nodeId)
+    .map((child) => (child.joint === "fused"
+      ? emitFusedChild(assembly, partsById, child, hide, indent)
+      : emitJointChild(assembly, partsById, child, hide, indent)))
+    .join("\n");
 }
 
+function emitFusedChild(assembly, partsById, child, hide, indent) {
+  const childPart = partsById.get(child.partId);
+  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+  const overlap = overlapArg(child);
+  const grandkids = emitChildren(assembly, partsById, child.id, hide, indent + "    ");
+  const body = grandkids ? ` {\n${grandkids}\n${indent}}` : ";";
+  return `${indent}attach("${child.slotName}", "${child.childAnchor}"${overlap}) ${hide ? "hide_this() " : ""}${call}${body}`;
+}
+
+// A bolted/snap/pin child: flangeA inherits `hide` directly (it's fused
+// to the parent, same body — no new boundary), but flangeB onward is a
+// NEW body, so it gets its own dispatchBlock, called once shown and
+// once hidden right here, each branch recursing into the child's own
+// further children with THAT branch's hide state. A pin joint's pin
+// gets a second, independent dispatchBlock alongside it — its own
+// separate body, not part of either flange (see lib/joints.scad's
+// pin_flange()).
+function emitJointChild(assembly, partsById, child, hide, indent) {
+  const childPart = partsById.get(child.partId);
+  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+  const overlap = overlapArg(child);
+  const [flangeA, flangeB] = child.joint === "bolted" ? ["bolted_flange_a", "bolted_flange_b"]
+    : child.joint === "snap" ? ["snap_flange_a", "snap_flange_b"]
+    : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
+
+  const childUnit = (unitHide) => {
+    const grandkids = emitChildren(assembly, partsById, child.id, unitHide, indent + "            ");
+    const body = grandkids ? ` {\n${grandkids}\n${indent}        }` : ";";
+    return (
+      `attach(BOTTOM, "mount") ${unitHide ? "hide_this() " : ""}${flangeB}() ` +
+      `attach(BOTTOM, "${child.childAnchor}"${overlap}) ${unitHide ? "hide_this() " : ""}${call}${body}`
+    );
+  };
+
+  const lines = [`${indent}attach("${child.slotName}", "mount") ${hide ? "hide_this() " : ""}${flangeA}() {`];
+  lines.push(dispatchBlock(child.id, childUnit, indent + "    "));
+  if (child.joint === "pin") {
+    // Centered on the seam between the two flanges — BOSL2's own
+    // overlap= sinks the child INTO the parent for a positive value
+    // (see overlapArg()'s comment), so +half the pin's own length sinks
+    // it exactly half into each flange's bore, spanning the join the
+    // same way a pin spans two adjacent beams' aligned holes.
+    const pinUnit = (unitHide) =>
+      `${unitHide ? "hide_this() " : ""}attach(BOTTOM, "mount", overlap = BITBEAM_PIN_LEN / 2) bitbeam_pin();`;
+    lines.push(dispatchBlock(`${child.id}_pin`, pinUnit, indent + "    "));
+  }
+  lines.push(`${indent}}`);
+  return lines.join("\n");
+}
+
+// Every FUSED node, plus every bolted/snap/pin flangeA half, is rigidly
+// joined to whatever it's fused to, transitively up to the root — one
+// body per nearest non-fused boundary, plus one further tag for each
+// pin joint's own separate pin body. This generalises "connected
+// components restricted to fused edges" from a one-level tree to any
+// depth: a bolted child two levels down is its own body regardless of
+// whether anything between it and the root is also bolted, and a pin
+// joint contributes a third body alongside its two flanges' halves
+// rather than being hardcoded to exactly two.
 export function bodyTags(assembly) {
   const tags = new Set([ROOT_ID]);
-  for (const n of assembly.nodes) if (n.joint !== "fused") tags.add(n.id);
+  for (const n of assembly.nodes) {
+    if (n.joint !== "fused") tags.add(n.id);
+    if (n.joint === "pin") tags.add(`${n.id}_pin`);
+  }
   return [...tags];
 }
 
@@ -263,11 +317,27 @@ export function bodyTags(assembly) {
 // with path -> STL bytes (importedPart.js's precomputed `stlBytes`) for
 // every imported part referenced, so the caller (Bench.jsx) can hand
 // them to the render worker alongside the generated source.
+//
+// Multi-body export (`part = "all" | "root" | <tag>`, one STL per body)
+// used to only work for "all"/"root": everything else silently rendered
+// nothing, because the single `if (part=="all"||part=="root") ...`
+// wrapping the whole tree excluded any other tag before its nested
+// attach() chains — the ones that actually decide which *child* body to
+// show — ever ran. dispatchBlock()/emitChildren() fix that by gating
+// each tag boundary (root, and each joint child's own body) individually
+// with BOSL2's hide_this() instead of a plain `if`: a body that isn't
+// wanted this render still gets attached-to (so anything further down
+// stays correctly positioned), it just doesn't contribute geometry to
+// the output — and that hidden state is threaded explicitly through
+// every module call in between (hide_this() only suppresses ONE level
+// on its own), not just the outermost one.
 export function compileToScad(assembly, partsById, importedFiles) {
   const rootPart = partsById.get(assembly.root.partId);
   const includes = new Set([`include <../vendor/BOSL2/std.scad>`]);
   const needsJoints = assembly.nodes.some((c) => c.joint !== "fused");
   if (needsJoints) includes.add(`include <../lib/joints.scad>`);
+  const needsPin = assembly.nodes.some((c) => c.joint === "pin");
+  if (needsPin) includes.add(`include <../${partsById.get("bitbeam/pin").file}>`);
 
   const generatedModules = [];
   const allParts = [rootPart, ...assembly.nodes.map((c) => partsById.get(c.partId))];
@@ -283,18 +353,15 @@ export function compileToScad(assembly, partsById, importedFiles) {
   const tags = bodyTags(assembly);
   const rootArgs = partCallArgs(rootPart, assembly.root.params);
 
-  // Recurse depth-first: each node's block is the concatenation of its
-  // own attach() call wrapping whatever its own children generate,
-  // indented one level deeper each time.
-  function emitChildren(parentId, indent) {
-    return childrenOf(assembly, parentId)
-      .map((child) => {
-        const childPart = partsById.get(child.partId);
-        const innerBlock = emitChildren(child.id, indent + "    ");
-        return indent + attachChildScad(childPart, child, innerBlock);
-      })
-      .join("\n");
-  }
+  // Root's own children inherit root's own hide state directly — a
+  // fused child stays exactly as visible as root is; a bolted/snap/pin
+  // child starts its own independent dispatch regardless (see
+  // emitChildren()/emitJointChild()).
+  const rootUnit = (hide) => {
+    const rootChildren = emitChildren(assembly, partsById, ROOT_ID, hide, "        ");
+    const body = rootChildren ? ` {\n${rootChildren}\n    }` : ";";
+    return `${hide ? "hide_this() " : ""}${partModule(rootPart)}(${rootArgs})${body}`;
+  };
 
   const lines = [
     ...includes,
@@ -303,10 +370,7 @@ export function compileToScad(assembly, partsById, importedFiles) {
     "",
     `part = "all"; // ${JSON.stringify(tags)}`,
     "",
-    `if (part == "all" || part == "root")`,
-    `    ${partModule(rootPart)}(${rootArgs}) {`,
-    emitChildren(ROOT_ID, "        "),
-    `    }`,
+    dispatchBlock(ROOT_ID, rootUnit, ""),
     "",
   ];
   return lines.join("\n");

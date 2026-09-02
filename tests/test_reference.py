@@ -65,18 +65,35 @@ def test_parts_actually_mate(check):
 
 def test_every_exact_part_has_a_reference():
     """`confidence: exact` is a claim. This is the thing that makes it
-    cost something to write down."""
+    cost something to write down.
+
+    Two, deliberately distinct, ways to be exempt from an automated
+    check — conflating them would let a part that *could* be checked
+    quietly go unchecked instead:
+
+    - "not tied to an external spec": nothing to diverge from. There is
+      no reference at all, so there is nothing a check could compare
+      against (parts/basics/plate.scad and friends).
+    - "no reference geometry to check against": a published numeric
+      spec exists (so there IS something to be wrong about), but no
+      reference implementation or CAD model of it exists anywhere to
+      render and diff against — only the numbers themselves
+      (parts/bitbeam/pin.scad, shaft.scad). If one ever turns up, this
+      exemption is what should get replaced with a real shape/fit
+      check, not kept.
+    """
     import yaml
 
     catalogue = yaml.safe_load((refcache.REPO_ROOT / "catalogue.yaml").read_text())
     checked = {c.get("part") for c in
                CONFIG.get("shape_checks", []) + CONFIG.get("fit_checks", [])}
+    exempt_phrases = ("not tied to an external spec", "no reference geometry to check against")
 
     unchecked = [
         part["id"] for part in catalogue["parts"]
         if part["confidence"] == "exact"
         and part["id"] not in checked
-        and "not tied to an external spec" not in part.get("source", "")
+        and not any(phrase in part.get("source", "") for phrase in exempt_phrases)
     ]
     assert not unchecked, (
         "these parts claim confidence: exact but nothing in references.yaml "

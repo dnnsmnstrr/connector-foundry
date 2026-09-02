@@ -24,7 +24,7 @@ import { renderPart } from "./lib/openscad-client.js";
 import { enumerateSlots } from "./lib/slots.js";
 import { clearOverrides, getGlobalOverrides, getOverrides, resolveParams, setOverrides } from "./lib/userOverrides.js";
 
-const JOINTS = ["fused", "bolted", "snap"];
+const JOINTS = ["fused", "bolted", "snap", "pin"];
 
 // How close a newly-clicked slot center has to be to an already-placed
 // one to count as "the same face, clicked again" rather than a genuine
@@ -34,10 +34,10 @@ const JOINTS = ["fused", "bolted", "snap"];
 // different triangles in the same coplanar patch.
 const DUPLICATE_SLOT_TOLERANCE_MM = 0.75;
 
-// A bolted/snap joint nests two rounded-cuboid flanges around the
+// A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
 // once a third rounded-cuboid part (e.g. Basics plate) joins that
-// chain — see lib/assembly.js's attachChildScad() for the full story.
+// chain — see assembly.js's emitChildStatement() for the full story.
 // The generated .scad is correct (renders fine natively); this is a
 // browser-preview-only limitation, so say so instead of showing a raw
 // WASM trap message.
@@ -54,7 +54,7 @@ function friendlyRenderError(message) {
   // one attach() chain, the same limit as bolting a plate directly).
   // All of these are the one known cause, not three different bugs.
   if (/table index|memory access out of bounds|is not a function/i.test(message)) {
-    return "This browser's OpenSCAD build can't preview this bolted/snap combination " +
+    return "This browser's OpenSCAD build can't preview this bolted/snap/pin combination " +
       "(a known limitation, not a bad connection) — try \"fused\" for this joint instead, or for a stacked " +
       "part, fuse just one of the joints in the chain. The generated .scad still renders correctly with a " +
       "native OpenSCAD install.";
@@ -568,7 +568,12 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     let cancelled = false;
     const allNodes = [{ id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params }, ...assembly.nodes];
     (async () => {
-      const entries = await Promise.all(
+      // allSettled, not all: one node's own standalone render hitting
+      // the known openscad-wasm resource limit (see friendlyRenderError()
+      // — the same WASM build the main assembly render already works
+      // around) shouldn't cost every OTHER node its markers too, and
+      // shouldn't surface as an unhandled rejection either.
+      const results = await Promise.allSettled(
         allNodes.map(async (n) => {
           const part = partsById.get(n.partId);
           if (part.kind === "imported") return [n.id, part.extents];
@@ -581,7 +586,13 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           return [n.id, meshExtents(buf)];
         }),
       );
-      if (!cancelled) setNodeExtents(new Map(entries));
+      if (cancelled) return;
+      const entries = [];
+      for (const result of results) {
+        if (result.status === "fulfilled") entries.push(result.value);
+        else console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
+      }
+      setNodeExtents(new Map(entries));
     })();
     return () => {
       cancelled = true;

@@ -10,3 +10,6 @@
 [submodule "vendor/QuackWorks"]
 	path = vendor/QuackWorks
 	url = https://github.com/AndyLevesque/QuackWorks.git
+[submodule "vendor/bitbeam-lib"]
+	path = vendor/bitbeam-lib
+	url = https://github.com/ondratu/bitbeam-lib.git

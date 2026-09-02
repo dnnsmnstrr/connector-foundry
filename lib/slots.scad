@@ -61,3 +61,28 @@ function grid_mount_anchors(size, pitch, h, count) =
             for (j = [-(ny - 1) / 2 : (ny - 1) / 2])
                 named_anchor(str("mount_", i, "_", j), [i * px, j * py, h], UP, 0)
     ];
+
+// A row of `count` named anchors along one edge of a `size`-sized box,
+// for a part whose side faces carry their own holes (see
+// parts/basics/pinhole_plate.scad) — the side-face counterpart to
+// grid_mount_anchors()'s top grid. `face` is one of "xpos"/"xneg"/
+// "ypos"/"yneg"; the row runs along the OTHER horizontal axis, centered
+// at `pitch` spacing, named "<face>_<i>". Anchor direction is that
+// face's own outward normal, matching the single box-face anchors
+// (parts/basics/plate.scad's "xpos" etc.) so both kinds of anchor on
+// the same face agree about which way is out.
+function side_row_anchors(face, size, pitch, count) =
+    let(
+        row_on_x = (face == "xpos" || face == "xneg"),
+        fixed    = row_on_x
+            ? (face == "xpos" ? size.x / 2 : -size.x / 2)
+            : (face == "ypos" ? size.y / 2 : -size.y / 2),
+        dir = face == "xpos" ? RIGHT : face == "xneg" ? LEFT
+            : face == "ypos" ? BACK  : FRONT
+    )
+    [
+        for (i = [-(count - 1) / 2 : (count - 1) / 2])
+            named_anchor(str(face, "_", i),
+                row_on_x ? [fixed, i * pitch, 0] : [i * pitch, fixed, 0],
+                dir, 0)
+    ];

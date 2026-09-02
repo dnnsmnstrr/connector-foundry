@@ -1,8 +1,9 @@
 # Connector Foundry
 
-A library of printable mounting interfaces — Gridfinity, openGrid, GoPro, DeckMate, 2020
-extrusion — that you can pull as an STL and drop into Tinkercad, and that compose with each
-other through named slots.
+A library of printable mounting interfaces — Gridfinity, openGrid, GoPro, 2020 extrusion,
+BitBeam — that you can pull as an STL and drop into Tinkercad, and that compose with each
+other through named slots. DeckMate is supported too, via STL import in the web Bench rather
+than modelled geometry — see "Bench" below for why.
 
 OpenSCAD `.scad` files are the source of truth. The same sources drive three ways to get a
 part:
@@ -29,10 +30,11 @@ convention:
 | `vendor/gridfinity-rebuilt` | [kennetek/gridfinity-rebuilt-openscad](https://github.com/kennetek/gridfinity-rebuilt-openscad) | `parts/gridfinity/` |
 | `vendor/GoProScad` | [ridercz/GoProScad](https://github.com/ridercz/GoProScad) | `parts/gopro/` |
 | `vendor/QuackWorks` | [AndyLevesque/QuackWorks](https://github.com/AndyLevesque/QuackWorks) | `parts/opengrid/` |
+| `vendor/bitbeam-lib` | [ondratu/bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | `parts/bitbeam/beam.scad` |
 
-Systems with no reference implementation to call — 2020 extrusion, DeckMate — are modelled
-here, and the ones that can be are checked against an independent model instead. See
-**Accuracy** below.
+Systems with no reference implementation to call — 2020 extrusion, BitBeam — are modelled here
+from published dimensions, and the ones that can be are checked against an independent model
+instead. See **Accuracy** below.
 
 ## Quick start
 
@@ -69,15 +71,21 @@ reference check fails if they drift. Printer fit tolerance goes through one glob
 
 ## Joints
 
-`lib/joints.scad` implements three ways to mate two parts through their mount slots:
+`lib/joints.scad` implements four ways to mate two parts through their mount slots:
 
 - **fused** — plain `attach("mount", "mount")`. One printed body.
 - **bolted** — a flange fused onto each side's mount face, on a shared 4-hole pattern: an
   insert bore on side A, a clearance hole on side B.
 - **snap** — barbed pegs on side A, matching holes on side B.
+- **pin** — a flange fused onto each side's mount face, identical either way (just a 4.8mm
+  BitBeam-standard bore), joined by a real `bitbeam/pin` printed as its own third body — not
+  integral to either flange, unlike bolted/snap's fasteners. Thicker flanges than the other
+  three (BITBEAM_UNIT, 8mm, not JOINT_FLANGE_T) for the same reason `basics/pinhole_plate` needs
+  real thickness: a 4.8mm bore needs actual wall around it.
 
-Bolted and snap assemblies expose `part = "all" | "a" | "b"` so each printable body renders to
-its own STL — see `assemblies/`.
+Bolted, snap, and pin assemblies expose `part = "all" | "a" | "b"` (or, in the Bench, one tag per
+body — a pin joint contributes three, not two) so each printable body renders to its own STL —
+see `assemblies/`.
 
 ## Bench: combine connectors visually
 
@@ -105,6 +113,26 @@ boolean union that needs real overlap to avoid a coincident-face sliver, or a de
 fit); positive pulls them apart, leaving a gap. Zero — the default — is a plain flush attachment,
 same as before this existed.
 
+**Pin** joins are the one joint type where "and export just this body" means more than two
+pieces: the pin itself (a real `bitbeam/pin`) is its own separate print, not integral to either
+flange, so a pin connection contributes three bodies, not the usual two — the Bench's export list
+grows to match automatically rather than assuming exactly two. Getting *any* body but "all"/root
+right for a joint that's more than one level deep took more than the obvious `if (part == tag)`:
+BOSL2's `hide_this()` — an invisible parent that still positions its children correctly — has to
+wrap every module call between the root and whatever body is actually wanted, not just the
+outermost one, since it only suppresses geometry one level at a time. See `web/src/lib/assembly.js`'s
+`compileToScad()` for the full story; it's what makes exporting, say, a pin body two joints deep
+produce that pin alone rather than either everything or nothing.
+
+**BitBeam** (`basics/pinhole_plate`, `bitbeam/beam`, `bitbeam/pin`, `bitbeam/shaft`) is a
+LEGO-Technic-compatible system: 8mm pitch, 4.8mm holes, published at
+[bitbeam.cc](https://bitbeam.cc/) — see "Licensing" for why the geometry itself comes from a
+*different*, permissively licensed implementation than that site. `pinhole_plate` is a sibling of
+`basics/plate` with a configurable grid of pinholes on top (`grid_x` × `grid_y` units) and an
+optional row along each side face, in register with each other — every hole is a real anchor,
+feeding the same slot enumeration the Gridfinity grid uses, so any of them is a clickable
+attach point in the Bench, top or side, for free.
+
 **STL import** lets you bring in a part that isn't in the catalogue — a Mechanism or Printables
 download, say — and use it exactly like any other Bench part: pick it as the root or a child,
 click a point on its surface to place a slot there. Rather than dropping the slot at the exact
@@ -129,17 +157,31 @@ imports are session-local, never committed to this repo, shipped as fixtures, or
 programmatically from a model site. You supply the file; it lives in your browser tab and
 nowhere else.
 
+This is the intended path for DeckMate: there's no modelled DeckMate geometry in this catalogue
+at all (see "Catalogue" below for why one attempt at it didn't survive), so bring in the real
+part — [Mechanism](https://getmechanism.com/pages/digital-files)'s own STL, or a Printables
+model — and it becomes a first-class Bench part with the same slot/joint support as everything
+else here, without this repo ever guessing at dimensions it can't verify.
+
 ## Catalogue
 
 `catalogue.yaml` is the single source of truth for what exists: part id, system, module,
 default parameters, confidence, and a print note. The CLI, the tests, and this table are all
 generated from it — run `foundry readme` after adding a part. Confidence:
 
-- `exact` — published spec or reference implementation; checked in `references.yaml`.
+- `exact` — published spec or reference implementation; checked in `references.yaml`. Two ways to
+  be exempt from that check, kept deliberately distinct in each part's `source` field: generic
+  geometry with no external spec at all ("not tied to an external spec" — nothing to diverge
+  from, e.g. `basics/plate`), or a real published spec with no reference geometry anywhere to
+  check it against ("no reference geometry to check against" — e.g. `bitbeam/pin`: bitbeam.cc's
+  numbers are real, but nobody publishes a CAD model of just a pin). `tests/test_reference.py`'s
+  `test_every_exact_part_has_a_reference()` enforces that every `exact` part is either checked or
+  carries one of those two phrases, so a claim never just goes unchecked by omission.
 - `parametric` — a starting point. Verify against real hardware before trusting it.
-- `unverified` — worse than parametric: known or strongly suspected to be dimensionally wrong
-  (currently both DeckMate parts — see their print notes). Kept for the module/slot scaffolding,
-  not for printing.
+- `unverified` — worse than parametric: known or strongly suspected to be dimensionally wrong.
+  No part currently carries this label — the one that used to (a hand-guessed DeckMate dovetail)
+  turned out to just be a generic dovetail with nothing DeckMate-specific about it, so it moved to
+  Basics as that instead. Real DeckMate parts now come in via STL import — see "Bench" above.
 - `imported` — Bench-only, never in this file. See "Bench" above.
 
 <!-- CATALOGUE:START -->
@@ -148,8 +190,6 @@ generated from it — run `foundry readme` after adding a part. Confidence:
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | MIT | Print as-is, functional face (feet) down. No supports needed. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. Mates with any GoPro-standard three-prong buckle — proved against the upstream model, not just against our own female. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. nut_depth sinks a captive square-nut pocket in the far leg; set it to 0 for a plain through-hole. |
-| ![Dovetail rail (Outie)](docs/img/deckmate_outie.png)<br>Dovetail rail (Outie) | DeckMate | unverified | MIT | KNOWN WRONG — does not mate with a real DeckMate part. Kept for its module/slot scaffolding only, not for printing. The fix isn't another guess at the numbers: import the real Mechanism STL (getmechanism.com/pages/digital-files) or a Printables model into the web Bench instead, where it becomes an "imported"-confidence part with the same slot/joint support as anything else in the catalogue. |
-| ![Dovetail channel (Innie)](docs/img/deckmate_innie.png)<br>Dovetail channel (Innie) | DeckMate | unverified | MIT | KNOWN WRONG — does not mate with a real DeckMate part. Kept for its module/slot scaffolding only, not for printing. The fix isn't another guess at the numbers: import the real Mechanism STL (getmechanism.com/pages/digital-files) or a Printables model into the web Bench instead, where it becomes an "imported"-confidence part with the same slot/joint support as anything else in the catalogue. |
 | ![T-slot tab (hammer-head)](docs/img/extrusion2020_tab.png)<br>T-slot tab (hammer-head) | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the channel floor. tab_len <= 6mm (the default) drops into the slot face-first and twists 90 degrees to lock, anywhere along the rail; longer heads must be fed in endwise from an open end. |
 | ![Snap-in clip](docs/img/extrusion2020_clip.png)<br>Snap-in clip | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Push straight into the slot mid-rail, no end access needed; the legs flex through EX_SLOT_OPEN and the barbs spring out under the lip. Print in a flexible-enough filament (PETG/nylon) — stiff PLA legs may snap. |
 | ![End-face plate](docs/img/extrusion2020_endcap.png)<br>End-face plate | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Locating keys print face-down as oriented; the plate overhangs them at its four corners, so add a brim or light support there. |
@@ -159,6 +199,12 @@ generated from it — run `foundry readme` after adding a part. Confidence:
 | ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | CC-BY-NC-SA-4.0 | Print in a material with some flex (PETG/PLA+) so the retaining wings can compress; no supports needed. A snap sits within the board's thickness. Note the "lite" snap is a half-height snap (3.4mm), which is not the same thing as a lite tile (4.0mm). |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom. |
 | ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Stands upright on its "bot" anchor (flat end down), no supports needed. |
+| ![Dovetail rail](docs/img/basics_dovetail_rail.png)<br>Dovetail rail | Basics | exact | MIT | Tip down, no supports needed — the taper narrows going down. Was originally a guess at DeckMate's dimensions; confirmed wrong against a real DeckMate part, so it lives here as a generic dovetail instead. For a part that actually mates with a DeckMate accessory, import the real Mechanism model into the web Bench. |
+| ![Dovetail channel](docs/img/basics_dovetail_channel.png)<br>Dovetail channel | Basics | exact | MIT | Mouth down, no supports needed — the channel widens going up. Mates with basics/dovetail_rail; see its print note for why this isn't in DeckMate. |
+| ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | Print flat, no supports or brim needed. Holes run through top/ bottom on 8mm pitch, and — with side_holes on, the default — through front/back too, so beams can join at a right angle as well as end to end. LEGO Technic-compatible. |
+| ![Friction pin](docs/img/bitbeam_pin.png)<br>Friction pin | BitBeam | exact | MIT | Prints standing up, no supports needed. Grips a beam's hole by interference, not a snug published tolerance — how oversized it needs to be depends on filament and printer, same caveat bitbeam.cc's own docs give. Tune FIT_CLEARANCE (Settings in the web app) rather than the diameter directly: more for a firmer grip, less (even negative) for an easier push. |
+| ![Axle shaft](docs/img/bitbeam_shaft.png)<br>Axle shaft | BitBeam | exact | MIT | Prints standing up, no supports needed. Sized to spin freely in a beam's hole (a wheel/gear axle, not a fixed grip — for that, use bitbeam/pin instead). Tune FIT_CLEARANCE (Settings in the web app) for how much play it has: more clearance for a freer spin, less for a snugger one. |
+| ![Pinhole plate](docs/img/basics_pinhole_plate.png)<br>Pinhole plate | Basics | exact | MIT | Flat on the bed, no supports needed. Every hole (top grid and side rows alike) is a fixed 4.8mm bore, same as a real beam's — fit is tuned entirely on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side holes need real wall around them: the default thickness (8mm) is what keeps that sane and keeps the side rows in register with the top grid; go thinner and side_xpos/side_xneg/side_ypos/ side_yneg have to come off, or the render refuses outright rather than emit an undersized bore. |
 <!-- CATALOGUE:END -->
 
 ## User overrides
@@ -276,11 +322,12 @@ shipping, and three of them were labelled `confidence: exact`:
 
 ## Licensing
 
-This repository's own files are MIT. **Two parts are not**, and the catalogue says so per entry:
+This repository's own files are MIT. **Three parts are not**, and the catalogue says so per entry:
 
 | Part | Licence | Why |
 | --- | --- | --- |
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They call into `vendor/QuackWorks`, which is CC-BY-NC-SA repo-wide. Rendering either part runs that code, so NonCommercial applies to that use and ShareAlike applies to adaptations. |
+| `bitbeam/beam` | **BSD-3-Clause** | Calls into `vendor/bitbeam-lib` — permissive (attribution + no-endorsement, no NC/SA restriction), but not textually MIT, so it gets the same explicit `license:` field rather than folding it into "MIT, unstated." |
 | everything else | MIT | — |
 
 openGrid is designed by David D; the OpenSCAD implementation is by Andy (BlackjackDuck), the snap
@@ -290,8 +337,18 @@ licensed openGrid source to use instead: the official
 [openGrid-3D/openGrid-openSCAD](https://github.com/openGrid-3D/openGrid-openSCAD) repo carries no
 licence and has no board geometry in it.
 
-The MIT-licensed submodules — `gridfinity-rebuilt` (kennetek), `GoProScad` (ridercz), `BOSL2` —
-impose nothing on callers, which is why wrapping them was uncomplicated.
+BitBeam is the same shape of situation as openGrid — a published spec (bitbeam.cc, CC-BY-NC-SA
+4.0, © Ondřej Tůma) with an official STL pack this repo cannot vendor or adapt from — except here
+a second, separately and permissively licensed OpenSCAD implementation exists (`bitbeam-lib`, also
+by Tůma) that this repo *can* call directly, so BitBeam gets a real vendored wrapper instead of a
+from-scratch reimplementation like extrusion2020's. `bitbeam/pin` and `bitbeam/shaft` have no
+upstream module to call either way (bitbeam-lib only has beam-shaped parts) and are modelled
+directly from the published numbers — those two stay MIT, since there's no borrowed code in them,
+only borrowed facts (dimensions aren't copyrightable expression).
+
+The permissively-licensed submodules — `gridfinity-rebuilt` (kennetek, MIT), `GoProScad` (ridercz,
+MIT), `bitbeam-lib` (ondratu, BSD-3-Clause), `BOSL2` (MIT) — impose nothing substantive on callers,
+which is why wrapping them was uncomplicated.
 
 Two upstreams are **measured against but never called and never vendored**, because including
 them would relicense our parts: `NopSCADlib` (GPL-3.0), used as a model of real 20-series
@@ -322,10 +379,13 @@ refs/            reference cache — fetched, converted, rendered (gitignored)
 Called directly (submodules): [gridfinity-rebuilt-openscad](https://github.com/kennetek/gridfinity-rebuilt-openscad) ·
 [GoProScad](https://github.com/ridercz/GoProScad) ·
 [QuackWorks](https://github.com/AndyLevesque/QuackWorks) ·
+[bitbeam-lib](https://github.com/ondratu/bitbeam-lib) ·
 [BOSL2](https://github.com/BelfrySCAD/BOSL2)
 
 Measured against, never vendored: [NopSCADlib](https://github.com/nophead/NopSCADlib)
 
 Specifications: [gridfinity.xyz](https://gridfinity.xyz/specification/) ·
 [opengrid.world](https://www.opengrid.world/guides/board/) ·
+[bitbeam.cc](https://bitbeam.cc/) (dimensions only — its CC-BY-NC-SA 4.0 content and STL pack are
+not used here; see "Licensing") ·
 [Mechanism](https://getmechanism.com/pages/digital-files) (DeckMate — no dimensioned drawing published)

@@ -21,6 +21,16 @@ function getWorker() {
     worker = new Worker(new URL("../worker/openscad-worker.js", import.meta.url), { type: "module" });
     worker.onmessage = (event) => {
       const { id, type } = event.data;
+      // The worker's own printErr forwards any OpenSCAD stderr line
+      // matching /error/i this way, untied to a specific request (no
+      // `id`) — surface it to the console rather than silently drop it,
+      // since it's often the only place the REAL reason a render failed
+      // (as opposed to the generic "check the parameters" thrown on a
+      // non-zero exit code) actually shows up.
+      if (type === "log") {
+        console.error("[openscad]", event.data.text);
+        return;
+      }
       const entry = pending.get(id);
       if (!entry) return;
       pending.delete(id);

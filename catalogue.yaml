@@ -45,6 +45,20 @@
 #   lib/slots.scad. tests/test_slots.py renders and probes the grid
 #   either way, so this can't drift from the geometry.
 #
+# side_slots: for a part with a row of anchors along one or more of its
+#   side faces, not just the top grid `slots` covers — see
+#   lib/slots.scad's side_row_anchors() and
+#   parts/basics/pinhole_plate.scad. `pitch` (mm) is required; `faces`
+#   lists one entry per side face that can carry a row, each naming the
+#   anchor prefix ("<name>_<i>"), the boolean parameter that turns that
+#   face's row on or off (`enabled_param`), and the current parameter
+#   whose value is that row's anchor count (`count_param`, e.g. a
+#   plate's own grid_y for its xpos/xneg rows, since a row along an edge
+#   has as many anchors as the top grid has in that direction). A face
+#   with no row in the current instance (enabled_param is false) simply
+#   contributes no anchors, same as a face with side_holes off has none
+#   to click.
+#
 # anchors: for a part with named anchors beyond the default "mount" on
 #   its own faces — see parts/basics/plate.scad and post.scad — the
 #   list of which of "bot"/"xpos"/"xneg"/"ypos"/"yneg" it declares.
@@ -119,49 +133,6 @@ parts:
     variants:
       - name: no-nut-pocket
         params: { nut_depth: 0 }
-
-  - id: deckmate/outie
-    system: DeckMate
-    name: Dovetail rail (Outie)
-    file: parts/deckmate/outie.scad
-    module: deckmate_outie
-    confidence: unverified
-    source: >-
-      Guessed dimensions with no dimensioned drawing and no reference
-      model — confirmed wrong against a real DeckMate part. Do not
-      trust this geometry; see print_note.
-    print_note: >-
-      KNOWN WRONG — does not mate with a real DeckMate part. Kept for
-      its module/slot scaffolding only, not for printing. The fix isn't
-      another guess at the numbers: import the real Mechanism STL
-      (getmechanism.com/pages/digital-files) or a Printables model into
-      the web Bench instead, where it becomes an "imported"-confidence
-      part with the same slot/joint support as anything else in the
-      catalogue.
-    defaults: {}
-    variants:
-      - name: with-end-stop
-        params: { end_stop: true }
-
-  - id: deckmate/innie
-    system: DeckMate
-    name: Dovetail channel (Innie)
-    file: parts/deckmate/innie.scad
-    module: deckmate_innie
-    confidence: unverified
-    source: >-
-      Guessed dimensions with no dimensioned drawing and no reference
-      model — confirmed wrong against a real DeckMate part. Do not
-      trust this geometry; see print_note.
-    print_note: >-
-      KNOWN WRONG — does not mate with a real DeckMate part. Kept for
-      its module/slot scaffolding only, not for printing. The fix isn't
-      another guess at the numbers: import the real Mechanism STL
-      (getmechanism.com/pages/digital-files) or a Printables model into
-      the web Bench instead, where it becomes an "imported"-confidence
-      part with the same slot/joint support as anything else in the
-      catalogue.
-    defaults: {}
 
   - id: extrusion2020/tab
     system: 2020 Extrusion
@@ -361,3 +332,146 @@ parts:
     variants:
       - name: bored
         params: { bore: 4 }
+
+  - id: basics/dovetail_rail
+    system: Basics
+    name: Dovetail rail
+    file: parts/basics/dovetail_rail.scad
+    module: dovetail_rail
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: >-
+      Tip down, no supports needed — the taper narrows going down. Was
+      originally a guess at DeckMate's dimensions; confirmed wrong
+      against a real DeckMate part, so it lives here as a generic
+      dovetail instead. For a part that actually mates with a DeckMate
+      accessory, import the real Mechanism model into the web Bench.
+    defaults:
+      rail_len: 36
+      end_stop: false
+    variants:
+      - name: with-end-stop
+        params: { end_stop: true }
+
+  - id: basics/dovetail_channel
+    system: Basics
+    name: Dovetail channel
+    file: parts/basics/dovetail_channel.scad
+    module: dovetail_channel
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: >-
+      Mouth down, no supports needed — the channel widens going up.
+      Mates with basics/dovetail_rail; see its print note for why this
+      isn't in DeckMate.
+    defaults:
+      rail_len: 36
+      wall: 2.4
+      clearance: 0.3
+
+  - id: bitbeam/beam
+    system: BitBeam
+    name: Beam
+    file: parts/bitbeam/beam.scad
+    module: bitbeam_beam
+    confidence: exact
+    license: BSD-3-Clause
+    source: >-
+      Dimensions from bitbeam.cc's published spec (checked 2026-09-02;
+      that site's own content is CC-BY-NC-SA and not used here — see
+      lib/constants.scad). Geometry from vendor/bitbeam-lib
+      (ondratu/bitbeam-lib, BSD-3-Clause), a separately and permissively
+      licensed OpenSCAD implementation by bitbeam.cc's own author, whose
+      defaults already match the published spec.
+    print_note: >-
+      Print flat, no supports or brim needed. Holes run through top/
+      bottom on 8mm pitch, and — with side_holes on, the default —
+      through front/back too, so beams can join at a right angle as
+      well as end to end. LEGO Technic-compatible.
+    defaults:
+      len: 5
+      side_holes: true
+
+  - id: bitbeam/pin
+    system: BitBeam
+    name: Friction pin
+    file: parts/bitbeam/pin.scad
+    module: bitbeam_pin
+    confidence: exact
+    source: >-
+      Dimensions from bitbeam.cc's published spec, checked 2026-09-02 —
+      see lib/constants.scad — with no reference geometry to check
+      against: nobody publishes a CAD model of just a pin, only the
+      numbers.
+    print_note: >-
+      Prints standing up, no supports needed. Grips a beam's hole by
+      interference, not a snug published tolerance — how oversized it
+      needs to be depends on filament and printer, same caveat
+      bitbeam.cc's own docs give. Tune FIT_CLEARANCE (Settings in the
+      web app) rather than the diameter directly: more for a firmer
+      grip, less (even negative) for an easier push.
+    defaults:
+      dia: 4.6
+      len: 4
+
+  - id: bitbeam/shaft
+    system: BitBeam
+    name: Axle shaft
+    file: parts/bitbeam/shaft.scad
+    module: bitbeam_shaft
+    confidence: exact
+    source: >-
+      Dimensions from bitbeam.cc's published spec, checked 2026-09-02 —
+      see lib/constants.scad — with no reference geometry to check
+      against: nobody publishes a CAD model of just a shaft, only the
+      numbers.
+    print_note: >-
+      Prints standing up, no supports needed. Sized to spin freely in a
+      beam's hole (a wheel/gear axle, not a fixed grip — for that, use
+      bitbeam/pin instead). Tune FIT_CLEARANCE (Settings in the web app)
+      for how much play it has: more clearance for a freer spin, less
+      for a snugger one.
+    defaults:
+      dia: 4.3
+      len: 3.6
+
+  - id: basics/pinhole_plate
+    system: Basics
+    name: Pinhole plate
+    file: parts/basics/pinhole_plate.scad
+    module: pinhole_plate
+    confidence: exact
+    source: >-
+      Hole size and pitch from bitbeam.cc's published spec, checked
+      2026-09-02 — see lib/constants.scad — with no reference geometry
+      to check against: nobody publishes a CAD model of a plate like
+      this, only the numbers a real BitBeam hole has to match.
+    print_note: >-
+      Flat on the bed, no supports needed. Every hole (top grid and side
+      rows alike) is a fixed 4.8mm bore, same as a real beam's — fit is
+      tuned entirely on the pin (bitbeam/pin's FIT_CLEARANCE), not here.
+      Side holes need real wall around them: the default thickness
+      (8mm) is what keeps that sane and keeps the side rows in register
+      with the top grid; go thinner and side_xpos/side_xneg/side_ypos/
+      side_yneg have to come off, or the render refuses outright rather
+      than emit an undersized bore.
+    slots:
+      pitch: 8
+      count_params: [grid_x, grid_y]
+    side_slots:
+      pitch: 8
+      faces:
+        - { name: xpos, enabled_param: side_xpos, count_param: grid_y }
+        - { name: xneg, enabled_param: side_xneg, count_param: grid_y }
+        - { name: ypos, enabled_param: side_ypos, count_param: grid_x }
+        - { name: yneg, enabled_param: side_yneg, count_param: grid_x }
+    anchors: [bot, xpos, xneg, ypos, yneg]
+    defaults:
+      grid_x: 3
+      grid_y: 3
+      t: 8
+      r: 3
+      side_xpos: true
+      side_xneg: true
+      side_ypos: true
+      side_yneg: true

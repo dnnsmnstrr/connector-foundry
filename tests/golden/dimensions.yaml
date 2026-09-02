@@ -4,6 +4,33 @@
 # moving when nobody meant to move it. It does NOT say a part is
 # correct — a wrong part has a perfectly stable bounding box.
 # Correctness lives in references.yaml (`make verify`).
+basics/dovetail_channel:
+  default:
+    bbox:
+    - 31.4
+    - 36.0
+    - 7.4
+    volume_mm3: 4116.96
+basics/dovetail_rail:
+  default:
+    bbox:
+    - 26.0
+    - 36.0
+    - 5.0
+    volume_mm3: 4140.0
+  with-end-stop:
+    bbox:
+    - 26.0
+    - 36.0
+    - 8.0
+    volume_mm3: 4419.0
+basics/pinhole_plate:
+  default:
+    bbox:
+    - 24.0
+    - 24.0
+    - 8.0
+    volume_mm3: 3277.04
 basics/plate:
   default:
     bbox:
@@ -30,26 +57,27 @@ basics/post:
     - 10.0
     - 20.0
     volume_mm3: 1530.73
-deckmate/innie:
+bitbeam/beam:
   default:
     bbox:
-    - 31.4
-    - 36.0
-    - 7.4
-    volume_mm3: 4116.96
-deckmate/outie:
-  default:
-    bbox:
-    - 26.0
-    - 36.0
-    - 5.0
-    volume_mm3: 4140.0
-  with-end-stop:
-    bbox:
-    - 26.0
-    - 36.0
+    - 40.0
     - 8.0
-    volume_mm3: 4419.0
+    - 8.0
+    volume_mm3: 1453.82
+bitbeam/pin:
+  default:
+    bbox:
+    - 4.75
+    - 4.75
+    - 4.0
+    volume_mm3: 61.69
+bitbeam/shaft:
+  default:
+    bbox:
+    - 4.15
+    - 4.15
+    - 3.6
+    volume_mm3: 42.23
 extrusion2020/c-clip:
   default:
     bbox:
