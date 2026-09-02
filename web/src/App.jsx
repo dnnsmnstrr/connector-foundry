@@ -2,9 +2,11 @@ import yaml from "js-yaml";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
 import ParamField from "./components/ParamField.jsx";
+import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { groupBySystem, matchesSearch } from "./lib/catalogueUtils.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
+import { getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
 import {
   clearGlobalOverrides,
   clearOverrides,
@@ -91,7 +93,7 @@ function SettingsModal({ globalDefaults, onClose }) {
   );
 }
 
-function Library({ parts, globalDefaults, onOpenInBench }) {
+function Library({ parts, globalDefaults, onOpenInBench, sidebarCollapsed, onToggleSidebar }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [params, setParams] = useState({});
@@ -198,34 +200,39 @@ function Library({ parts, globalDefaults, onOpenInBench }) {
   const hasSavedOverride = Object.keys(savedOverride).length > 0;
 
   return (
-    <div className="app">
+    <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
       <aside className="sidebar">
-        <input
-          type="search"
-          className="search-input"
-          placeholder="Search parts…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {filteredParts.length === 0 && <p className="muted no-results">No parts match "{search}".</p>}
-        {[...groups.entries()].map(([system, systemParts]) => (
-          <div key={system} className="system-group">
-            <h2>{system}</h2>
-            <ul>
-              {systemParts.map((part) => (
-                <li key={part.id}>
-                  <button
-                    className={part.id === selectedId ? "part-button active" : "part-button"}
-                    onClick={() => setSelectedId(part.id)}
-                  >
-                    <span>{part.name}</span>
-                    <span className={`badge badge-${part.confidence}`}>{part.confidence}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
+        {!sidebarCollapsed && (
+          <>
+            <input
+              type="search"
+              className="search-input"
+              placeholder="Search parts…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {filteredParts.length === 0 && <p className="muted no-results">No parts match "{search}".</p>}
+            {[...groups.entries()].map(([system, systemParts]) => (
+              <div key={system} className="system-group">
+                <h2>{system}</h2>
+                <ul>
+                  {systemParts.map((part) => (
+                    <li key={part.id}>
+                      <button
+                        className={part.id === selectedId ? "part-button active" : "part-button"}
+                        onClick={() => setSelectedId(part.id)}
+                      >
+                        <span>{part.name}</span>
+                        <span className={`badge badge-${part.confidence}`}>{part.confidence}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
       </aside>
 
       <main className="workspace">
@@ -310,17 +317,71 @@ function Library({ parts, globalDefaults, onOpenInBench }) {
   );
 }
 
+// True while the event's target is somewhere a keystroke means "type a
+// character", not "trigger a shortcut" — a search box, a param field, a
+// <select>. Every single-key shortcut below checks this first; Escape
+// doesn't need to, since "close the dialog" is expected to work from
+// inside a focused field too (native <dialog> behaves the same way).
+function isEditableTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+}
+
 export default function App() {
   const { parts, error } = useCatalogue();
   const globalDefaults = useGlobalDefaults();
   const [mode, setMode] = useState("library"); // "library" | "bench"
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
   // { part, params } | null — set by Library's "Open in Bench", carrying
   // over whatever's currently showing there (not necessarily catalogue
   // defaults). Bench consumes it once, on the mount that follows the
   // mode switch (it fully unmounts when not the active mode, so this
   // never needs to re-seed an already-running Bench session).
   const [pendingBenchRoot, setPendingBenchRoot] = useState(null);
+
+  function toggleSidebar() {
+    setSidebarCollapsedState((collapsed) => {
+      const next = !collapsed;
+      setSidebarCollapsed(next);
+      return next;
+    });
+  }
+
+  // Global shortcuts: 1/2 switch mode, s opens Settings, [ toggles the
+  // sidebar, Escape closes Settings. Bench's own modals (attach-a-part,
+  // STL import) close on Escape too, but that's handled locally in
+  // Bench.jsx — it owns that state, App doesn't need to reach into it.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Escape") {
+        if (settingsOpen) setSettingsOpen(false);
+        return;
+      }
+      if (isEditableTarget(e.target)) return;
+      switch (e.key) {
+        case "1":
+          setMode("library");
+          break;
+        case "2":
+          setMode("bench");
+          break;
+        case "s":
+          setSettingsOpen(true);
+          break;
+        case "[":
+          toggleSidebar();
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [settingsOpen]);
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
   if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
@@ -334,21 +395,45 @@ export default function App() {
     <div className="shell">
       <nav className="mode-tabs">
         <span className="brand">Connector Foundry</span>
-        <button className={mode === "library" ? "mode-tab active" : "mode-tab"} onClick={() => setMode("library")}>
-          Library
+        <button
+          className={mode === "library" ? "mode-tab active" : "mode-tab"}
+          onClick={() => setMode("library")}
+          title="Library (1)"
+        >
+          Library<kbd className="shortcut-hint">1</kbd>
         </button>
-        <button className={mode === "bench" ? "mode-tab active" : "mode-tab"} onClick={() => setMode("bench")}>
-          Bench
+        <button
+          className={mode === "bench" ? "mode-tab active" : "mode-tab"}
+          onClick={() => setMode("bench")}
+          title="Bench (2)"
+        >
+          Bench<kbd className="shortcut-hint">2</kbd>
         </button>
-        <button className="mode-tab settings-tab" onClick={() => setSettingsOpen(true)} title="Printer settings">
-          ⚙ Settings
+        <button
+          className="mode-tab settings-tab"
+          onClick={() => setSettingsOpen(true)}
+          title="Printer settings (s)"
+        >
+          ⚙ Settings<kbd className="shortcut-hint">s</kbd>
         </button>
       </nav>
       <div className="shell-body">
         {mode === "library" ? (
-          <Library parts={parts} globalDefaults={globalDefaults} onOpenInBench={openInBench} />
+          <Library
+            parts={parts}
+            globalDefaults={globalDefaults}
+            onOpenInBench={openInBench}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+          />
         ) : (
-          <Bench parts={parts} pendingRoot={pendingBenchRoot} onConsumePendingRoot={() => setPendingBenchRoot(null)} />
+          <Bench
+            parts={parts}
+            pendingRoot={pendingBenchRoot}
+            onConsumePendingRoot={() => setPendingBenchRoot(null)}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+          />
         )}
       </div>
       {settingsOpen && <SettingsModal globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />}

@@ -32,6 +32,28 @@ every request through one FIFO queue; see the worker's header comment for the fu
 including a separate, still-unresolved WASM resource limit that shows up for some bolted/snap
 joint combinations in the Bench (`src/lib/assembly.js`'s `attachChildScad()` has that one).
 
+## Shell (`src/App.jsx`)
+
+The nav bar, Settings modal, and the shared "sidebar collapsed?" preference both Library's and the
+Bench's own `<aside>` read — these live at the `App` level since they're not specific to either
+screen.
+
+- Keyboard shortcuts: `1`/`2` switch Library/Bench, `s` opens Settings, `[` toggles the sidebar,
+  `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
+  `isEditableTarget()` skips every single-key shortcut (not `Escape`, which is expected to work
+  from inside a focused field the same way a native `<dialog>` does) whenever the event's target is
+  a text input, `<select>`, or anything `contentEditable` — so typing "s" in the search box types
+  an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL import) close on
+  `Escape` too, but that's a second, local listener in `Bench.jsx` — that state is local to Bench,
+  so App doesn't need to reach into it.
+- Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
+  best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
+  and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the
+  same button in both `<aside>`s; collapsing just skips rendering everything past it (`Library`'s
+  and `Bench.jsx`'s `{!sidebarCollapsed && (...)}`) rather than hiding it with CSS, and
+  `.app`/`.bench`'s grid column narrows to fit — no separate collapsed-vs-expanded layout to keep
+  in sync.
+
 ## Bench (`src/Bench.jsx`)
 
 The visual editor: a root part plus a tree of parts snapped onto open slots, each connection with

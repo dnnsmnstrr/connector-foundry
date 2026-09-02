@@ -57,6 +57,23 @@ html, body, #root {
   color: #cdd7f5;
 }
 
+.shortcut-hint {
+  margin-left: 0.4rem;
+  font-family: inherit;
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: #6d6e73;
+  background: #111214;
+  border: 1px solid #33343a;
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+}
+
+.mode-tab.active .shortcut-hint {
+  color: #8f9dd6;
+  border-color: #35407a;
+}
+
 .shell-body {
   flex: 1;
   min-height: 0;
@@ -66,6 +83,11 @@ html, body, #root {
   display: grid;
   grid-template-columns: 280px 1fr;
   height: 100%;
+  transition: grid-template-columns 0.15s ease;
+}
+
+.app.sidebar-collapsed, .bench.sidebar-collapsed {
+  grid-template-columns: 2.75rem 1fr;
 }
 
 .sidebar {
@@ -73,6 +95,30 @@ html, body, #root {
   border-right: 1px solid #2a2b2e;
   padding: 1.25rem;
   overflow-y: auto;
+}
+
+.sidebar-collapsed .sidebar {
+  padding: 0.75rem 0.5rem;
+  overflow: hidden;
+}
+
+.sidebar-toggle {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 1px solid #33343a;
+  color: #9a9ba0;
+  border-radius: 4px;
+  padding: 0.3rem 0;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.sidebar-toggle:hover {
+  background: #202126;
+  color: #d8d9db;
 }
 
 .search-input {

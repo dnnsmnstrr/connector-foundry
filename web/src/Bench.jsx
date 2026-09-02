@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import ParamField from "./components/ParamField.jsx";
+import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import {
   ROOT_ID,
@@ -505,7 +506,7 @@ function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRe
   );
 }
 
-export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
+export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sidebarCollapsed, onToggleSidebar }) {
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
   const [importedParts, setImportedParts] = useState(new Map());
   const partsById = useMemo(
@@ -534,6 +535,21 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
   const renderSeq = useRef(0);
+
+  // Escape closes whichever of the Bench's own modals is open — the
+  // import flow first (it's on top when both are technically "open"),
+  // then the attach-a-part picker. App.jsx's own keydown handler covers
+  // Settings and mode-switching; this one is local because the state it
+  // closes is local too.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== "Escape") return;
+      if (importMode) setImportMode(null);
+      else if (pendingSlot) setPendingSlot(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [importMode, pendingSlot]);
 
   const rootPart = assembly ? partsById.get(assembly.root.partId) : null;
 
@@ -736,49 +752,54 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
   const pendingParentPart = pendingSlot && partsById.get(getNode(assembly, pendingSlot.parentId).partId);
 
   return (
-    <div className="bench">
+    <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
       <aside className="sidebar bench-sidebar">
-        <h2>{rootPart.name}</h2>
-        <p className="muted">Root part. Click an open slot in the scene to attach something to it.</p>
-        <button className="render-button bench-reset" onClick={() => setAssembly(null)}>
-          Start over
-        </button>
-
-        <details className="bench-node-params-details">
-          <summary>Root parameters</summary>
-          <NodeParamsPanel nodeId={ROOT_ID} node={assembly.root} part={rootPart} onUpdateParams={updateParams} />
-        </details>
-
-        <h3>Attached ({assembly.nodes.length})</h3>
-        {assembly.nodes.length === 0 && <p className="muted">Nothing attached yet.</p>}
-        <ul className="bench-child-list">
-          {childrenOf(assembly, ROOT_ID).map((child) => (
-            <NodeTree
-              key={child.id}
-              assembly={assembly}
-              partsById={partsById}
-              nodeExtents={nodeExtents}
-              nodeId={child.id}
-              onAttachSlot={(parentId, slotName) => setPendingSlot({ parentId, slotName })}
-              onRemove={(id) => setAssembly((a) => removeChild(a, id))}
-              onJointChange={(id, joint) => setAssembly((a) => updateChildJoint(a, id, joint))}
-              onOverlapChange={(id, overlap) => setAssembly((a) => updateChildOverlap(a, id, overlap))}
-              onUpdateParams={updateParams}
-            />
-          ))}
-        </ul>
-
-        <h3>Export</h3>
-        <div className="bench-export">
-          {assembly && bodyTags(assembly).map((tag) => (
-            <button key={tag} className="download-button bench-export-button" onClick={() => downloadBody(tag)}>
-              STL: {tag}
+        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
+        {!sidebarCollapsed && (
+          <>
+            <h2>{rootPart.name}</h2>
+            <p className="muted">Root part. Click an open slot in the scene to attach something to it.</p>
+            <button className="render-button bench-reset" onClick={() => setAssembly(null)}>
+              Start over
             </button>
-          ))}
-          <button className="download-button bench-export-button" onClick={downloadScad}>
-            Download .scad
-          </button>
-        </div>
+
+            <details className="bench-node-params-details">
+              <summary>Root parameters</summary>
+              <NodeParamsPanel nodeId={ROOT_ID} node={assembly.root} part={rootPart} onUpdateParams={updateParams} />
+            </details>
+
+            <h3>Attached ({assembly.nodes.length})</h3>
+            {assembly.nodes.length === 0 && <p className="muted">Nothing attached yet.</p>}
+            <ul className="bench-child-list">
+              {childrenOf(assembly, ROOT_ID).map((child) => (
+                <NodeTree
+                  key={child.id}
+                  assembly={assembly}
+                  partsById={partsById}
+                  nodeExtents={nodeExtents}
+                  nodeId={child.id}
+                  onAttachSlot={(parentId, slotName) => setPendingSlot({ parentId, slotName })}
+                  onRemove={(id) => setAssembly((a) => removeChild(a, id))}
+                  onJointChange={(id, joint) => setAssembly((a) => updateChildJoint(a, id, joint))}
+                  onOverlapChange={(id, overlap) => setAssembly((a) => updateChildOverlap(a, id, overlap))}
+                  onUpdateParams={updateParams}
+                />
+              ))}
+            </ul>
+
+            <h3>Export</h3>
+            <div className="bench-export">
+              {assembly && bodyTags(assembly).map((tag) => (
+                <button key={tag} className="download-button bench-export-button" onClick={() => downloadBody(tag)}>
+                  STL: {tag}
+                </button>
+              ))}
+              <button className="download-button bench-export-button" onClick={downloadScad}>
+                Download .scad
+              </button>
+            </div>
+          </>
+        )}
       </aside>
 
       <main className="workspace">
