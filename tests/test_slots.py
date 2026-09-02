@@ -47,7 +47,7 @@ def _grid_counts(part, out_dir):
         defaults = part["defaults"]
         return defaults[nx_param], defaults[ny_param]
 
-    stl = foundry.render_part(part, {}, out_dir)
+    stl = foundry.render_part(part, {}, out_dir, use_user_config=False)
     mesh = trimesh.load(stl)
     size_x, size_y, _ = mesh.extents
     pitch = slots["pitch"]
@@ -57,7 +57,7 @@ def _grid_counts(part, out_dir):
 
 
 def _corner(part, anchor_name, out_dir, tag):
-    stl = foundry.render_part(part, {"anchor": anchor_name}, out_dir)
+    stl = foundry.render_part(part, {"anchor": anchor_name}, out_dir, use_user_config=False)
     stl = stl.rename(out_dir / f"{tag}.stl")
     mesh = trimesh.load(stl)
     return mesh.bounds[0]  # rigid translation between renders -> any fixed point works
@@ -99,7 +99,7 @@ def test_grid_edge_matches_the_declared_count(part, render_dir):
     edge_name = f"mount_{last_i:g}_{j0:g}"
     beyond_name = f"mount_{last_i + 1:g}_{j0:g}"
 
-    foundry.render_part(part, {"anchor": edge_name}, out_dir)  # must exist
+    foundry.render_part(part, {"anchor": edge_name}, out_dir, use_user_config=False)  # must exist
 
     with pytest.raises(Exception):  # noqa: B017 - CLI wraps a subprocess failure, not one exception type
-        foundry.render_part(part, {"anchor": beyond_name}, out_dir)
+        foundry.render_part(part, {"anchor": beyond_name}, out_dir, use_user_config=False)

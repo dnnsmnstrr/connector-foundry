@@ -9,6 +9,7 @@ node_modules/
 web/dist/
 web/public/scad-bundle.json
 web/public/catalogue.yaml
+web/public/global-defaults.json
 .DS_Store
 .claude/worktrees/
 

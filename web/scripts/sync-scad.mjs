@@ -91,6 +91,36 @@ function addLibraryShims(bundle) {
   return shims;
 }
 
+// Top-level `NAME = <simple literal>;` assignments in lib/constants.scad
+// — the browser's copy of catalogue defaults for the "same override
+// layer" global settings (FIT_CLEARANCE etc.), so the UI has a real
+// catalogue-default number to diff/reset against instead of a
+// hand-duplicated one. Only plain number/bool/quoted-string literals
+// are picked up (the vast majority of constants.scad); a computed
+// expression is skipped rather than guessed at, same spirit as
+// cli/foundry.py's constants_names() only checking the name exists —
+// this is that plus the value, best-effort.
+const GLOBAL_CONST = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;]+);/gm;
+
+function parseSimpleLiteral(raw) {
+  const trimmed = raw.trim();
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  if (/^"[^"]*"$/.test(trimmed)) return JSON.parse(trimmed);
+  return undefined; // computed expression — not a catalogue default we can show
+}
+
+function globalConstants() {
+  const source = fs.readFileSync(path.join(REPO_ROOT, "lib", "constants.scad"), "utf8");
+  const values = {};
+  for (const match of source.matchAll(GLOBAL_CONST)) {
+    const value = parseSimpleLiteral(match[2]);
+    if (value !== undefined) values[match[1]] = value;
+  }
+  return values;
+}
+
 export function syncScad() {
   const bundle = {};
   for (const dir of SOURCE_DIRS) {
@@ -106,6 +136,7 @@ export function syncScad() {
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
   fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify(bundle));
   fs.copyFileSync(path.join(REPO_ROOT, "catalogue.yaml"), path.join(WEB_PUBLIC, "catalogue.yaml"));
+  fs.writeFileSync(path.join(WEB_PUBLIC, "global-defaults.json"), JSON.stringify(globalConstants()));
 
   return Object.keys(bundle).length;
 }

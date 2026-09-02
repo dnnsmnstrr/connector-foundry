@@ -5,6 +5,12 @@
     foundry render assemblies/corner-bracket --part a -o out/
     foundry build --all
     foundry preview --all
+
+    foundry defaults set gridfinity/base --magnets   # always render this on
+    foundry defaults show gridfinity/base
+    foundry settings set --fit-clearance 0.25        # printer runs tight
+    foundry render gridfinity/base                   # picks both up automatically
+    foundry render gridfinity/base --no-user-config  # true catalogue defaults (what CI does)
 """
 from __future__ import annotations
 
@@ -17,6 +23,8 @@ from pathlib import Path
 
 import typer
 import yaml
+
+import userconfig
 
 app = typer.Typer(add_completion=False, help=__doc__)
 
@@ -165,9 +173,24 @@ def check_options(part: dict, params: dict[str, object]) -> None:
                 + ", ".join(repr(a) for a in allowed))
 
 
-def render_part(part: dict, overrides: dict[str, object], out_dir: Path) -> Path:
-    check_parameters(part, overrides)
-    params = {**part.get("defaults", {}), **overrides}
+def resolve_params(part: dict, overrides: dict[str, object], use_user_config: bool) -> dict:
+    """catalogue default -> saved user override -> this render's overrides.
+
+    The one place this merge happens; see userconfig.py's module
+    docstring for why the web app's resolveParams() has to agree with
+    this order rather than being free to drift. Checked against the
+    merged (user + this-render) set, not just this-render's overrides,
+    so a saved override that's gone stale (e.g. a renamed parameter)
+    surfaces as a clear error instead of OpenSCAD silently ignoring it.
+    """
+    user = userconfig.get_overrides(part["id"]) if use_user_config else {}
+    check_parameters(part, {**user, **overrides})
+    return {**part.get("defaults", {}), **user, **overrides}
+
+
+def render_part(part: dict, overrides: dict[str, object], out_dir: Path,
+                 use_user_config: bool = False) -> Path:
+    params = resolve_params(part, overrides, use_user_config)
     check_options(part, params)
     call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
     scad_source = REPO_ROOT / part["file"]
@@ -175,7 +198,8 @@ def render_part(part: dict, overrides: dict[str, object], out_dir: Path) -> Path
     stub.parent.mkdir(parents=True, exist_ok=True)
     stub.write_text(f'include <{scad_source}>\n{part["module"]}({call_args});\n')
     out_stl = out_dir / f"{part['id'].replace('/', '_')}.stl"
-    run_openscad(stub, out_stl, {})
+    global_overrides = userconfig.get_global_overrides() if use_user_config else {}
+    run_openscad(stub, out_stl, global_overrides)
     stub.unlink()
     return out_stl
 
@@ -197,6 +221,19 @@ def list_parts():
                        f"{licence:<15} {part['name']}")
 
 
+def _collect_overrides(gx, gy, magnets, screws, set_) -> dict[str, object]:
+    overrides = {}
+    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets), ("screws", screws)]:
+        if value is not None:
+            overrides[name] = value
+    for item in set_ or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"--set expects KEY=VALUE, got {item!r}")
+        key, _, raw = item.partition("=")
+        overrides[key.strip()] = parse_scalar(raw.strip())
+    return overrides
+
+
 @app.command("render")
 def render(
     part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
@@ -208,21 +245,146 @@ def render(
         None, "--set", metavar="KEY=VALUE",
         help="Any other module parameter, repeatable: --set thumbscrew=true"),
     out: Path = typer.Option(Path("out"), "-o", "--out"),
+    no_user_config: bool = typer.Option(
+        False, "--no-user-config",
+        help="Ignore saved `foundry defaults`/`foundry settings` and render at "
+             "true catalogue values plus only what's passed here — what CI does."),
 ):
-    """Render one catalogue part to STL."""
+    """Render one catalogue part to STL.
+
+    Applies your saved `foundry defaults`/`foundry settings` unless
+    --no-user-config is given: catalogue default -> saved user default
+    -> the flags passed here, in that order.
+    """
     catalogue = load_catalogue()
     part = find_part(catalogue, part_id)
+    overrides = _collect_overrides(gx, gy, magnets, screws, set_)
+    stl_path = render_part(part, overrides, out, use_user_config=not no_user_config)
+    typer.echo(f"wrote {stl_path}")
+
+
+defaults_app = typer.Typer(add_completion=False, help=(
+    "Persisted per-part parameter overrides, layered between catalogue.yaml's "
+    "committed defaults and a single `render` call's flags — 'gridfinity should "
+    "always have magnet holes on'. Applied automatically by `foundry render` "
+    "(pass --no-user-config to skip); never applied to build/preview/goldens or "
+    "the test suite, which always reflect true catalogue.yaml defaults. Saved as "
+    "OpenSCAD Customizer JSON under ~/.config/connector-foundry/overrides/, one "
+    "file per part, so it also opens as a parameter set in the OpenSCAD GUI."
+))
+app.add_typer(defaults_app, name="defaults")
+
+
+@defaults_app.command("set")
+def defaults_set(
+    part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
+    gx: int = typer.Option(None),
+    gy: int = typer.Option(None),
+    magnets: bool = typer.Option(None),
+    screws: bool = typer.Option(None),
+    set_: list[str] = typer.Option(None, "--set", metavar="KEY=VALUE"),
+):
+    """Save (merging into any already saved) this part's user defaults."""
+    catalogue = load_catalogue()
+    part = find_part(catalogue, part_id)
+    overrides = _collect_overrides(gx, gy, magnets, screws, set_)
+    if not overrides:
+        raise typer.BadParameter("nothing to save — pass at least one parameter")
+    check_parameters(part, overrides)
+    merged = userconfig.update_overrides(part_id, overrides)
+    typer.echo(f"{part_id}: saved user default {merged}")
+
+
+@defaults_app.command("show")
+def defaults_show(part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base")):
+    """Catalogue default, saved user override, and the effective merge."""
+    catalogue = load_catalogue()
+    part = find_part(catalogue, part_id)
+    catalogue_defaults = part.get("defaults", {})
+    user = userconfig.get_overrides(part_id)
+    typer.echo(f"catalogue default: {catalogue_defaults}")
+    typer.echo(f"user override:     {user or '(none)'}")
+    typer.echo(f"effective:         {({**catalogue_defaults, **user})}")
+
+
+@defaults_app.command("clear")
+def defaults_clear(
+    part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
+    param: list[str] = typer.Option(
+        None, "--param", help="Clear only these; omit to clear every saved override for this part."),
+):
+    userconfig.clear_overrides(part_id, param or None)
+    typer.echo(f"{part_id}: cleared {'all' if not param else ', '.join(param)} saved override(s)")
+
+
+@defaults_app.command("list")
+def defaults_list():
+    """Every part with a saved user override."""
+    catalogue = load_catalogue()
+    ids = userconfig.overridden_part_ids(catalogue)
+    if not ids:
+        typer.echo("no saved user defaults")
+        return
+    for part_id in ids:
+        typer.echo(f"{part_id}: {userconfig.get_overrides(part_id)}")
+
+
+def constants_names() -> list[str]:
+    """Top-level constant names declared in lib/constants.scad — the
+    same idea as module_parameters(), applied to `foundry settings` so
+    an unknown -D name is caught here instead of silently doing nothing
+    at render time (OpenSCAD ignores a -D that names nothing)."""
+    source = (REPO_ROOT / "lib" / "constants.scad").read_text()
+    return re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", source, re.MULTILINE)
+
+
+settings_app = typer.Typer(add_completion=False, help=(
+    "Persisted printer-level overrides — constants from lib/constants.scad, "
+    "e.g. fit clearance ('my printer runs tight'). Same override layer and "
+    "storage mechanism as `defaults`, just not scoped to one part: applied to "
+    "every render regardless of which part it is."
+))
+app.add_typer(settings_app, name="settings")
+
+
+@settings_app.command("set")
+def settings_set(
+    fit_clearance: float = typer.Option(None, help="Shorthand for --set FIT_CLEARANCE=..."),
+    set_: list[str] = typer.Option(
+        None, "--set", metavar="NAME=VALUE",
+        help="Any constant from lib/constants.scad, repeatable."),
+):
     overrides = {}
-    for name, value in [("gx", gx), ("gy", gy), ("magnets", magnets), ("screws", screws)]:
-        if value is not None:
-            overrides[name] = value
+    if fit_clearance is not None:
+        overrides["FIT_CLEARANCE"] = fit_clearance
     for item in set_ or []:
         if "=" not in item:
-            raise typer.BadParameter(f"--set expects KEY=VALUE, got {item!r}")
+            raise typer.BadParameter(f"--set expects NAME=VALUE, got {item!r}")
         key, _, raw = item.partition("=")
         overrides[key.strip()] = parse_scalar(raw.strip())
-    stl_path = render_part(part, overrides, out)
-    typer.echo(f"wrote {stl_path}")
+    if not overrides:
+        raise typer.BadParameter("nothing to save — pass --fit-clearance or --set")
+    known = constants_names()
+    unknown = [k for k in overrides if k not in known]
+    if unknown:
+        raise typer.BadParameter(f"not a constant in lib/constants.scad: {', '.join(unknown)}")
+    merged = userconfig.update_global_overrides(overrides)
+    typer.echo(f"saved global settings: {merged}")
+
+
+@settings_app.command("show")
+def settings_show():
+    saved = userconfig.get_global_overrides()
+    typer.echo(saved if saved else "no saved global settings")
+
+
+@settings_app.command("clear")
+def settings_clear(
+    param: list[str] = typer.Option(
+        None, "--param", help="Clear only these; omit to clear every saved global setting."),
+):
+    userconfig.clear_global_overrides(param or None)
+    typer.echo(f"cleared {'all' if not param else ', '.join(param)} saved global setting(s)")
 
 
 @app.command("build")
@@ -233,7 +395,7 @@ def build(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Pa
         typer.echo("pass --all to build the whole catalogue")
         raise typer.Exit(1)
     for part in catalogue["parts"]:
-        stl_path = render_part(part, {}, out)
+        stl_path = render_part(part, {}, out, use_user_config=False)
         typer.echo(f"wrote {stl_path}")
 
 
@@ -286,7 +448,7 @@ def goldens(update: bool = typer.Option(False, "--update",
     recorded: dict[str, dict] = {}
     with tempfile.TemporaryDirectory() as tmp:
         for part, params, tag in catalogue_cases(catalogue):
-            stl = render_part(part, params, Path(tmp) / tag)
+            stl = render_part(part, params, Path(tmp) / tag, use_user_config=False)
             mesh = trimesh.load(stl)
             recorded.setdefault(part["id"], {})[tag] = {
                 "bbox": [round(float(v), 3) for v in mesh.extents],

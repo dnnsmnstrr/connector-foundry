@@ -57,6 +57,30 @@ belong there:
   request (`importedFiles`), written into the WASM filesystem right next to the generated
   `.scad` before it compiles.
 
+## User overrides (`src/lib/userOverrides.js`)
+
+The browser side of the CLI's `foundry defaults`/`foundry settings` — see the root README's
+"User overrides" section for the resolution order (catalogue default -> saved override ->
+instance value) and why it's one resolver per side rather than two that could disagree. A few
+things specific to the web implementation:
+
+- Backed by `localStorage`, not a file, but the same Customizer-JSON shape as the CLI's saved
+  files (`fileFormatVersion`/`parameterSets`, one `"user-default"` preset) so the two stay
+  conceptually interchangeable. Every read/write is wrapped in `try`/`catch` — a private window,
+  cleared site data, or some embedding contexts throw or come back empty, and that has to degrade
+  to "no saved overrides" rather than break the app.
+- `sync-scad.mjs` also writes `public/global-defaults.json`, extracted from
+  `lib/constants.scad`'s simple top-level literals (skips anything computed) — so the Settings
+  modal has a real catalogue-default number for FIT_CLEARANCE to diff and reset against instead
+  of a second hand-typed copy of `0.15` living in JS.
+- A global override rides to the worker as a `globalOverrides` map on the render request and
+  comes out the other end as real `-D NAME=value` flags (`openscad-worker.js`) — the same
+  mechanism `cli/foundry.py`'s `run_openscad()` uses, and it overrides a constant set via
+  `include` the same way on both: confirmed with a native `openscad -D FIT_CLEARANCE=...` run
+  before relying on it here, not assumed. Only affects a part that actually reads
+  `FIT_CLEARANCE` — Gridfinity/GoPro/openGrid wrap a vendored module with its own fit logic and
+  won't move.
+
 ## Local dev
 
 ```bash

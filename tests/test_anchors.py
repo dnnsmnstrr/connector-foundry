@@ -39,7 +39,7 @@ def _parts():
 def test_face_anchors_land_on_the_origin(part, render_dir):
     out_dir = render_dir / "anchors" / part["id"].replace("/", "_")
     for name, (axis, side) in FACES.items():
-        stl = foundry.render_part(part, {"anchor": foundry.Raw(name)}, out_dir)
+        stl = foundry.render_part(part, {"anchor": foundry.Raw(name)}, out_dir, use_user_config=False)
         mesh = trimesh.load(stl)
         stl.rename(out_dir / f"{name}.stl")
 

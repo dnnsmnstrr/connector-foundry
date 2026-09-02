@@ -135,6 +135,53 @@ generated from it — run `foundry readme` after adding a part. Confidence:
 | ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Stands upright on its "bot" anchor (flat end down), no supports needed. |
 <!-- CATALOGUE:END -->
 
+## User overrides
+
+"Gridfinity should always have magnet holes on" — a personal preference, not a change to what's
+in the repo. `catalogue.yaml`'s defaults stay exactly as committed; a saved override is a
+separate, persisted layer resolved on top of them:
+
+    catalogue default -> saved user override -> this render's/this instance's value
+
+One resolver implements that order — `cli/foundry.py`'s `resolve_params()` for the CLI,
+`web/src/lib/userOverrides.js`'s `resolveParams()` for the web app — so the two can't drift into
+disagreeing about which value wins. Saved as [OpenSCAD Customizer
+JSON](https://openscad.org/documentation.html#customizer-command-line-interface)
+(`fileFormatVersion` + `parameterSets`, one preset named `user-default`) rather than an invented
+format — the original plan's own section 6 pointed at this as the way to make parameter sets
+data instead of CLI flags, and it means a saved file also opens correctly as a parameter set in
+the OpenSCAD GUI.
+
+```bash
+foundry defaults set gridfinity/base --magnets   # always render this on, from now on
+foundry defaults show gridfinity/base            # catalogue default, your override, and the merge
+foundry defaults clear gridfinity/base           # back to plain catalogue defaults
+foundry defaults list                            # every part with a saved override
+
+foundry settings set --fit-clearance 0.25        # printer runs tight — same override layer,
+foundry settings show                            # just not scoped to one part (lib/constants.scad's
+foundry settings clear                           # FIT_CLEARANCE/$slop and friends)
+
+foundry render gridfinity/base                   # picks up both automatically
+foundry render gridfinity/base --no-user-config  # true catalogue defaults, ignoring saved overrides —
+                                                  # what build/preview/goldens and the test suite always do
+```
+
+Saved under `~/.config/connector-foundry/` (`$XDG_CONFIG_HOME` if set), one JSON file per part
+plus a reserved `__global__` one for settings — outside the repo, so it never shows up in `git
+status` and never leaks into a checkout. `render_part()`'s own default is `use_user_config=False`
+for the same reason from the other direction: every render the test suite does passes that
+explicitly (`tests/conftest.py`), so a saved override on one developer's machine can't make
+`test_dimensions` fail confusingly there and pass in CI — the tests always see true catalogue
+values, only `foundry render` (interactively, on purpose) applies your saved overrides.
+
+The web app's Library and Bench both do the same three-layer resolution, backed by
+`localStorage` instead of a file (best-effort — wrapped in `try`/`catch`, since a private window
+or cleared site data can make it come back empty or throw). Each parameter field shows a small
+dot when its current value differs from the catalogue default, with a one-click reset back to
+it; "Save as my default" / "Clear my saved default" work on the part as a whole. A gear icon in
+the top nav opens the same thing for global settings (FIT_CLEARANCE).
+
 ## Accuracy
 
 A part that is the wrong shape still renders, is still watertight, and still has a perfectly

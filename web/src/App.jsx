@@ -3,6 +3,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
+import {
+  clearGlobalOverrides,
+  clearOverrides,
+  getGlobalOverrides,
+  getOverrides,
+  resolveParams,
+  setOverrides,
+  updateGlobalOverrides,
+} from "./lib/userOverrides.js";
 
 function useCatalogue() {
   const [parts, setParts] = useState(null);
@@ -14,6 +23,17 @@ function useCatalogue() {
       .catch((err) => setError(err.message));
   }, []);
   return { parts, error };
+}
+
+function useGlobalDefaults() {
+  const [defaults, setDefaults] = useState(null);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}global-defaults.json`)
+      .then((res) => res.json())
+      .then(setDefaults)
+      .catch(() => setDefaults({}));
+  }, []);
+  return defaults;
 }
 
 function groupBySystem(parts) {
@@ -36,15 +56,28 @@ function matchesSearch(part, query) {
   );
 }
 
-function ParamField({ name, value, options, onChange }) {
-  // A parameter with a fixed set of values is a dropdown, not a text
-  // box: these are strings OpenSCAD compares literally, so a typo or the
-  // wrong capitalisation silently renders the fallback branch rather
-  // than failing. The list comes from catalogue.yaml.
+// catalogueDefault + onReset: an "obvious way to see that a value
+// differs from the catalogue default and reset it back" — a dot next
+// to the label plus a reset button, shown only when the current value
+// actually differs (deep-enough for the primitives every param is).
+function ParamField({ name, value, options, catalogueDefault, onChange, onReset }) {
+  const differs = catalogueDefault !== undefined && value !== catalogueDefault;
+  const label = (
+    <span className="field-label">
+      {differs && <span className="field-differs" title={`Catalogue default: ${catalogueDefault}`} />}
+      {name}
+      {differs && onReset && (
+        <button type="button" className="field-reset" title="Reset to catalogue default" onClick={onReset}>
+          ↺
+        </button>
+      )}
+    </span>
+  );
+
   if (options) {
     return (
       <label className="field">
-        {name}
+        {label}
         <select value={value} onChange={(e) => onChange(e.target.value)}>
           {options.map((option) => (
             <option key={option} value={option}>
@@ -59,14 +92,14 @@ function ParamField({ name, value, options, onChange }) {
     return (
       <label className="field field-checkbox">
         <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-        {name}
+        {label}
       </label>
     );
   }
   if (typeof value === "number") {
     return (
       <label className="field">
-        {name}
+        {label}
         <input
           type="number"
           value={value}
@@ -78,19 +111,73 @@ function ParamField({ name, value, options, onChange }) {
   }
   return (
     <label className="field">
-      {name}
+      {label}
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
 
-function Library({ parts }) {
+// Shared by Library and the Bench settings entry point: FIT_CLEARANCE
+// and friends, the "same override layer" as per-part defaults but not
+// scoped to a part — see web/src/lib/userOverrides.js.
+function SettingsModal({ globalDefaults, onClose }) {
+  const [saved, setSaved] = useState(() => getGlobalOverrides());
+  const catalogueDefault = globalDefaults?.FIT_CLEARANCE;
+  const current = saved.FIT_CLEARANCE ?? catalogueDefault;
+  const differs = catalogueDefault !== undefined && current !== catalogueDefault;
+
+  function apply(value) {
+    setSaved(updateGlobalOverrides({ FIT_CLEARANCE: value }));
+  }
+
+  function reset() {
+    clearGlobalOverrides(["FIT_CLEARANCE"]);
+    setSaved(getGlobalOverrides());
+  }
+
+  return (
+    <div className="bench-modal-backdrop" onClick={onClose}>
+      <div className="bench-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Printer settings</h3>
+        <p className="muted">
+          Applied to every render, on top of any part's own defaults — the same saved-override layer, just not
+          scoped to one part. Only affects parts that actually read FIT_CLEARANCE (Basics and 2020-extrusion parts,
+          and bolted/snap joints) — a part that wraps a vendored upstream module directly (Gridfinity, GoPro,
+          openGrid) uses that upstream's own fit logic instead and won't change here.
+        </p>
+        <label className="field">
+          <span className="field-label">
+            {differs && <span className="field-differs" title={`Catalogue default: ${catalogueDefault}`} />}
+            FIT_CLEARANCE (mm) — printer runs tight? increase it.
+            {differs && (
+              <button type="button" className="field-reset" title="Reset to catalogue default" onClick={reset}>
+                ↺
+              </button>
+            )}
+          </span>
+          <input
+            type="number"
+            step="any"
+            value={current ?? ""}
+            onChange={(e) => apply(Number(e.target.value))}
+          />
+        </label>
+        <button className="bench-modal-cancel" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Library({ parts, globalDefaults }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [params, setParams] = useState({});
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
+  const [savedVersion, setSavedVersion] = useState(0); // bumps to force a re-read of localStorage
   // Renders resolve out of order — a cached part swaps in instantly while
   // a slower one is still compiling — so only the newest request may
   // touch the viewer.
@@ -102,6 +189,11 @@ function Library({ parts }) {
   );
   const groups = useMemo(() => groupBySystem(filteredParts), [filteredParts]);
   const selected = useMemo(() => parts?.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
+  const savedOverride = useMemo(
+    () => (selected ? getOverrides(selected.id) : {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected, savedVersion],
+  );
 
   useEffect(() => {
     if (parts && !selectedId) setSelectedId(parts[0].id);
@@ -109,7 +201,12 @@ function Library({ parts }) {
 
   const doRender = async (renderParams) => {
     if (!selected) return;
-    const request = { scadFile: selected.file, module: selected.module, params: renderParams };
+    const request = {
+      scadFile: selected.file,
+      module: selected.module,
+      params: renderParams,
+      globalOverrides: getGlobalOverrides(),
+    };
 
     const seq = ++renderSeq.current;
 
@@ -139,9 +236,10 @@ function Library({ parts }) {
 
   useEffect(() => {
     if (!selected) return;
-    const defaults = { ...selected.defaults };
-    setParams(defaults);
-    doRender(defaults);
+    // catalogue default -> saved user override -> (no instance value yet)
+    const initial = resolveParams(selected, {});
+    setParams(initial);
+    doRender(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
@@ -155,6 +253,28 @@ function Library({ parts }) {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  function saveAsDefault() {
+    const catalogueDefaults = selected.defaults ?? {};
+    const diff = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== catalogueDefaults[key]) diff[key] = value;
+    }
+    setOverrides(selected.id, diff);
+    setSavedVersion((v) => v + 1);
+  }
+
+  function clearSavedDefault() {
+    clearOverrides(selected.id);
+    setSavedVersion((v) => v + 1);
+  }
+
+  function resetAllToCatalogue() {
+    const catalogueDefaults = { ...(selected.defaults ?? {}) };
+    setParams(catalogueDefaults);
+  }
+
+  const hasSavedOverride = Object.keys(savedOverride).length > 0;
 
   return (
     <div className="app">
@@ -209,9 +329,33 @@ function Library({ parts }) {
                     name={key}
                     value={value}
                     options={selected.options?.[key]}
+                    catalogueDefault={selected.defaults?.[key]}
                     onChange={(next) => setParams((p) => ({ ...p, [key]: next }))}
+                    onReset={() => setParams((p) => ({ ...p, [key]: selected.defaults?.[key] }))}
                   />
                 ))}
+
+                {Object.keys(params).length > 0 && (
+                  <div className="params-defaults-row">
+                    <button className="bench-modal-cancel params-defaults-button" onClick={resetAllToCatalogue}>
+                      Reset all to catalogue
+                    </button>
+                    <button className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
+                      Save as my default
+                    </button>
+                    {hasSavedOverride && (
+                      <button className="bench-modal-cancel params-defaults-button" onClick={clearSavedDefault}>
+                        Clear my saved default
+                      </button>
+                    )}
+                  </div>
+                )}
+                {hasSavedOverride && (
+                  <p className="muted params-saved-note">
+                    Your saved default for this part: {JSON.stringify(savedOverride)}
+                  </p>
+                )}
+
                 <p className="source-note">Source: {selected.source}</p>
                 {renderError && <p className="error-text">{renderError}</p>}
               </div>
@@ -238,7 +382,9 @@ function Library({ parts }) {
 
 export default function App() {
   const { parts, error } = useCatalogue();
+  const globalDefaults = useGlobalDefaults();
   const [mode, setMode] = useState("library"); // "library" | "bench"
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
   if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
@@ -253,10 +399,14 @@ export default function App() {
         <button className={mode === "bench" ? "mode-tab active" : "mode-tab"} onClick={() => setMode("bench")}>
           Bench
         </button>
+        <button className="mode-tab settings-tab" onClick={() => setSettingsOpen(true)} title="Printer settings">
+          ⚙ Settings
+        </button>
       </nav>
       <div className="shell-body">
-        {mode === "library" ? <Library parts={parts} /> : <Bench parts={parts} />}
+        {mode === "library" ? <Library parts={parts} globalDefaults={globalDefaults} /> : <Bench parts={parts} />}
       </div>
+      {settingsOpen && <SettingsModal globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

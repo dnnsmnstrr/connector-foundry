@@ -14,6 +14,7 @@ import { addAnchor, createImportedPart, nextAnchorName, removeAnchor } from "./l
 import { validateAndRepair } from "./lib/meshValidate.js";
 import { renderPart } from "./lib/openscad-client.js";
 import { enumerateSlots } from "./lib/slots.js";
+import { getGlobalOverrides, resolveParams } from "./lib/userOverrides.js";
 
 const JOINTS = ["fused", "bolted", "snap"];
 
@@ -268,7 +269,12 @@ export default function Bench({ parts }) {
       return;
     }
     let cancelled = false;
-    renderPart({ scadFile: rootPart.file, module: rootPart.module, params: assembly.root.params }).then((buf) => {
+    renderPart({
+      scadFile: rootPart.file,
+      module: rootPart.module,
+      params: assembly.root.params,
+      globalOverrides: getGlobalOverrides(),
+    }).then((buf) => {
       if (!cancelled) setRootExtents(meshExtents(buf));
     });
     return () => {
@@ -308,7 +314,7 @@ export default function Bench({ parts }) {
       try {
         const importedFiles = new Map();
         const scadSource = compileToScad(assembly, partsById, importedFiles);
-        const buf = await renderPart({ scadSource, part: "all", importedFiles });
+        const buf = await renderPart({ scadSource, part: "all", importedFiles, globalOverrides: getGlobalOverrides() });
         if (seq !== renderSeq.current) return;
         setStlBuffer(buf);
         setStatus("done");
@@ -322,11 +328,16 @@ export default function Bench({ parts }) {
   }, [assembly, partsById]);
 
   function pickRoot(part) {
-    setAssembly(createAssembly(part.id, part.defaults ?? {}));
+    // catalogue default -> saved user override -> (no instance value yet) —
+    // same resolution as Library mode, so "gridfinity should always have
+    // magnet holes on" applies here too. A no-op for an imported part
+    // (no catalogue defaults, no saved override under a fresh uuid id).
+    setAssembly(createAssembly(part.id, resolveParams(part, {})));
   }
 
   function attachChild(part) {
-    setAssembly((a) => addChild(a, { partId: part.id, params: part.defaults ?? {}, slotName: pendingSlot, joint: pendingJoint }));
+    const params = resolveParams(part, {});
+    setAssembly((a) => addChild(a, { partId: part.id, params, slotName: pendingSlot, joint: pendingJoint }));
     setPendingSlot(null);
     setPendingJoint("fused");
   }
@@ -362,7 +373,7 @@ export default function Bench({ parts }) {
       try {
         const importedFiles = new Map();
         const scadSource = compileToScad(assembly, partsById, importedFiles);
-        const buf = await renderPart({ scadSource, part: tag, importedFiles });
+        const buf = await renderPart({ scadSource, part: tag, importedFiles, globalOverrides: getGlobalOverrides() });
         const blob = new Blob([buf], { type: "model/stl" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");

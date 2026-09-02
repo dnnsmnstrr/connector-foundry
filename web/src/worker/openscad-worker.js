@@ -66,7 +66,7 @@ self.onmessage = (event) => {
   enqueue(() => renderOne(event.data));
 };
 
-async function renderOne({ id, scadFile, module, params, scadSource, part, importedFiles }) {
+async function renderOne({ id, scadFile, module, params, scadSource, part, importedFiles, globalOverrides }) {
   try {
     const bundle = await getBundle();
     const instance = await createOpenSCAD({
@@ -78,6 +78,20 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     const os = instance.getInstance();
     mountBundle(os.FS, bundle);
 
+    // -D overrides that apply regardless of request shape: `part=` for
+    // an assembly's body selector, plus any global settings (e.g.
+    // FIT_CLEARANCE — see web/src/lib/userOverrides.js) as real -D
+    // flags, which OpenSCAD honours over a plain top-level assignment
+    // even when that assignment came from an included file (verified:
+    // lib/constants.scad's FIT_CLEARANCE=0.15 is overridden by
+    // `-D FIT_CLEARANCE=0.3` the same way for a native `openscad` run
+    // as it is here) — same mechanism the CLI uses (run_openscad()).
+    const extraArgs = [];
+    if (part) extraArgs.push("-D", `part=${scadLiteral(part)}`);
+    for (const [key, value] of Object.entries(globalOverrides || {})) {
+      extraArgs.push("-D", `${key}=${scadLiteral(value)}`);
+    }
+
     // Two request shapes: a single catalogue part (scadFile + module +
     // params -> `include <..>; module(args);`), or a fully generated
     // source (scadSource) for a Bench assembly — see
@@ -86,12 +100,11 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     // etc.), so it's mounted at that same depth for its relative
     // includes to resolve, and it's also the literal file a "download
     // .scad" export would hand someone to drop into assemblies/.
-    let mainPath, extraArgs = [];
+    let mainPath;
     if (scadSource) {
       mainPath = "/repo/assemblies/_bench.scad";
       mkdirp(os.FS, "/repo/assemblies");
       os.FS.writeFile(mainPath, scadSource);
-      if (part) extraArgs = ["-D", `part=${scadLiteral(part)}`];
 
       // Imported STL files (assembly.js's compileToScad() generates
       // `import("imports/<id>.stl")` inside the module it writes for

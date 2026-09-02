@@ -31,12 +31,19 @@ function getWorker() {
   return worker;
 }
 
-function cacheKey({ scadFile, module, params, scadSource, part }) {
-  if (scadSource) return JSON.stringify(["assembly", scadSource, part ?? "all"]);
+function sortedEntries(obj) {
+  return Object.entries(obj || {}).sort(([a], [b]) => a.localeCompare(b));
+}
+
+function cacheKey({ scadFile, module, params, scadSource, part, globalOverrides }) {
+  // globalOverrides folded in so a FIT_CLEARANCE change actually
+  // busts the cache instead of replaying a stale mesh rendered under
+  // the old value.
+  const globals = sortedEntries(globalOverrides);
+  if (scadSource) return JSON.stringify(["assembly", scadSource, part ?? "all", globals]);
   // Sorted, so two parameter objects that differ only in key order —
   // which JSON.stringify would otherwise distinguish — share an entry.
-  const entries = Object.entries(params || {}).sort(([a], [b]) => a.localeCompare(b));
-  return JSON.stringify([scadFile, module, entries]);
+  return JSON.stringify([scadFile, module, sortedEntries(params), globals]);
 }
 
 function store(key, stl) {
@@ -85,7 +92,7 @@ export function renderPart(request) {
   const existing = inFlight.get(key);
   if (existing) return existing;
 
-  const { scadFile, module, params, scadSource, part, importedFiles } = request;
+  const { scadFile, module, params, scadSource, part, importedFiles, globalOverrides } = request;
   const id = nextId++;
   const w = getWorker();
   const promise = new Promise((resolve, reject) => {
@@ -96,7 +103,7 @@ export function renderPart(request) {
     // the first one, leaving it unusable for the next. Structured
     // clone copies it instead — a bit more work per render, but the
     // bytes stay valid for the imported part's whole session lifetime.
-    w.postMessage({ id, scadFile, module, params, scadSource, part, importedFiles });
+    w.postMessage({ id, scadFile, module, params, scadSource, part, importedFiles, globalOverrides });
   }).then(
     (stl) => {
       inFlight.delete(key);

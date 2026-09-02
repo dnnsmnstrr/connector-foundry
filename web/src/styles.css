@@ -258,6 +258,56 @@ html, body, #root {
   align-items: center;
 }
 
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.field-differs {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e0c07f;
+  flex-shrink: 0;
+}
+
+.field-reset {
+  background: transparent;
+  border: none;
+  color: #7d8bd8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.1rem;
+  line-height: 1;
+}
+
+.field-reset:hover {
+  color: #a8b4ff;
+}
+
+.params-defaults-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+.params-defaults-button {
+  width: 100%;
+  font-size: 0.78rem;
+  padding: 0.4rem;
+}
+
+.params-saved-note {
+  font-size: 0.72rem;
+  word-break: break-word;
+}
+
+.settings-tab {
+  margin-left: auto;
+}
+
 .source-note {
   font-size: 0.75rem;
   color: #6d6e73;
