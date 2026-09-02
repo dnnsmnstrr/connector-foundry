@@ -41,7 +41,13 @@ module og_board(cells_x = 2, cells_y = 2, variant = "full",
     // every board 1.6mm too big to tile with real ones.)
     size = [cells_x * OG_PITCH, cells_y * OG_PITCH, og_board_thickness(variant)];
 
-    attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
+    // One slot per cell, exactly [cells_x, cells_y] of them — not
+    // derived from size/pitch, which would misplace slots off true cell
+    // centers whenever a cell count is even (the default 2x2 included).
+    anchors = concat([mount_anchor(size.z / 2)],
+                      grid_mount_anchors(size, OG_PITCH, size.z / 2, count = [cells_x, cells_y]));
+
+    attachable(anchor, spin, orient, size = size, anchors = anchors) {
         if (variant == "lite")
             openGridLite(cells_x, cells_y, tileSize = OG_PITCH,
                          Screw_Mounting = screw_mounting, Chamfers = chamfers,

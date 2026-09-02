@@ -61,3 +61,24 @@ def test_option_lists_agree_with_defaults_and_variants():
                         f"{part['id']} [{variant['name']}]: {key}={value!r} "
                         f"is not in {options[key]}")
     assert not problems, "\n".join(problems)
+
+
+def test_slot_count_params_are_real_defaults():
+    """`slots.count_params`, when present, names the two parameters whose
+    values the web editor reads as the slot grid's (nx, ny) — a typo'd
+    or stale name here would make the editor enumerate the wrong grid
+    (or crash) without any render ever failing. tests/test_slots.py
+    checks the pitch/count against the geometry; this just checks the
+    two names actually resolve to something."""
+    problems = []
+    for part in _parts():
+        count_params = part.get("slots", {}).get("count_params")
+        if not count_params:
+            continue
+        if len(count_params) != 2:
+            problems.append(f"{part['id']}: slots.count_params must name exactly 2 params, got {count_params!r}")
+            continue
+        for key in count_params:
+            if key not in part.get("defaults", {}):
+                problems.append(f"{part['id']}: slots.count_params names {key!r}, which has no default")
+    assert not problems, "\n".join(problems)

@@ -19,6 +19,20 @@
 #   into a vendored upstream carries that upstream's terms instead — see
 #   the README "Licensing" section. This field is not decoration: it is
 #   what a downstream user has to read before shipping a part.
+#
+# slots: for a part with enough surface area to place something off-
+#   centre, its "mount_<i>_<j>" anchor grid — see lib/slots.scad's
+#   grid_mount_anchors(). `pitch` (mm) is always required.
+#   `count_params`, if present, names the two current parameters whose
+#   values ARE the slot count on each axis (e.g. openGrid: one slot per
+#   cell, so count is exactly [cells_x, cells_y] — an even cell count
+#   has no center cell, so those indices land on half-integers, which
+#   is correct, not a bug). Omit `count_params` when the grid is a free
+#   subdivision instead of tied to a specific feature (e.g. Gridfinity):
+#   the web editor then derives the nearest-odd count from the part's
+#   own rendered bounding box ÷ pitch, same formula as slot_count() in
+#   lib/slots.scad. tests/test_slots.py renders and probes the grid
+#   either way, so this can't drift from the geometry.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -28,6 +42,8 @@ parts:
     confidence: exact
     source: "Wraps gridfinity-rebuilt-openscad (kennetek, MIT), vendored at vendor/gridfinity-rebuilt"
     print_note: Print as-is, functional face (feet) down. No supports needed.
+    slots:
+      pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
     defaults:
       gx: 1
       gy: 1
@@ -227,6 +243,9 @@ parts:
       halves back to back with a deliberate gap between them, so it
       contains one sealed cavity per cell — expected, not a modelling
       error, but it does mean the interior is unreachable once printed.
+    slots:
+      pitch: 28  # OG_PITCH — one slot per cell
+      count_params: [cells_x, cells_y]
     defaults:
       cells_x: 2
       cells_y: 2

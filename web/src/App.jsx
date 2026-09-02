@@ -1,5 +1,6 @@
 import yaml from "js-yaml";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Bench from "./Bench.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 
@@ -83,8 +84,7 @@ function ParamField({ name, value, options, onChange }) {
   );
 }
 
-export default function App() {
-  const { parts, error } = useCatalogue();
+function Library({ parts }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [params, setParams] = useState({});
@@ -156,14 +156,9 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
-  if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
-
   return (
     <div className="app">
       <aside className="sidebar">
-        <h1>Connector Foundry</h1>
-        <p className="tagline">Printable mounting interfaces, compiled in your browser.</p>
         <input
           type="search"
           className="search-input"
@@ -237,6 +232,31 @@ export default function App() {
           </>
         )}
       </main>
+    </div>
+  );
+}
+
+export default function App() {
+  const { parts, error } = useCatalogue();
+  const [mode, setMode] = useState("library"); // "library" | "bench"
+
+  if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
+  if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
+
+  return (
+    <div className="shell">
+      <nav className="mode-tabs">
+        <span className="brand">Connector Foundry</span>
+        <button className={mode === "library" ? "mode-tab active" : "mode-tab"} onClick={() => setMode("library")}>
+          Library
+        </button>
+        <button className={mode === "bench" ? "mode-tab active" : "mode-tab"} onClick={() => setMode("bench")}>
+          Bench
+        </button>
+      </nav>
+      <div className="shell-body">
+        {mode === "library" ? <Library parts={parts} /> : <Bench parts={parts} />}
+      </div>
     </div>
   );
 }

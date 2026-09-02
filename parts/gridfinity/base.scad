@@ -1,5 +1,9 @@
 // Gridfinity bin base. Functional face is BOTTOM (also the print
-// orientation); mates through the "mount" anchor on TOP.
+// orientation); mates through the "mount" anchor on TOP, or through any
+// slot in the "mount_<i>_<j>" grid at GRID_DIMENSIONS_MM.x/3 (14mm)
+// pitch — a 1x1 base gets a 3x3 grid, and it scales with gx/gy for
+// free since the pitch is fixed and the footprint grows (see
+// lib/slots.scad's grid_mount_anchors()).
 //
 // The geometry is NOT reimplemented here. This is a thin wrapper that
 // calls gridfinityBase() from the upstream reference implementation,
@@ -34,7 +38,10 @@ module gf_base(gx = 1, gy = 1, magnets = false, screws = false,
         chamfer     = (magnets || screws) && chamfer,
         supportless = (magnets || screws) && supportless);
 
-    attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
+    slot_pitch = GRID_DIMENSIONS_MM.x / 3;
+    anchors = concat([mount_anchor(size.z / 2)], grid_mount_anchors(size, slot_pitch, size.z / 2));
+
+    attachable(anchor, spin, orient, size = size, anchors = anchors) {
         down(size.z / 2)
             gridfinityBase([gx, gy], hole_options = holes,
                            only_corners = only_corners, thumbscrew = thumbscrew);

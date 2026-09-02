@@ -31,7 +31,8 @@ function getWorker() {
   return worker;
 }
 
-function cacheKey({ scadFile, module, params }) {
+function cacheKey({ scadFile, module, params, scadSource, part }) {
+  if (scadSource) return JSON.stringify(["assembly", scadSource, part ?? "all"]);
   // Sorted, so two parameter objects that differ only in key order —
   // which JSON.stringify would otherwise distinguish — share an entry.
   const entries = Object.entries(params || {}).sort(([a], [b]) => a.localeCompare(b));
@@ -84,12 +85,12 @@ export function renderPart(request) {
   const existing = inFlight.get(key);
   if (existing) return existing;
 
-  const { scadFile, module, params } = request;
+  const { scadFile, module, params, scadSource, part } = request;
   const id = nextId++;
   const w = getWorker();
   const promise = new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    w.postMessage({ id, scadFile, module, params });
+    w.postMessage({ id, scadFile, module, params, scadSource, part });
   }).then(
     (stl) => {
       inFlight.delete(key);
