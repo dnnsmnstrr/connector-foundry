@@ -99,15 +99,23 @@ catalogue-default diff/reset/save-as-default flow as Library mode. Export and th
 unaffected by depth: STL/`.scad` export still walks the whole tree, and both pickers (start a
 bench, attach to a slot) group parts by system the same way Library's sidebar does.
 
+Each attached part also has an **Offset (mm)** field next to its joint choice: how far it sinks
+into whatever it's directly touching. Negative pushes the two parts into each other (useful for a
+boolean union that needs real overlap to avoid a coincident-face sliver, or a deliberately recessed
+fit); positive pulls them apart, leaving a gap. Zero — the default — is a plain flush attachment,
+same as before this existed.
+
 **STL import** lets you bring in a part that isn't in the catalogue — a Mechanism or Printables
 download, say — and use it exactly like any other Bench part: pick it as the root or a child,
 click a point on its surface to place a slot there. Rather than dropping the slot at the exact
 pixel you clicked, it walks out across every connected, coplanar triangle from the hit point
 (`web/src/lib/faceCluster.js`) to find the whole flat face under the cursor and centers the slot
 on *that* — click anywhere on a mounting face and land in the middle of it, not wherever the ray
-happened to hit. A curved or faceted region has no such flat neighbor, so this degrades to the hit
-triangle's own point — never worse than a raw click, and exact on any genuinely flat CAD-exported
-face. Every upload goes through
+happened to hit. Clicking a face that already has a slot centered on it doesn't add a second one on
+top — it just re-selects the existing slot, since the same face always centers to the same point.
+A curved or faceted region has no such flat neighbor, so this degrades to the hit triangle's own
+point — never worse than a raw click, and exact on any genuinely flat CAD-exported face. Every
+upload goes through
 a validate-and-repair gate first (`web/src/lib/meshValidate.js`): weld coincident vertices,
 check for open/non-manifold edges, fix inconsistent winding and inside-out shells where that's
 safe, and refuse — with a plain explanation — a mesh with an actual hole rather than pass it

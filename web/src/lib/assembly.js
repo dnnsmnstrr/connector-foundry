@@ -56,8 +56,14 @@ export function occupiedSlotNames(assembly, parentId) {
 // purpose), but a user-chosen name for an imported part, or for a
 // multi-anchor part (Basics plate/post) being stacked onto from one of
 // its non-"mount" faces.
-export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount" }) {
-  const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor };
+//
+// `overlap` (mm, default 0): how far the child sinks into whatever it's
+// directly touching (the parent for a fused joint, the far flange for
+// bolted/snap) — negative pulls it out instead, leaving a gap. See
+// attachChildScad()'s overlapArg() for the sign flip against BOSL2's
+// own `overlap=`, which goes the other way.
+export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0 }) {
+  const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap };
   return { ...assembly, nodes: [...assembly.nodes, child] };
 }
 
@@ -82,6 +88,13 @@ export function updateChildJoint(assembly, childId, joint) {
   return {
     ...assembly,
     nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, joint } : c)),
+  };
+}
+
+export function updateChildOverlap(assembly, childId, overlap) {
+  return {
+    ...assembly,
+    nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, overlap } : c)),
   };
 }
 
@@ -180,6 +193,19 @@ function partCallArgs(part, params) {
 // install (see the CLI). A child hitting this shows a render error in
 // the Bench UI rather than silently producing a wrong mesh — annoying,
 // not unsafe — and switching that connection to "fused" always works.
+// BOSL2's own attach()/align() `overlap=` sinks the child INTO whatever
+// it's attached to for a POSITIVE value (see vendor/BOSL2/attachments.scad's
+// docs: "Amount to sink the child into the parent"). The Bench's own
+// "Offset" field goes the other way — negative sinks in — since that
+// reads more naturally ("push it in further" as "more negative", the
+// same direction as "move the child's own position back"), so this
+// flips the sign once here rather than asking every caller to remember
+// which way BOSL2's convention runs. Omitted entirely at 0 (BOSL2's own
+// default) to keep generated .scad free of a no-op argument.
+function overlapArg(child) {
+  return child.overlap ? `, overlap=${-child.overlap}` : "";
+}
+
 // `innerBlock` is already-rendered .scad for this child's OWN children
 // (from a recursive emitChildren() call) — "" for a leaf. Returns one
 // complete, self-terminated statement either way: a bare module call
@@ -187,20 +213,23 @@ function partCallArgs(part, params) {
 function attachChildScad(childPart, child, innerBlock) {
   const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
   const body = innerBlock ? ` {\n${innerBlock}\n    }` : ";";
+  const overlap = overlapArg(child);
   if (child.joint === "fused") {
-    return `attach("${child.slotName}", "${child.childAnchor}") ${call}${body}`;
+    return `attach("${child.slotName}", "${child.childAnchor}"${overlap}) ${call}${body}`;
   }
   const [flangeA, flangeB] = child.joint === "bolted"
     ? ["bolted_flange_a", "bolted_flange_b"]
     : ["snap_flange_a", "snap_flange_b"];
   // Two bodies: flangeA is fused to the parent (part of the parent's
   // own body), flangeB + the child (+ its own descendants) are their
-  // own body (part.tag == this child's id).
+  // own body (part.tag == this child's id). `overlap` applies to the
+  // final placement of the child itself, not the flanges — that's the
+  // join a user is actually looking at when they reach for this.
   return (
     `attach("${child.slotName}", "mount") ${flangeA}()\n` +
     `        if (part == "all" || part == "${child.id}")\n` +
     `            attach(BOTTOM, "mount") ${flangeB}()\n` +
-    `                attach(BOTTOM, "${child.childAnchor}") ${call}${body}`
+    `                attach(BOTTOM, "${child.childAnchor}"${overlap}) ${call}${body}`
   );
 }
 

@@ -433,6 +433,20 @@ html, body, #root {
   padding: 0.15rem 0.3rem;
 }
 
+.bench-offset-field {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+}
+
+.bench-offset-field input {
+  width: 4.5rem;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.75rem;
+}
+
 .bench-export {
   display: flex;
   flex-direction: column;

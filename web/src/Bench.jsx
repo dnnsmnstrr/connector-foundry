@@ -13,6 +13,7 @@ import {
   occupiedSlotNames,
   removeChild,
   updateChildJoint,
+  updateChildOverlap,
   updateNodeParams,
 } from "./lib/assembly.js";
 import { groupBySystem, matchesSearch } from "./lib/catalogueUtils.js";
@@ -23,6 +24,14 @@ import { enumerateSlots } from "./lib/slots.js";
 import { clearOverrides, getGlobalOverrides, getOverrides, resolveParams, setOverrides } from "./lib/userOverrides.js";
 
 const JOINTS = ["fused", "bolted", "snap"];
+
+// How close a newly-clicked slot center has to be to an already-placed
+// one to count as "the same face, clicked again" rather than a genuine
+// second slot — see ImportFlow's placeSlot(). Small relative to typical
+// printed-part scale (10s of mm), generous enough to absorb the tiny
+// floating-point drift between two clusterFace() runs starting from
+// different triangles in the same coplanar patch.
+const DUPLICATE_SLOT_TOLERANCE_MM = 0.75;
 
 // A bolted/snap joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -226,6 +235,20 @@ function ImportFlow({ mode, onCancel, onConfirm }) {
 
   function placeSlot(point, normal) {
     setPart((p) => {
+      // clusterFace() is deterministic per connected coplanar patch —
+      // clicking the same flat face again (anywhere on it) recomputes
+      // the same center, regardless of which triangle was actually hit
+      // this time. Rather than stack a second marker on top of the
+      // first, treat "very close to an existing anchor" as "that one" —
+      // select it instead of adding a duplicate.
+      const existing = p.anchors.find((a) => {
+        const ex = a.point[0] + p.center[0], ey = a.point[1] + p.center[1], ez = a.point[2] + p.center[2];
+        return Math.hypot(ex - point[0], ey - point[1], ez - point[2]) < DUPLICATE_SLOT_TOLERANCE_MM;
+      });
+      if (existing) {
+        setSelectedAnchor(existing.name);
+        return p;
+      }
       const name = nextAnchorName(p);
       const next = addAnchor(p, name, point, normal);
       setSelectedAnchor(name);
@@ -411,7 +434,7 @@ function NodeParamsPanel({ nodeId, node, part, onUpdateParams }) {
 // beyond a one-line hint; an imported part's arbitrary user-placed
 // anchors still use the "attach here" buttons below, since there's no
 // single predictable "up" for those.
-function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRemove, onJointChange, onUpdateParams }) {
+function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRemove, onJointChange, onOverlapChange, onUpdateParams }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
   const kids = childrenOf(assembly, nodeId);
@@ -437,6 +460,15 @@ function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRe
           ))}
         </select>
       </div>
+      <label className="field bench-offset-field" title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
+        Offset (mm)
+        <input
+          type="number"
+          step="any"
+          value={node.overlap ?? 0}
+          onChange={(e) => onOverlapChange(nodeId, Number(e.target.value))}
+        />
+      </label>
       <details className="bench-node-params-details">
         <summary>Parameters</summary>
         <NodeParamsPanel nodeId={nodeId} node={node} part={part} onUpdateParams={onUpdateParams} />
@@ -463,6 +495,7 @@ function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRe
               onAttachSlot={onAttachSlot}
               onRemove={onRemove}
               onJointChange={onJointChange}
+              onOverlapChange={onOverlapChange}
               onUpdateParams={onUpdateParams}
             />
           ))}
@@ -729,6 +762,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
               onAttachSlot={(parentId, slotName) => setPendingSlot({ parentId, slotName })}
               onRemove={(id) => setAssembly((a) => removeChild(a, id))}
               onJointChange={(id, joint) => setAssembly((a) => updateChildJoint(a, id, joint))}
+              onOverlapChange={(id, overlap) => setAssembly((a) => updateChildOverlap(a, id, overlap))}
               onUpdateParams={updateParams}
             />
           ))}

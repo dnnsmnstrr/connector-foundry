@@ -81,6 +81,13 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - Every node — root or any depth of child — gets a parameter editor in the sidebar
   (`NodeParamsPanel`), the exact same catalogue-default diff/reset/save-as-default flow as Library
   mode's params panel (`src/components/ParamField.jsx`, shared between the two).
+- Each child carries an `overlap` field (mm, default 0) — the root README's "Offset" — that
+  becomes BOSL2 `attach()`'s own `overlap=` on the *final* attach in that child's chain (the plain
+  attach for a fused joint, or the child-onto-flangeB attach for bolted/snap — never the flanges'
+  own placement, which stays exactly where the joint geometry expects it).
+  `lib/assembly.js`'s `overlapArg()` flips the sign: BOSL2's own convention is positive-sinks-in,
+  the Bench's is negative-sinks-in (reads more naturally as "push it in further" = "more negative"),
+  and 0 is omitted from the generated `.scad` entirely rather than emitted as a no-op argument.
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
   parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
@@ -92,7 +99,11 @@ a part actually has anchors left over. A few implementation notes that don't bel
   coplanarity tolerances) to find the whole flat face under the cursor, then reports its 2D-bbox
   center and normal — `StlViewer.jsx`'s raycast handler runs this and hands the result to
   `onSurfacePick`. That center becomes a `named_anchor()` on the generated wrapper, same as any
-  catalogue part's. The uploaded/repaired bytes travel to the worker as a `Map` in the render
+  catalogue part's. Since `clusterFace()` is deterministic per coplanar patch, clicking an
+  already-slotted face again recomputes the same center regardless of which triangle in it was
+  actually hit — `Bench.jsx`'s `placeSlot()` checks new-point-vs-existing-anchors distance
+  (`DUPLICATE_SLOT_TOLERANCE_MM`) and re-selects the existing anchor instead of stacking a second
+  marker on it. The uploaded/repaired bytes travel to the worker as a `Map` in the render
   request (`importedFiles`), written into the WASM filesystem right next to the generated
   `.scad` before it compiles.
 
