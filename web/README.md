@@ -51,22 +51,33 @@ a part actually has anchors left over. A few implementation notes that don't bel
   node's `attach()` call around whatever's attached to it; `bodyTagOf()`/`bodyTags()` generalise
   "one printable body per fused subtree" to any depth the same way.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
-  prop), raycast-clickable, but **root-only**: a named-anchor position is in the part's own
-  centered local frame, and root is the only node BOSL2 places with no rotation, so converting
-  that to a world position is a plain height/2 shift (`Bench.jsx`'s `centeredToWorld()`). A
-  non-root node's own axes don't line up with world space in general, because `attach()` flips the
-  child to make its anchor antiparallel to the parent's — reproducing that transform in JS just to
-  place a marker is a correctness trap for no real gain, so a deeper node's open slots are listed
-  as plain "+ Attach: `<name>`" buttons in the sidebar (`slotsForNode()`) instead of guessed-at 3D
-  points. The rendered/exported geometry is unaffected either way, since that goes through real
-  BOSL2, not this shortcut.
-- Every node's own standalone extents (needed to enumerate its slots) come from rendering its
-  part alone with its own params — the same computation for root and any descendant, since a
-  part's own size never depends on where it sits in the tree. Catalogue.yaml's `anchors` field
-  (`[bot, xpos, xneg, ypos, yneg]`) is what makes a multi-anchor part like Basics plate/post
-  enumerable this way without parsing its `.scad`: each name is just the center of that face of
-  the part's own rendered bounding box (`src/lib/slots.js`'s `FACE_ANCHOR_LOCAL`) — no per-part
-  formula to restate.
+  prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
+  its "bot" anchor open (`Bench.jsx`'s `stackSlotFor()`). A named-anchor position is in the part's
+  own centered local frame; root is the only node BOSL2 places with no rotation, so its markers are
+  a plain height/2 shift (`centeredToWorld()`). A non-root node's own axes don't line up with world
+  space in general, because `attach()` flips the child to make its anchor antiparallel to the
+  parent's — reproducing that rotation in JS to place an arbitrary marker would be a correctness
+  trap. "bot" specifically sidesteps it: it sits on the part's local Z axis (x=0, y=0), directly
+  opposite "mount" (the only anchor a catalogue part ever attaches through), and *any* 180° flip
+  about a horizontal axis sends an on-axis point to the same place — `(0,0,h)` to `(0,0,-h)` — so
+  which horizontal axis BOSL2 actually rotated about doesn't matter for this one point. That gives
+  an exact world position (`exposedTopWorldPosition()`: the node's own attach point, plus its own
+  height, recursed up the chain) without knowing BOSL2's rotation convention at all. It does *not*
+  generalise to an off-axis anchor (a plate's `xpos`/`ypos`/etc, where the two candidate rotations
+  disagree) — those stay sidebar-only for now (`slotsForNode()`, reached only for an imported
+  part's arbitrary user-placed anchors, which have no "up" to reason about this way either). Marker
+  ids are `"<parentId>::<slotName>"` so one click handler (`onMarkerClick`) resolves a click on
+  any node's marker the same way. The rendered/exported geometry is unaffected either way, since
+  that goes through real BOSL2, not this shortcut.
+- Every node's own standalone extents (needed to place its own marker and enumerate its slots)
+  come from rendering its part alone with its own params — the same computation for root and any
+  descendant, since a part's own size never depends on where it sits in the tree. Catalogue.yaml's
+  `anchors` field (`[bot, xpos, xneg, ypos, yneg]`) is what makes a multi-anchor part like Basics
+  plate/post enumerable this way without parsing its `.scad`: each name is just the center of that
+  face of the part's own rendered bounding box (`src/lib/slots.js`'s `FACE_ANCHOR_LOCAL`) — no
+  per-part formula to restate. The Bench currently only *offers* `bot` for stacking (see the root
+  README); the rest of the field, and `FACE_ANCHOR_LOCAL`'s other entries, stay there for root's
+  own display and as the seam for whenever off-axis stacking is worth the marker-placement work.
 - Every node — root or any depth of child — gets a parameter editor in the sidebar
   (`NodeParamsPanel`), the exact same catalogue-default diff/reset/save-as-default flow as Library
   mode's params panel (`src/components/ParamField.jsx`, shared between the two).

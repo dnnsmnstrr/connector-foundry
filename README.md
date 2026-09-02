@@ -83,20 +83,21 @@ its own STL — see `assemblies/`.
 
 The web app's Bench tab (`web/src/Bench.jsx`) is a visual editor: pick a base part, click one of
 its slots, attach something else there with a joint type, repeat — and, if what you just attached
-has anchors of its own beyond the one it used, keep going: a Basics plate fused onto a Gridfinity
-base still offers its other five faces afterward, so a GoPro mount can go on top of *that*. This
-is "stacking" — the assembly is a tree of any depth, not just root-plus-children. It only goes
-anywhere for a part built to branch (Basics plate/post, or any multi-slot grid): a terminal
-connector (GoPro, 2020-extrusion, DeckMate) only ever has the one anchor it just spent attaching
-itself, so nothing further shows up on it — that's expected, not a missing feature. Root's own
-open slots are still clickable 3D markers in the viewer; a deeper node's open slots show as
-"+ Attach: `<name>`" buttons in its own row in the sidebar instead, since a non-root node's own
-axes don't line up with world space the way root's do (see `web/src/lib/assembly.js`'s comment on
-BOSL2's attach() flip). Every part placed in the Bench — root or any depth of child — has its own
-parameter editor in the sidebar, the same catalogue-default diff/reset/save-as-default flow as
-Library mode. Export and the part picker are unaffected by depth: STL/`.scad` export still walks
-the whole tree, and both pickers (start a bench, attach to a slot) group parts by system the same
-way Library's sidebar does.
+has a "bot" anchor of its own (opposite whichever face it just attached through), keep going: a
+Basics plate fused onto a Gridfinity base still offers its bottom face afterward — now facing up,
+since attaching flips the part — so a GoPro mount can go on top of *that*, as a real clickable
+marker in the scene right along with root's own. This is "stacking" — the assembly is a tree of
+any depth, not just root-plus-children. It only goes anywhere for a part built to branch (Basics
+plate/post, or any multi-slot grid): a terminal connector (GoPro, 2020-extrusion, DeckMate) only
+ever has the one anchor it just spent attaching itself, so nothing further shows up on it — that's
+expected, not a missing feature. For now this is deliberately just the one further anchor
+("bot") rather than a plate's full set (its side faces — xpos/xneg/ypos/yneg — are a lot more to
+take in as text and, with a rotated part, harder to place correctly in 3D too); scoped to the
+straightforward "on top of the last thing" case first, with room to grow. Every part placed in the
+Bench — root or any depth of child — has its own parameter editor in the sidebar, the same
+catalogue-default diff/reset/save-as-default flow as Library mode. Export and the part picker are
+unaffected by depth: STL/`.scad` export still walks the whole tree, and both pickers (start a
+bench, attach to a slot) group parts by system the same way Library's sidebar does.
 
 **STL import** lets you bring in a part that isn't in the catalogue — a Mechanism or Printables
 download, say — and use it exactly like any other Bench part: pick it as the root or a child,

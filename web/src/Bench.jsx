@@ -69,18 +69,70 @@ function meshExtents(stlBuffer) {
 // whole part additionally shifts up by half its height so its bottom
 // lands on world z=0 — so a centered-frame anchor position converts to
 // a world marker position by adding height/2 on Z only.
-//
-// This only holds for the ROOT: it's the only node BOSL2 places with no
-// rotation (attach()'s own flip means a non-root node's local axes
-// don't line up with world space in general — see lib/assembly.js's
-// attachChildScad() comment). So 3D slot markers are root-only; a
-// deeper node's own open slots are listed as buttons in the sidebar
-// instead (see NodeTree below) rather than guessed at with the wrong
-// transform.
 function centeredToWorld([x, y, z], extents) {
   return [x, y, z + extents[2] / 2];
 }
 
+// Whether `nodeId` currently has its "bot" anchor open for stacking —
+// deliberately narrower than the part's full anchor set (see
+// STACK_ANCHOR below for why) and, for now, catalogue parts only:
+// imported parts still use slotsForNode()'s general button UI, since
+// their anchors are arbitrary user-placed points, not a predictable
+// "straight up from here" one.
+const STACK_ANCHOR = "bot";
+
+function stackSlotFor(assembly, partsById, nodeId) {
+  const node = getNode(assembly, nodeId);
+  const part = node && partsById.get(node.partId);
+  if (!node || !part || part.kind === "imported") return null;
+  if (!part.anchors?.includes(STACK_ANCHOR)) return null;
+  if (occupiedSlotNames(assembly, nodeId).has(STACK_ANCHOR)) return null;
+  return STACK_ANCHOR;
+}
+
+// World position of the point where `nodeId` itself touches its own
+// parent. For a root child this is just a lookup in `rootSlotWorldPositions`
+// (root's own slots are already computed in the part's local frame and
+// converted once). For anything deeper, it's the parent's own exposed
+// "bot" point (see exposedTopWorldPosition) — which only has a stable
+// meaning if this node actually attached through that exact anchor, so
+// this bails to null rather than guess for anything else (an imported
+// parent, or — currently unreachable via the UI, but defensive — a
+// catalogue node attached through some other anchor).
+function attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
+  const node = getNode(assembly, nodeId);
+  if (node.parentId === ROOT_ID) return rootSlotWorldPositions.get(node.slotName) ?? null;
+  const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
+  if (parentPart.kind === "imported" || node.slotName !== STACK_ANCHOR) return null;
+  return exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, node.parentId);
+}
+
+// World position of `nodeId`'s own "bot" anchor, i.e. where a further
+// part could stack on top of it. `bot` sits on the part's local Z axis
+// (x=0, y=0), directly opposite "mount" — every catalogue part attaches
+// via its own "mount" (attachChild() never overrides childAnchor), and
+// BOSL2's attach() flips the child 180° about *some* horizontal axis so
+// mount ends up touching the parent. For a point already on the axis of
+// that rotation, which horizontal axis BOSL2 picked doesn't matter: any
+// 180° turn about a horizontal axis sends (0,0,h) to (0,0,-h), full
+// stop. So "bot" ends up exactly `extents.z` above wherever "mount"
+// landed, with x/y unchanged — no need to know or replicate BOSL2's
+// actual rotation to place this marker correctly. That equivalence
+// breaks for an off-axis point (x!=0 or y!=0 — a plate's "xpos", "ypos",
+// etc.), where the two candidate rotations genuinely disagree; those
+// stay text-only in the sidebar for now rather than risk a wrong 3D
+// position (see stackSlotFor()'s STACK_ANCHOR comment).
+function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
+  const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
+  const extents = nodeExtents.get(nodeId);
+  if (!attachPoint || !extents) return null;
+  return [attachPoint[0], attachPoint[1], attachPoint[2] + extents[2]];
+}
+
+// A non-root node's open slots for the sidebar's "+ Attach" buttons —
+// now only reached for an imported part (a catalogue part's one
+// possible further slot, "bot", gets a real 3D marker instead; see
+// stackSlotFor() and the markers useMemo in Bench()).
 function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
   const node = getNode(assembly, nodeId);
   const part = node && partsById.get(node.partId);
@@ -353,14 +405,19 @@ function NodeParamsPanel({ nodeId, node, part, onUpdateParams }) {
 
 // One node in the "Attached" tree (always a non-root node — root gets
 // its own params panel above this list in Bench's sidebar). Renders
-// itself, its own open slots as "attach here" buttons (text, not a 3D
-// marker — see centeredToWorld()'s comment for why), and recurses into
-// whatever's attached to IT, to any depth.
+// itself and recurses into whatever's attached to IT, to any depth. A
+// catalogue part's own further slot (if it has one — see
+// stackSlotFor()) is a real 3D marker in the scene, not shown here
+// beyond a one-line hint; an imported part's arbitrary user-placed
+// anchors still use the "attach here" buttons below, since there's no
+// single predictable "up" for those.
 function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRemove, onJointChange, onUpdateParams }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
   const kids = childrenOf(assembly, nodeId);
-  const openSlots = slotsForNode(assembly, partsById, nodeExtents, nodeId);
+  const isImported = part.kind === "imported";
+  const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
+  const stackable = !isImported && stackSlotFor(assembly, partsById, nodeId) != null;
 
   return (
     <li className="bench-tree-node">
@@ -384,6 +441,7 @@ function NodeTree({ assembly, partsById, nodeExtents, nodeId, onAttachSlot, onRe
         <summary>Parameters</summary>
         <NodeParamsPanel nodeId={nodeId} node={node} part={part} onUpdateParams={onUpdateParams} />
       </details>
+      {stackable && <p className="muted bench-stack-hint">Has an open slot on top — click its marker in the scene.</p>}
       {openSlots.length > 0 && (
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
@@ -497,13 +555,33 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
   const occupied = useMemo(() => (assembly ? occupiedSlotNames(assembly, ROOT_ID) : new Set()), [assembly]);
   const openSlots = useMemo(() => allSlots.filter((s) => !occupied.has(s.name)), [allSlots, occupied]);
 
+  // Every root slot's world position, occupied or not — a deeper node's
+  // own exposed "bot" marker needs this even when the root slot it (or
+  // an ancestor of it) attaches through is already taken.
+  const rootSlotWorldPositions = useMemo(() => {
+    const m = new Map();
+    if (!rootExtents) return m;
+    for (const s of allSlots) m.set(s.name, centeredToWorld(s.point, rootExtents));
+    return m;
+  }, [allSlots, rootExtents]);
+
+  // 3D markers: root's own open slots, plus one more per stacked node
+  // that still has its "bot" anchor open (see stackSlotFor()). Each
+  // marker's id is "<parentId>::<slotName>" so one click handler can
+  // target root or any depth of child the same way.
   const markers = useMemo(() => {
-    if (!rootExtents) return [];
-    return openSlots.map((s) => {
+    if (!assembly || !rootExtents) return [];
+    const result = openSlots.map((s) => {
       const [x, y, z] = centeredToWorld(s.point, rootExtents);
-      return { id: s.name, x, y, z };
+      return { id: `${ROOT_ID}::${s.name}`, x, y, z };
     });
-  }, [openSlots, rootExtents]);
+    for (const node of assembly.nodes) {
+      if (!stackSlotFor(assembly, partsById, node.id)) continue;
+      const pos = exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, node.id);
+      if (pos) result.push({ id: `${node.id}::${STACK_ANCHOR}`, x: pos[0], y: pos[1], z: pos[2] });
+    }
+    return result;
+  }, [assembly, partsById, openSlots, rootExtents, rootSlotWorldPositions, nodeExtents]);
 
   // Re-render the whole assembly (debounced) whenever it changes.
   useEffect(() => {
@@ -674,9 +752,9 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
           <div>
             <h2>Bench</h2>
             <p className="print-note">
-              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. A part with its own
-              extra faces (a Basics plate or post, or another multi-slot part) keeps offering them once attached —
-              expand it in the sidebar to stack something onto it.
+              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. A part with a "bot"
+              anchor (a Basics plate or post) keeps offering it once attached — look for another marker on top of it
+              to stack something there.
               {status === "rendering" && " Rendering…"}
             </p>
           </div>
@@ -686,7 +764,10 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot }) {
             <StlViewer
               stlBuffer={stlBuffer}
               markers={markers}
-              onMarkerClick={(id) => setPendingSlot({ parentId: ROOT_ID, slotName: id })}
+              onMarkerClick={(id) => {
+                const [parentId, slotName] = id.split("::");
+                setPendingSlot({ parentId, slotName });
+              }}
             />
           ) : (
             <div className="viewer-placeholder">Rendering…</div>
