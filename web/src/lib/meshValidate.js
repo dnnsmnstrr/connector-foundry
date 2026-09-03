@@ -189,8 +189,11 @@ export function validateAndRepair(rawGeometry) {
   faces = faces.filter(([a, b, c]) => triangleArea(position, a, b, c) > MIN_COMPONENT_AREA_MM2);
   if (faces.length !== before) {
     report.push(`Dropped ${before - faces.length} degenerate (near-zero-area) triangles.`);
+    // Only now is the topology just built stale. Each rebuild is a full
+    // pass over every edge (a Map with ~1.5 entries per triangle), and on
+    // the common clean upload nothing was dropped, so the first one stands.
+    ({ faces, edgeMap } = commitFaces(geometry, faces));
   }
-  ({ faces, edgeMap } = commitFaces(geometry, faces));
 
   let adjacency = faceAdjacency(faces, edgeMap);
   let { components } = connectedComponents(faces, adjacency);
@@ -213,9 +216,17 @@ export function validateAndRepair(rawGeometry) {
     report.push(`Flipped ${flippedComponents} inside-out shell(s) to face outward.`);
   }
 
-  ({ faces, edgeMap } = commitFaces(geometry, faces));
-  adjacency = faceAdjacency(faces, edgeMap);
-  ({ components } = connectedComponents(faces, adjacency));
+  // A flip changes a face's index order, so the edge directions recorded
+  // at build time — what analyzeEdges() reads — go stale, and the index
+  // has to be written back; with no flip at all, faces, edgeMap,
+  // adjacency and components are exactly what a rebuild would produce.
+  // Skipping it there saves the second of the two big passes on a mesh
+  // that arrived correctly wound, which most exported ones do.
+  if (totalFlips > 0 || flippedComponents > 0) {
+    ({ faces, edgeMap } = commitFaces(geometry, faces));
+    adjacency = faceAdjacency(faces, edgeMap);
+    ({ components } = connectedComponents(faces, adjacency));
+  }
 
   const { openEdges, nonManifoldEdges, inconsistentEdges } = analyzeEdges(edgeMap);
   const solidComponents = components.filter((members) =>
