@@ -49,7 +49,8 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 
 | Module | What |
 | --- | --- |
-| `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference |
+| `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference, the render-in-progress indicator |
+| `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
 | `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |

@@ -3,6 +3,7 @@ import Bench from "./Bench.jsx";
 import Library from "./Library.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
+import { useRenderActivity } from "./hooks/useRenderActivity.js";
 import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
 
 // True while the event's target is somewhere a keystroke means "type a
@@ -21,6 +22,7 @@ function isEditableTarget(el) {
 export default function App() {
   const { parts, error } = useCatalogue();
   const globalDefaults = useGlobalDefaults();
+  const rendersInFlight = useRenderActivity();
   const [mode, setMode] = useState("library"); // "library" | "bench"
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
@@ -124,17 +126,31 @@ export default function App() {
         >
           Bench<kbd className="shortcut-hint">2</kbd>
         </button>
-        <button
-          type="button"
-          className="mode-tab settings-tab"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-          aria-haspopup="dialog"
-          title="Settings (s)"
-        >
-          <span aria-hidden="true">⚙</span>
-          <span className="settings-label"> Settings</span>
-        </button>
+        <div className="nav-end">
+          {/* Always mounted so the live region exists before it has news;
+              hidden (not unmounted) when idle. */}
+          <span
+            className="render-indicator"
+            role="status"
+            aria-live="polite"
+            hidden={rendersInFlight === 0}
+            title={rendersInFlight > 1 ? `${rendersInFlight} renders in progress` : "Render in progress"}
+          >
+            <span className="render-spinner" aria-hidden="true" />
+            <span className="render-indicator-text">Rendering…</span>
+          </span>
+          <button
+            type="button"
+            className="mode-tab settings-tab"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            aria-haspopup="dialog"
+            title="Settings (s)"
+          >
+            <span aria-hidden="true">⚙</span>
+            <span className="settings-label"> Settings</span>
+          </button>
+        </div>
       </nav>
       <div className="shell-body">
         {mode === "library" ? (

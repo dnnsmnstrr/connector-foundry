@@ -414,9 +414,46 @@ button, input, select, textarea {
   word-break: break-word;
 }
 
-.settings-tab {
+.nav-end {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
+
+/* "Rendering…" beside Settings while any OpenSCAD render is in flight
+   (hooks/useRenderActivity.js). [hidden] when idle — the element stays
+   in the DOM so its live region is already there when the text lands. */
+.render-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: #9db4e8;
+}
+
+.render-indicator[hidden] {
+  display: none;
+}
+
+.render-spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid #35407a;
+  border-top-color: #9db4e8;
+  animation: render-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes render-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The global reduced-motion rule above freezes the spin; a frozen
+   three-quarter ring still reads as "busy", so nothing more is needed. */
 
 .source-note {
   font-size: 0.75rem;
@@ -848,8 +885,13 @@ button, input, select, textarea {
   }
 
   .shortcut-hint,
-  .settings-label {
+  .settings-label,
+  .render-indicator-text {
     display: none;
+  }
+
+  .nav-end {
+    gap: 0.4rem;
   }
 
   /* Icon-only on mobile, so give the gear a finger-sized face. */

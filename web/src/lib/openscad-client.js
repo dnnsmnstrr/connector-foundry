@@ -16,6 +16,27 @@ const pending = new Map();
 const cache = new Map();
 const inFlight = new Map();
 
+// "Is anything rendering right now?" for the shell's progress indicator
+// (hooks/useRenderActivity.js). Derived from inFlight — every render
+// from every screen (Library, the Bench's assembly and per-node extents,
+// an export) passes through renderPart(), so this is complete without
+// any screen having to report its own status. Cache hits never enter
+// inFlight, so they don't flicker the indicator either.
+const activityListeners = new Set();
+
+function notifyActivity() {
+  for (const listener of activityListeners) listener();
+}
+
+export function getRenderActivity() {
+  return inFlight.size;
+}
+
+export function subscribeRenderActivity(listener) {
+  activityListeners.add(listener);
+  return () => activityListeners.delete(listener);
+}
+
 // Every request the worker still owes an answer for fails with `error`.
 // Used when the worker itself dies: a request whose worker is gone would
 // otherwise hang forever, since no "result"/"error" message is coming.
@@ -142,14 +163,17 @@ export function renderPart(request) {
   }).then(
     (stl) => {
       inFlight.delete(key);
+      notifyActivity();
       store(key, stl);
       return stl;
     },
     (err) => {
       inFlight.delete(key);
+      notifyActivity();
       throw err;
     },
   );
   inFlight.set(key, promise);
+  notifyActivity();
   return promise;
 }
