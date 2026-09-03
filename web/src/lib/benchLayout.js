@@ -85,6 +85,36 @@ export function rootSlots(rootPart, rootParams, rootExtents) {
   }));
 }
 
+// Perpendicular offsets closer than this count as "straight ahead" —
+// float dust in slot coordinates (i * pitch) must not decide a tie.
+const DIRECTION_TIE_MM = 1e-6;
+
+// The slot an arrow key moves a part to: among `slots` (root's, as
+// { name, point } — see rootSlots()), the one lying in direction
+// `[dx, dy]` (root's own x/y frame) from the slot named `from`. Only
+// slots named in `open` are candidates; `from` is there for its position
+// alone. "In that direction" means further along the axis than sideways
+// — a 90° cone — and of those, the straightest-ahead wins (the next slot
+// along the same row of a grid, skipping taken ones), nearest first when
+// several are equally straight. Null when nothing lies that way.
+export function slotInDirection(slots, from, open, [dx, dy]) {
+  const origin = slots.find((s) => s.name === from);
+  if (!origin) return null;
+  let best = null;
+  for (const slot of slots) {
+    if (slot.name === from || !open.has(slot.name)) continue;
+    const rx = slot.point[0] - origin.point[0];
+    const ry = slot.point[1] - origin.point[1];
+    const along = rx * dx + ry * dy;
+    const perp = Math.abs(rx * dy - ry * dx);
+    if (along <= DIRECTION_TIE_MM || perp > along + DIRECTION_TIE_MM) continue;
+    if (!best || perp < best.perp - DIRECTION_TIE_MM || (Math.abs(perp - best.perp) <= DIRECTION_TIE_MM && along < best.along)) {
+      best = { name: slot.name, along, perp };
+    }
+  }
+  return best?.name ?? null;
+}
+
 // Whether `nodeId` currently has its "bot" anchor open for stacking —
 // catalogue parts only, for now: imported parts still use
 // slotsForNode()'s general button UI, since their anchors are arbitrary

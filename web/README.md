@@ -56,8 +56,10 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Skips catalogue entries marked `hidden` (bitbeam/pin, bitbeam/axle), which stay in the parts map for the pin joint |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
-| `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `JointSelect` |
+| `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
+| `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
+| `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
@@ -74,7 +76,8 @@ screen.
 
 - Keyboard shortcuts: `1`/`2` switch Library/Bench, `s` opens Settings, `[` toggles the sidebar,
   `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
-  `isEditableTarget()` skips every single-key shortcut (not `Escape`, which is expected to work
+  `isEditableTarget()` (`src/lib/isEditableTarget.js`, shared with the Bench's own keys) skips every
+  single-key shortcut (not `Escape`, which is expected to work
   from inside a focused field the same way a native `<dialog>` does) whenever the event's target is
   a text input, `<select>`, or anything `contentEditable` — so typing "s" in the search box types
   an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL import) close on
@@ -92,12 +95,33 @@ screen.
   doesn't pop over the list.
 - Switching to the Bench goes through one `switchToBench()` (the tab and the `2` shortcut alike).
   With the "Switching to the Bench opens the Library's selected part" setting on (off by default,
-  `uiPrefs.js`), it seeds the Bench with Library's current part and parameters exactly as the
-  "Open in Bench" button does — Library reports its selection up via `onSelectionChange`, App
-  keeps it in a ref. It's a no-op from inside the Bench, so `2` there never resets an assembly.
-  The same ref goes back down as Library's `initialSelection` when it remounts, so switching to
-  the Bench and back lands on the part (and parameter edits) that were showing, not on the first
-  part in the catalogue.
+  `uiPrefs.js`), it seeds an *empty* Bench with Library's current part and parameters exactly as
+  the "Open in Bench" button does — Library reports its selection up via `onSelectionChange`, App
+  keeps it in a ref. A bench that's already started is never replaced by a switch; the button asks
+  first (`window.confirm`) when there is one to lose. It's a no-op from inside the Bench, so `2`
+  there never resets an assembly. The same ref goes back down as Library's `initialSelection` when
+  it remounts, so switching to the Bench and back lands on the part (and parameter edits) that
+  were showing, not on the first part in the catalogue.
+- **The bench survives the mode switch and a reload.** The tree and the imported meshes live in
+  `src/lib/benchSession.js` (module state, read through `hooks/useBenchSession.js`), not in
+  `Bench.jsx`'s own `useState` — the Bench unmounts whenever Library is up and used to take the
+  setup with it. On remount its render is a cache hit in `openscad-client.js`. App also mirrors
+  the tree into the URL hash (`src/lib/benchUrlState.js`): `#mode=bench&bench=<payload>`, the
+  payload being the tree as compact JSON (benchConfig.js's `root`/`nodes` shape, defaults left out)
+  in URL-safe base64 — a few hundred bytes for a typical bench — written with
+  `history.replaceState`: at once for a mode switch, 300 ms after the last edit for the tree, so
+  the address bar follows the bench without piling up history entries or rewriting per keystroke;
+  the plain URL means Library with no bench. Imported STL meshes are
+  far too big for a URL, so they go to `sessionStorage` (same embedded shape as a config file),
+  which survives a reload of *that tab* only. On load, App restores the bench from the hash before
+  rendering either mode (a `restored` gate also holds the mirror back, or it would overwrite the
+  hash it's about to read), through the same `hydrateBenchConfig()` a file goes through — checks,
+  fresh ids, meshes rebuilt. A link that can't be restored (truncated, or naming a mesh only the
+  original tab had) leaves an empty session carrying a `notice` that the Bench's start screen
+  shows in place of the config error, pointing at the config export, which does carry the meshes.
+  A `hashchange` after that (a bench link pasted into this tab's address bar — a same-document
+  navigation, so the app doesn't restart) restores again and switches to the hash's mode;
+  `replaceState` never fires `hashchange`, so every such event is external by construction.
 - Settings → "Part list" sets the order of the system headings in every `PartBrowser` (Library
   sidebar, start-a-bench, attach-to-slot). Default is catalogue order — `catalogue.yaml` is kept
   in the intended default order (Gridfinity, openGrid, GoPro, DeckMate, BitBeam, Basics, 2020
@@ -170,6 +194,27 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `overlayAnchor` the floating controls are pinned to — `StlViewer` re-projects that anchor every
   frame it draws and moves the overlay `<div>` with a transform, docking it at the bottom when there
   is no anchor.
+- Moving a part is `assembly.js`'s `moveChild()`: a new `parentId`/`slotName` on the node, nothing
+  else — its subtree comes along for free since every descendant is positioned relative to it. It
+  hands the assembly back unchanged for anything that isn't a move (target taken, target on the
+  node's own subtree, root), so callers don't pre-check. `Bench.jsx` wraps it in `moveNode()`, which
+  also drops a "screwed" joint to fused when the new parent gives it no pattern to screw into. Two
+  ways in: "Move" on the floating panel (or `M`) sets `moveMode`, and the next `onMarkerClick` is
+  a destination instead of an attach (`handleMarkerClick()`); while armed, the markers shown are
+  filtered to valid destinations (`shownMarkers` — the part's own open "bot" and its descendants'
+  are left out). Arrow keys skip the arming: `nudgeSelected()` asks `benchLayout.js`'s
+  `slotInDirection()` for the next open root slot in that direction — a 90° cone in root's own x/y
+  frame, straightest-ahead first (so the next slot along a grid row, past any taken ones), nearest
+  second — and only for a root child, since a stacked node's parent offers exactly one slot.
+  Directions are root's axes, not the screen's; a camera-relative mapping would need `StlViewer`
+  to expose its camera, which nothing else needs yet. Every selection change goes through
+  `selectNode()` so an armed move never outlives the part it was armed for.
+- The Bench's keys are one `window` `keydown` listener for the component's lifetime that calls
+  whatever handler the latest render left in `keyHandlerRef` (so it sees current state without
+  re-subscribing per render): `Escape` backs out one layer at a time (import flow, attach picker,
+  move mode, selection); `Delete`/`Backspace` removes the selected part, `M` toggles move mode,
+  arrows nudge — all three only with no modal up and the key not aimed at a field
+  (`src/lib/isEditableTarget.js`, the same check `App.jsx`'s shell shortcuts use).
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
   prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
   its "bot" anchor open (`src/lib/benchLayout.js`'s `stackSlotFor()`; everything about where a
@@ -264,6 +309,49 @@ a part actually has anchors left over. A few implementation notes that don't bel
   the first click on an imported mesh pays for building it. The uploaded/repaired bytes travel to
   the worker as a `Map` in the render request (`importedFiles`), written into the WASM filesystem
   right next to the generated `.scad` before it compiles.
+
+## Bench configs and presets (`src/lib/benchConfig.js`, `src/lib/benchPresets.js`)
+
+A bench setup as a document — the Bench's "Download config" / "Import config…" buttons and its
+"Presets" list are all one serialisation with two destinations (a file, or a named entry in
+localStorage), so a preset can always become a file and a file a preset with no conversion.
+
+- **Format**: JSON, `{ format: "connector-foundry/bench", version: 1, root, nodes, imports }`.
+  `root` and `nodes` are `assembly.js`'s own shape (`partId`, `params`, `parentId`, `slotName`,
+  `joint`, `childAnchor`, `overlap`, `spin`) rather than a second schema to keep in step. `imports`
+  carries every imported STL the tree references — name, the user-placed anchors, and the
+  validated mesh bytes base64-encoded — so the file is self-contained: a config that merely
+  *named* an upload would be unloadable in any other browser. Files are named
+  `<root-part-slug>.bench.json`; `version` is bumped on any incompatible change and an unknown
+  version is refused with a message, not guessed at.
+- **Loading is a checked hydration, not a `JSON.parse` into state** (`hydrateBenchConfig()`):
+  the format tag, every field's shape, every part id against the live catalogue, every joint
+  name, and every `parentId` (resolved parents-first, so node order in the file doesn't matter and
+  an orphan or cycle is an error). Node ids and import ids are re-issued through the session's own
+  allocators (`assembly.js`'s `allocateChildId()`, `importedPart.js`'s counter) — ids double as
+  body tags and marker ids, so a loaded `c1` must not collide with the next part attached. Each
+  imported mesh is rebuilt through the same `validateAndRepair()` gate an upload takes; the bytes
+  are the repaired mesh `createImportedPart()` exported, so they pass, and the recomputed center is
+  the frame the saved anchors are relative to. Nothing in Bench state changes unless the whole
+  document hydrates, so a bad file leaves the current bench untouched. Slot *names* are the one
+  thing not checked: which slots a part has depends on its rendered size and params (`slots.js`),
+  so a stale one shows up as a render error, the same way a bad parameter does.
+- **Presets** (`benchPresets.js`): one localStorage key holding `[{ name, savedAt, config }]`,
+  sorted by name, case-insensitive replace on an existing name. Read through
+  `useBenchPresets()` (a `useSyncExternalStore`, same pattern as the system order) so the start
+  screen's list and the sidebar's agree the moment one is saved or deleted. Reads are best-effort
+  like every other storage access here, but a *write* can fail for a reason the user needs to
+  hear — an embedded mesh can push the document past the origin's ~5 MB quota — so `savePreset()`
+  returns a message instead of failing silently, and the panel suggests the file export, which has
+  no such limit.
+- **UI** (`components/bench/PresetsPanel.jsx`): the same panel in two places. On the start screen
+  the saved presets sit above the part picker (only once there are any, or a config import has an
+  error to show) and "Import config…" is in the picker's toolbar beside "Import STL…"
+  (`ConfigImportButton`, a button fronting a hidden file input); in a running bench's sidebar the
+  panel also has the name field + Save (reads "Replace" when the name is taken) and its own import
+  button, and "Download config" joins the STL/.scad buttons under Export. Loading over an existing
+  bench and deleting a preset each ask first via `window.confirm` — the only two places the app
+  uses it.
 
 ## User overrides (`src/lib/userOverrides.js`)
 

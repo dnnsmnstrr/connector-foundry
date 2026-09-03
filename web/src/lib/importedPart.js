@@ -14,7 +14,13 @@ import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 
 let nextImportId = 1;
 
-export function createImportedPart(name, validation) {
+// `anchors` is only ever passed by benchConfig.js, rebuilding a part
+// from a saved config: the anchors are already in the centered frame
+// addAnchor() below stores them in, and the bytes being re-validated are
+// the repaired mesh this same module exported, so its center is the one
+// they were measured against. Always a fresh id, even then — the id
+// namespace is per session, and a config's ids are just labels.
+export function createImportedPart(name, validation, anchors = []) {
   const geometry = validation.geometry;
   return {
     id: `imported:${nextImportId++}`,
@@ -30,7 +36,8 @@ export function createImportedPart(name, validation) {
     extents: validation.extents,
     center: validation.center,
     report: validation.report,
-    anchors: [], // [{ name, point: [x,y,z] relative to center, normal: [nx,ny,nz] }]
+    // [{ name, point: [x,y,z] relative to center, normal: [nx,ny,nz] }]
+    anchors: anchors.map((a) => ({ name: a.name, point: [...a.point], normal: [...a.normal] })),
   };
 }
 

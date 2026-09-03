@@ -105,8 +105,18 @@ export function occupiedSlotNames(assembly, parentId) {
 // `spin=` convention — see spinArg()). Multiples of 90 are what the
 // scene's ↺/↻ buttons produce; any angle is allowed via the sidebar.
 export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0 }) {
-  const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin };
+  const child = { id: allocateChildId(), parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin };
   return { ...assembly, nodes: [...assembly.nodes, child] };
+}
+
+// The one source of child ids for this session. benchConfig.js's
+// hydration re-issues every node id of a loaded config through here, so
+// a config saved with "c1".."c5" can't hand out "c1" a second time to
+// the next part attached after it's loaded — ids are also the body tags
+// (bodyTags()) and the scene's marker ids, so a duplicate would be more
+// than cosmetic.
+export function allocateChildId() {
+  return `c${nextChildId++}`;
 }
 
 // Angles wrap to [0, 360) so eight ↻ presses land back on 0, not 720,
@@ -118,21 +128,52 @@ export function normalizeSpin(spin) {
   return Math.round(wrapped * 1e6) / 1e6;
 }
 
-// Removing a node removes its whole subtree — an orphaned grandchild
-// (parent gone, slot gone) has nothing left to attach through.
-export function removeChild(assembly, childId) {
-  const toRemove = new Set([childId]);
+// Every node attached below `id` — children, their children, and so on —
+// as a Set of ids. `id` itself is not in it.
+export function descendantIds(assembly, id) {
+  const found = new Set([id]);
   let grew = true;
   while (grew) {
     grew = false;
     for (const n of assembly.nodes) {
-      if (!toRemove.has(n.id) && toRemove.has(n.parentId)) {
-        toRemove.add(n.id);
+      if (!found.has(n.id) && found.has(n.parentId)) {
+        found.add(n.id);
         grew = true;
       }
     }
   }
+  found.delete(id);
+  return found;
+}
+
+// Removing a node removes its whole subtree — an orphaned grandchild
+// (parent gone, slot gone) has nothing left to attach through.
+export function removeChild(assembly, childId) {
+  const toRemove = descendantIds(assembly, childId).add(childId);
   return { ...assembly, nodes: assembly.nodes.filter((n) => !toRemove.has(n.id)) };
+}
+
+// Re-seats a child on another open slot — another slot of the same
+// parent, or one on a different node. Everything else about it (joint,
+// anchor, offset, spin, params) stays, and so does everything attached
+// to it: a subtree's positions are all relative to the node, so it
+// simply comes along. The assembly comes back unchanged when the move
+// isn't one: the target is taken, or it's the child itself or something
+// attached to it (a node can't hang off its own subtree), or the slot is
+// the one the target parent used to attach to ITS parent, or `childId`
+// is root. Callers needn't pre-check; "nothing happened" is the answer.
+export function moveChild(assembly, childId, { parentId, slotName }) {
+  const node = getNode(assembly, childId);
+  const parent = getNode(assembly, parentId);
+  if (!node || !parent || childId === ROOT_ID) return assembly;
+  if (parentId === childId || descendantIds(assembly, childId).has(parentId)) return assembly;
+  if (node.parentId === parentId && node.slotName === slotName) return assembly;
+  if (parentId !== ROOT_ID && parent.childAnchor === slotName) return assembly;
+  if (occupiedSlotNames(assembly, parentId).has(slotName)) return assembly;
+  return {
+    ...assembly,
+    nodes: assembly.nodes.map((n) => (n.id === childId ? { ...n, parentId, slotName } : n)),
+  };
 }
 
 export function updateChildJoint(assembly, childId, joint) {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
+import PresetsPanel, { ConfigImportButton } from "./components/bench/PresetsPanel.jsx";
 import SpinButtons from "./components/bench/SpinButtons.jsx";
 import Modal from "./components/Modal.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
@@ -15,7 +16,9 @@ import {
   childrenOf,
   compileToScad,
   createAssembly,
+  descendantIds,
   getNode,
+  moveChild,
   occupiedSlotNames,
   removeChild,
   rotateChild,
@@ -25,9 +28,15 @@ import {
   updateChildSpin,
   updateNodeParams,
 } from "./lib/assembly.js";
-import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint } from "./lib/benchLayout.js";
+import { useBenchPresets } from "./hooks/useBenchPresets.js";
+import { useBenchSession } from "./hooks/useBenchSession.js";
+import { configFilename, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
+import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint, slotInDirection } from "./lib/benchLayout.js";
 import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
+import { deletePreset, savePreset } from "./lib/benchPresets.js";
+import { replaceBenchSession, setBenchAssembly, setBenchImportedParts } from "./lib/benchSession.js";
 import { downloadBlob } from "./lib/download.js";
+import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
@@ -65,27 +74,32 @@ function friendlyRenderError(message) {
 // so typing a parameter value doesn't compile once per keystroke.
 const RENDER_DEBOUNCE_MS = 250;
 
-export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sidebarCollapsed, onToggleSidebar }) {
+// Arrow keys step the selected part to the next open slot that way,
+// in root's own x/y frame (see nudgeSelected()).
+const ARROW_DIRECTIONS = {
+  ArrowRight: [1, 0],
+  ArrowLeft: [-1, 0],
+  ArrowUp: [0, 1],
+  ArrowDown: [0, -1],
+};
+
+export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
-  const [importedParts, setImportedParts] = useState(new Map());
+  // The tree and the imported meshes live in lib/benchSession.js, not
+  // here: this component unmounts whenever the Library tab is up, and the
+  // bench has to survive that (and App.jsx mirrors it into the URL). The
+  // setters take a value or an updater, so the edits below read as before.
+  // `assembly` is null until a root is chosen; `notice` is App's message
+  // when a bench in the URL couldn't be restored (shown like a config
+  // error, below).
+  const { assembly, importedParts, notice } = useBenchSession();
+  const setAssembly = setBenchAssembly;
+  const setImportedParts = setBenchImportedParts;
   const partsById = useMemo(
     () => new Map([...catalogueById, ...importedParts]),
     [catalogueById, importedParts],
   );
 
-  const [assembly, setAssembly] = useState(null); // null until a root is chosen
-
-  // Library's "Open in Bench" seeds a root here, carrying over whatever
-  // params were showing there (not necessarily catalogue defaults) —
-  // fires once, on the mount that follows the mode switch (Bench fully
-  // unmounts when not the active tab, so there's no "already have an
-  // assembly" case to reconcile with).
-  useEffect(() => {
-    if (!pendingRoot) return;
-    setAssembly(createAssembly(pendingRoot.part.id, pendingRoot.params));
-    onConsumePendingRoot();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingRoot]);
   const [nodeExtents, setNodeExtents] = useState(new Map()); // node id ("root" or child id) -> [x,y,z]
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
@@ -94,27 +108,62 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   // clicking the part in the scene or its name in the sidebar. Never
   // root: there's nothing to spin root against (orbit the camera instead).
   const [selectedNodeId, setSelectedNodeId] = useState(null);
+  // "Move" is armed for the selected part: the next open marker clicked
+  // re-seats it there instead of opening the attach picker. Only
+  // meaningful while something is selected; every selection change
+  // (selectNode()) disarms it.
+  const [moveMode, setMoveMode] = useState(false);
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
   const renderSeq = useRef(0);
+  // Saved setups (lib/benchPresets.js) and whatever the last config
+  // load/save had to complain about — shown in the presets panel, on the
+  // start screen or in the sidebar, whichever is up, with the session's
+  // own restore `notice` as the fallback.
+  const presets = useBenchPresets();
+  const [configError, setConfigError] = useState(null);
+  const shownError = configError ?? notice;
 
-  // Escape closes whichever of the Bench's own modals is open — the
-  // import flow first (it's on top when both are technically "open"),
-  // then the attach-a-part picker — and with neither open, drops the
-  // scene selection. App.jsx's own keydown handler covers Settings and
-  // mode-switching; this one is local because the state it closes is
-  // local too.
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key !== "Escape") return;
+  // The Bench's own keys, one listener for the component's lifetime that
+  // reads the latest handler through a ref (the handler closes over this
+  // render's state and helpers). App.jsx's own keydown handler covers
+  // Settings and mode-switching; this one is local because the state it
+  // acts on is local too.
+  //
+  // Escape backs out of whichever is up — the import flow first (it's on
+  // top when both are technically "open"), then the attach-a-part picker,
+  // then move mode, then the selection. The rest act on the selected part,
+  // and only with no modal up and the key not meant for a field:
+  // Delete/Backspace removes it (subtree and all, like the sidebar's ✕),
+  // M arms/disarms move mode, an arrow key steps it to the next open slot
+  // that way.
+  const keyHandlerRef = useRef(null);
+  keyHandlerRef.current = (e) => {
+    if (e.key === "Escape") {
       if (importMode) setImportMode(null);
       else if (pendingSlot) setPendingSlot(null);
+      else if (moveMode) setMoveMode(false);
       else if (selectedNodeId) setSelectedNodeId(null);
+      return;
     }
+    if (importMode || pendingSlot || !assembly || isEditableTarget(e.target)) return;
+    if (!selectedNodeId || !getNode(assembly, selectedNodeId)) return;
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault(); // Backspace is "back" in some browsers
+      removeSelected();
+    } else if (e.key === "m" || e.key === "M") {
+      setMoveMode((armed) => !armed);
+    } else if (e.key in ARROW_DIRECTIONS) {
+      e.preventDefault(); // not a page scroll
+      nudgeSelected(ARROW_DIRECTIONS[e.key]);
+    }
+  };
+  useEffect(() => {
+    const onKeyDown = (e) => keyHandlerRef.current?.(e);
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [importMode, pendingSlot, selectedNodeId]);
+  }, []);
 
   const rootPart = assembly ? partsById.get(assembly.root.partId) : null;
 
@@ -189,6 +238,17 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     () => sceneMarkers({ assembly, partsById, openRootSlots: openSlots, rootExtents, rootSlotWorldPositions, nodeExtents }),
     [assembly, partsById, openSlots, rootExtents, rootSlotWorldPositions, nodeExtents],
   );
+
+  // In move mode the markers are the places the selected part can go, so
+  // the ones standing on the part itself or anything attached to it
+  // (its own open "bot", a stacked child's) are left out — moveChild()
+  // would refuse those anyway, but a marker that does nothing is worse
+  // than no marker.
+  const shownMarkers = useMemo(() => {
+    if (!moveMode || !selectedNodeId || !assembly) return markers;
+    const subtree = descendantIds(assembly, selectedNodeId).add(selectedNodeId);
+    return markers.filter((m) => !subtree.has(parseMarkerId(m.id).parentId));
+  }, [markers, moveMode, selectedNodeId, assembly]);
 
   // Where each node's body is, for click-to-select and the selection
   // outline — only the nodes whose place can be known without redoing
@@ -281,6 +341,60 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     setImportMode(null);
   }
 
+  // Every selection change goes through here so an armed "Move" never
+  // outlives the part it was armed for.
+  function selectNode(id) {
+    setSelectedNodeId(id);
+    setMoveMode(false);
+  }
+
+  // Re-seat `id` on `target` ({ parentId, slotName }) — see assembly.js's
+  // moveChild() for what it refuses (the assembly comes back as it was).
+  // A "screwed" joint the new parent can't take (no screw pattern on
+  // either side of the seam) falls back to fused, the same rule
+  // jointsFor() applies when the joint is chosen. The part stays
+  // selected, so its outline and controls follow it to the new slot.
+  function moveNode(id, target) {
+    setAssembly((a) => {
+      const moved = moveChild(a, id, target);
+      if (moved === a) return a;
+      const node = getNode(moved, id);
+      const parentPart = partsById.get(getNode(moved, target.parentId).partId);
+      if (node.joint === "screwed" && !screwedApplies(parentPart, partsById.get(node.partId))) {
+        return updateChildJoint(moved, id, "fused");
+      }
+      return moved;
+    });
+    setMoveMode(false);
+  }
+
+  function removeSelected() {
+    if (!selectedNodeId) return;
+    setAssembly((a) => removeChild(a, selectedNodeId));
+    selectNode(null);
+  }
+
+  // Arrow keys: the selected part steps to the next open slot that way
+  // on its parent. Root's slots only — those are the ones enumerated with
+  // positions (a part stacked on another has exactly one slot to be on).
+  // Directions are root's own x/y axes, not the screen's: with the
+  // default camera, → is roughly rightwards and ↑ roughly away.
+  function nudgeSelected(direction) {
+    const node = getNode(assembly, selectedNodeId);
+    if (!node || node.parentId !== ROOT_ID) return;
+    const open = new Set(openSlots.map((s) => s.name));
+    const target = slotInDirection(allSlots, node.slotName, open, direction);
+    if (target) moveNode(selectedNodeId, { parentId: ROOT_ID, slotName: target });
+  }
+
+  // A marker click: the destination of an armed move, otherwise "attach
+  // something here".
+  function handleMarkerClick(id) {
+    const target = parseMarkerId(id);
+    if (moveMode && selectedNodeId) moveNode(selectedNodeId, target);
+    else setPendingSlot(target);
+  }
+
   // Everything NodeTree can do to a node, bundled once here instead of
   // threaded through every level of the recursion as five props.
   const nodeActions = {
@@ -291,7 +405,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     setSpin: (id, spin) => setAssembly((a) => updateChildSpin(a, id, spin)),
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta)),
     setParams: (id, params) => setAssembly((a) => updateNodeParams(a, id, params)),
-    select: (id) => setSelectedNodeId(id),
+    select: selectNode,
   };
 
   // A click on the rendered assembly: the smallest known box under the
@@ -301,7 +415,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   // than none.
   function handleModelClick(point) {
     const id = point ? pickNodeAt(nodeBoxes, point) : null;
-    setSelectedNodeId(id && id !== ROOT_ID ? id : null);
+    selectNode(id && id !== ROOT_ID ? id : null);
   }
 
   async function downloadBody(tag) {
@@ -317,6 +431,60 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     downloadBlob(compileToScad(assembly, partsById), "bench_assembly.scad", "text/plain");
   }
 
+  // --- Configs and presets (lib/benchConfig.js, lib/benchPresets.js) ---
+  // One document serves both: "Download config" writes it to a file,
+  // "Save" keeps it in the browser under a name, and loading either goes
+  // through the same applyConfig().
+
+  function downloadConfig() {
+    const doc = serializeBenchConfig(assembly, partsById, rootPart.name);
+    downloadBlob(configToJson(doc), configFilename(rootPart.name), "application/json");
+  }
+
+  // Replaces the whole bench (root, tree, imported meshes) with a checked
+  // document — after asking, when there is a bench to lose. Nothing
+  // changes unless hydration succeeds, so a bad file leaves the current
+  // bench exactly as it was.
+  function applyConfig(doc, what) {
+    if (assembly && !window.confirm(`Replace the current bench with ${what}?`)) return;
+    try {
+      const { assembly: next, importedParts: imports } = hydrateBenchConfig(doc, catalogueById);
+      replaceBenchSession({ assembly: next, importedParts: imports });
+      selectNode(null);
+      setPendingSlot(null);
+      setImportMode(null);
+      setConfigError(null);
+    } catch (err) {
+      setConfigError(`Couldn't load ${what}: ${err.message}`);
+    }
+  }
+
+  async function importConfigFile(file) {
+    let doc;
+    try {
+      doc = parseBenchConfig(await file.text());
+    } catch (err) {
+      setConfigError(`Couldn't load "${file.name}": ${err.message}`);
+      return;
+    }
+    applyConfig(doc, `"${file.name}"`);
+  }
+
+  function loadPreset(preset) {
+    applyConfig(preset.config, `the preset "${preset.name}"`);
+  }
+
+  function saveCurrentAsPreset(name) {
+    const problem = savePreset(name, serializeBenchConfig(assembly, partsById, name));
+    setConfigError(problem);
+    return !problem;
+  }
+
+  function removePreset(name) {
+    if (!window.confirm(`Delete the preset "${name}"?`)) return;
+    setConfigError(deletePreset(name));
+  }
+
   if (!assembly) {
     return (
       <main className="bench-empty">
@@ -325,15 +493,27 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           Pick a base part with slots — Gridfinity base or openGrid board are good starting points — or import your
           own STL.
         </p>
+        {/* Saved benches first — a returning user is most likely here for
+            one of these. Nothing to show (and nothing to say) until one
+            exists or a config import has something to report. */}
+        {(presets.length > 0 || shownError) && (
+          <section className="bench-empty-section" aria-labelledby="bench-presets-heading">
+            <h3 id="bench-presets-heading">Saved presets</h3>
+            <PresetsPanel presets={presets} onLoad={loadPreset} onDelete={removePreset} error={shownError} emptyText={null} />
+          </section>
+        )}
         <div className="bench-part-list">
           <PartBrowser
             parts={parts}
             onPick={pickRoot}
             autoFocus
             toolbar={
-              <button className="render-button bench-import-button" onClick={() => setImportMode("root")}>
-                Import STL…
-              </button>
+              <div className="bench-picker-toolbar">
+                <button className="render-button bench-import-button" onClick={() => setImportMode("root")}>
+                  Import STL…
+                </button>
+                <ConfigImportButton onFile={importConfigFile} className="render-button bench-import-button" />
+              </div>
             }
           />
         </div>
@@ -355,6 +535,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   const selectedNode = selectedNodeId && selectedNodeId !== ROOT_ID ? getNode(assembly, selectedNodeId) : null;
   const selectedPart = selectedNode ? partsById.get(selectedNode.partId) : null;
   const selectedBox = selectedNode ? nodeBoxes.get(selectedNode.id) ?? null : null;
+  const moving = moveMode && Boolean(selectedNode);
 
   return (
     <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
@@ -367,8 +548,10 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
             <button
               className="render-button bench-reset"
               onClick={() => {
-                setAssembly(null);
-                setSelectedNodeId(null);
+                // Drops the imported meshes too: nothing can reference
+                // them without the tree, and it frees their bytes.
+                replaceBenchSession({ assembly: null, importedParts: new Map() });
+                selectNode(null);
               }}
             >
               Start over
@@ -411,7 +594,26 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
               <button className="download-button bench-export-button" onClick={downloadScad}>
                 Download .scad
               </button>
+              <button
+                className="download-button bench-export-button"
+                onClick={downloadConfig}
+                title="The bench setup as a file — parts, parameters, joints, rotations, and any imported meshes — to import again later"
+              >
+                Download config
+              </button>
             </div>
+
+            <h3>Presets</h3>
+            <PresetsPanel
+              key={assembly.root.partId}
+              presets={presets}
+              defaultName={rootPart.name}
+              onSave={saveCurrentAsPreset}
+              onLoad={loadPreset}
+              onDelete={removePreset}
+              onImportFile={importConfigFile}
+              error={shownError}
+            />
           </>
         )}
       </aside>
@@ -421,8 +623,17 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           <div>
             <h2>Bench</h2>
             <p className="print-note" aria-live="polite">
-              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a marker to
-              attach a part there; click an attached part to select and turn it.
+              {moving ? (
+                <>
+                  Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the arrow
+                  keys. Esc cancels.
+                </>
+              ) : (
+                <>
+                  {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a marker
+                  to attach a part there; click an attached part to select it, then turn, move, or delete it.
+                </>
+              )}
               {status === "rendering" && " Rendering…"}
             </p>
           </div>
@@ -431,8 +642,8 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           {stlBuffer ? (
             <StlViewer
               stlBuffer={stlBuffer}
-              markers={markers}
-              onMarkerClick={(id) => setPendingSlot(parseMarkerId(id))}
+              markers={shownMarkers}
+              onMarkerClick={handleMarkerClick}
               onModelClick={handleModelClick}
               highlightBox={selectedBox}
               overlayAnchor={selectedBox ? boxTopCenter(selectedBox) : null}
@@ -446,8 +657,32 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
                   <SpinButtons name={selectedPart.name} onRotate={(delta) => nodeActions.rotate(selectedNode.id, delta)} />
                   <button
                     type="button"
+                    className="bench-rotate-move"
+                    onClick={() => setMoveMode((armed) => !armed)}
+                    aria-pressed={moving}
+                    aria-label={moving ? `Stop moving ${selectedPart.name}` : `Move ${selectedPart.name} to another slot`}
+                    title="Move to another slot: then click an open marker, or use the arrow keys (M)"
+                  >
+                    {moving ? "Pick a slot…" : "Move"}
+                  </button>
+                  <button
+                    type="button"
+                    className="bench-rotate-delete"
+                    onClick={removeSelected}
+                    aria-label={`Remove ${selectedPart.name} and anything attached to it`}
+                    title="Remove, and anything attached to it (Delete)"
+                  >
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                      <path
+                        fill="currentColor"
+                        d="M6 1.5h4a1 1 0 0 1 1 1V3h3v1.5h-1.1l-.7 9.1A1.5 1.5 0 0 1 10.7 15H5.3a1.5 1.5 0 0 1-1.5-1.4L3.1 4.5H2V3h3v-.5a1 1 0 0 1 1-1Zm.5 1.5h3v-.5h-3V3Zm-1.9 1.5.7 9h5.4l.7-9H4.6Zm1.7 1.5h1.2v6H6.3v-6Zm2.2 0h1.2v6H8.5v-6Z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
                     className="bench-rotate-close"
-                    onClick={() => setSelectedNodeId(null)}
+                    onClick={() => selectNode(null)}
                     aria-label="Deselect"
                     title="Deselect (Esc)"
                   >

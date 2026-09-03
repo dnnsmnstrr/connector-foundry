@@ -87,6 +87,12 @@ grid) offers it as a new marker, so assemblies stack to any depth. Each attached
   select it; ↺/↻ buttons above it turn it in 90° steps, the field takes any angle. Only the part
   turns, never a joint's flanges. Parts whose place in the scene can be computed (catalogue parts
   on top slots) are clickable; imported or side-mounted ones are selected from the sidebar.
+- **Move** and **delete**, from the same controls over the selected part. "Move" (or `M`) arms a
+  move: the next open slot marker clicked is where the part goes — another slot on the same part or
+  a free anchor on a different one — taking its joint, rotation, and anything stacked on it along.
+  The arrow keys step it straight to the next open slot in that direction on the base part, no
+  arming needed. The trash button, `Delete`, or `Backspace` removes it (and anything attached to
+  it); `Esc` cancels a move or drops the selection.
 - Its own **parameter editor**, with the same defaults/overrides as the Library.
 
 **STL import** brings in any mesh — a Mechanism or Printables download — as a Bench part: click a
@@ -95,6 +101,14 @@ winding fixed) and refused with an explanation if they have real holes. Imports 
 browser tab only; nothing is fetched or committed.
 
 Export walks the whole tree: one STL per body, or the generated `.scad`.
+
+**Configs and presets** keep a bench setup itself: "Download config" writes a `.bench.json` (parts,
+parameters, joints, offsets, rotations, and any imported meshes embedded, so the file stands alone),
+"Import config…" loads one back, and "Presets" saves the same document under a name in your browser
+to reopen later — from the sidebar of a running bench or from the start screen. The bench also
+stays put when you switch to the Library and back, and lives in the page URL, so a reload (or the
+link, pasted elsewhere) brings it back — imported meshes excepted, which only the tab that uploaded
+them has; use a config file to move those.
 
 ## Catalogue
 

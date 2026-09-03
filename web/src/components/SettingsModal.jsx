@@ -96,7 +96,8 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
       </label>
       <p className="muted settings-help">
         Same as the "Open in Bench" button: the part selected in the Library, with its current parameters,
-        becomes the root of a new bench. Off, the Bench starts with its own part picker.
+        becomes the root of a new bench — only while the Bench is empty; a bench you've started is never
+        replaced by a tab switch. Off, an empty Bench starts with its own part picker.
       </p>
 
       <h4 className="settings-section">Part list</h4>
