@@ -22,11 +22,12 @@ import {
   updateChildOverlap,
   updateNodeParams,
 } from "./lib/assembly.js";
-import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers } from "./lib/benchLayout.js";
+import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint } from "./lib/benchLayout.js";
 import { downloadBlob } from "./lib/download.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { renderPart } from "./lib/openscad-client.js";
-import { getGlobalOverrides, resolveParams } from "./lib/userOverrides.js";
+import { fitGridCounts } from "./lib/slots.js";
+import { getGlobalOverrides, getOverrides, resolveParams } from "./lib/userOverrides.js";
 
 // A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -231,7 +232,19 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   }
 
   function attachChild(part) {
-    attachPending(part.id, resolveParams(part, {}), "mount");
+    const params = resolveParams(part, {});
+    // Size a grid part to the surface it lands on (a 5x5 BitBeam plate on
+    // a single Gridfinity base, 3x3 on an openGrid snap) — except for a
+    // count the user's saved default for this part already pins.
+    const available = slotFootprint(assembly, partsById, nodeExtents, pendingSlot.parentId, pendingSlot.slotName);
+    const fitted = fitGridCounts(part, available);
+    if (fitted) {
+      const pinned = getOverrides(part.id);
+      for (const [key, value] of Object.entries(fitted)) {
+        if (!(key in pinned)) params[key] = value;
+      }
+    }
+    attachPending(part.id, params, "mount");
   }
 
   function registerImport(importedPart) {

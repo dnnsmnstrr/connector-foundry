@@ -651,12 +651,6 @@ button, input, select, textarea {
   background: #1c2e22;
 }
 
-.bench-stack-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.72rem;
-  color: #7fd9a0;
-}
-
 .bench-tree-node {
   position: relative;
 }

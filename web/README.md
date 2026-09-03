@@ -161,8 +161,21 @@ a part actually has anchors left over. A few implementation notes that don't bel
   disagree) — those stay sidebar-only for now (`slotsForNode()`, reached only for an imported
   part's arbitrary user-placed anchors, which have no "up" to reason about this way either). Marker
   ids are `"<parentId>::<slotName>"` so one click handler (`onMarkerClick`) resolves a click on
-  any node's marker the same way. The rendered/exported geometry is unaffected either way, since
-  that goes through real BOSL2, not this shortcut.
+  any node's marker the same way. A stacked node's open "bot" is also an "+ Attach on top" button
+  on its row in the sidebar (`NodeTree.jsx`) — the same `attachAt(nodeId, "bot")` the marker
+  click resolves to, reachable without aiming at a sphere (or with a keyboard). The
+  rendered/exported geometry is unaffected either way, since that goes through real BOSL2, not
+  this shortcut.
+- A grid part attached from the picker is sized to the surface it lands on: `Bench.jsx`'s
+  `attachChild()` asks `benchLayout.js`'s `slotFootprint()` how much of the parent's footprint is
+  available centered on the chosen slot (the parent's extent minus twice the slot's offset — the
+  whole part at the center slot, less at an off-center one so nothing overhangs) and
+  `slots.js`'s `fitGridCounts()` turns that into the largest `count_params` that fit: a 5x5
+  BitBeam plate on a single Gridfinity base, 3x3 on an openGrid snap, a 1x1 openGrid board on a
+  Gridfinity base. Only `count_params` grids are fitted (nothing in the catalogue says which of a
+  Basics plate's `w`/`d` are its footprint), only for a vertical mating slot (a top-grid `mount*`,
+  a `bot`, or an imported anchor whose normal is near ±Z), and a count the user's saved default
+  for that part pins is left alone.
 - Every node's own standalone extents (needed to place its own marker and enumerate its slots)
   come from rendering its part alone with its own params — the same computation for root and any
   descendant, since a part's own size never depends on where it sits in the tree. The render is

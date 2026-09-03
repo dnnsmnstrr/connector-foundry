@@ -117,6 +117,26 @@ export function enumerateSlots(part, params, meshExtents) {
   return slots;
 }
 
+// Mesh bounding boxes carry float noise, so a footprint that is exactly
+// N pitches wide must still count as N, not N-1.
+const FIT_SLACK_MM = 0.01;
+
+// Size a feature-locked grid part (slots.count_params — BitBeam plate,
+// openGrid board) to `available` = [x, y] mm of mating surface: the
+// largest count per axis whose footprint (count × pitch) still fits,
+// never below 1. A 41.5mm Gridfinity base takes a 5x5 BitBeam plate
+// (40mm); a ~25mm openGrid snap takes 3x3 (24mm). Returns just the
+// params to override, or null when the part has no such grid — a Basics
+// plate's w/d are free lengths, and nothing in the catalogue says which
+// params are its footprint, so it keeps its defaults.
+export function fitGridCounts(part, available) {
+  const countParams = part.slots?.count_params;
+  if (!countParams || !available) return null;
+  const pitch = part.slots.pitch;
+  const fit = (mm) => Math.max(1, Math.floor((mm + FIT_SLACK_MM) / pitch));
+  return { [countParams[0]]: fit(available[0]), [countParams[1]]: fit(available[1]) };
+}
+
 export function nearestSlot(slots, localX, localY) {
   let best = null;
   let bestDist = Infinity;

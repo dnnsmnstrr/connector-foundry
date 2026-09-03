@@ -64,6 +64,36 @@ export function stackSlotFor(assembly, partsById, nodeId) {
   return STACK_ANCHOR;
 }
 
+// Mating surface available around `slotName` on `parentId`, as [x, y] mm
+// of the parent's own footprint: the parent's extent on each axis minus
+// twice the slot's offset from center — the largest footprint that can
+// sit centered on that slot without overhanging the parent. At the
+// center slot that is the whole part (a single Gridfinity base fits a
+// 5x5 BitBeam plate); at an off-center slot it shrinks accordingly, so
+// a plate attached at a corner slot doesn't hang over the edge. Only
+// meaningful for a slot whose mating direction is vertical — a top-grid
+// "mount*" or the "bot" anchor of a catalogue part, or an imported
+// anchor whose normal is (near) ±Z; a side face returns null and the
+// child keeps its defaults. Used by slots.js's fitGridCounts().
+export function slotFootprint(assembly, partsById, nodeExtents, parentId, slotName) {
+  const node = getNode(assembly, parentId);
+  const part = node && partsById.get(node.partId);
+  const extents = nodeExtents.get(parentId);
+  if (!part || !extents) return null;
+  let point;
+  if (part.kind === "imported") {
+    const anchor = part.anchors.find((a) => a.name === slotName);
+    if (!anchor || Math.abs(anchor.normal[2]) < 0.9) return null;
+    point = anchor.point;
+  } else {
+    if (slotName !== STACK_ANCHOR && !slotName.startsWith("mount")) return null;
+    const slot = enumerateSlots(part, node.params, extents).find((s) => s.name === slotName);
+    if (!slot) return null;
+    point = [slot.x, slot.y];
+  }
+  return [Math.max(0, extents[0] - 2 * Math.abs(point[0])), Math.max(0, extents[1] - 2 * Math.abs(point[1]))];
+}
+
 // World position of the point where `nodeId` itself touches its own
 // parent. For a root child this is just a lookup in `rootSlotWorldPositions`
 // (root's own slots are already computed in the part's local frame and

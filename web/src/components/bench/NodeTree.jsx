@@ -7,10 +7,11 @@ import JointSelect from "./JointSelect.jsx";
 // its own params panel above this list in Bench's sidebar). Renders
 // itself and recurses into whatever's attached to IT, to any depth. A
 // catalogue part's own further slot (if it has one — see
-// benchLayout.js's stackSlotFor()) is a real 3D marker in the scene, not
-// shown here beyond a one-line hint; an imported part's arbitrary
-// user-placed anchors still use the "attach here" buttons below, since
-// there's no single predictable "up" for those.
+// benchLayout.js's stackSlotFor()) is a real 3D marker in the scene and
+// an "Attach on top" button here, both resolving to the same
+// attachAt(nodeId, "bot"); an imported part's arbitrary user-placed
+// anchors get one "attach here" button each, since there's no single
+// predictable "up" for those.
 export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
@@ -18,7 +19,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
   const kids = childrenOf(assembly, nodeId);
   const isImported = part.kind === "imported";
   const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
-  const stackable = !isImported && stackSlotFor(assembly, partsById, nodeId) != null;
+  const stackSlot = isImported ? null : stackSlotFor(assembly, partsById, nodeId);
 
   return (
     <li className="bench-tree-node">
@@ -63,7 +64,18 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
           allowSavedDefaults={!isImported}
         />
       </details>
-      {stackable && <p className="muted bench-stack-hint">Has an open slot on top — click its marker in the scene.</p>}
+      {stackSlot && (
+        <div className="bench-node-slots">
+          <button
+            type="button"
+            className="bench-attach-here"
+            title="Same as clicking this part's marker in the scene"
+            onClick={() => actions.attachAt(nodeId, stackSlot)}
+          >
+            + Attach on top
+          </button>
+        </div>
+      )}
       {openSlots.length > 0 && (
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
