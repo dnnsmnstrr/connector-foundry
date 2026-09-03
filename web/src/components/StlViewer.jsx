@@ -9,6 +9,11 @@ const MARKER_HOVER_COLOR = 0xffd23f;
 const MODEL_COLOR = 0x5b8ff9;
 const BACKGROUND_COLOR = 0x1a1b1e;
 const DEFAULT_MARKER_RADIUS = 2;
+const HIGHLIGHT_COLOR = 0xffd23f;
+const HIGHLIGHT_PAD_MM = 0.3;
+// Pointer travel between pointerdown and click beyond which it was an
+// orbit drag, not a click.
+const CLICK_SLOP_PX = 5;
 
 // stlBuffer or geometry: one model source. `geometry` (a THREE.BufferGeometry,
 // e.g. straight from meshValidate.js) skips a wasted serialize/reparse
@@ -32,16 +37,44 @@ const DEFAULT_MARKER_RADIUS = 2;
 // such flat neighbor, so this degrades to the hit triangle's own
 // centroid — never worse than a raw click point.
 //
+// onModelClick([x,y,z] | null): a plain click (no marker under the
+// cursor, not placing) reports where on the model it landed, in model
+// mm, or null for a click on empty space — the Bench turns that into
+// "select the part here" / "deselect". A drag that happens to end over
+// the canvas is not a click (see CLICK_SLOP_PX), so orbiting never
+// deselects or opens a marker.
+//
+// highlightBox: optional { min:[x,y,z], max:[x,y,z] } — an axis-aligned
+// outline drawn around it (the selected Bench node).
+//
+// overlayAnchor + children: `children` are rendered in a DOM layer over
+// the canvas, pinned to the screen projection of `overlayAnchor` (model
+// mm) and re-pinned every frame so they follow the camera; with no
+// anchor they dock at the bottom center of the viewer instead.
+//
 // Frames are rendered on demand, not on a 60fps loop: a frame is drawn
 // when the camera moves (OrbitControls' "change", which it also fires
 // on each damping step, so a drag settles smoothly), when the model or
 // markers change, on hover highlight, and on resize. A viewer showing a
 // still scene costs nothing — this is the one always-visible WebGL
 // canvas in the app, so it was the app's whole idle GPU/battery cost.
-export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick, placingMode, onSurfacePick }) {
+export default function StlViewer({
+  stlBuffer,
+  geometry,
+  markers,
+  onMarkerClick,
+  placingMode,
+  onSurfacePick,
+  onModelClick,
+  highlightBox,
+  overlayAnchor,
+  children,
+}) {
   const mountRef = useRef(null);
+  const overlayRef = useRef(null);
   const sceneRef = useRef(null);
   const callbacksRef = useRef(null);
+  const overlayAnchorRef = useRef(null);
   // A browser with WebGL disabled (or a GPU process that just died)
   // throws from the WebGLRenderer constructor. Without this, that throw
   // escapes the effect and React unmounts the whole app to a blank page
@@ -89,6 +122,24 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
       // change, no frame.
       controls.update();
       renderer.render(scene, camera);
+      positionOverlay();
+    };
+    // Pin the overlay layer to the anchor's screen position. Behind the
+    // camera (NDC z > 1) it's hidden rather than mirrored onto the screen.
+    const projected = new THREE.Vector3();
+    const positionOverlay = () => {
+      const el = overlayRef.current;
+      const anchor = overlayAnchorRef.current;
+      if (!el || !anchor) return;
+      projected.set(anchor[0], anchor[1], anchor[2]).project(camera);
+      if (projected.z > 1) {
+        el.style.visibility = "hidden";
+        return;
+      }
+      const x = ((projected.x + 1) / 2) * mount.clientWidth;
+      const y = ((1 - projected.y) / 2) * mount.clientHeight;
+      el.style.visibility = "";
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
     };
     const requestRender = () => {
       if (frameId === null) frameId = requestAnimationFrame(renderFrame);
@@ -106,7 +157,20 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
     const markerGroup = () => scene.getObjectByName("markers");
     const model = () => scene.getObjectByName("model");
 
+    // The browser fires "click" after an orbit drag too, as long as the
+    // pointer went down and came up on the canvas — so remember where it
+    // went down and treat anything that travelled further than a few
+    // pixels as the drag it was, not a click.
+    let pointerDownAt = null;
+    const onPointerDown = (event) => {
+      pointerDownAt = [event.clientX, event.clientY];
+    };
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
     const onClick = (event) => {
+      if (pointerDownAt && Math.hypot(event.clientX - pointerDownAt[0], event.clientY - pointerDownAt[1]) > CLICK_SLOP_PX) {
+        return;
+      }
       setPointer(event);
 
       const group = markerGroup();
@@ -127,6 +191,18 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
         const point = new THREE.Vector3(...cluster.point).applyMatrix4(mesh.matrixWorld);
         const normal = new THREE.Vector3(...cluster.normal).transformDirection(mesh.matrixWorld).normalize();
         callbacksRef.current?.onSurfacePick?.([point.x, point.y, point.z], [normal.x, normal.y, normal.z]);
+        return;
+      }
+
+      if (callbacksRef.current?.onModelClick) {
+        const mesh = model();
+        const hits = mesh ? raycaster.intersectObject(mesh) : [];
+        if (hits.length) {
+          const p = hits[0].point;
+          callbacksRef.current.onModelClick([p.x, p.y, p.z]);
+        } else {
+          callbacksRef.current.onModelClick(null);
+        }
       }
     };
     renderer.domElement.addEventListener("click", onClick);
@@ -154,6 +230,9 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
       else if (callbacksRef.current?.placingMode) {
         const mesh = model();
         if (mesh && raycaster.intersectObject(mesh).length) cursor = "crosshair";
+      } else if (callbacksRef.current?.onModelClick) {
+        const mesh = model();
+        if (mesh && raycaster.intersectObject(mesh).length) cursor = "pointer";
       }
       renderer.domElement.style.cursor = cursor;
     };
@@ -182,10 +261,12 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
       observer.disconnect();
       controls.removeEventListener("change", requestRender);
       controls.dispose();
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       disposeModel(scene);
       disposeMarkers(scene);
+      disposeHighlight(scene);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
       sceneRef.current = null;
@@ -227,8 +308,34 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
   }, [stlBuffer, geometry]);
 
   useEffect(() => {
-    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick };
-  }, [onMarkerClick, placingMode, onSurfacePick]);
+    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick, onModelClick };
+  }, [onMarkerClick, placingMode, onSurfacePick, onModelClick]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const { scene, requestRender } = sceneRef.current;
+    disposeHighlight(scene);
+    if (highlightBox) {
+      const box = new THREE.Box3(new THREE.Vector3(...highlightBox.min), new THREE.Vector3(...highlightBox.max));
+      // A hair outside the part so the lines don't z-fight its faces.
+      box.expandByScalar(HIGHLIGHT_PAD_MM);
+      const helper = new THREE.Box3Helper(box, HIGHLIGHT_COLOR);
+      helper.name = "highlight";
+      scene.add(helper);
+    }
+    requestRender();
+  }, [highlightBox]);
+
+  useEffect(() => {
+    overlayAnchorRef.current = overlayAnchor ?? null;
+    const el = overlayRef.current;
+    if (el && !overlayAnchor) {
+      // Docked: CSS places it; clear whatever the last projection left.
+      el.style.transform = "";
+      el.style.visibility = "";
+    }
+    sceneRef.current?.requestRender();
+  }, [overlayAnchor, children]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -268,7 +375,24 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
       </div>
     );
   }
-  return <div ref={mountRef} className="viewer-canvas" />;
+  return (
+    <div className="viewer-canvas">
+      <div ref={mountRef} className="viewer-canvas-mount" />
+      {children && (
+        <div ref={overlayRef} className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function disposeHighlight(scene) {
+  const previous = scene.getObjectByName("highlight");
+  if (!previous) return;
+  scene.remove(previous);
+  previous.geometry.dispose();
+  previous.material.dispose();
 }
 
 function disposeModel(scene) {

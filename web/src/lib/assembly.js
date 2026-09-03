@@ -42,7 +42,7 @@ export const JOINT_LABELS = {
   bolted: "bolted",
   snap: "snap",
   pin: "pin",
-  screwed: "screwed (DeckMate holes)",
+  screwed: "screwed (DeckMate)",
 };
 
 // The generated flange for each screw pattern a catalogue part can
@@ -96,9 +96,26 @@ export function occupiedSlotNames(assembly, parentId) {
 // bolted/snap) — negative pulls it out instead, leaving a gap. See
 // overlapArg() for the sign flip against BOSL2's own `overlap=`, which
 // goes the other way.
-export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0 }) {
-  const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap };
+//
+// `spin` (degrees, default 0): the child's rotation about its own mating
+// axis — the line through the slot along the slot's normal, i.e. the
+// only rotation that keeps the two mating faces touching. Positive is
+// counter-clockwise looking at the slot from outside (right-hand rule
+// about the parent anchor's outward direction, BOSL2's own attach()
+// `spin=` convention — see spinArg()). Multiples of 90 are what the
+// scene's ↺/↻ buttons produce; any angle is allowed via the sidebar.
+export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0 }) {
+  const child = { id: `c${nextChildId++}`, parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin };
   return { ...assembly, nodes: [...assembly.nodes, child] };
+}
+
+// Angles wrap to [0, 360) so eight ↻ presses land back on 0, not 720,
+// and the exported .scad never carries a `spin=-270`.
+export function normalizeSpin(spin) {
+  if (!Number.isFinite(spin)) return 0;
+  const wrapped = ((spin % 360) + 360) % 360;
+  // Round away float dust from repeated +/-90 so 90 stays exactly 90.
+  return Math.round(wrapped * 1e6) / 1e6;
 }
 
 // Removing a node removes its whole subtree — an orphaned grandchild
@@ -130,6 +147,22 @@ export function updateChildOverlap(assembly, childId, overlap) {
     ...assembly,
     nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, overlap } : c)),
   };
+}
+
+export function updateChildSpin(assembly, childId, spin) {
+  const normalized = normalizeSpin(spin);
+  return {
+    ...assembly,
+    nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, spin: normalized } : c)),
+  };
+}
+
+// Turn a child by `delta` degrees on top of whatever spin it already has
+// — what the scene's ↺ (+90) and ↻ (-90) buttons do.
+export function rotateChild(assembly, childId, delta) {
+  const node = getNode(assembly, childId);
+  if (!node || childId === ROOT_ID) return assembly;
+  return updateChildSpin(assembly, childId, (node.spin ?? 0) + delta);
 }
 
 // id may be "root" (updates assembly.root.params) or a child id — one
@@ -228,6 +261,25 @@ function overlapArg(child) {
   return child.overlap ? `, overlap=${-child.overlap}` : "";
 }
 
+// BOSL2's attach() `spin=` turns the child about the parent anchor's own
+// direction, through the anchor point (`rot(v=spinaxis, a=spin)` right
+// after `translate(pos)` in vendor/BOSL2/attachments.scad) — exactly
+// "rotate in place on the slot", which is why the Bench stores spin as
+// a plain number and hands it straight through. Omitted at 0, like
+// overlap. Always on the CHILD's own attach() (the one naming
+// `childAnchor`), never on a flange's: a bolted/snap/pin/screwed joint's
+// flanges keep their bolt/pin/screw pattern lined up with the parent,
+// and only the part on the far side turns.
+function spinArg(child) {
+  const spin = normalizeSpin(child.spin ?? 0);
+  return spin ? `, spin=${spin}` : "";
+}
+
+// Everything that adjusts how the child sits on its mating face.
+function mateArgs(child) {
+  return `${overlapArg(child)}${spinArg(child)}`;
+}
+
 // hide_this() only suppresses ONE level's own geometry — its own
 // attach()'d children stay visible by default ("Use an invisible
 // parent to position children", per BOSL2's own doc example). So
@@ -288,7 +340,7 @@ function emitScrewedChild(assembly, partsById, child, hide, indent) {
   const childPart = partsById.get(child.partId);
   const parentPart = partsById.get(getNode(assembly, child.parentId).partId);
   const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
-  const overlap = overlapArg(child);
+  const mate = mateArgs(child);
   const pattern = childPart.screw_pattern ?? parentPart.screw_pattern ?? "deckmate";
   const flange = SCREW_FLANGES[pattern] ?? SCREW_FLANGES.deckmate;
   const childHas = hasScrewPattern(childPart);
@@ -305,19 +357,19 @@ function emitScrewedChild(assembly, partsById, child, hide, indent) {
 
   if (childHas && parentHas) {
     return dispatchBlock(child.id,
-      (unitHide) => childUnit(`attach("${child.slotName}", "${child.childAnchor}"${overlap})`, unitHide, indent + "    "),
+      (unitHide) => childUnit(`attach("${child.slotName}", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
       indent);
   }
   if (parentHas) {
     return dispatchBlock(child.id,
       (unitHide) => `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() `
-        + childUnit(`attach("mount", "${child.childAnchor}"${overlap})`, unitHide, indent + "    "),
+        + childUnit(`attach("mount", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
       indent);
   }
   return [
     `${indent}attach("${child.slotName}", "mount") ${hidden(hide)}${flange}() {`,
     dispatchBlock(child.id,
-      (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${overlap})`, unitHide, indent + "        "),
+      (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${mate})`, unitHide, indent + "        "),
       indent + "    "),
     `${indent}}`,
   ].join("\n");
@@ -326,10 +378,10 @@ function emitScrewedChild(assembly, partsById, child, hide, indent) {
 function emitFusedChild(assembly, partsById, child, hide, indent) {
   const childPart = partsById.get(child.partId);
   const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
-  const overlap = overlapArg(child);
+  const mate = mateArgs(child);
   const grandkids = emitChildren(assembly, partsById, child.id, hide, indent + "    ");
   const body = grandkids ? ` {\n${grandkids}\n${indent}}` : ";";
-  return `${indent}attach("${child.slotName}", "${child.childAnchor}"${overlap}) ${hide ? "hide_this() " : ""}${call}${body}`;
+  return `${indent}attach("${child.slotName}", "${child.childAnchor}"${mate}) ${hide ? "hide_this() " : ""}${call}${body}`;
 }
 
 // A bolted/snap/pin child: flangeA inherits `hide` directly (it's fused
@@ -343,7 +395,7 @@ function emitFusedChild(assembly, partsById, child, hide, indent) {
 function emitJointChild(assembly, partsById, child, hide, indent) {
   const childPart = partsById.get(child.partId);
   const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
-  const overlap = overlapArg(child);
+  const mate = mateArgs(child);
   const [flangeA, flangeB] = child.joint === "bolted" ? ["bolted_flange_a", "bolted_flange_b"]
     : child.joint === "snap" ? ["snap_flange_a", "snap_flange_b"]
     : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
@@ -353,7 +405,7 @@ function emitJointChild(assembly, partsById, child, hide, indent) {
     const body = grandkids ? ` {\n${grandkids}\n${indent}        }` : ";";
     return (
       `attach(BOTTOM, "mount") ${unitHide ? "hide_this() " : ""}${flangeB}() ` +
-      `attach(BOTTOM, "${child.childAnchor}"${overlap}) ${unitHide ? "hide_this() " : ""}${call}${body}`
+      `attach(BOTTOM, "${child.childAnchor}"${mate}) ${unitHide ? "hide_this() " : ""}${call}${body}`
     );
   };
 

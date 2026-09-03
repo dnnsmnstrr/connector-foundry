@@ -3,8 +3,42 @@
 // the assembly tree (assembly.js), the parts map, and each node's own
 // standalone extents — no React, no three.js — so Bench.jsx only wires
 // state to them.
-import { ROOT_ID, getNode, occupiedSlotNames } from "./assembly.js";
+import { ROOT_ID, getNode, hasScrewPattern, occupiedSlotNames } from "./assembly.js";
 import { enumerateSlots } from "./slots.js";
+
+// What a joint puts between the two parts, along the mating direction —
+// lib/joints.scad's flange thicknesses (JOINT_FLANGE_T, and
+// JOINT_PIN_FLANGE_T = BITBEAM_UNIT for a pin joint's two flanges).
+// Verified against a native render: a bolted child's own body starts
+// exactly 2 × 4mm above the slot it's bolted to.
+const JOINT_FLANGE_T = 4;
+const JOINT_PIN_FLANGE_T = 8;
+
+function jointRise(node, parentPart, childPart) {
+  switch (node.joint) {
+    case "bolted":
+    case "snap":
+      return 2 * JOINT_FLANGE_T;
+    case "pin":
+      return 2 * JOINT_PIN_FLANGE_T;
+    case "screwed":
+      // One generated flange unless both sides carry the hole pattern
+      // (see assembly.js's emitScrewedChild()).
+      return hasScrewPattern(parentPart) && hasScrewPattern(childPart) ? 0 : JOINT_FLANGE_T;
+    default:
+      return 0;
+  }
+}
+
+// How far along the mating direction `node`'s own mating face sits from
+// the parent slot it's attached to: the joint's flanges, plus the Bench's
+// Offset (negative sinks in, so it simply adds — see assembly.js's
+// overlapArg()). Zero for a flush fused part.
+export function matingRise(assembly, partsById, node) {
+  const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
+  const childPart = partsById.get(node.partId);
+  return jointRise(node, parentPart, childPart) + (node.overlap ?? 0);
+}
 
 // The one further anchor a catalogue part offers for stacking once
 // attached. Deliberately narrower than the part's full anchor set: see
@@ -129,12 +163,16 @@ export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, no
 // a wrong 3D position. (For the record, BOSL2's flip is about Y — see
 // lib/constants.scad's DeckMate section — which is what lets an
 // x-symmetric hole pattern survive a chain; this code just doesn't need
-// to rely on it.)
+// to rely on it.) A spin about that same vertical (the node's `spin`)
+// leaves the point alone too, for the same reason. What does move it is
+// anything the joint puts between the parts, and the Offset — hence
+// matingRise().
 export function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
   const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
   const extents = nodeExtents.get(nodeId);
   if (!attachPoint || !extents) return null;
-  return [attachPoint[0], attachPoint[1], attachPoint[2] + extents[2]];
+  const rise = matingRise(assembly, partsById, getNode(assembly, nodeId));
+  return [attachPoint[0], attachPoint[1], attachPoint[2] + rise + extents[2]];
 }
 
 // A non-root node's open slots for the sidebar's "+ Attach" buttons —

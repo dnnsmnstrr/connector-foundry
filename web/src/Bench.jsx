@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
+import SpinButtons from "./components/bench/SpinButtons.jsx";
 import Modal from "./components/Modal.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
@@ -17,12 +18,15 @@ import {
   getNode,
   occupiedSlotNames,
   removeChild,
+  rotateChild,
   screwedApplies,
   updateChildJoint,
   updateChildOverlap,
+  updateChildSpin,
   updateNodeParams,
 } from "./lib/assembly.js";
 import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint } from "./lib/benchLayout.js";
+import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { downloadBlob } from "./lib/download.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { renderPart } from "./lib/openscad-client.js";
@@ -86,6 +90,10 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
+  // The attached node whose rotate controls are showing — picked by
+  // clicking the part in the scene or its name in the sidebar. Never
+  // root: there's nothing to spin root against (orbit the camera instead).
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
@@ -93,18 +101,20 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
 
   // Escape closes whichever of the Bench's own modals is open — the
   // import flow first (it's on top when both are technically "open"),
-  // then the attach-a-part picker. App.jsx's own keydown handler covers
-  // Settings and mode-switching; this one is local because the state it
-  // closes is local too.
+  // then the attach-a-part picker — and with neither open, drops the
+  // scene selection. App.jsx's own keydown handler covers Settings and
+  // mode-switching; this one is local because the state it closes is
+  // local too.
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key !== "Escape") return;
       if (importMode) setImportMode(null);
       else if (pendingSlot) setPendingSlot(null);
+      else if (selectedNodeId) setSelectedNodeId(null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [importMode, pendingSlot]);
+  }, [importMode, pendingSlot, selectedNodeId]);
 
   const rootPart = assembly ? partsById.get(assembly.root.partId) : null;
 
@@ -178,6 +188,14 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   const markers = useMemo(
     () => sceneMarkers({ assembly, partsById, openRootSlots: openSlots, rootExtents, rootSlotWorldPositions, nodeExtents }),
     [assembly, partsById, openSlots, rootExtents, rootSlotWorldPositions, nodeExtents],
+  );
+
+  // Where each node's body is, for click-to-select and the selection
+  // outline — only the nodes whose place can be known without redoing
+  // BOSL2's rotation (see benchPick.js); the rest select from the sidebar.
+  const nodeBoxes = useMemo(
+    () => nodeWorldBoxes({ assembly, partsById, rootSlotWorldPositions, nodeExtents }),
+    [assembly, partsById, rootSlotWorldPositions, nodeExtents],
   );
 
   // Re-render the whole assembly (debounced) whenever it changes.
@@ -270,8 +288,21 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
     remove: (id) => setAssembly((a) => removeChild(a, id)),
     setJoint: (id, joint) => setAssembly((a) => updateChildJoint(a, id, joint)),
     setOverlap: (id, overlap) => setAssembly((a) => updateChildOverlap(a, id, overlap)),
+    setSpin: (id, spin) => setAssembly((a) => updateChildSpin(a, id, spin)),
+    rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta)),
     setParams: (id, params) => setAssembly((a) => updateNodeParams(a, id, params)),
+    select: (id) => setSelectedNodeId(id),
   };
+
+  // A click on the rendered assembly: the smallest known box under the
+  // clicked point is the part meant. Root, or a spot no box claims (an
+  // imported part, a side-mounted one, empty space), clears the
+  // selection — root isn't rotatable, and a wrong guess would be worse
+  // than none.
+  function handleModelClick(point) {
+    const id = point ? pickNodeAt(nodeBoxes, point) : null;
+    setSelectedNodeId(id && id !== ROOT_ID ? id : null);
+  }
 
   async function downloadBody(tag) {
     try {
@@ -319,6 +350,12 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
   const screwedNeedsPatternedChild = pendingJoint === "screwed" && pendingParentPart && !screwedApplies(pendingParentPart, null);
   const attachableParts = screwedNeedsPatternedChild ? parts.filter((p) => screwedApplies(pendingParentPart, p)) : parts;
 
+  // Resolved fresh each render so removing the selected node (or its
+  // ancestor) simply drops the controls — no separate cleanup to forget.
+  const selectedNode = selectedNodeId && selectedNodeId !== ROOT_ID ? getNode(assembly, selectedNodeId) : null;
+  const selectedPart = selectedNode ? partsById.get(selectedNode.partId) : null;
+  const selectedBox = selectedNode ? nodeBoxes.get(selectedNode.id) ?? null : null;
+
   return (
     <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
       <aside className="sidebar bench-sidebar">
@@ -327,7 +364,13 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           <>
             <h2>{rootPart.name}</h2>
             <p className="muted">Root part. Click an open slot in the scene to attach something to it.</p>
-            <button className="render-button bench-reset" onClick={() => setAssembly(null)}>
+            <button
+              className="render-button bench-reset"
+              onClick={() => {
+                setAssembly(null);
+                setSelectedNodeId(null);
+              }}
+            >
               Start over
             </button>
 
@@ -353,6 +396,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
                   nodeExtents={nodeExtents}
                   nodeId={child.id}
                   actions={nodeActions}
+                  selectedId={selectedNodeId}
                 />
               ))}
             </ul>
@@ -377,16 +421,41 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           <div>
             <h2>Bench</h2>
             <p className="print-note" aria-live="polite">
-              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. A part with a "bot"
-              anchor (a Basics plate or post) keeps offering it once attached — look for another marker on top of it
-              to stack something there.
+              {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a marker to
+              attach a part there; click an attached part to select and turn it.
               {status === "rendering" && " Rendering…"}
             </p>
           </div>
         </header>
         <div className="viewer-panel bench-viewer">
           {stlBuffer ? (
-            <StlViewer stlBuffer={stlBuffer} markers={markers} onMarkerClick={(id) => setPendingSlot(parseMarkerId(id))} />
+            <StlViewer
+              stlBuffer={stlBuffer}
+              markers={markers}
+              onMarkerClick={(id) => setPendingSlot(parseMarkerId(id))}
+              onModelClick={handleModelClick}
+              highlightBox={selectedBox}
+              overlayAnchor={selectedBox ? boxTopCenter(selectedBox) : null}
+            >
+              {selectedNode && (
+                <div className="bench-rotate-panel">
+                  <span className="bench-rotate-name">
+                    {selectedPart.name}
+                    <span className="muted"> · {selectedNode.spin ?? 0}°</span>
+                  </span>
+                  <SpinButtons name={selectedPart.name} onRotate={(delta) => nodeActions.rotate(selectedNode.id, delta)} />
+                  <button
+                    type="button"
+                    className="bench-rotate-close"
+                    onClick={() => setSelectedNodeId(null)}
+                    aria-label="Deselect"
+                    title="Deselect (Esc)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </StlViewer>
           ) : (
             <div className="viewer-placeholder" role="status">
               Rendering…

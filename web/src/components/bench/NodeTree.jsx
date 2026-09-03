@@ -2,6 +2,7 @@ import { childrenOf, getNode, jointsFor } from "../../lib/assembly.js";
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
+import SpinButtons from "./SpinButtons.jsx";
 
 // One node in the "Attached" tree (always a non-root node — root gets
 // its own params panel above this list in Bench's sidebar). Renders
@@ -12,7 +13,13 @@ import JointSelect from "./JointSelect.jsx";
 // attachAt(nodeId, "bot"); an imported part's arbitrary user-placed
 // anchors get one "attach here" button each, since there's no single
 // predictable "up" for those.
-export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions }) {
+//
+// Clicking the part's name selects it — the same selection a click on
+// the part in the scene makes (`selectedId`), so the row lights up when
+// the part is picked either way, and the scene's floating ↺/↻ buttons
+// and the outline follow. The "Rotation (°)" field is the exact-value
+// twin of those buttons: type any angle, or step by 90 with the arrows.
+export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions, selectedId }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
   const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
@@ -20,11 +27,20 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
   const isImported = part.kind === "imported";
   const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
   const stackSlot = isImported ? null : stackSlotFor(assembly, partsById, nodeId);
+  const selected = selectedId === nodeId;
 
   return (
-    <li className="bench-tree-node">
+    <li className={selected ? "bench-tree-node is-selected" : "bench-tree-node"}>
       <div className="bench-child-row">
-        <span>{part.name}</span>
+        <button
+          type="button"
+          className="bench-node-name"
+          onClick={() => actions.select(selected ? null : nodeId)}
+          aria-pressed={selected}
+          title={selected ? "Deselect" : "Select (shows rotate controls in the scene)"}
+        >
+          {part.name}
+        </button>
         <button
           type="button"
           className="bench-remove"
@@ -53,6 +69,25 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
             if (e.target.value !== "") actions.setOverlap(nodeId, Number(e.target.value));
           }}
         />
+      </label>
+      <label
+        className="field bench-offset-field bench-rotation-field"
+        title="Turn about the slot it sits on. Positive is counter-clockwise viewed from above the slot; the arrows step by 90°."
+      >
+        Rotation (°)
+        <span className="bench-rotation-controls">
+          <input
+            type="number"
+            step="90"
+            min="-360"
+            max="360"
+            value={node.spin ?? 0}
+            onChange={(e) => {
+              if (e.target.value !== "") actions.setSpin(nodeId, Number(e.target.value));
+            }}
+          />
+          <SpinButtons name={part.name} onRotate={(delta) => actions.rotate(nodeId, delta)} />
+        </span>
       </label>
       <details className="bench-node-params-details">
         <summary>Parameters</summary>
@@ -95,6 +130,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
               nodeExtents={nodeExtents}
               nodeId={kid.id}
               actions={actions}
+              selectedId={selectedId}
             />
           ))}
         </ul>

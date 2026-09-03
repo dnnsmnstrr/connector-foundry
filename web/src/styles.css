@@ -485,6 +485,35 @@ button, input, select, textarea {
 .viewer-canvas {
   width: 100%;
   height: 100%;
+  position: relative;
+}
+
+.viewer-canvas-mount {
+  width: 100%;
+  height: 100%;
+}
+
+/* DOM layer over the canvas (StlViewer's `children`): pinned to a
+   projected 3D point by an inline transform each frame, or docked at
+   the bottom when there is no point to pin to. The layer itself lets
+   clicks through to the canvas; only its content catches them. */
+.viewer-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.viewer-overlay > * {
+  pointer-events: auto;
+}
+
+.viewer-overlay-docked {
+  left: 50%;
+  top: auto;
+  bottom: 1rem;
+  transform: translateX(-50%);
 }
 
 .viewer-unavailable p {
@@ -659,6 +688,101 @@ button, input, select, textarea {
 
 .bench-tree-node {
   position: relative;
+}
+
+/* Selected node: same yellow as the outline and marker hover in the scene. */
+.bench-child-list li.bench-tree-node.is-selected {
+  border-color: #ffd23f;
+}
+
+.bench-node-name {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0.1rem 0.3rem;
+  margin-left: -0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bench-node-name:hover {
+  background: #25262a;
+}
+
+.bench-node-name[aria-pressed="true"] {
+  color: #ffd23f;
+}
+
+.bench-rotation-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.bench-spin-buttons {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.bench-spin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  background: #2a2b2e;
+  border: 1px solid #3a3b40;
+  border-radius: 50%;
+  color: #ffd23f;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bench-spin-button:hover {
+  background: #34353a;
+}
+
+/* The floating rotate controls over the selected part in the scene:
+   sits just above the part's outline (the overlay pins its bottom
+   center to the box's top center), or docked when the part's place
+   isn't known. */
+.bench-rotate-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding: 0.25rem 0.4rem 0.25rem 0.75rem;
+  background: rgba(23, 24, 27, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: #e6e6e6;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.bench-rotate-name {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bench-rotate-close {
+  background: transparent;
+  border: none;
+  color: #9a9ba0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.bench-rotate-close:hover {
+  color: #e6e6e6;
 }
 
 .bench-child-list-nested {
@@ -895,6 +1019,8 @@ button, input, select, textarea {
   }
 
   .bench-remove,
+  .bench-spin-button,
+  .bench-rotate-close,
   .field-reset,
   .settings-order-actions button {
     min-width: 32px;
