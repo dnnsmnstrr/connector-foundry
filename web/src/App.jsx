@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
 import Library from "./Library.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
-import { getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
+import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
 
 // True while the event's target is somewhere a keystroke means "type a
 // character", not "trigger a shortcut" — a search box, a param field, a
@@ -30,6 +30,24 @@ export default function App() {
   // mode switch (it fully unmounts when not the active mode, so this
   // never needs to re-seed an already-running Bench session).
   const [pendingBenchRoot, setPendingBenchRoot] = useState(null);
+  // Library's current { part, params }, kept in a ref (it changes on
+  // every parameter keystroke; nothing here needs to re-render for it).
+  // Read by switchToBench() when the "Bench follows Library" setting is
+  // on — the same hand-over "Open in Bench" does, just on a plain switch.
+  const librarySelection = useRef(null);
+  const onLibrarySelectionChange = useCallback((selection) => {
+    librarySelection.current = selection;
+  }, []);
+
+  // The one path for switching to the Bench (tab and `2` shortcut both
+  // use it): with the setting on, the Bench starts on Library's selected
+  // part instead of its own picker. Only on an actual switch — from
+  // inside the Bench, `2` is a no-op, not "reset my bench".
+  function switchToBench() {
+    if (mode === "bench") return;
+    if (getBenchFollowsLibrary() && librarySelection.current) setPendingBenchRoot(librarySelection.current);
+    setMode("bench");
+  }
 
   function toggleSidebar() {
     setSidebarCollapsedState((collapsed) => {
@@ -56,7 +74,7 @@ export default function App() {
           setMode("library");
           break;
         case "2":
-          setMode("bench");
+          switchToBench();
           break;
         case "s":
           setSettingsOpen(true);
@@ -71,7 +89,9 @@ export default function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [settingsOpen]);
+    // switchToBench() reads `mode`, so the listener is re-bound with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsOpen, mode]);
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
   if (!parts) return <div className="loading-screen">Loading catalogue&hellip;</div>;
@@ -99,7 +119,7 @@ export default function App() {
           type="button"
           className={mode === "bench" ? "mode-tab active" : "mode-tab"}
           aria-current={mode === "bench" ? "page" : undefined}
-          onClick={() => setMode("bench")}
+          onClick={switchToBench}
           title="Bench (2)"
         >
           Bench<kbd className="shortcut-hint">2</kbd>
@@ -108,13 +128,12 @@ export default function App() {
           type="button"
           className="mode-tab settings-tab"
           onClick={() => setSettingsOpen(true)}
-          aria-label="Printer settings"
+          aria-label="Settings"
           aria-haspopup="dialog"
-          title="Printer settings (s)"
+          title="Settings (s)"
         >
           <span aria-hidden="true">⚙</span>
           <span className="settings-label"> Settings</span>
-          <kbd className="shortcut-hint">s</kbd>
         </button>
       </nav>
       <div className="shell-body">
@@ -122,6 +141,8 @@ export default function App() {
           <Library
             parts={parts}
             onOpenInBench={openInBench}
+            onSelectionChange={onLibrarySelectionChange}
+            initialSelection={librarySelection.current}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
           />

@@ -10,9 +10,25 @@ import { slugify } from "./lib/catalogueUtils.js";
 
 // Library mode: pick a part, edit its parameters, render, download the
 // STL — or hand it to the Bench as a root with those same parameters.
-export default function Library({ parts, onOpenInBench, sidebarCollapsed, onToggleSidebar }) {
-  const [selectedId, setSelectedId] = useState(null);
+// `onSelectionChange({ part, params })` reports the current selection
+// as it changes, so the shell can seed the Bench with it on a plain
+// mode switch when that setting is on (see App.jsx's switchToBench()).
+// `initialSelection` is that same record handed back on remount, so a
+// round trip through the Bench comes back to the part (and parameter
+// edits) that were showing, not to the first part in the catalogue.
+export default function Library({
+  parts,
+  onOpenInBench,
+  onSelectionChange,
+  initialSelection,
+  sidebarCollapsed,
+  onToggleSidebar,
+}) {
+  const [selectedId, setSelectedId] = useState(initialSelection?.part.id ?? null);
   const [params, setParams] = useState({});
+  // Consumed by the first selection effect only — after that a pick
+  // resolves its params from catalogue defaults + saved overrides.
+  const carried = useRef(initialSelection);
   const [stlBuffer, setStlBuffer] = useState(null);
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
@@ -64,12 +80,20 @@ export default function Library({ parts, onOpenInBench, sidebarCollapsed, onTogg
 
   useEffect(() => {
     if (!selected) return;
-    // catalogue default -> saved user override -> (no instance value yet)
-    const initial = resolveParams(selected, {});
+    const seed = carried.current;
+    carried.current = null;
+    // Remount with a carried-over selection: keep its params as they
+    // were. Otherwise: catalogue default -> saved user override -> (no
+    // instance value yet).
+    const initial = seed && seed.part.id === selected.id ? seed.params : resolveParams(selected, {});
     setParams(initial);
     doRender(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
+
+  useEffect(() => {
+    if (selected) onSelectionChange?.({ part: selected, params });
+  }, [selected, params, onSelectionChange]);
 
   function downloadStl() {
     if (!stlBuffer) return;

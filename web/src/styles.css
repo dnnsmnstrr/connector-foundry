@@ -674,6 +674,23 @@ button, input, select, textarea {
   padding-right: 0.5rem;
 }
 
+.settings-section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7d7e83;
+  margin: 1.25rem 0 0.4rem;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+.settings-help {
+  font-size: 0.8rem;
+  margin: -0.4rem 0 0;
+}
+
 .bench-modal-cancel {
   width: 100%;
   margin-top: 0.75rem;

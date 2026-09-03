@@ -61,7 +61,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides, sidebar collapsed |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library" |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs |
 
 ## Shell (`src/App.jsx`)
@@ -88,6 +88,14 @@ screen.
   word hide; `SidebarToggle` shows text instead of a chevron. A `(pointer: coarse)` block gives
   every primary control a 44px hit area and skips `PartBrowser`'s `autoFocus` so the keyboard
   doesn't pop over the list.
+- Switching to the Bench goes through one `switchToBench()` (the tab and the `2` shortcut alike).
+  With the "Switching to the Bench opens the Library's selected part" setting on (off by default,
+  `uiPrefs.js`), it seeds the Bench with Library's current part and parameters exactly as the
+  "Open in Bench" button does — Library reports its selection up via `onSelectionChange`, App
+  keeps it in a ref. It's a no-op from inside the Bench, so `2` there never resets an assembly.
+  The same ref goes back down as Library's `initialSelection` when it remounts, so switching to
+  the Bench and back lands on the part (and parameter edits) that were showing, not on the first
+  part in the catalogue.
 - Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
   best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
   and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the

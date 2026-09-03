@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { getBenchFollowsLibrary, setBenchFollowsLibrary } from "../lib/uiPrefs.js";
 import { clearGlobalOverrides, getGlobalOverrides, updateGlobalOverrides } from "../lib/userOverrides.js";
 import Modal from "./Modal.jsx";
 
-// Printer-level settings — FIT_CLEARANCE and friends, the "same override
-// layer" as per-part defaults but not scoped to a part (see
-// lib/userOverrides.js). Opened from the nav in either mode.
+// App-wide settings, opened from the nav in either mode. Two kinds live
+// here: printer-level render overrides — FIT_CLEARANCE and friends, the
+// "same override layer" as per-part defaults but not scoped to a part
+// (see lib/userOverrides.js) — and UI preferences (lib/uiPrefs.js).
 export default function SettingsModal({ globalDefaults, onClose }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
+  const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
   const catalogueDefault = globalDefaults?.FIT_CLEARANCE;
   const current = saved.FIT_CLEARANCE ?? catalogueDefault;
   const differs = catalogueDefault !== undefined && current !== catalogueDefault;
@@ -22,8 +25,14 @@ export default function SettingsModal({ globalDefaults, onClose }) {
     setSaved(getGlobalOverrides());
   }
 
+  function toggleBenchFollows(on) {
+    setBenchFollowsLibrary(on);
+    setBenchFollows(on);
+  }
+
   return (
-    <Modal onClose={onClose} title="Printer settings">
+    <Modal onClose={onClose} title="Settings">
+      <h4 className="settings-section">Printer</h4>
       <p className="muted">
         Applied to every render, on top of any part's own defaults — the same saved-override layer, just not
         scoped to one part. Only affects parts that actually read FIT_CLEARANCE (Basics and 2020-extrusion parts,
@@ -55,6 +64,17 @@ export default function SettingsModal({ globalDefaults, onClose }) {
         </span>
         <input type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
       </label>
+
+      <h4 className="settings-section">Bench</h4>
+      <label className="field field-checkbox">
+        <input type="checkbox" checked={benchFollows} onChange={(e) => toggleBenchFollows(e.target.checked)} />
+        <span className="field-label">Switching to the Bench opens the Library's selected part</span>
+      </label>
+      <p className="muted settings-help">
+        Same as the "Open in Bench" button: the part selected in the Library, with its current parameters,
+        becomes the root of a new bench. Off, the Bench starts with its own part picker.
+      </p>
+
       <button type="button" className="bench-modal-cancel" onClick={onClose}>
         Close
       </button>
