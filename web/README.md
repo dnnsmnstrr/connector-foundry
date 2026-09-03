@@ -38,7 +38,10 @@ running in a Web Worker.
 This build of `openscad-wasm` can only run `callMain` once per instance (a second call aborts
 with an opaque WASM trap), and can't run two instances concurrently either — both confirmed by
 testing, not assumed. So `openscad-worker.js` spins up a fresh instance per render and serialises
-every request through one FIFO queue; see the worker's header comment for the full story,
+every request through one FIFO queue. Only the instance is fresh: the compiled WebAssembly module
+is reused across them (`scripts/vite-plugin-openscad-wasm-memo.mjs` — the package would otherwise
+decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). See the
+worker's header comment for the full story,
 including a separate, still-unresolved WASM resource limit that shows up for some bolted/snap
 joint combinations in the Bench (`src/lib/assembly.js`'s `emitJointChild()` has that one).
 
