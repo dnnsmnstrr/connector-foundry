@@ -136,3 +136,29 @@ def test_screwed_joint_lines_the_holes_up(name, render_dir):
 
     _assert_pattern(mesh, f"{name} (parent side)", ref_xy, z_parent)
     _assert_pattern(mesh, f"{name} (child side)", ref_xy, z_child)
+
+
+# Where the fill_holes probes sit below the mount face: just inside it,
+# and near the far end of the SHALLOWEST hole (the third, 6.0mm — see
+# outie.scad's DM_OUTIE_HOLE_DEPTHS), so a plug that stops short shows.
+FILL_PROBE_Z = (-1.0, -5.5)
+
+
+def test_fill_holes_plugs_every_hole(render_dir):
+    """fill_holes=true (an Outie fused onto something, holes unused) puts
+    material exactly where the pattern says each hole is, top to bottom,
+    without moving the part's footprint — and the default still leaves the
+    holes open, so the "screwed" joint keeps working."""
+    part = _part("deckmate/outie")
+    filled = trimesh.load(render_variant(part, {"fill_holes": True, "anchor": "mount"}, render_dir, "filled-mount"))
+    plain = trimesh.load(render_variant(part, {"anchor": "mount"}, render_dir, "anchor-mount"))
+    for hx, hy in HOLES:
+        for z in FILL_PROBE_Z:
+            assert _inside(filled, hx, hy, z), (
+                f"fill_holes: hole at ({hx:.3f}, {hy:.3f}) is still open at z={z}")
+            assert not _inside(plain, hx, hy, z), (
+                f"default: expected an open hole at ({hx:.3f}, {hy:.3f}, z={z})")
+    assert filled.is_watertight, "fill_holes: plugs left the mesh non-manifold"
+    assert list(filled.extents) == pytest.approx(list(plain.extents), abs=0.01), (
+        "fill_holes must not change the footprint — a plug is poking out of a face")
+    assert filled.volume > plain.volume, "fill_holes added no material"

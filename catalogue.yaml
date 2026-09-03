@@ -542,9 +542,16 @@ parts:
       taper from 4.45mm at the base face to 2.4mm at the rail face — a
       self-tapping hole for a screw driven from the base side, or a seat
       for an M3 insert in the wide end; nothing over 2.4mm passes through
-      from the rail side.
+      from the rail side. Fusing it and not screwing anything into it?
+      fill_holes plugs all three solid — same footprint, no open mouths
+      on the rail side. Leave it off for the "screwed" joint.
     screw_pattern: deckmate
     mount_offset: [0, 3.391]
+    defaults:
+      fill_holes: false
+    variants:
+      - name: filled-holes
+        params: { fill_holes: true }
 
   - id: deckmate/universal
     system: DeckMate / Mechanism
