@@ -39,7 +39,7 @@ import { replaceBenchSession, setBenchAssembly, setBenchImportedParts } from "./
 import { downloadBlob } from "./lib/download.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
-import { renderPart } from "./lib/openscad-client.js";
+import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
 import { getGlobalOverrides, getOverrides, resolveParams } from "./lib/userOverrides.js";
 
@@ -176,14 +176,30 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // in openscad-client, and the parse of the result is memoised per
   // buffer in meshExtents(), so re-deriving nodes nothing changed about
   // on every assembly edit is two lookups, not a compile and a parse.
+  //
+  // A parameter being typed is the exception: each keystroke gives the
+  // edited node params nobody has rendered yet, and its standalone
+  // render is a full compile — queued, in the worker's FIFO, ahead of
+  // the assembly render the edit is really for. So when any node needs
+  // a real render, wait out the same debounce the assembly render uses
+  // (typing "20" then costs one render of 20, not one of 2 and one of
+  // 20); when every node is already in the cache — a rotate, a joint or
+  // offset change, a move, a crop — resolve at once, as before.
   useEffect(() => {
     if (!assembly) {
       setNodeExtents(new Map());
       return;
     }
     let cancelled = false;
+    let timer = null;
     const allNodes = [{ id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params }, ...assembly.nodes];
-    (async () => {
+    const requestFor = (part, node) => ({
+      scadFile: part.file,
+      module: part.module,
+      params: node.params,
+      globalOverrides: getGlobalOverrides(),
+    });
+    const compute = async () => {
       // allSettled, not all: one node's own standalone render hitting
       // the known openscad-wasm resource limit (see friendlyRenderError()
       // — the same WASM build the main assembly render already works
@@ -193,13 +209,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         allNodes.map(async (n) => {
           const part = partsById.get(n.partId);
           if (part.kind === "imported") return [n.id, part.extents];
-          const buf = await renderPart({
-            scadFile: part.file,
-            module: part.module,
-            params: n.params,
-            globalOverrides: getGlobalOverrides(),
-          });
-          return [n.id, meshExtents(buf)];
+          return [n.id, meshExtents(await renderPart(requestFor(part, n)))];
         }),
       );
       if (cancelled) return;
@@ -209,9 +219,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         else console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
       }
       setNodeExtents(new Map(entries));
-    })();
+    };
+    const allCached = allNodes.every((n) => {
+      const part = partsById.get(n.partId);
+      return part.kind === "imported" || getCachedRender(requestFor(part, n)) !== null;
+    });
+    if (allCached) compute();
+    else timer = setTimeout(compute, RENDER_DEBOUNCE_MS);
     return () => {
       cancelled = true;
+      if (timer !== null) clearTimeout(timer);
     };
   }, [assembly, partsById]);
 
