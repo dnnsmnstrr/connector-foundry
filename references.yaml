@@ -67,6 +67,22 @@ sources:
       believe" and "the numbers the wrapper actually renders" shows up
       here rather than silently.
 
+  technic-scad:
+    kind: submodule
+    path: vendor/technic.scad
+    license: MIT
+    url: https://github.com/cfinke/technic.scad
+    note: >
+      Vendored as a plain copy of the one file used (see
+      vendor/technic.scad/UPSTREAM for the commit and why it is not a
+      submodule). parts/bitbeam/pin.scad and axle.scad call its
+      technic_pin() / technic_axle() directly — a BitBeam pin or axle is
+      a LEGO Technic one, and this library models LEGO's actual parts.
+      Nothing is overridden from lib/constants.scad: a fastener has to
+      match LEGO's holes, not this repo's restatement of them, so the
+      checks below only guard the wrappers (envelope, anchors, the $fn
+      they pin down) against the library called bare.
+
   # A CAD file you supply yourself — the usual shape of a real supplier
   # reference, since manufacturer STEP downloads sit behind logins and
   # cannot be fetched or redistributed. Drop the file in refs/manual/
@@ -254,6 +270,50 @@ shape_checks:
           cube_arm(5, 1, true, [], []);
     align: none
     sections_z: [0.5, 2.0, 4.0, 6.0, 7.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # Same purpose for the two technic.scad wrappers: the wrapper only
+  # centres the library's part and declares its envelope, so it must be
+  # the library's part, at the $fn the wrapper pins down. Both sit on
+  # the origin either way (the axle's mesh bottom is 0.002mm above it —
+  # the tessellated-sphere deficit axle.scad accounts for — which is
+  # inside every tolerance here).
+  - id: bitbeam/pin-2780
+    part: bitbeam/pin
+    reference_source: technic-scad
+    ours: |
+      include <{repo}/parts/bitbeam/pin.scad>
+      bitbeam_pin(anchor = BOTTOM);
+    reference: |
+      include <{technic-scad}/Technic.scad>
+      $fn = 32;
+      technic_pin();
+    align: none
+    sections_z: [1.0, 4.0, 7.45, 11.0, 14.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: bitbeam/axle-4L
+    part: bitbeam/axle
+    reference_source: technic-scad
+    ours: |
+      include <{repo}/parts/bitbeam/axle.scad>
+      bitbeam_axle(length = 4, anchor = BOTTOM);
+    reference: |
+      include <{technic-scad}/Technic.scad>
+      $fn = 32;
+      technic_axle(length = 4);
+    align: none
+    sections_z: [1.0, 8.0, 15.6, 24.0, 30.0]
     tolerances:
       max_bbox_mm: 0.01
       max_volume_pct: 0.1

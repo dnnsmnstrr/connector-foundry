@@ -96,18 +96,20 @@ DOVETAIL_WALL_T          = 2.4; // channel only
 // OpenSCAD implementation by the same author as bitbeam.cc — its own
 // `unit`/`hole` defaults already match the numbers below, and
 // beam.scad reassigns them from BITBEAM_UNIT/BITBEAM_HOLE_DIA anyway so
-// this section stays the one place that can change them. Pin and shaft
-// have no upstream module to call (bitbeam-lib only has beam-shaped
-// parts), so those are modelled directly from the spec.
+// this section stays the one place that can change them. The plate
+// (parts/bitbeam/plate.scad) is bitbeam-lib's cube_base() the same way.
+// bitbeam-lib has no pin or axle; those come from technic.scad, below.
 // ============================================================
 
 BITBEAM_UNIT      = 8;    // beam cross-section and hole pitch
 BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
 
-BITBEAM_PIN_DIA   = 4.6;  // friction pin: grips BITBEAM_HOLE_DIA by interference
-BITBEAM_PIN_LEN   = 4;
-BITBEAM_SHAFT_DIA = 4.3;  // axle: sized to spin freely in BITBEAM_HOLE_DIA
-BITBEAM_SHAFT_LEN = 3.6;
+// No pin or axle dimensions here on purpose: parts/bitbeam/pin.scad and
+// axle.scad wrap vendor/technic.scad (cfinke, MIT), whose LEGO Technic
+// pin and axle are what a BitBeam pin and axle are, and a fastener has
+// to match LEGO's holes rather than this repo's restatement of them —
+// so those parts take the library's numbers as-is. (pin.scad's
+// BITBEAM_PIN_LEN, which the pin joint needs, is derived from them.)
 
 // ============================================================
 // 2020 extrusion — parametric, supplier-dependent, but no longer guessed.

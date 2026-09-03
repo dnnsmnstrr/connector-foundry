@@ -1,0 +1,15 @@
+Upstream: https://github.com/cfinke/technic.scad
+Commit:   41f17a4696b582850097a2e3779348bc27c87f47
+Files:    Technic.scad, LICENSE (MIT) — copied unmodified.
+
+Why a copy and not a git submodule like the rest of vendor/: upstream's
+own repository declares nested submodules (lib/gears, utils/doxydown)
+with SSH URLs, so `git clone --recurse-submodules`, `make refs`, and CI's
+recursive checkout would all fail for anyone without GitHub SSH keys —
+for two directories nothing here uses. The one file the pin and axle
+call (parts/bitbeam/pin.scad, axle.scad) is vendored as-is instead.
+
+To update: fetch the file at a newer commit, replace Technic.scad, and
+record the commit above. Its gear modules `include <lib/gears/gears.scad>`
+inside their bodies; OpenSCAD warns that it cannot find that file and
+carries on, which is harmless since no part here calls a gear.

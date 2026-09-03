@@ -64,7 +64,7 @@ function grid_mount_anchors(size, pitch, h, count) =
 
 // A row of `count` named anchors along one edge of a `size`-sized box,
 // for a part whose side faces carry their own holes (see
-// parts/basics/pinhole_plate.scad) — the side-face counterpart to
+// parts/bitbeam/plate.scad) — the side-face counterpart to
 // grid_mount_anchors()'s top grid. `face` is one of "xpos"/"xneg"/
 // "ypos"/"yneg"; the row runs along the OTHER horizontal axis, centered
 // at `pitch` spacing, named "<face>_<i>". Anchor direction is that

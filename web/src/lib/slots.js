@@ -65,7 +65,7 @@ function sideRowLocal(faceName, extents, pitch, i) {
 //
 // A part can combine a top grid (`slots`), single box-face anchors
 // (`anchors`), and side rows (`side_slots`) all at once — see
-// catalogue.yaml's schema comments and parts/basics/pinhole_plate.scad,
+// catalogue.yaml's schema comments and parts/bitbeam/plate.scad,
 // which declares all three. `slots` alone still skips a separate
 // "mount" entry, same as before: mount_0_0 already sits at that exact
 // point (lib/slots.scad's own convention), so a plain part-without-a-

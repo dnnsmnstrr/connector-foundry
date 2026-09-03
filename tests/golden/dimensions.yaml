@@ -24,13 +24,6 @@ basics/dovetail_rail:
     - 36.0
     - 8.0
     volume_mm3: 4419.0
-basics/pinhole_plate:
-  default:
-    bbox:
-    - 24.0
-    - 24.0
-    - 8.0
-    volume_mm3: 3277.04
 basics/plate:
   default:
     bbox:
@@ -57,6 +50,25 @@ basics/post:
     - 10.0
     - 20.0
     volume_mm3: 1530.73
+bitbeam/axle:
+  2L:
+    bbox:
+    - 4.846
+    - 4.846
+    - 15.596
+    volume_mm3: 210.37
+  8L:
+    bbox:
+    - 4.846
+    - 4.846
+    - 62.396
+    volume_mm3: 861.54
+  default:
+    bbox:
+    - 4.846
+    - 4.846
+    - 31.196
+    volume_mm3: 427.43
 bitbeam/beam:
   default:
     bbox:
@@ -67,17 +79,29 @@ bitbeam/beam:
 bitbeam/pin:
   default:
     bbox:
-    - 4.75
-    - 4.75
-    - 4.0
-    volume_mm3: 61.69
-bitbeam/shaft:
+    - 5.6
+    - 5.6
+    - 14.9
+    volume_mm3: 163.18
+  long-top:
+    bbox:
+    - 5.6
+    - 5.6
+    - 22.7
+    volume_mm3: 244.95
+  smooth:
+    bbox:
+    - 5.6
+    - 5.6
+    - 14.9
+    volume_mm3: 159.41
+bitbeam/plate:
   default:
     bbox:
-    - 4.15
-    - 4.15
-    - 3.6
-    volume_mm3: 42.23
+    - 24.0
+    - 24.0
+    - 8.0
+    volume_mm3: 2432.64
 deckmate/innie:
   default:
     bbox:

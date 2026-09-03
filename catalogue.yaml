@@ -48,7 +48,7 @@
 # side_slots: for a part with a row of anchors along one or more of its
 #   side faces, not just the top grid `slots` covers — see
 #   lib/slots.scad's side_row_anchors() and
-#   parts/basics/pinhole_plate.scad. `pitch` (mm) is required; `faces`
+#   parts/bitbeam/plate.scad. `pitch` (mm) is required; `faces`
 #   lists one entry per side face that can carry a row, each naming the
 #   anchor prefix ("<name>_<i>"), the boolean parameter that turns that
 #   face's row on or off (`enabled_param`), and the current parameter
@@ -399,82 +399,94 @@ parts:
     module: bitbeam_pin
     confidence: exact
     source: >-
-      Dimensions from bitbeam.cc's published spec, checked 2026-09-02 —
-      see lib/constants.scad — with no reference geometry to check
-      against: nobody publishes a CAD model of just a pin, only the
-      numbers.
+      Wraps technic_pin() from vendor/technic.scad (cfinke, MIT): a BitBeam
+      pin is a LEGO Technic pin — bitbeam.cc's system is Technic-compatible
+      by design — and that library models LEGO part 2780 (6558 with a
+      longer top). Dimensions are the library's own, not restated here.
+      Checked in references.yaml against the library's module called
+      directly.
     print_note: >-
-      Prints standing up, no supports needed. Grips a beam's hole by
-      interference, not a snug published tolerance — how oversized it
-      needs to be depends on filament and printer, same caveat
-      bitbeam.cc's own docs give. Tune FIT_CLEARANCE (Settings in the
-      web app) rather than the diameter directly: more for a firmer
-      grip, less (even negative) for an easier push.
+      A real split friction pin — hollow body, collar between the halves, a
+      lip at each tip, friction ridges — so it grips a beam's 4.8mm hole the
+      way a LEGO pin does; no FIT_CLEARANCE involved. Prints standing up as
+      the library intends; the 0.75mm tip slit wants a printer that does
+      small gaps cleanly. top_length/bottom_length are per half, in Technic
+      units (7.8mm).
     defaults:
-      dia: 4.6
-      len: 4
+      top_length: 1
+      bottom_length: 1
+      friction: true
+    variants:
+      - name: long-top
+        params: { top_length: 2 }
+      - name: smooth
+        params: { friction: false }
 
-  - id: bitbeam/shaft
+  - id: bitbeam/axle
     system: BitBeam
-    name: Axle shaft
-    file: parts/bitbeam/shaft.scad
-    module: bitbeam_shaft
+    name: Axle
+    file: parts/bitbeam/axle.scad
+    module: bitbeam_axle
     confidence: exact
     source: >-
-      Dimensions from bitbeam.cc's published spec, checked 2026-09-02 —
-      see lib/constants.scad — with no reference geometry to check
-      against: nobody publishes a CAD model of just a shaft, only the
-      numbers.
+      Wraps technic_axle() from vendor/technic.scad (cfinke, MIT) — LEGO
+      parts 3704/3705/3706 and friends: the cross-section axle that turns
+      freely in a BitBeam hole and locks in a gear's or wheel's axle hole.
+      Dimensions are the library's own, not restated here. Checked in
+      references.yaml against the library's module called directly.
     print_note: >-
-      Prints standing up, no supports needed. Sized to spin freely in a
-      beam's hole (a wheel/gear axle, not a fixed grip — for that, use
-      bitbeam/pin instead). Tune FIT_CLEARANCE (Settings in the web app)
-      for how much play it has: more clearance for a freer spin, less
-      for a snugger one.
+      Prints standing up as the library intends (a long one wants a brim).
+      `length` is in Technic units (7.8mm), so 4 is LEGO's 3705. It spins in
+      a plain round hole and drives whatever has a matching cross-shaped one
+      — the reason to want an axle rather than a pin.
     defaults:
-      dia: 4.3
-      len: 3.6
+      length: 4
+    variants:
+      - name: 2L
+        params: { length: 2 }
+      - name: 8L
+        params: { length: 8 }
 
-  - id: basics/pinhole_plate
-    system: Basics
-    name: Pinhole plate
-    file: parts/basics/pinhole_plate.scad
-    module: pinhole_plate
+  - id: bitbeam/plate
+    system: BitBeam
+    name: Plate
+    file: parts/bitbeam/plate.scad
+    module: bitbeam_plate
     confidence: exact
+    license: BSD-3-Clause
     source: >-
-      Hole size and pitch from bitbeam.cc's published spec, checked
-      2026-09-02 — see lib/constants.scad — with no reference geometry
-      to check against: nobody publishes a CAD model of a plate like
-      this, only the numbers a real BitBeam hole has to match.
+      Dimensions from bitbeam.cc's published spec (checked 2026-09-02;
+      that site's own content is CC-BY-NC-SA and not used here — see
+      lib/constants.scad). Geometry from vendor/bitbeam-lib
+      (ondratu/bitbeam-lib, BSD-3-Clause): cube_base() for the plate and
+      its holes, its holes() module for the side rows. Nobody publishes a
+      CAD model of a plate like this, so there is no reference geometry to
+      check against beyond the numbers a real BitBeam hole has to match.
     print_note: >-
-      Flat on the bed, no supports needed. Every hole (top grid and side
-      rows alike) is a fixed 4.8mm bore, same as a real beam's — fit is
-      tuned entirely on the pin (bitbeam/pin's FIT_CLEARANCE), not here.
-      Side holes need real wall around them: the default thickness
-      (8mm) is what keeps that sane and keeps the side rows in register
-      with the top grid; go thinner and side_xpos/side_xneg/side_ypos/
-      side_yneg have to come off, or the render refuses outright rather
-      than emit an undersized bore.
+      Flat on the bed, no supports needed. Every hole is bitbeam-lib's own
+      — the same 4.8mm bore, lead-in and sub-surface groove a beam's holes
+      have — so a BitBeam pin behaves in this plate exactly as in a beam;
+      fit is tuned on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side
+      holes go one cell deep into every edge cell at mid-thickness and need
+      a full unit of thickness: on at height=1 (8mm, a beam's own); go
+      thinner and side_holes has to come off, or the render refuses rather
+      than emit an undersized bore. Sizes are in 8mm BitBeam units.
     slots:
       pitch: 8
       count_params: [grid_x, grid_y]
     side_slots:
       pitch: 8
       faces:
-        - { name: xpos, enabled_param: side_xpos, count_param: grid_y }
-        - { name: xneg, enabled_param: side_xneg, count_param: grid_y }
-        - { name: ypos, enabled_param: side_ypos, count_param: grid_x }
-        - { name: yneg, enabled_param: side_yneg, count_param: grid_x }
+        - { name: xpos, enabled_param: side_holes, count_param: grid_y }
+        - { name: xneg, enabled_param: side_holes, count_param: grid_y }
+        - { name: ypos, enabled_param: side_holes, count_param: grid_x }
+        - { name: yneg, enabled_param: side_holes, count_param: grid_x }
     anchors: [bot, xpos, xneg, ypos, yneg]
     defaults:
       grid_x: 3
       grid_y: 3
-      t: 8
-      r: 3
-      side_xpos: true
-      side_xneg: true
-      side_ypos: true
-      side_yneg: true
+      height: 1
+      side_holes: true
 
   # DeckMate / Mechanism: three of Mechanism's own models, imported
   # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry

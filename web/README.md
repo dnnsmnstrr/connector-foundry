@@ -159,11 +159,11 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - `slots.js`'s `enumerateSlots()` combines every slot source a part declares — a top grid
   (`slots`), single box-face anchors (`anchors`), and now a per-face row (`side_slots`) — instead
   of picking exactly one, matching catalogue.yaml's own schema comment that these were always
-  meant to be combinable. `basics/pinhole_plate` is the first part to actually use all three at
+  meant to be combinable. `bitbeam/plate` is the first part to actually use all three at
   once: its top grid and side rows both come from `side_slots.faces`' `enabled_param`/`count_param`
-  pointing back at the part's own `side_xpos`/`grid_y`-style params, so a disabled side or a
-  resized grid changes what's clickable in the Bench the same render it changes the geometry —
-  see catalogue.yaml's `side_slots` schema comment for the field shapes.
+  pointing back at the part's own `side_holes`/`grid_y`-style params, so turning the side holes
+  off or resizing the grid changes what's clickable in the Bench the same render it changes the
+  geometry — see catalogue.yaml's `side_slots` schema comment for the field shapes.
 - Fetching every node's own standalone extents (the bullet above) is a `Promise.allSettled`, not
   `Promise.all`: one node's render hitting the same openscad-wasm resource limit
   `friendlyRenderError()` already has a message for shouldn't cost every *other* node its markers,

@@ -16,6 +16,7 @@ from it. Two things can go wrong, and both are silent in a render:
   editor's codegen can emit for the "screwed" joint is rendered here and
   probed on both sides of the seam at the same (x, y).
 """
+import math
 import re
 from pathlib import Path
 
@@ -47,6 +48,13 @@ FLANGE_T = _const("JOINT_FLANGE_T", JOINTS_SRC)
 HOLES = [(SPAN / 2, 0.0), (-SPAN / 2, 0.0), (0.0, -DROP)]
 CENTROID = (0.0, -DROP / 3)
 
+# How far from a hole's centre the "there is material here" probe sits.
+# The Outie's base is a hollow shell (~2.7mm walls, bosses around the
+# holes), so a probe out in the middle of the pattern lands in air; every
+# hole on both parts and the flange has solid wall out to at least 3mm
+# from its centre, and the bores themselves are under 2.4mm in radius.
+BESIDE_R = 2.6
+
 PATTERNED_PARTS = ["deckmate/outie", "deckmate/universal"]
 
 
@@ -59,10 +67,12 @@ def _inside(mesh, x, y, z) -> bool:
 
 
 def _beside(x, y):
-    """A point between a hole and the pattern's centroid — on material
-    for both parts (clear of the Outie's center pocket and of both
-    parts' edges), so a passing hole probe is a hole, not empty air."""
-    return ((x + CENTROID[0]) / 2, (y + CENTROID[1]) / 2)
+    """A point BESIDE_R from the hole's centre, stepping toward the
+    pattern's centroid — inside the boss wall on every part that carries
+    the pattern, so a passing hole probe is a hole, not empty air."""
+    dx, dy = CENTROID[0] - x, CENTROID[1] - y
+    d = math.hypot(dx, dy)
+    return (x + dx / d * BESIDE_R, y + dy / d * BESIDE_R)
 
 
 def _assert_pattern(mesh, label, origin_xy, z):

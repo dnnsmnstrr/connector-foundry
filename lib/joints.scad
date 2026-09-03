@@ -49,7 +49,7 @@ JOINT_PEG_BARB_R = 2.3;  // snap peg barb radius
 JOINT_PEG_H      = 3.5;  // peg length above the flange face
 
 // Thick enough for a proper BITBEAM_HOLE_DIA bore, same reasoning as
-// parts/basics/pinhole_plate.scad's own minimum thickness — a plain
+// parts/bitbeam/plate.scad's own minimum thickness — a plain
 // JOINT_FLANGE_T (4mm) flange would leave the 4.8mm bore with no wall
 // above or below it at all.
 JOINT_PIN_FLANGE_T = BITBEAM_UNIT;
@@ -114,12 +114,12 @@ module snap_flange_b(anchor = BOTTOM, spin = 0, orient = UP) {
 // insert/clearance split or snap's peg/socket split, a pin joint's two
 // flanges are IDENTICAL, just a single BITBEAM_HOLE_DIA bore through
 // the center. Both flanges' bores end up face to face when the joint is
-// assembled, forming one channel a real bitbeam_pin slides into
-// spanning the seam — exactly how two beams pin together, just with a
-// flange standing in for the beam's own body. The bore is a fixed
-// nominal diameter, same as a real beam's hole; all the fit tuning
-// happens on the pin itself (bitbeam_pin's own FIT_CLEARANCE), not
-// here, so there is one knob for grip, not two disagreeing ones.
+// assembled, forming one channel a real bitbeam_pin (a LEGO Technic pin,
+// via vendor/technic.scad) slides into spanning the seam, collar in the
+// seam — exactly how two beams pin together, just with a flange standing
+// in for the beam's own body. The bore is a fixed nominal diameter, same
+// as a real beam's hole; the pin's friction ridges do the gripping, as
+// in any Technic hole, so there is nothing to tune here.
 module pin_flange(anchor = BOTTOM, spin = 0, orient = UP) {
     attachable(anchor, spin, orient, size = _JOINT_PIN_SIZE, anchors = [mount_anchor(_JOINT_PIN_SIZE.z / 2)]) {
         difference() {

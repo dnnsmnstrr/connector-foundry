@@ -22,12 +22,16 @@ export const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
 // actually reach into. QuackWorks in particular is a large repo of
 // unrelated systems; bundling all of it would put ~800KB of dead
 // source in front of every visitor.
+// An entry may also name a single file, for an upstream whose one
+// library file is all a part reaches for (technic.scad ships gears,
+// examples and customizer files alongside it that no part here uses).
 export const SOURCE_DIRS = [
   "vendor/BOSL2",
   "vendor/gridfinity-rebuilt/src",
   "vendor/GoProScad",
   "vendor/QuackWorks/openGrid",
   "vendor/bitbeam-lib",
+  "vendor/technic.scad/Technic.scad",
   "lib",
   "parts",
   "assemblies",
@@ -70,6 +74,10 @@ export function isBundledFile(file) {
 
 function walk(dir, out) {
   if (!fs.existsSync(dir)) return;
+  if (fs.statSync(dir).isFile()) {
+    if (isBundledFile(dir)) out.push(dir);
+    return;
+  }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {

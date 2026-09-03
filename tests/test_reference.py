@@ -62,9 +62,10 @@ def test_every_exact_part_has_a_reference():
       spec exists (so there IS something to be wrong about), but no
       reference implementation or CAD model of it exists anywhere to
       render and diff against — only the numbers themselves
-      (parts/bitbeam/pin.scad, shaft.scad). If one ever turns up, this
-      exemption is what should get replaced with a real shape/fit
-      check, not kept.
+      (parts/bitbeam/plate.scad: nobody publishes a plate like it). If
+      one ever turns up, this exemption is what should get replaced
+      with a real shape/fit check, not kept — as happened to the pin
+      and axle once technic.scad was found.
     - "the manufacturer's own model": the part IS the reference — a
       vendor's published mesh imported unmodified (parts/deckmate/). A
       shape check would compare the file against itself; what can go
