@@ -16,11 +16,17 @@ import { groupBySystem, matchesSearch, resolveSystemOrder } from "../lib/catalog
 // The system headings follow the order saved in Settings ("Part list"),
 // catalogue order by default — resolved against the full `parts` list,
 // not the filtered one, so a search never reshuffles what is left.
+//
+// A catalogue entry marked `hidden` (bitbeam/pin, bitbeam/axle — parts
+// the Bench's pin joint needs to exist but nobody picks by hand) is
+// left out of every list here while staying in `parts` for the code
+// that looks parts up by id.
 export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocus = false }) {
   const [search, setSearch] = useState("");
   const savedOrder = useSystemOrder();
-  const order = useMemo(() => resolveSystemOrder(parts, savedOrder), [parts, savedOrder]);
-  const filtered = useMemo(() => parts.filter((p) => matchesSearch(p, search)), [parts, search]);
+  const listed = useMemo(() => parts.filter((p) => !p.hidden), [parts]);
+  const order = useMemo(() => resolveSystemOrder(listed, savedOrder), [listed, savedOrder]);
+  const filtered = useMemo(() => listed.filter((p) => matchesSearch(p, search)), [listed, search]);
   const groups = useMemo(() => groupBySystem(filtered, order), [filtered, order]);
   const focusOnOpen = autoFocus && !hasCoarsePointer();
 

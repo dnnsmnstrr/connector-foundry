@@ -563,16 +563,24 @@ def goldens(update: bool = typer.Option(False, "--update",
 def readme():
     """Regenerate the catalogue table in README.md from catalogue.yaml."""
     catalogue = load_catalogue()
-    lines = ["| Part | System | Confidence | Licence | Print note |",
-             "| --- | --- | --- | --- | --- |"]
+    lines = ["| Part | System | Confidence | Licence | Source | Print note |",
+             "| --- | --- | --- | --- | --- | --- |"]
     for part in catalogue["parts"]:
+        # `hidden` parts (bitbeam/pin, bitbeam/axle) exist for the Bench's
+        # pin joint and the CLI, not for the gallery — same rule as the
+        # web app's part lists.
+        if part.get("hidden"):
+            continue
         img = f"docs/img/{slug(part['id'])}.png"
         cell = (f"![{part['name']}]({img})<br>{part['name']}"
                 if (REPO_ROOT / img).exists() else part["name"])
         licence = part.get("license", "MIT")
+        source = " ".join(part["source"].split())
+        if part.get("source_url"):
+            source = f"[{source}]({part['source_url']})"
         note = " ".join(part["print_note"].split())
         lines.append(f"| {cell} | {part['system']} | {part['confidence']} "
-                     f"| {licence} | {note} |")
+                     f"| {licence} | {source} | {note} |")
     table = "\n".join(lines)
 
     readme_path = REPO_ROOT / "README.md"

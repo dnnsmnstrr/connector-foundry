@@ -69,6 +69,17 @@
 #   `slots` in this catalogue (a part either has a handful of fixed
 #   named faces or a pitched grid, never both) — nothing stops a part
 #   from declaring both if a future one legitimately needs to.
+#
+# source / source_url: one line on where the geometry comes from, and
+#   the link to it. The web app and the README table show both. An
+#   `exact` part with no check in references.yaml has to say why in
+#   `source` — see tests/test_reference.py for the three accepted
+#   phrases.
+#
+# hidden: true keeps a part out of every part list (web app, README
+#   table) while the CLI and the Bench's code can still use it — the
+#   BitBeam pin and axle are LEGO-Technic fasteners that print badly and
+#   that the pin joint needs to exist regardless.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -76,8 +87,9 @@ parts:
     file: parts/gridfinity/base.scad
     module: gf_base
     confidence: exact
-    source: "Wraps gridfinity-rebuilt-openscad (kennetek, MIT), vendored at vendor/gridfinity-rebuilt"
-    print_note: Print as-is, functional face (feet) down. No supports needed.
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: Feet down, no supports.
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
     defaults:
@@ -95,24 +107,51 @@ parts:
       - name: thumbscrew
         params: { thumbscrew: true }
 
+  - id: gridfinity/baseplate
+    system: Gridfinity
+    name: Baseplate
+    file: parts/gridfinity/baseplate.scad
+    module: gf_baseplate
+    confidence: exact
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: >-
+      Modelled pockets down so the flat back is the "mount" face; flip it
+      in the slicer to print back-down. Magnets and screw holes only
+      apply to the weighted, skeletonized and screw-together styles.
+    slots:
+      pitch: 14  # same free subdivision as the bin base
+    anchors: [bot]
+    defaults:
+      gx: 1
+      gy: 1
+      style: thin
+      magnets: false
+      screw_holes: none
+    options:
+      style: [thin, weighted, skeletonized, screw_together, screw_together_minimal]
+      screw_holes: [none, countersink, counterbore]
+    variants:
+      - name: weighted-2x1
+        params: { gx: 2, style: weighted }
+      - name: screw-together-magnets
+        params: { style: screw_together, magnets: true, screw_holes: countersink }
+
   - id: opengrid/board
     system: openGrid
-    name: Mounting board
+    name: Board
     file: parts/opengrid/board.scad
     module: og_board
     confidence: exact
     license: CC-BY-NC-SA-4.0
     source: >-
-      Wraps QuackWorks openGrid.scad, vendored at vendor/QuackWorks.
-      openGrid design by David D; OpenSCAD implementation by Andy
-      (BlackjackDuck). NOT MIT — see README "Licensing".
+      QuackWorks openGrid.scad (openGrid by David D, OpenSCAD by
+      BlackjackDuck), vendored. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks
     print_note: >-
-      Grid face up, flat on the bed. A tile is exactly cells x 28mm, so
-      boards butt against each other with no border. "full" is the
-      default; "lite" is 4mm, "heavy" is 13.8mm. The heavy tile is two
-      halves back to back with a deliberate gap between them, so it
-      contains one sealed cavity per cell — expected, not a modelling
-      error, but it does mean the interior is unreachable once printed.
+      Grid face up, flat on the bed. A board is exactly cells x 28mm with
+      no border, so boards butt together. lite is 4mm, full 6.8mm, heavy
+      13.8mm (two halves back to back, with a sealed cavity per cell).
     slots:
       pitch: 28  # OG_PITCH — one slot per cell
       count_params: [cells_x, cells_y]
@@ -139,20 +178,19 @@ parts:
 
   - id: opengrid/snap
     system: openGrid
-    name: Cell snap
+    name: Snap
     file: parts/opengrid/snap.scad
     module: og_snap
     confidence: exact
     license: CC-BY-NC-SA-4.0
     source: >-
-      Wraps QuackWorks opengrid-snap.scad, vendored at vendor/QuackWorks.
-      openGrid design by David D; snap implementation by metasyntactic.
-      NOT MIT — see README "Licensing".
+      QuackWorks opengrid-snap.scad (openGrid by David D, snap by
+      metasyntactic), vendored. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks
     print_note: >-
-      Print in a material with some flex (PETG/PLA+) so the retaining
-      wings can compress; no supports needed. A snap sits within the
-      board's thickness. Note the "lite" snap is a half-height snap
-      (3.4mm), which is not the same thing as a lite tile (4.0mm).
+      Print in PETG or another filament with some flex so the wings can
+      compress; no supports. The lite snap is half height (3.4mm), which
+      is not the same as a lite board.
     defaults:
       variant: full
       directional: false
@@ -170,11 +208,9 @@ parts:
     file: parts/gopro/male.scad
     module: gopro_male
     confidence: exact
-    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
-    print_note: >-
-      Legs face down for slot consistency; use a brim for first-layer
-      adhesion. Mates with any GoPro-standard three-prong buckle — proved
-      against the upstream model, not just against our own female.
+    source: GoProScad (ridercz, MIT), vendored
+    source_url: https://github.com/ridercz/GoProScad
+    print_note: Legs down; use a brim. Mates with any GoPro three-prong buckle.
     defaults:
       base_h: 3
       base_w: 20
@@ -189,11 +225,11 @@ parts:
     file: parts/gopro/female.scad
     module: gopro_female
     confidence: exact
-    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
+    source: GoProScad (ridercz, MIT), vendored
+    source_url: https://github.com/ridercz/GoProScad
     print_note: >-
-      Legs face down for slot consistency; use a brim for first-layer
-      adhesion. nut_depth sinks a captive square-nut pocket in the far
-      leg; set it to 0 for a plain through-hole.
+      Legs down; use a brim. nut_depth sinks a captive square-nut pocket
+      in the far leg; 0 gives a plain through-hole.
     defaults:
       base_h: 3
       base_w: 20
@@ -214,52 +250,36 @@ parts:
   # tests/test_anchors.py checks it against the rendered geometry.
   - id: deckmate/innie
     system: DeckMate / Mechanism
-    name: Innie (Universal Grip)
+    name: Innie
     file: parts/deckmate/innie.scad
     module: deckmate_innie
     confidence: exact
     license: CC-BY-NC-4.0
     source: >-
-      Mechanism's own Universal Grip model (Mechanism_Universal_Grip_03.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+      Mechanism's Universal Grip STL — the manufacturer's own model,
+      imported unmodified. CC BY-NC 4.0 — see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
     print_note: >-
-      The socket half of the DeckMate interface. Oriented per the slot
-      convention: socket down, flat back up with "mount" at its center —
-      that back is where Mechanism puts the adhesive, and it is the face to
-      fuse a connector onto instead. The socket side has undercuts, so to
-      print the grip itself turn it flat-back-down in the slicer. "bot"
-      marks the center of the socket side's bounding box; it sits over the
-      socket recess, not on material, so attach there deliberately. No
-      screw pattern on this one — that is the Outie and the Universal.
+      The socket half. Flat back up as "mount" (where Mechanism puts the
+      adhesive); the socket side has undercuts, so flip it in the slicer.
+      "bot" sits over the socket recess, not on material.
     anchors: [bot]
 
   - id: deckmate/outie
     system: DeckMate / Mechanism
-    name: Outie (Bot Print)
+    name: Outie
     file: parts/deckmate/outie.scad
     module: deckmate_outie
     confidence: exact
     license: CC-BY-NC-4.0
     source: >-
-      Mechanism's own "Bot Print" model (Deck_Mate_Mechanism_Bot_Print_02.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+      Mechanism's Bot Print STL — the manufacturer's own model, imported
+      unmodified. CC BY-NC 4.0 — see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
     print_note: >-
-      The rail half of the DeckMate interface — slides into an Innie.
-      Oriented per the slot convention: rail down, flat base up with
-      "mount" on it. Fuse it, or pick the "screwed" joint: its base has
-      Mechanism's three-hole pattern, so the other side gets a flange with
-      heat-set insert bores at the same spacing and the rail can be printed
-      in its own best orientation (rail up) and fastened on. The holes
-      taper from 4.45mm at the base face to 2.4mm at the rail face — a
-      self-tapping hole for a screw driven from the base side, or a seat
-      for an M3 insert in the wide end; nothing over 2.4mm passes through
-      from the rail side. Fusing it and not screwing anything into it?
-      fill_holes plugs all three solid — same footprint, no open mouths
-      on the rail side. Leave it off for the "screwed" joint.
+      The rail half; slides into an Innie. Base up as "mount". Fuse it,
+      or use the screwed joint on its three-hole pattern and print the
+      rail on its own, rail up. fill_holes plugs the holes on a fused one.
     screw_pattern: deckmate
     mount_offset: [0, 3.391]
     defaults:
@@ -276,18 +296,13 @@ parts:
     confidence: exact
     license: CC-BY-NC-4.0
     source: >-
-      Mechanism's own "Deck Mate Universal" model (Deck_Mate_Universal_02.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+      Mechanism's Deck Mate Universal STL — the manufacturer's own model,
+      imported unmodified. CC BY-NC 4.0 — see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
     print_note: >-
-      Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto:
-      the three-hole pattern (2.98mm through, countersunk on the adhesive
-      side) plus a 41mm round recess for the adhesive disc. Oriented per
-      the slot convention: pattern face down with "bot" on it, adhesive
-      face up as "mount" — fuse that face onto anything in place of the
-      adhesive, then stack an Outie on "bot" with the "screwed" joint (no
-      flange needed: both carry the pattern). Prints flat either way up.
+      Mechanism's 56.7 x 28.4 x 3mm base plate: hole pattern down as
+      "bot", adhesive face up as "mount". Stack an Outie on "bot" with the
+      screwed joint (no flange needed). Prints flat either way up.
     anchors: [bot]
     screw_pattern: deckmate
     mount_offset: [0, 4.896]
@@ -299,18 +314,12 @@ parts:
     module: bitbeam_beam
     confidence: exact
     license: BSD-3-Clause
-    source: >-
-      Dimensions from bitbeam.cc's published spec (checked 2026-09-02;
-      that site's own content is CC-BY-NC-SA and not used here — see
-      lib/constants.scad). Geometry from vendor/bitbeam-lib
-      (ondratu/bitbeam-lib, BSD-3-Clause), a separately and permissively
-      licensed OpenSCAD implementation by bitbeam.cc's own author, whose
-      defaults already match the published spec.
+    source: bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc
+    source_url: https://github.com/ondratu/bitbeam-lib
     print_note: >-
-      Print flat, no supports or brim needed. Holes run through top/
-      bottom on 8mm pitch, and — with side_holes on, the default —
-      through front/back too, so beams can join at a right angle as
-      well as end to end. LEGO Technic-compatible.
+      Print flat, no supports. 4.8mm holes on an 8mm pitch through top and
+      bottom, and through the sides with side_holes on. LEGO
+      Technic-compatible.
     defaults:
       len: 5
       side_holes: true
@@ -321,20 +330,13 @@ parts:
     file: parts/bitbeam/pin.scad
     module: bitbeam_pin
     confidence: exact
-    source: >-
-      Wraps technic_pin() from vendor/technic.scad (cfinke, MIT): a BitBeam
-      pin is a LEGO Technic pin — bitbeam.cc's system is Technic-compatible
-      by design — and that library models LEGO part 2780 (6558 with a
-      longer top). Dimensions are the library's own, not restated here.
-      Checked in references.yaml against the library's module called
-      directly.
+    hidden: true
+    source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin 2780
+    source_url: https://github.com/cfinke/technic.scad
     print_note: >-
-      A real split friction pin — hollow body, collar between the halves, a
-      lip at each tip, friction ridges — so it grips a beam's 4.8mm hole the
-      way a LEGO pin does; no FIT_CLEARANCE involved. Prints standing up as
-      the library intends; the 0.75mm tip slit wants a printer that does
-      small gaps cleanly. top_length/bottom_length are per half, in Technic
-      units (7.8mm).
+      A split friction pin; prints standing up and wants a printer that
+      does 0.75mm gaps cleanly. Lengths are per half, in 7.8mm Technic
+      units. Used by the Bench's pin joint.
     defaults:
       top_length: 1
       bottom_length: 1
@@ -351,17 +353,12 @@ parts:
     file: parts/bitbeam/axle.scad
     module: bitbeam_axle
     confidence: exact
-    source: >-
-      Wraps technic_axle() from vendor/technic.scad (cfinke, MIT) — LEGO
-      parts 3704/3705/3706 and friends: the cross-section axle that turns
-      freely in a BitBeam hole and locks in a gear's or wheel's axle hole.
-      Dimensions are the library's own, not restated here. Checked in
-      references.yaml against the library's module called directly.
+    hidden: true
+    source: technic.scad (cfinke, MIT), vendored — LEGO Technic axle 3705 and friends
+    source_url: https://github.com/cfinke/technic.scad
     print_note: >-
-      Prints standing up as the library intends (a long one wants a brim).
-      `length` is in Technic units (7.8mm), so 4 is LEGO's 3705. It spins in
-      a plain round hole and drives whatever has a matching cross-shaped one
-      — the reason to want an axle rather than a pin.
+      Prints standing up (a long one wants a brim). length is in 7.8mm
+      Technic units; 4 is LEGO's 3705.
     defaults:
       length: 4
     variants:
@@ -378,22 +375,14 @@ parts:
     confidence: exact
     license: BSD-3-Clause
     source: >-
-      Dimensions from bitbeam.cc's published spec (checked 2026-09-02;
-      that site's own content is CC-BY-NC-SA and not used here — see
-      lib/constants.scad). Geometry from vendor/bitbeam-lib
-      (ondratu/bitbeam-lib, BSD-3-Clause): cube_base() for the plate and
-      its holes, its holes() module for the side rows. Nobody publishes a
-      CAD model of a plate like this, so there is no reference geometry to
-      check against beyond the numbers a real BitBeam hole has to match.
+      bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per
+      bitbeam.cc. Nobody publishes a model of a plate like this, so there
+      is no reference geometry to check against.
+    source_url: https://github.com/ondratu/bitbeam-lib
     print_note: >-
-      Flat on the bed, no supports needed. Every hole is bitbeam-lib's own
-      — the same 4.8mm bore, lead-in and sub-surface groove a beam's holes
-      have — so a BitBeam pin behaves in this plate exactly as in a beam;
-      fit is tuned on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side
-      holes go one cell deep into every edge cell at mid-thickness and need
-      a full unit of thickness: on at height=1 (8mm, a beam's own); go
-      thinner and side_holes has to come off, or the render refuses rather
-      than emit an undersized bore. Sizes are in 8mm BitBeam units.
+      Flat on the bed, no supports. Every hole is a real BitBeam hole, top
+      and side. Side holes need height 1 (8mm); go thinner and turn
+      side_holes off. Sizes are in 8mm units.
     slots:
       pitch: 8
       count_params: [grid_x, grid_y]
@@ -417,10 +406,8 @@ parts:
     file: parts/basics/plate.scad
     module: basics_plate
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
-    print_note: >-
-      Flat on the bed, no supports needed. Named anchors on all 6 faces —
-      branch composition off any side, not just top/bottom.
+    source: Generic geometry, not tied to an external spec
+    print_note: Flat on the bed, no supports. Anchors on all six faces.
     anchors: [bot, xpos, xneg, ypos, yneg]
     defaults:
       w: 40
@@ -437,8 +424,8 @@ parts:
     file: parts/basics/post.scad
     module: basics_post
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
-    print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
+    source: Generic geometry, not tied to an external spec
+    print_note: Stands on its flat end ("bot"), no supports.
     anchors: [bot]
     defaults:
       dia: 10
@@ -453,13 +440,10 @@ parts:
     file: parts/basics/dovetail_rail.scad
     module: dovetail_rail
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    source: Generic geometry, not tied to an external spec
     print_note: >-
-      Tip down, no supports needed — the taper narrows going down. Was
-      originally a guess at DeckMate's dimensions; confirmed wrong
-      against a real DeckMate part, so it lives here as a generic
-      dovetail instead. For a part that actually mates with a DeckMate
-      accessory, import the real Mechanism model into the web Bench.
+      Tip down, no supports. A generic dovetail, not DeckMate-compatible —
+      import Mechanism's own model for that.
     defaults:
       rail_len: 36
       end_stop: false
@@ -473,11 +457,8 @@ parts:
     file: parts/basics/dovetail_channel.scad
     module: dovetail_channel
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
-    print_note: >-
-      Mouth down, no supports needed — the channel widens going up.
-      Mates with basics/dovetail_rail; see its print note for why this
-      isn't in DeckMate.
+    source: Generic geometry, not tied to an external spec
+    print_note: Mouth down, no supports. Mates with the dovetail rail.
     defaults:
       rail_len: 36
       wall: 2.4
@@ -489,15 +470,12 @@ parts:
     file: parts/extrusion2020/tab.scad
     module: ex_tab
     confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
     print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the
-      channel floor. tab_len <= 6mm (the default) drops into the slot
-      face-first and twists 90 degrees to lock, anywhere along the rail;
-      longer heads must be fed in endwise from an open end.
+      Check EX_* in lib/constants.scad against your rail. tab_len up to
+      6mm drops into the slot face-first and twists to lock; a longer head
+      feeds in from an open end.
     defaults:
       tab_len: 6
       head_t: 2.0
@@ -512,15 +490,11 @@ parts:
     file: parts/extrusion2020/clip.scad
     module: ex_clip
     confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
     print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Push straight into the slot mid-rail, no end access needed;
-      the legs flex through EX_SLOT_OPEN and the barbs spring out under
-      the lip. Print in a flexible-enough filament (PETG/nylon) — stiff
-      PLA legs may snap.
+      Check EX_* in lib/constants.scad against your rail. Pushes straight
+      into the slot mid-rail. Print in PETG or nylon so the legs can flex.
     defaults:
       leg_len: 7
       post_h: 8
@@ -531,14 +505,11 @@ parts:
     file: parts/extrusion2020/endcap.scad
     module: ex_endcap
     confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
     print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Locating keys print face-down as oriented; the plate
-      overhangs them at its four corners, so add a brim or light support
-      there.
+      Check EX_* in lib/constants.scad against your rail. Keys print
+      face-down; the plate corners overhang them, so add a brim.
     defaults:
       plate_t: 3
       boss_h: 2
@@ -549,15 +520,11 @@ parts:
     file: parts/extrusion2020/corner-bracket.scad
     module: ex_corner_bracket
     confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
     print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Print with the base flange down as oriented; the upright
-      flange is a self-supporting 90 degree wall. Bore centers assume the
-      bracket sits centered on each extrusion face — check against your
-      T-nut/bore spacing.
+      Check EX_* in lib/constants.scad against your rail. Base flange
+      down; check the bore spacing against your T-nuts.
     defaults: {}
 
   - id: extrusion2020/c-clip
@@ -566,15 +533,11 @@ parts:
     file: parts/extrusion2020/c-clip.scad
     module: ex_c_clip
     confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
     print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Snaps over the OUTSIDE of the extrusion through its open
-      side; print with the ring axis vertical as oriented (zero overhang
-      either way up). Confirm your printer's flex/tolerance can open the
-      gap without cracking.
+      Check EX_* in lib/constants.scad against your rail. Snaps over the
+      outside of the profile; print with the ring axis vertical.
     defaults: {}
 
   - id: extrusion2020/rail
@@ -585,32 +548,29 @@ parts:
     confidence: parametric
     license: Apache-2.0
     source: >-
-      Wraps extrusion_profile() from vendor/AluminumExtrusionProfile
-      (ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library, Jen Reed,
-      Apache-2.0 — stated in its README; it ships no LICENSE file), with
-      that library's own 2020 preset numbers. Not NopSCADlib's E2020t and
-      not lib/constants.scad's EX_* (which describe E2020t): same 20mm
-      envelope, 6.2mm slot mouth and 1.8mm lip, but the channel behind
-      the lip is ~13mm wide against 11 and its floor 1.2mm deeper.
-      references.yaml's extrusion2020/rail-vs-E2020t records the gap
-      (section IoU 0.93) instead of claiming a match.
+      AluminumExtrusionProfile (Jen Reed, Apache-2.0), vendored — its 2020
+      preset, which is close to but not E2020t; references.yaml records
+      the gap.
+    source_url: https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library
     print_note: >-
-      A printable stand-in for a length of real rail — for trying the
-      fittings in this group and for Bench layouts — not a substitute for
-      aluminium. Prints lying flat as oriented; the two side slot mouths
-      are 6.2mm bridges. slot "t" is what every other 2020 part here is
-      sized for; "v" is a V-slot profile (same envelope, not the same
-      fittings). Does not read FIT_CLEARANCE. The top slot carries a
-      mount_<i>_0 row at 20mm pitch.
+      A printable stand-in for real rail, for trying fittings and Bench
+      layouts. Lies flat by default; "vertical" stands it on end. Slots
+      along the top at 20mm pitch, on both ends and on the bottom. slot
+      "v" is a V-slot profile.
     slots:
       pitch: 20  # EX_PROFILE — one profile width along the top slot; a free subdivision
+    anchors: [bot, xpos, xneg]
     defaults:
       len: 100
       slot: "t"
+      orientation: horizontal
     options:
       slot: ["t", "v"]
+      orientation: [horizontal, vertical]
     variants:
       - name: v-slot
         params: { slot: "v" }
       - name: short-40
         params: { len: 40 }
+      - name: vertical-60
+        params: { orientation: vertical, len: 60 }

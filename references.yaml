@@ -173,6 +173,30 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  # The baseplate wrapper flips upstream's plate pockets-down (the repo's
+  # functional-face-BOTTOM convention), so pose ours back the way upstream
+  # builds it — back on z=0, pockets up — before comparing.
+  - id: gridfinity/baseplate-1x1-thin
+    part: gridfinity/baseplate
+    reference_source: gridfinity-rebuilt
+    ours: |
+      include <{repo}/parts/gridfinity/baseplate.scad>
+      rotate([180, 0, 0]) gf_baseplate(anchor = TOP);
+    reference: |
+      include <{gridfinity-rebuilt}/src/core/standard.scad>
+      use <{gridfinity-rebuilt}/gridfinity-rebuilt-baseplate.scad>
+      use <{gridfinity-rebuilt}/src/core/gridfinity-rebuilt-holes.scad>
+      gridfinityBaseplate([1, 1], 42, [0, 0], 0,
+                          bundle_hole_options(magnet_hole = false), 0);
+    align: none
+    sections_z: [0.5, 1.5, 2.5, 3.5, 4.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # Guards the two GoProScad numbers we are forced to restate in
   # lib/constants.scad (GP_LEG_T, GP_SLIT_W, GP_LEG_DIA) because `use <>`
   # does not import upstream's file-private __gopro_* variables. If

@@ -30,6 +30,10 @@ export const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
 export const SOURCE_DIRS = [
   "vendor/BOSL2",
   "vendor/gridfinity-rebuilt/src",
+  // gridfinityBaseplate() lives in this top-level customizer file, not
+  // under src/ — parts/gridfinity/baseplate.scad `use`s it (so its own
+  // top-level render call never runs).
+  "vendor/gridfinity-rebuilt/gridfinity-rebuilt-baseplate.scad",
   "vendor/GoProScad",
   "vendor/QuackWorks/openGrid",
   "vendor/bitbeam-lib",

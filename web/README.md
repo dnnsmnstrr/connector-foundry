@@ -53,7 +53,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
 | `src/hooks/useSystemOrder.js` | The saved system-heading order, live (subscribes to `uiPrefs.js`) so every part list reorders as Settings changes it |
 | `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
-| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings |
+| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Skips catalogue entries marked `hidden` (bitbeam/pin, bitbeam/axle), which stay in the parts map for the pin joint |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `JointSelect` |
@@ -151,6 +151,25 @@ a part actually has anchors left over. A few implementation notes that don't bel
   of its own. Worth knowing if you're reading the generated `.scad`: it looks more repetitive than
   it needs to for any one specific export, because it has to stay correct for *any* tag chosen at
   render time via `-D part=...`, not just the one you happen to be looking at.
+- Rotation is one number per node, `spin` (degrees, wrapped to `[0, 360)` by `normalizeSpin()`),
+  emitted as BOSL2's `attach(..., spin=)` on the child's *own* attach call — the one naming
+  `childAnchor` — and never on a flange's (`spinArg()`/`mateArgs()` in `assembly.js`). BOSL2 applies
+  it as `rot(v=<parent anchor direction>, a=spin)` right after translating to the anchor, i.e. a
+  turn in place about the mating axis, so the Bench can store a plain angle and hand it through.
+  `updateChildSpin()` sets it, `rotateChild()` adds ±90 to it (the ↺/↻ buttons in
+  `components/bench/SpinButtons.jsx`, used both floating over the scene and inline in `NodeTree`).
+- Selection is `Bench.jsx`'s `selectedNodeId` (never root). A click on the rendered mesh goes
+  through `StlViewer`'s `onModelClick` (the hit point, or null for empty space; a drag isn't a click
+  — `CLICK_SLOP_PX`) and `src/lib/benchPick.js` decides which part that point is on:
+  `nodeWorldBoxes()` gives a world AABB per node that can be placed on the same footing as the
+  markers (root, plus any catalogue part mated vertically — root's top grid, a `bot` stack, a ±Z
+  imported anchor — footprint rotated by its spin, padded by `mount_offset`), and `pickNodeAt()`
+  takes the smallest box containing the point, so the part sitting on top wins over the base it's
+  on. Nodes without a box (imported, side-mounted) select from the sidebar only. The same box
+  drives `StlViewer`'s `highlightBox` outline (a `Box3Helper`) and, via `boxTopCenter()`, the
+  `overlayAnchor` the floating controls are pinned to — `StlViewer` re-projects that anchor every
+  frame it draws and moves the overlay `<div>` with a transform, docking it at the bottom when there
+  is no anchor.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
   prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
   its "bot" anchor open (`src/lib/benchLayout.js`'s `stackSlotFor()`; everything about where a

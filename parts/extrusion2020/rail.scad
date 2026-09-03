@@ -18,12 +18,20 @@
 // references.yaml's extrusion2020/rail-vs-E2020t shape check records
 // that gap (section IoU 0.93) rather than claiming a match.
 //
-// Axis convention of this family: X along the rail, Y across, Z the
-// slot-insertion axis. The rail lies flat: size = [len, 20, 20].
-// Functional face BOTTOM (a slot face on the bed), "mount" on TOP, plus
-// a "mount_<i>_0" row along the top slot at EX_PROFILE pitch (the
-// catalogue's slots.pitch) so a fitting can be attached anywhere along
-// it on the Bench.
+// Two orientations, both with the same slot set so the catalogue can
+// declare it once:
+//   "horizontal" — the rail lies flat along X: size = [len, 20, 20].
+//                  Functional face BOTTOM (a slot face on the bed),
+//                  "mount" on TOP plus a "mount_<i>_0" row along the top
+//                  slot at EX_PROFILE pitch; the two cut ENDS are "xpos"
+//                  and "xneg".
+//   "vertical"   — the rail stands on end along Z: size = [20, 20, len].
+//                  The ENDS are now "mount" (top) and "bot" (bottom);
+//                  "xpos"/"xneg" are the two side slot faces at
+//                  mid-height, and the top-slot row collapses to just
+//                  mount_0_0 (a 20mm face holds one 20mm pitch).
+// The profile is 4-fold symmetric, so which slot lands on which face is
+// immaterial; every face anchor sits on a slot mouth or an end face.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
@@ -47,20 +55,31 @@ EX_RAIL_OUTER_OPEN = 6.2;  // slot mouth
 EX_RAIL_CHANNEL_D  = 6.1;  // outer face to channel floor, on the centreline
 EX_RAIL_LIP_T      = 1.8;
 
-module ex_rail(len = 100, slot = "t", anchor = BOTTOM, spin = 0, orient = UP) {
+module ex_rail(len = 100, slot = "t", orientation = "horizontal",
+               anchor = BOTTOM, spin = 0, orient = UP) {
     assert(slot == "t" || slot == "v", "ex_rail: slot is \"t\" or \"v\"");
+    assert(orientation == "horizontal" || orientation == "vertical",
+           "ex_rail: orientation is \"horizontal\" or \"vertical\"");
     assert(len > 0, "ex_rail: len must be positive");
     $fn  = EX_RAIL_FN;
-    size = [len, EX_RAIL_SQUARE, EX_RAIL_SQUARE];
+    vertical = orientation == "vertical";
+    size = vertical ? [EX_RAIL_SQUARE, EX_RAIL_SQUARE, len]
+                    : [len, EX_RAIL_SQUARE, EX_RAIL_SQUARE];
 
-    attachable(anchor, spin, orient, size = size,
-               anchors = concat([mount_anchor(size.z / 2)],
-                                grid_mount_anchors(size, EX_PROFILE, size.z / 2))) {
-        // The profile is drawn in XY and extruded along Z; rotate so the
-        // rail runs along X. The profile is 4-fold symmetric, so which
-        // slot lands on top is immaterial. center = true keeps the bbox
-        // centred, as attachable() expects.
-        rotate([0, 90, 0])
+    anchors = concat(
+        [
+            mount_anchor(size.z / 2),
+            named_anchor("bot",  [0, 0, -size.z / 2], DOWN,  0),
+            named_anchor("xpos", [size.x / 2, 0, 0],  RIGHT, 0),
+            named_anchor("xneg", [-size.x / 2, 0, 0], LEFT,  0),
+        ],
+        grid_mount_anchors(size, EX_PROFILE, size.z / 2));
+
+    attachable(anchor, spin, orient, size = size, anchors = anchors) {
+        // The profile is drawn in XY and extruded along Z — already the
+        // vertical rail; lay it along X for the horizontal one.
+        // center = true keeps the bbox centred, as attachable() expects.
+        rotate(vertical ? [0, 0, 0] : [0, 90, 0])
             linear_extrude(len, center = true, convexity = 8)
                 extrusion_profile(slot, EX_RAIL_FILLET, EX_RAIL_SQUARE,
                                   EX_RAIL_BORE_R, EX_RAIL_INNER_OPEN,

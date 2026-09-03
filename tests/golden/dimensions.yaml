@@ -176,6 +176,12 @@ extrusion2020/rail:
     - 20.0
     - 20.0
     volume_mm3: 14770.3
+  vertical-60:
+    bbox:
+    - 20.0
+    - 20.0
+    - 60.0
+    volume_mm3: 9725.03
 extrusion2020/tab:
   default:
     bbox:
@@ -246,6 +252,25 @@ gridfinity/base:
     - 41.5
     - 7.0
     volume_mm3: 10342.67
+gridfinity/baseplate:
+  default:
+    bbox:
+    - 42.0
+    - 42.0
+    - 5.0
+    volume_mm3: 1374.14
+  screw-together-magnets:
+    bbox:
+    - 42.0
+    - 42.0
+    - 11.75
+    volume_mm3: 6417.49
+  weighted-2x1:
+    bbox:
+    - 84.0
+    - 42.0
+    - 11.4
+    volume_mm3: 21034.89
 opengrid/board:
   default:
     bbox:

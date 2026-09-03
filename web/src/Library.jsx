@@ -143,7 +143,16 @@ export default function Library({
                   emptyText="No parameters — defaults only."
                   showSavedNote
                 />
-                <p className="source-note">Source: {selected.source}</p>
+                <p className="source-note">
+                  Source:{" "}
+                  {selected.source_url ? (
+                    <a href={selected.source_url} target="_blank" rel="noreferrer">
+                      {selected.source}
+                    </a>
+                  ) : (
+                    selected.source
+                  )}
+                </p>
                 {renderError && (
                   <p className="error-text" role="alert">
                     {renderError}
