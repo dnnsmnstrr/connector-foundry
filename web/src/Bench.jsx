@@ -23,6 +23,7 @@ import {
   removeChild,
   rotateChild,
   screwedApplies,
+  setCropTo,
   updateChildJoint,
   updateChildOverlap,
   updateChildSpin,
@@ -405,6 +406,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setSpin: (id, spin) => setAssembly((a) => updateChildSpin(a, id, spin)),
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta)),
     setParams: (id, params) => setAssembly((a) => updateNodeParams(a, id, params)),
+    // `on` false only clears the crop if it's this node's — unticking one
+    // part never drops a crop that belongs to another.
+    setCrop: (id, on) => setAssembly((a) => (on ? setCropTo(a, id) : a.cropTo === id ? setCropTo(a, null) : a)),
     select: selectNode,
   };
 
@@ -536,6 +540,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const selectedPart = selectedNode ? partsById.get(selectedNode.partId) : null;
   const selectedBox = selectedNode ? nodeBoxes.get(selectedNode.id) ?? null : null;
   const moving = moveMode && Boolean(selectedNode);
+  const cropping = Boolean(selectedNode) && assembly.cropTo === selectedNode.id;
 
   return (
     <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
@@ -556,6 +561,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             >
               Start over
             </button>
+
+            <label
+              className="field field-checkbox bench-crop-field"
+              title="Everything attached is trimmed to this part's vertical outline — edges that stick out past it are cut away"
+            >
+              <input
+                type="checkbox"
+                checked={assembly.cropTo === ROOT_ID}
+                onChange={(e) => nodeActions.setCrop(ROOT_ID, e.target.checked)}
+              />
+              <span className="field-label">Crop everything else to this outline</span>
+            </label>
 
             <details className="bench-node-params-details">
               <summary>Root parameters</summary>
@@ -657,13 +674,23 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   <SpinButtons name={selectedPart.name} onRotate={(delta) => nodeActions.rotate(selectedNode.id, delta)} />
                   <button
                     type="button"
-                    className="bench-rotate-move"
+                    className="bench-rotate-pill bench-rotate-move"
                     onClick={() => setMoveMode((armed) => !armed)}
                     aria-pressed={moving}
                     aria-label={moving ? `Stop moving ${selectedPart.name}` : `Move ${selectedPart.name} to another slot`}
                     title="Move to another slot: then click an open marker, or use the arrow keys (M)"
                   >
                     {moving ? "Pick a slot…" : "Move"}
+                  </button>
+                  <button
+                    type="button"
+                    className="bench-rotate-pill bench-rotate-crop"
+                    onClick={() => nodeActions.setCrop(selectedNode.id, !cropping)}
+                    aria-pressed={cropping}
+                    aria-label={cropping ? `Stop cropping to ${selectedPart.name}` : `Crop everything else to ${selectedPart.name}'s outline`}
+                    title="Crop everything else to this part's vertical outline — edges that stick out past it are cut away"
+                  >
+                    Crop
                   </button>
                   <button
                     type="button"

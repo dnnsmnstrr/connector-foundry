@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
-import { resolveSystemOrder } from "../lib/catalogueUtils.js";
-import { getBenchFollowsLibrary, getSystemOrder, setBenchFollowsLibrary, setSystemOrder } from "../lib/uiPrefs.js";
+import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
+import { groupBySystem, resolveSystemOrder } from "../lib/catalogueUtils.js";
+import {
+  getBenchFollowsLibrary,
+  getSystemOrder,
+  setBenchFollowsLibrary,
+  setHiddenLibrary,
+  setPartHidden,
+  setSystemHidden,
+  setSystemOrder,
+} from "../lib/uiPrefs.js";
 import { clearGlobalOverrides, getGlobalOverrides, updateGlobalOverrides } from "../lib/userOverrides.js";
 import Modal from "./Modal.jsx";
 
@@ -8,7 +17,8 @@ import Modal from "./Modal.jsx";
 // here: printer-level render overrides — FIT_CLEARANCE and friends, the
 // "same override layer" as per-part defaults but not scoped to a part
 // (see lib/userOverrides.js) — and UI preferences (lib/uiPrefs.js),
-// including the order of the system headings in every part list.
+// including the order of the system headings in every part list and
+// which systems and parts are listed at all.
 export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
@@ -17,6 +27,15 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   // predates still has a row.
   const [savedOrder, setSavedOrder] = useState(getSystemOrder);
   const systemOrder = useMemo(() => resolveSystemOrder(parts, savedOrder), [parts, savedOrder]);
+  // Curation: every pickable part under its system, with a box per
+  // system and per part. Read live from the store so the checkboxes and
+  // the part lists behind the dialog can't disagree.
+  const hidden = useHiddenLibrary();
+  const hiddenSystems = useMemo(() => new Set(hidden.systems), [hidden]);
+  const hiddenPartIds = useMemo(() => new Set(hidden.parts), [hidden]);
+  const pickable = useMemo(() => parts.filter((p) => !p.hidden), [parts]);
+  const partsBySystem = useMemo(() => groupBySystem(pickable), [pickable]);
+  const hiddenCount = pickable.filter((p) => hiddenSystems.has(p.system) || hiddenPartIds.has(p.id)).length;
   const catalogueDefault = globalDefaults?.FIT_CLEARANCE;
   const current = saved.FIT_CLEARANCE ?? catalogueDefault;
   const differs = catalogueDefault !== undefined && current !== catalogueDefault;
@@ -101,10 +120,50 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
       </p>
 
       <h4 className="settings-section">Part list</h4>
-      <ol className="settings-order-list" aria-label="System heading order">
-        {systemOrder.map((system, index) => (
-          <li key={system} className="settings-order-row">
-            <span>{system}</span>
+      <ol className="settings-order-list" aria-label="Systems: shown or hidden, and their order">
+        {systemOrder.map((system, index) => {
+          const systemHidden = hiddenSystems.has(system);
+          const systemParts = partsBySystem.get(system) ?? [];
+          const hiddenHere = systemHidden
+            ? systemParts.length
+            : systemParts.filter((p) => hiddenPartIds.has(p.id)).length;
+          return (
+          <li key={system} className={systemHidden ? "settings-order-row is-hidden" : "settings-order-row"}>
+            <div className="settings-system">
+              <label className="settings-system-toggle">
+                <input
+                  type="checkbox"
+                  checked={!systemHidden}
+                  onChange={(e) => setSystemHidden(system, !e.target.checked)}
+                  aria-label={`Show ${system} in the part lists`}
+                />
+                <span>{system}</span>
+              </label>
+              {systemParts.length > 0 && (
+                <details className="settings-parts">
+                  <summary>
+                    {systemParts.length} part{systemParts.length === 1 ? "" : "s"}
+                    {hiddenHere > 0 && <span className="muted">, {hiddenHere} hidden</span>}
+                  </summary>
+                  <ul className="settings-part-list">
+                    {systemParts.map((part) => (
+                      <li key={part.id}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={!systemHidden && !hiddenPartIds.has(part.id)}
+                            disabled={systemHidden}
+                            onChange={(e) => setPartHidden(part.id, !e.target.checked)}
+                            aria-label={`Show ${part.name} in the part lists`}
+                          />
+                          <span>{part.name}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
             <span className="settings-order-actions">
               <button
                 type="button"
@@ -126,16 +185,26 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
               </button>
             </span>
           </li>
-        ))}
+          );
+        })}
       </ol>
       <p className="muted settings-help">
-        The order of the system headings in the Library sidebar and both Bench pickers. Catalogue order by
-        default; a system added later appears at the end.
+        What the Library sidebar and both Bench pickers list, and in what order. Untick a system or a part to
+        keep it out of every list — a bench that already uses a hidden part keeps working, and so do links and
+        configs that name one. Catalogue order by default; a system added later appears at the end.
         {savedOrder && (
           <>
             {" "}
             <button type="button" className="field-reset settings-order-reset" onClick={resetSystemOrder}>
               ↺ Reset to catalogue order
+            </button>
+          </>
+        )}
+        {hiddenCount > 0 && (
+          <>
+            {" "}
+            <button type="button" className="field-reset settings-order-reset" onClick={() => setHiddenLibrary({})}>
+              ↺ Show all {hiddenCount} hidden part{hiddenCount === 1 ? "" : "s"}
             </button>
           </>
         )}

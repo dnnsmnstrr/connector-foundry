@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "../hooks/useSystemOrder.js";
-import { groupBySystem, matchesSearch, resolveSystemOrder } from "../lib/catalogueUtils.js";
+import { groupBySystem, listedParts, matchesSearch, resolveSystemOrder } from "../lib/catalogueUtils.js";
 
 // Search box + the catalogue grouped by system, one button per part —
 // Library's sidebar and both of the Bench's pickers (start a bench,
@@ -17,14 +18,15 @@ import { groupBySystem, matchesSearch, resolveSystemOrder } from "../lib/catalog
 // catalogue order by default — resolved against the full `parts` list,
 // not the filtered one, so a search never reshuffles what is left.
 //
-// A catalogue entry marked `hidden` (bitbeam/pin, bitbeam/axle — parts
-// the Bench's pin joint needs to exist but nobody picks by hand) is
-// left out of every list here while staying in `parts` for the code
-// that looks parts up by id.
+// What's listed is catalogueUtils.js's listedParts(): the catalogue minus
+// entries it marks `hidden` itself and minus whatever the user hid in
+// Settings ("Part list"), live through useHiddenLibrary() — all of which
+// stay in `parts` for the code that looks parts up by id.
 export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocus = false }) {
   const [search, setSearch] = useState("");
   const savedOrder = useSystemOrder();
-  const listed = useMemo(() => parts.filter((p) => !p.hidden), [parts]);
+  const hidden = useHiddenLibrary();
+  const listed = useMemo(() => listedParts(parts, hidden), [parts, hidden]);
   const order = useMemo(() => resolveSystemOrder(listed, savedOrder), [listed, savedOrder]);
   const filtered = useMemo(() => listed.filter((p) => matchesSearch(p, search)), [listed, search]);
   const groups = useMemo(() => groupBySystem(filtered, order), [filtered, order]);

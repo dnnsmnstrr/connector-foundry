@@ -105,6 +105,7 @@ export function restoreBenchFromUrl(catalogueById) {
     );
   }
   const doc = { format: CONFIG_FORMAT, version: CONFIG_VERSION, root: tree.root, nodes, imports };
+  if (typeof tree.cropTo === "string") doc.cropTo = tree.cropTo;
   return hydrateBenchConfig(doc, catalogueById);
 }
 
@@ -125,7 +126,9 @@ function compactTree(assembly) {
   });
   const root = { partId: assembly.root.partId };
   if (assembly.root.params && Object.keys(assembly.root.params).length) root.params = assembly.root.params;
-  return nodes.length ? { root, nodes } : { root };
+  const tree = nodes.length ? { root, nodes } : { root };
+  if (assembly.cropTo !== undefined) tree.cropTo = assembly.cropTo;
+  return tree;
 }
 
 export function encodeTree(assembly) {

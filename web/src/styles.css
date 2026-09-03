@@ -904,9 +904,9 @@ button, input, select, textarea {
   text-overflow: ellipsis;
 }
 
-/* "Move": a pill that stays lit while a move is armed (aria-pressed),
-   in the same yellow as the selection. */
-.bench-rotate-move {
+/* "Move" and "Crop": pills that stay lit while on (aria-pressed), in
+   the same yellow as the selection. */
+.bench-rotate-pill {
   background: #2a2b2e;
   border: 1px solid #3a3b40;
   border-radius: 999px;
@@ -918,14 +918,26 @@ button, input, select, textarea {
   padding: 0.35rem 0.6rem;
 }
 
-.bench-rotate-move:hover {
+.bench-rotate-pill:hover {
   background: #34353a;
 }
 
-.bench-rotate-move[aria-pressed="true"] {
+.bench-rotate-pill[aria-pressed="true"] {
   background: #3b3416;
   border-color: #ffd23f;
   color: #ffd23f;
+}
+
+/* The crop switch in the sidebar (root section and each node): a small
+   checkbox row, the exact twin of the scene's Crop pill. */
+.bench-crop-field {
+  font-size: 0.75rem;
+  margin: 0.4rem 0 0.2rem;
+  gap: 0.45rem;
+}
+
+.bench-crop-field input {
+  margin: 0;
 }
 
 .bench-rotate-delete,
@@ -1016,7 +1028,9 @@ button, input, select, textarea {
   margin: -0.4rem 0 0;
 }
 
-/* Settings > Part list: one row per system heading with ▲/▼ to move it. */
+/* Settings > Part list: one row per system heading — a "shown" box, the
+   name, a collapsed list of its parts (each with its own box) — with
+   ▲/▼ to move the heading. */
 .settings-order-list {
   list-style: none;
   margin: 0 0 0.75rem;
@@ -1027,7 +1041,7 @@ button, input, select, textarea {
 .settings-order-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.35rem 0;
   border-bottom: 1px solid #33343a;
@@ -1037,9 +1051,61 @@ button, input, select, textarea {
   border-bottom: none;
 }
 
+.settings-system {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-system-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.settings-order-row.is-hidden .settings-system-toggle span {
+  color: #7d7e83;
+  text-decoration: line-through;
+}
+
+.settings-parts {
+  margin: 0.15rem 0 0 1.6rem;
+  font-size: 0.78rem;
+}
+
+.settings-parts summary {
+  cursor: pointer;
+  color: #7d8bd8;
+}
+
+.settings-part-list {
+  list-style: none;
+  margin: 0.3rem 0 0.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-part-list label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.settings-part-list input:not(:checked) + span {
+  color: #7d7e83;
+}
+
+.settings-part-list input:disabled + span {
+  color: #4a4b52;
+}
+
 .settings-order-actions {
   display: inline-flex;
   gap: 0.25rem;
+  margin-top: 0.1rem;
 }
 
 .settings-order-actions button {
@@ -1186,7 +1252,7 @@ button, input, select, textarea {
 
   .bench-remove,
   .bench-spin-button,
-  .bench-rotate-move,
+  .bench-rotate-pill,
   .bench-rotate-delete,
   .bench-rotate-close,
   .field-reset,

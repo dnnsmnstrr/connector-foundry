@@ -51,9 +51,9 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | --- | --- |
 | `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference, the render-in-progress indicator |
 | `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
-| `src/hooks/useSystemOrder.js` | The saved system-heading order, live (subscribes to `uiPrefs.js`) so every part list reorders as Settings changes it |
+| `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
 | `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
-| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Skips catalogue entries marked `hidden` (bitbeam/pin, bitbeam/axle), which stay in the parts map for the pin joint |
+| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
@@ -65,7 +65,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
 
 ## Shell (`src/App.jsx`)
@@ -130,6 +130,14 @@ screen.
   does not name are appended in catalogue order, names that no longer exist are dropped. The lists
   read it through `useSystemOrder()` (a `useSyncExternalStore` over `uiPrefs.js`), so the sidebar
   behind the open dialog reorders as ▲/▼ are pressed; "Reset to catalogue order" removes the key.
+  The same rows curate the list: a box per system and, folded under it, one per part
+  (`uiPrefs.js`'s `{ systems, parts }` under one key, read live through `useHiddenLibrary()`).
+  `catalogueUtils.js`'s `listedParts()` is the one filter every `PartBrowser` applies — catalogue
+  `hidden` entries, hidden systems, hidden part ids — and nothing else consults it: the parts map
+  the Bench, configs, and links resolve ids against is the full catalogue, so hiding a part never
+  breaks a bench that uses it. A hidden system hides parts added to it later too (its part boxes
+  are disabled while it's hidden, and untouched, so showing it again restores the per-part
+  choices). Library's first-visit default is the first *listed* part, not `parts[0]`.
 - Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
   best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
   and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the
@@ -209,6 +217,23 @@ a part actually has anchors left over. A few implementation notes that don't bel
   Directions are root's axes, not the screen's; a camera-relative mapping would need `StlViewer`
   to expose its camera, which nothing else needs yet. Every selection change goes through
   `selectNode()` so an armed move never outlives the part it was armed for.
+- Crop is one optional field on the assembly, `cropTo` (a node id, root included; `setCropTo()`,
+  cleared by `removeChild()` when the node goes, carried by configs and the URL, dropped on load if
+  it names a node the document doesn't have). `compileToScad()` then emits the tree *twice* inside
+  an `intersection()`: the assembly as before, and a mask — `linear_extrude() fill() projection()
+  show_only("crop")` around a second copy in which that one node's module call is prefixed
+  `tag_this("crop")` and nothing else is. `fill()` (OpenSCAD 2024+, present in the WASM build)
+  drops the holes from the shadow so only the outer outline crops — a BitBeam plate's grid must not
+  be punched through the base under it. BOSL2 attachables keep positioning their children while
+  hidden (the same fact the per-body `hide_this()` export relies on), so the tagged part lands
+  exactly where the assembly puts it, and its shadow on world XY is the outline; `tag_this()`
+  tags the one call only — the part's own geometry inherits it, its `attach()`'d children get the
+  previous tag back — so neither a stacked part nor a joint's flanges are part of the outline. The
+  mask copy is emitted with `ctx.plain`, i.e. no `if (part == …)` dispatch anywhere, so it is the
+  same for every `-D part=` export (a `let(part = "all")` wrapper was tried and loses to `-D`,
+  which made a single-body export come out empty). Every emitter now takes a `ctx`
+  (`{ assembly, partsById, tagged, plain }`) instead of `(assembly, partsById)`. Safe because no
+  part module in this repo, and none of the vendored libraries, use BOSL2 tags themselves.
 - The Bench's keys are one `window` `keydown` listener for the component's lifetime that calls
   whatever handler the latest render left in `keyHandlerRef` (so it sees current state without
   re-subscribing per render): `Escape` backs out one layer at a time (import flow, attach picker,

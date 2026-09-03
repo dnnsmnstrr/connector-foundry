@@ -147,10 +147,33 @@ export function descendantIds(assembly, id) {
 }
 
 // Removing a node removes its whole subtree — an orphaned grandchild
-// (parent gone, slot gone) has nothing left to attach through.
+// (parent gone, slot gone) has nothing left to attach through. A crop
+// (see setCropTo) that pointed into the removed subtree goes with it;
+// a mask with nothing in it would cut the whole assembly away.
 export function removeChild(assembly, childId) {
   const toRemove = descendantIds(assembly, childId).add(childId);
-  return { ...assembly, nodes: assembly.nodes.filter((n) => !toRemove.has(n.id)) };
+  const next = { ...assembly, nodes: assembly.nodes.filter((n) => !toRemove.has(n.id)) };
+  if (toRemove.has(next.cropTo)) delete next.cropTo;
+  return next;
+}
+
+// Crop everything else to one node's vertical outline: `cropTo` names
+// the node (root or a child) whose footprint — its own body's shadow
+// straight up and down, world Z — everything else is intersected with,
+// so a part that overhangs it by a few millimetres is trimmed flush
+// instead of sticking out (compileToScad() emits the intersection). One
+// node at a time; null clears it. The node itself is never changed by
+// its own crop (it lies inside its own shadow), and a joint's flanges
+// aren't part of the outline — only the part is.
+export function setCropTo(assembly, id) {
+  if (id === null || id === undefined) {
+    if (assembly.cropTo === undefined) return assembly;
+    const next = { ...assembly };
+    delete next.cropTo;
+    return next;
+  }
+  if (!getNode(assembly, id) || assembly.cropTo === id) return assembly;
+  return { ...assembly, cropTo: id };
 }
 
 // Re-seats a child on another open slot — another slot of the same
@@ -335,13 +358,31 @@ function mateArgs(child) {
 // This is the fix for what used to be either a silently empty export
 // (for any tag but "all"/"root") or, briefly during development, a
 // body that leaked its own children into an unrelated export.
-function dispatchBlock(tag, unitFn, indent) {
+//
+// The crop mask copy (ctx.plain — see emitCropped()) has no body
+// boundaries at all: every unit is emitted shown, with no `part` test,
+// so the copy means the same thing whatever `-D part=` the render asks
+// for. (A `let(part = "all")` around the copy was tried first and does
+// NOT work: a -D value wins over the rebinding, so an export of one body
+// got a mask with its root hidden — an empty mask, an empty export.)
+function dispatchBlock(ctx, tag, unitFn, indent) {
+  if (ctx.plain) return `${indent}${unitFn(false)}`;
   return (
     `${indent}if (part == "all" || part == "${tag}")\n` +
     `${indent}    ${unitFn(false)}\n` +
     `${indent}else\n` +
     `${indent}    ${unitFn(true)}`
   );
+}
+
+// The emitters below share one context: the tree, the parts map, and
+// `tagged` — the id of the one node whose own module call gets a
+// `tag_this("crop")` prefix, or null. The tree is emitted twice when a
+// crop is set (see compileToScad()): once as the assembly, once as the
+// crop mask, and the mask copy is the one with a tagged node.
+function partCall(ctx, nodeId, part, params) {
+  const tag = ctx.tagged === nodeId ? `tag_this("${CROP_TAG}") ` : "";
+  return `${tag}${partModule(part)}(${partCallArgs(part, params)})`;
 }
 
 // Every direct child of `nodeId`, each inheriting `hide` from its
@@ -351,13 +392,13 @@ function dispatchBlock(tag, unitFn, indent) {
 // fused child has no boundary of its own: it's the same body as its
 // parent, so it just carries `hide` straight through, unchanged, to
 // whatever it's attached to and its own further children alike.
-function emitChildren(assembly, partsById, nodeId, hide, indent) {
-  return childrenOf(assembly, nodeId)
+function emitChildren(ctx, nodeId, hide, indent) {
+  return childrenOf(ctx.assembly, nodeId)
     .map((child) => (child.joint === "fused"
-      ? emitFusedChild(assembly, partsById, child, hide, indent)
+      ? emitFusedChild(ctx, child, hide, indent)
       : child.joint === "screwed"
-        ? emitScrewedChild(assembly, partsById, child, hide, indent)
-        : emitJointChild(assembly, partsById, child, hide, indent)))
+        ? emitScrewedChild(ctx, child, hide, indent)
+        : emitJointChild(ctx, child, hide, indent)))
     .join("\n");
 }
 
@@ -377,10 +418,11 @@ function emitChildren(assembly, partsById, nodeId, hide, indent) {
 // and probes both sides of the seam. A "screwed" joint between two parts
 // with no pattern at all (the UI doesn't offer it) gets the first shape:
 // a flange whose bores face nothing, harmless.
-function emitScrewedChild(assembly, partsById, child, hide, indent) {
+function emitScrewedChild(ctx, child, hide, indent) {
+  const { assembly, partsById } = ctx;
   const childPart = partsById.get(child.partId);
   const parentPart = partsById.get(getNode(assembly, child.parentId).partId);
-  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+  const call = partCall(ctx, child.id, childPart, child.params);
   const mate = mateArgs(child);
   const pattern = childPart.screw_pattern ?? parentPart.screw_pattern ?? "deckmate";
   const flange = SCREW_FLANGES[pattern] ?? SCREW_FLANGES.deckmate;
@@ -391,36 +433,36 @@ function emitScrewedChild(assembly, partsById, child, hide, indent) {
   // `attachTo` + the child call + its own subtree, hidden or not, with
   // the subtree's closing brace at `ind`.
   const childUnit = (attachTo, unitHide, ind) => {
-    const grandkids = emitChildren(assembly, partsById, child.id, unitHide, ind + "    ");
+    const grandkids = emitChildren(ctx, child.id, unitHide, ind + "    ");
     const body = grandkids ? ` {\n${grandkids}\n${ind}}` : ";";
     return `${attachTo} ${hidden(unitHide)}${call}${body}`;
   };
 
   if (childHas && parentHas) {
-    return dispatchBlock(child.id,
+    return dispatchBlock(ctx, child.id,
       (unitHide) => childUnit(`attach("${child.slotName}", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
       indent);
   }
   if (parentHas) {
-    return dispatchBlock(child.id,
+    return dispatchBlock(ctx, child.id,
       (unitHide) => `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() `
         + childUnit(`attach("mount", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
       indent);
   }
   return [
     `${indent}attach("${child.slotName}", "mount") ${hidden(hide)}${flange}() {`,
-    dispatchBlock(child.id,
+    dispatchBlock(ctx, child.id,
       (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${mate})`, unitHide, indent + "        "),
       indent + "    "),
     `${indent}}`,
   ].join("\n");
 }
 
-function emitFusedChild(assembly, partsById, child, hide, indent) {
-  const childPart = partsById.get(child.partId);
-  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+function emitFusedChild(ctx, child, hide, indent) {
+  const childPart = ctx.partsById.get(child.partId);
+  const call = partCall(ctx, child.id, childPart, child.params);
   const mate = mateArgs(child);
-  const grandkids = emitChildren(assembly, partsById, child.id, hide, indent + "    ");
+  const grandkids = emitChildren(ctx, child.id, hide, indent + "    ");
   const body = grandkids ? ` {\n${grandkids}\n${indent}}` : ";";
   return `${indent}attach("${child.slotName}", "${child.childAnchor}"${mate}) ${hide ? "hide_this() " : ""}${call}${body}`;
 }
@@ -433,16 +475,16 @@ function emitFusedChild(assembly, partsById, child, hide, indent) {
 // gets a second, independent dispatchBlock alongside it — its own
 // separate body, not part of either flange (see lib/joints.scad's
 // pin_flange()).
-function emitJointChild(assembly, partsById, child, hide, indent) {
-  const childPart = partsById.get(child.partId);
-  const call = `${partModule(childPart)}(${partCallArgs(childPart, child.params)})`;
+function emitJointChild(ctx, child, hide, indent) {
+  const childPart = ctx.partsById.get(child.partId);
+  const call = partCall(ctx, child.id, childPart, child.params);
   const mate = mateArgs(child);
   const [flangeA, flangeB] = child.joint === "bolted" ? ["bolted_flange_a", "bolted_flange_b"]
     : child.joint === "snap" ? ["snap_flange_a", "snap_flange_b"]
     : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
 
   const childUnit = (unitHide) => {
-    const grandkids = emitChildren(assembly, partsById, child.id, unitHide, indent + "            ");
+    const grandkids = emitChildren(ctx, child.id, unitHide, indent + "            ");
     const body = grandkids ? ` {\n${grandkids}\n${indent}        }` : ";";
     return (
       `attach(BOTTOM, "mount") ${unitHide ? "hide_this() " : ""}${flangeB}() ` +
@@ -451,7 +493,7 @@ function emitJointChild(assembly, partsById, child, hide, indent) {
   };
 
   const lines = [`${indent}attach("${child.slotName}", "mount") ${hide ? "hide_this() " : ""}${flangeA}() {`];
-  lines.push(dispatchBlock(child.id, childUnit, indent + "    "));
+  lines.push(dispatchBlock(ctx, child.id, childUnit, indent + "    "));
   if (child.joint === "pin") {
     // Centered on the seam between the two flanges — BOSL2's own
     // overlap= sinks the child INTO the parent for a positive value
@@ -460,7 +502,7 @@ function emitJointChild(assembly, partsById, child, hide, indent) {
     // same way a pin spans two adjacent beams' aligned holes.
     const pinUnit = (unitHide) =>
       `${unitHide ? "hide_this() " : ""}attach(BOTTOM, "mount", overlap = BITBEAM_PIN_LEN / 2) bitbeam_pin();`;
-    lines.push(dispatchBlock(`${child.id}_pin`, pinUnit, indent + "    "));
+    lines.push(dispatchBlock(ctx, `${child.id}_pin`, pinUnit, indent + "    "));
   }
   lines.push(`${indent}}`);
   return lines.join("\n");
@@ -527,18 +569,25 @@ export function compileToScad(assembly, partsById, importedFiles) {
   }
 
   const tags = bodyTags(assembly);
-  const rootArgs = partCallArgs(rootPart, assembly.root.params);
 
   // Root's own children inherit root's own hide state directly — a
   // fused child stays exactly as visible as root is; a bolted/snap/pin
   // child starts its own independent dispatch regardless (see
-  // emitChildren()/emitJointChild()).
-  const rootUnit = (hide) => {
-    const rootChildren = emitChildren(assembly, partsById, ROOT_ID, hide, "        ");
-    const body = rootChildren ? ` {\n${rootChildren}\n    }` : ";";
-    return `${hide ? "hide_this() " : ""}${partModule(rootPart)}(${rootArgs})${body}`;
+  // emitChildren()/emitJointChild()). `indent` is where the tree sits:
+  // top level normally, one level in when wrapped in a crop. A `tagged`
+  // node makes it the crop mask copy: that node's call tagged, and no
+  // body dispatch anywhere (ctx.plain — see dispatchBlock()).
+  const emitTree = (tagged, indent) => {
+    const ctx = { assembly, partsById, tagged, plain: tagged !== null };
+    const rootUnit = (hide) => {
+      const rootChildren = emitChildren(ctx, ROOT_ID, hide, indent + "        ");
+      const body = rootChildren ? ` {\n${rootChildren}\n${indent}    }` : ";";
+      return `${hide ? "hide_this() " : ""}${partCall(ctx, ROOT_ID, rootPart, assembly.root.params)}${body}`;
+    };
+    return dispatchBlock(ctx, ROOT_ID, rootUnit, indent);
   };
 
+  const cropNode = assembly.cropTo !== undefined ? getNode(assembly, assembly.cropTo) : null;
   const lines = [
     ...includes,
     "",
@@ -546,8 +595,54 @@ export function compileToScad(assembly, partsById, importedFiles) {
     "",
     `part = "all"; // ${JSON.stringify(tags)}`,
     "",
-    dispatchBlock(ROOT_ID, rootUnit, ""),
+    ...(cropNode ? emitCropped(emitTree, cropNode, partsById) : [emitTree(null, "")]),
     "",
   ];
   return lines.join("\n");
+}
+
+// The tag the crop mask shows (see emitCropped) — scoped by nothing, so
+// tag_this() and show_only() see the same string. Every part module in
+// this repo is a BOSL2 attachable() with no tags of its own, and none of
+// the vendored libraries use BOSL2 at all, so nothing else can collide.
+const CROP_TAG = "crop";
+
+// Taller than any bench: the mask is a prism straight through the whole
+// assembly, so height only has to exceed it (mm, centered on z=0).
+const CROP_HEIGHT_MM = 1000;
+
+// The assembly intersected with one node's vertical footprint. The mask
+// is the tree emitted a second time with that node's own call tagged and
+// everything else hidden by show_only(): BOSL2 attachables still POSITION
+// their children while hidden (the same fact hide_this() relies on for
+// per-body export), so the tagged part lands exactly where the assembly
+// puts it, and projection() of the copy is that part's shadow on XY —
+// world XY, because the copy is placed in world space like the original,
+// whichever way BOSL2 turned the part on its slot. fill() then keeps
+// only the OUTER outline of that shadow: a through-hole in the cropping
+// part (a BitBeam plate's grid, a Gridfinity base's screw holes) is not
+// a reason to punch the same hole through everything above and below
+// it — the crop is about what overhangs the edge. (fill() is a 2024+
+// OpenSCAD builtin; both the browser's WASM build, 2025.07.18, and the
+// native dev snapshots the CLI targets have it.) tag_this() tags only
+// the one call: the part's own module geometry inherits the tag
+// (attachable() draws children(0) under it) while its attach()'d
+// children get the previous tag back, so a stacked part isn't part of
+// the outline and a joint's flanges (separate module calls) aren't
+// either. The copy carries no `part` dispatch (dispatchBlock()'s plain
+// mode), so it is the same whichever body is being exported — the
+// outline is always the whole part, and every export (`-D part=...`)
+// gets the same crop, which is the point: the trimmed edge is what
+// should print.
+function emitCropped(emitTree, cropNode, partsById) {
+  const name = partsById.get(cropNode.partId)?.name ?? cropNode.partId;
+  return [
+    `// Crop: everything outside the vertical outline of ${cropNode.id} (${name}) is cut away.`,
+    "intersection() {",
+    emitTree(null, "    "),
+    `    linear_extrude(height = ${CROP_HEIGHT_MM}, center = true) fill() projection()`,
+    `        show_only("${CROP_TAG}")`,
+    emitTree(cropNode.id, "            "),
+    "}",
+  ];
 }

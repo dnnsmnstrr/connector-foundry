@@ -44,6 +44,18 @@ export function resolveSystemOrder(parts, saved) {
   return order;
 }
 
+// The parts a picker lists: the catalogue minus entries it marks `hidden`
+// itself (bitbeam/pin, bitbeam/axle — parts the Bench's pin joint needs
+// to exist but nobody picks by hand) and minus whatever the user has
+// hidden in Settings (`hidden` is uiPrefs.js's { systems, parts }).
+// Everything left out stays in `parts` for the code that looks parts up
+// by id, so a bench using a hidden part still renders.
+export function listedParts(parts, hidden) {
+  const systems = new Set(hidden?.systems ?? []);
+  const ids = new Set(hidden?.parts ?? []);
+  return parts.filter((p) => !p.hidden && !systems.has(p.system) && !ids.has(p.id));
+}
+
 // A part id as a filename stem — gridfinity/base -> gridfinity_base, the
 // same as cli/foundry.py's slug(), so a browser download and a CLI
 // render of the same part get the same name.

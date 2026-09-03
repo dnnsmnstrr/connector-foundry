@@ -89,6 +89,17 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
           <SpinButtons name={part.name} onRotate={(delta) => actions.rotate(nodeId, delta)} />
         </span>
       </label>
+      <label
+        className="field field-checkbox bench-crop-field"
+        title="Everything else is trimmed to this part's vertical outline — edges that stick out past it are cut away. One part at a time; the scene's Crop button is the same switch."
+      >
+        <input
+          type="checkbox"
+          checked={assembly.cropTo === nodeId}
+          onChange={(e) => actions.setCrop(nodeId, e.target.checked)}
+        />
+        <span className="field-label">Crop others to this outline</span>
+      </label>
       <details className="bench-node-params-details">
         <summary>Parameters</summary>
         <ParamsEditor

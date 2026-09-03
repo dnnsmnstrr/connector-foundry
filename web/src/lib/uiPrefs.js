@@ -89,3 +89,67 @@ export function subscribeSystemOrder(listener) {
   systemOrderListeners.add(listener);
   return () => systemOrderListeners.delete(listener);
 }
+
+// --- Library curation ---------------------------------------------------
+// Which catalogue parts and whole systems the user has hidden from every
+// part list (Settings → "Part list"): `{ systems: string[], parts: string[] }`,
+// system names and part ids. A hidden part is only out of the pickers —
+// it stays in the parts map, so a bench that already uses it (or a link
+// or config that names it) keeps working. A hidden system hides the parts
+// it has now and any added to it later; unchecking a part inside a hidden
+// system has no effect until the system is shown again. Same cached-
+// snapshot + listener shape as the system order above.
+const HIDDEN_LIBRARY_KEY = "connector-foundry.hiddenLibrary";
+const NOTHING_HIDDEN = Object.freeze({ systems: Object.freeze([]), parts: Object.freeze([]) });
+
+let hiddenLibraryCache;
+const hiddenLibraryListeners = new Set();
+
+function readHiddenLibrary() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HIDDEN_LIBRARY_KEY));
+    const strings = (v) => (Array.isArray(v) ? v.filter((s) => typeof s === "string") : []);
+    if (!parsed || typeof parsed !== "object") return NOTHING_HIDDEN;
+    const systems = strings(parsed.systems);
+    const parts = strings(parsed.parts);
+    return systems.length || parts.length ? { systems, parts } : NOTHING_HIDDEN;
+  } catch {
+    return NOTHING_HIDDEN;
+  }
+}
+
+// { systems, parts } — a shared empty record when nothing is hidden.
+export function getHiddenLibrary() {
+  if (hiddenLibraryCache === undefined) hiddenLibraryCache = readHiddenLibrary();
+  return hiddenLibraryCache;
+}
+
+export function setHiddenLibrary({ systems = [], parts = [] }) {
+  const next = systems.length || parts.length ? { systems: [...systems], parts: [...parts] } : NOTHING_HIDDEN;
+  try {
+    if (next === NOTHING_HIDDEN) localStorage.removeItem(HIDDEN_LIBRARY_KEY);
+    else localStorage.setItem(HIDDEN_LIBRARY_KEY, JSON.stringify(next));
+  } catch {
+    // best-effort — see header comment; the in-memory value still updates
+  }
+  hiddenLibraryCache = next;
+  for (const listener of hiddenLibraryListeners) listener();
+}
+
+// Toggle one system or one part; `hidden` true hides it.
+export function setSystemHidden(system, hidden) {
+  const { systems, parts } = getHiddenLibrary();
+  const without = systems.filter((s) => s !== system);
+  setHiddenLibrary({ systems: hidden ? [...without, system] : without, parts });
+}
+
+export function setPartHidden(partId, hidden) {
+  const { systems, parts } = getHiddenLibrary();
+  const without = parts.filter((p) => p !== partId);
+  setHiddenLibrary({ systems, parts: hidden ? [...without, partId] : without });
+}
+
+export function subscribeHiddenLibrary(listener) {
+  hiddenLibraryListeners.add(listener);
+  return () => hiddenLibraryListeners.delete(listener);
+}

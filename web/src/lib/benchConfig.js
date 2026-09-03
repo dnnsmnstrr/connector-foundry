@@ -66,6 +66,9 @@ export function serializeBenchConfig(assembly, partsById, name) {
       overlap: n.overlap ?? 0,
       spin: n.spin ?? 0,
     })),
+    // The node everything else is cropped to (assembly.js's setCropTo),
+    // only when set — the common case has no key at all.
+    ...(assembly.cropTo !== undefined ? { cropTo: assembly.cropTo } : {}),
     imports,
   };
 }
@@ -113,6 +116,7 @@ export function checkBenchConfig(doc) {
     if (n.overlap !== undefined && typeof n.overlap !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric offset.`);
     if (n.spin !== undefined && typeof n.spin !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric rotation.`);
   });
+  if (doc.cropTo !== undefined && typeof doc.cropTo !== "string") throw new Error("The config's \"cropTo\" isn't a part id.");
   if (doc.imports !== undefined) {
     if (!Array.isArray(doc.imports)) throw new Error("The config's \"imports\" isn't a list.");
     doc.imports.forEach((imp, i) => {
@@ -202,7 +206,12 @@ export function hydrateBenchConfig(doc, catalogueById) {
     }
   }
 
-  return { assembly: { root, nodes }, importedParts };
+  const assembly = { root, nodes };
+  // A crop naming a node the config doesn't have is dropped, not fatal:
+  // the bench is complete without it, and a mask with nothing in it
+  // would cut everything away.
+  if (doc.cropTo !== undefined && nodeIdMap.has(doc.cropTo)) assembly.cropTo = nodeIdMap.get(doc.cropTo);
+  return { assembly, importedParts };
 }
 
 // A filename for a downloaded config: the given name slugged, or "bench".

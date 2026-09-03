@@ -93,6 +93,13 @@ grid) offers it as a new marker, so assemblies stack to any depth. Each attached
   The arrow keys step it straight to the next open slot in that direction on the base part, no
   arming needed. The trash button, `Delete`, or `Backspace` removes it (and anything attached to
   it); `Esc` cancels a move or drops the selection.
+- **Crop** — trim everything else to this part's vertical outline. A plate a few millimetres wider
+  than the base it sits on, a bracket whose corner pokes past the rail: turn on Crop for the base
+  (the "Crop everything else to this outline" box in the sidebar's root section, or the Crop button
+  over a selected part) and whatever sticks out past its footprint, straight up or down, is cut
+  away — in the preview and in every exported body. Only the outer outline counts: a grid of holes
+  or a screw hole in the cropping part is not cut through the others. One part crops at a time; the
+  part itself and a joint's flanges are never trimmed, only what overhangs.
 - Its own **parameter editor**, with the same defaults/overrides as the Library.
 
 **STL import** brings in any mesh — a Mechanism or Printables download — as a Bench part: click a
@@ -168,7 +175,10 @@ foundry render gridfinity/base --no-user-config  # true catalogue defaults (what
 Stored as OpenSCAD Customizer JSON under `~/.config/connector-foundry/`, so a saved file also
 opens as a parameter set in the OpenSCAD GUI. The web app does the same resolution in
 `localStorage`; a dot marks any field that differs from the catalogue default, and "Save as my
-default" works per part. The gear icon holds the global settings.
+default" works per part. The gear icon holds the global settings — including the part list itself:
+untick a system or a single part there and it leaves the Library sidebar and both Bench pickers,
+so the list shows only what you actually print. Hidden parts still work in any bench, link, or
+config that uses them; "Show all" brings everything back.
 
 ## Accuracy
 

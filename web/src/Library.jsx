@@ -6,7 +6,8 @@ import StlViewer from "./components/StlViewer.jsx";
 import { downloadBlob } from "./lib/download.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { getGlobalOverrides, resolveParams } from "./lib/userOverrides.js";
-import { slugify } from "./lib/catalogueUtils.js";
+import { listedParts, slugify } from "./lib/catalogueUtils.js";
+import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 
 // Library mode: pick a part, edit its parameters, render, download the
 // STL — or hand it to the Bench as a root with those same parameters.
@@ -39,9 +40,13 @@ export default function Library({
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
 
+  // First visit lands on the first part the sidebar actually lists — not
+  // one the user hid in Settings (a hidden part still shows here if it's
+  // what was selected when it was hidden; it just isn't the default).
+  const hidden = useHiddenLibrary();
   useEffect(() => {
-    if (!selectedId && parts.length) setSelectedId(parts[0].id);
-  }, [parts, selectedId]);
+    if (!selectedId && parts.length) setSelectedId((listedParts(parts, hidden)[0] ?? parts[0]).id);
+  }, [parts, hidden, selectedId]);
 
   const doRender = async (renderParams) => {
     if (!selected) return;
