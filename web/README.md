@@ -20,9 +20,11 @@ running in a Web Worker.
 2. `src/hooks/useCatalogue.js` reads `catalogue.yaml` for the part list, default parameters, and
    confidence labels; `src/Library.jsx` renders a picker + parameter form from it — same schema
    the CLI reads.
-3. `src/worker/openscad-worker.js` fetches `scad-bundle.json` once, writes it into the WASM
-   virtual filesystem at `/repo/...` (mirroring the real repo layout, since every `.scad` file
-   uses relative `include`s), then on each render request writes a one-line stub —
+3. `src/worker/openscad-worker.js` fetches `scad-bundle.json` once and decodes it to bytes once
+   (a fresh WASM instance is needed per render — see below — and writing the sources into it as
+   strings would re-encode 5 MB of UTF-8 every time). Each render request then mounts those bytes
+   into the new instance's virtual filesystem at `/repo/...` (mirroring the real repo layout, since
+   every `.scad` file uses relative `include`s), writes a one-line stub —
    `include </repo/parts/.../x.scad>; module_name(args);` — and calls OpenSCAD with
    `--backend=Manifold`.
 4. The resulting STL bytes come back to the main thread and render via `three.js`

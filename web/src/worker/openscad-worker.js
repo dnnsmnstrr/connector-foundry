@@ -4,7 +4,8 @@
 // second call on the same instance aborts with an opaque numeric
 // exception (verified against openscad-wasm@0.0.4). So every render
 // spins up a fresh instance and re-mounts the source bundle; the
-// bundle fetch itself is cached across renders since it's just data.
+// bundle itself is fetched — and decoded to bytes, see prepareBundle()
+// — once, since it's just data.
 //
 // Two renders also can't safely run CONCURRENTLY: two `createOpenSCAD()`
 // calls in flight at once corrupts something shared at module scope in
@@ -42,10 +43,13 @@ function enqueue(work) {
 
 let bundlePromise = null;
 
+// Resolves to the mounted-and-ready form of the bundle: [virtualPath,
+// bytes] pairs (see prepareBundle()).
 function getBundle() {
   if (!bundlePromise) {
     bundlePromise = fetchPublic("scad-bundle.json")
       .then((res) => res.json())
+      .then(prepareBundle)
       .catch((err) => {
         // Don't cache the failure: a transient network error on the very
         // first render would otherwise fail every later one too.
@@ -56,21 +60,28 @@ function getBundle() {
   return bundlePromise;
 }
 
-function mkdirp(fsobj, dirPath) {
+// Creates every missing directory on the way to `dirPath`. `made` (a Set
+// of directories known to exist on this FS) lets a caller writing many
+// files skip the mkdir-and-catch round trip for the ancestors every other
+// file in the same directory has already been through.
+function mkdirp(fsobj, dirPath, made) {
+  if (made?.has(dirPath)) return;
   const parts = dirPath.split("/").filter(Boolean);
   let cur = "";
   for (const part of parts) {
     cur += "/" + part;
+    if (made?.has(cur)) continue;
     try {
       fsobj.mkdir(cur);
     } catch {
       // already exists
     }
+    made?.add(cur);
   }
 }
 
-function writeFileAt(fsobj, virtualPath, content) {
-  mkdirp(fsobj, virtualPath.slice(0, virtualPath.lastIndexOf("/")));
+function writeFileAt(fsobj, virtualPath, content, made) {
+  mkdirp(fsobj, virtualPath.slice(0, virtualPath.lastIndexOf("/")), made);
   fsobj.writeFile(virtualPath, content);
 }
 
@@ -83,13 +94,28 @@ function base64ToBytes(base64) {
 
 // See sync-scad.mjs for the bundle shape: .scad sources as text under
 // `files`, binaries a part import()s (base64) under `assets`, both at
-// their repo-relative paths.
-function mountBundle(fsobj, bundle) {
+// their repo-relative paths. Turned into [virtualPath, bytes] pairs ONCE,
+// here, rather than on every mount: FS.writeFile() given a string runs
+// Emscripten's own character-by-character UTF-8 encoder over it, which
+// for ~5 MB of source was ~50 ms of every render; given bytes it just
+// copies them, and mounting the same bundle takes ~3 ms.
+function prepareBundle(bundle) {
+  const encoder = new TextEncoder();
+  const entries = [];
   for (const [relPath, content] of Object.entries(bundle.files)) {
-    writeFileAt(fsobj, `${REPO_MOUNT}/${relPath}`, content);
+    entries.push([`${REPO_MOUNT}/${relPath}`, encoder.encode(content)]);
   }
   for (const [relPath, base64] of Object.entries(bundle.assets ?? {})) {
-    writeFileAt(fsobj, `${REPO_MOUNT}/${relPath}`, base64ToBytes(base64));
+    entries.push([`${REPO_MOUNT}/${relPath}`, base64ToBytes(base64)]);
+  }
+  return entries;
+}
+
+// A fresh FS per render, so the set of created directories is per call.
+function mountBundle(fsobj, entries) {
+  const made = new Set();
+  for (const [virtualPath, bytes] of entries) {
+    writeFileAt(fsobj, virtualPath, bytes, made);
   }
 }
 
