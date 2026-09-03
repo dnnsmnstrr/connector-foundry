@@ -176,9 +176,13 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     if (rc !== 0) {
       throw new Error("OpenSCAD render failed — check the parameters (see worker console for details)");
     }
+    // FS.readFile() allocates a fresh, exactly-sized Uint8Array for the
+    // result (Emscripten copies the file out of MEMFS into it), so its
+    // buffer is nobody else's and can be transferred as-is — no second
+    // copy of a mesh that can run to megabytes. The instance is discarded
+    // right after anyway.
     const stl = os.FS.readFile("/output.stl", { encoding: "binary" });
-    const stlCopy = stl.slice().buffer;
-    postMessage({ id, type: "result", stl: stlCopy }, [stlCopy]);
+    postMessage({ id, type: "result", stl: stl.buffer }, [stl.buffer]);
   } catch (err) {
     postMessage({ id, type: "error", message: err?.message || String(err) });
   }
