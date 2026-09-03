@@ -80,7 +80,7 @@ function analyzeEdges(edgeMap) {
     if (occurrences.length === 1) openEdges++;
     else if (occurrences.length > 2) nonManifoldEdges++;
     else {
-      const [d0, d1] = occurrences.map((o) => o.dir);
+      const d0 = occurrences[0].dir, d1 = occurrences[1].dir;
       const consistent = d0[0] === d1[1] && d0[1] === d1[0];
       if (!consistent) inconsistentEdges++;
     }
@@ -229,8 +229,19 @@ export function validateAndRepair(rawGeometry) {
   }
 
   const { openEdges, nonManifoldEdges, inconsistentEdges } = analyzeEdges(edgeMap);
-  const solidComponents = components.filter((members) =>
-    members.reduce((sum, f) => sum + triangleArea(position, ...faces[f]), 0) > MIN_COMPONENT_AREA_MM2);
+  // A component with any area to speak of. Stops at the first face that
+  // gets the running total over the line — after the degenerate filter
+  // above every face does on its own, so this is one triangle per
+  // component rather than a third sweep over the whole mesh.
+  const solidComponents = components.filter((members) => {
+    let area = 0;
+    for (const f of members) {
+      const [a, b, c] = faces[f];
+      area += triangleArea(position, a, b, c);
+      if (area > MIN_COMPONENT_AREA_MM2) return true;
+    }
+    return false;
+  });
 
   if (openEdges > 0) {
     report.push(`${openEdges} open edge(s) remain — this mesh has an actual hole, not just an export artifact. Welding and winding repair can't fix a real hole.`);
