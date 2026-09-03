@@ -201,13 +201,19 @@ gopro/female:
     - 20.0
     - 19.0
     - 20.0
-    volume_mm3: 3809.59
+    volume_mm3: 3832.1
   no-nut-pocket:
     bbox:
     - 20.0
     - 16.0
     - 20.0
     volume_mm3: 3057.86
+  square-nut:
+    bbox:
+    - 20.0
+    - 19.0
+    - 20.0
+    volume_mm3: 3809.59
 gopro/male:
   default:
     bbox:

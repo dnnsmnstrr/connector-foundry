@@ -228,16 +228,21 @@ parts:
     source: GoProScad (ridercz, MIT), vendored
     source_url: https://github.com/ridercz/GoProScad
     print_note: >-
-      Legs down; use a brim. nut_depth sinks a captive square-nut pocket
-      in the far leg; 0 gives a plain through-hole.
+      Legs down; use a brim. nut_depth sinks a captive pocket for an M5
+      hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4
+      with nut_dia 11.5 takes a square nut instead.
     defaults:
       base_h: 3
       base_w: 20
       leg_h: 17
       nut_depth: 3
+      nut_sides: 6
+      nut_dia: 9.5
     variants:
       - name: no-nut-pocket
         params: { nut_depth: 0 }
+      - name: square-nut
+        params: { nut_sides: 4, nut_dia: 11.5 }
 
   # DeckMate / Mechanism: three of Mechanism's own models, imported
   # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry
