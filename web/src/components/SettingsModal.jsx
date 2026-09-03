@@ -23,8 +23,7 @@ export default function SettingsModal({ globalDefaults, onClose }) {
   }
 
   return (
-    <Modal onClose={onClose}>
-      <h3>Printer settings</h3>
+    <Modal onClose={onClose} title="Printer settings">
       <p className="muted">
         Applied to every render, on top of any part's own defaults — the same saved-override layer, just not
         scoped to one part. Only affects parts that actually read FIT_CLEARANCE (Basics and 2020-extrusion parts,
@@ -33,17 +32,30 @@ export default function SettingsModal({ globalDefaults, onClose }) {
       </p>
       <label className="field">
         <span className="field-label">
-          {differs && <span className="field-differs" title={`Catalogue default: ${catalogueDefault}`} />}
+          {differs && (
+            <span
+              className="field-differs"
+              role="img"
+              aria-label={`Differs from catalogue default ${catalogueDefault}`}
+              title={`Catalogue default: ${catalogueDefault}`}
+            />
+          )}
           FIT_CLEARANCE (mm) — printer runs tight? increase it.
           {differs && (
-            <button type="button" className="field-reset" title="Reset to catalogue default" onClick={reset}>
+            <button
+              type="button"
+              className="field-reset"
+              aria-label="Reset to catalogue default"
+              title="Reset to catalogue default"
+              onClick={reset}
+            >
               ↺
             </button>
           )}
         </span>
         <input type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
       </label>
-      <button className="bench-modal-cancel" onClick={onClose}>
+      <button type="button" className="bench-modal-cancel" onClick={onClose}>
         Close
       </button>
     </Modal>

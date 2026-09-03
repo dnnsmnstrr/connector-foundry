@@ -14,10 +14,33 @@ html, body, #root {
   color: #e6e6e6;
 }
 
+/* Form controls don't inherit the page font by default. */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+/* One visible focus ring for every control, keyboard-only (mouse clicks
+   don't draw it). Replaces the browser default so it's the same colour
+   on a button, a text field, and a <summary>. */
+:focus-visible {
+  outline: 2px solid #6b84e8;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 .shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Mobile browsers: 100vh includes the space behind the URL bar, so the
+     bottom of the shell was hidden until the bar scrolled away. */
+  height: 100dvh;
 }
 
 .mode-tabs {
@@ -33,7 +56,8 @@ html, body, #root {
 .brand {
   font-weight: 700;
   font-size: 0.95rem;
-  margin-right: 1.25rem;
+  margin: 0 1.25rem 0 0;
+  white-space: nowrap;
 }
 
 .mode-tab {
@@ -62,7 +86,7 @@ html, body, #root {
   font-family: inherit;
   font-weight: 400;
   font-size: 0.68rem;
-  color: #6d6e73;
+  color: #8b8c91;
   background: #111214;
   border: 1px solid #33343a;
   border-radius: 3px;
@@ -102,6 +126,27 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Collapsed on desktop: the toggle button IS the bar — clicking anywhere
+   on the strip expands it, and it's still one focusable button. */
+@media (min-width: 769px) {
+  .sidebar-collapsed .sidebar {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .sidebar-collapsed .sidebar-toggle {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0.85rem 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+}
+
 .sidebar-toggle {
   display: block;
   width: 100%;
@@ -121,6 +166,12 @@ html, body, #root {
   color: #d8d9db;
 }
 
+/* Chevron on desktop (the sidebar is a column), text on mobile (it's a
+   stacked panel, so "«" would point the wrong way). */
+.sidebar-toggle-text {
+  display: none;
+}
+
 .search-input {
   width: 100%;
   background: #1c1d20;
@@ -133,11 +184,13 @@ html, body, #root {
 }
 
 .search-input::placeholder {
-  color: #6d6e73;
+  color: #8b8c91;
 }
 
+/* #8b8c91 on the #111214/#17181b backgrounds clears 4.5:1; the previous
+   #6d6e73 sat at ~3.7:1, under the WCAG AA threshold for body text. */
 .muted {
-  color: #6d6e73;
+  color: #8b8c91;
 }
 
 .no-results {
@@ -185,10 +238,12 @@ html, body, #root {
 }
 
 .badge {
-  font-size: 0.65rem;
-  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
   border-radius: 999px;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
 .badge-exact {
@@ -221,6 +276,8 @@ html, body, #root {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #2a2b2e;
 }
@@ -306,11 +363,6 @@ html, body, #root {
   padding-right: 1.6rem;
 }
 
-.field select:focus-visible {
-  outline: 2px solid #4a63d8;
-  outline-offset: 1px;
-}
-
 .field-checkbox {
   flex-direction: row;
   align-items: center;
@@ -368,8 +420,9 @@ html, body, #root {
 
 .source-note {
   font-size: 0.75rem;
-  color: #6d6e73;
+  color: #8b8c91;
   margin-top: 1.5rem;
+  word-break: break-word;
 }
 
 .error-text {
@@ -387,7 +440,19 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6d6e73;
+  color: #8b8c91;
+  padding: 1rem;
+  text-align: center;
+}
+
+.viewer-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.viewer-unavailable p {
+  margin: 0;
+  max-width: 40ch;
 }
 
 .download-button {
@@ -570,33 +635,43 @@ html, body, #root {
   position: absolute;
   bottom: 1.25rem;
   left: 1.25rem;
+  right: 1.25rem;
+  max-width: 60ch;
+  margin: 0;
   background: #2a1616;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
 }
 
-.bench-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
+/* A native <dialog> (Modal.jsx): the browser centres it in the top layer
+   and paints ::backdrop; padding lives on the inner panel so a click on
+   the dialog element itself can only mean "backdrop". */
 .bench-modal {
   background: #17181b;
+  color: #e6e6e6;
   border: 1px solid #2a2b2e;
   border-radius: 10px;
-  padding: 1.25rem;
-  width: 360px;
-  max-height: 80vh;
+  padding: 0;
+  width: min(360px, 100vw - 2rem);
+  max-height: min(80vh, 100dvh - 2rem);
   overflow-y: auto;
+}
+
+.bench-modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.bench-modal-panel {
+  padding: 1.25rem;
+}
+
+.bench-modal-panel:focus-visible {
+  outline: none;
 }
 
 .bench-modal h3 {
   margin: 0 0 0.75rem;
+  padding-right: 0.5rem;
 }
 
 .bench-modal-cancel {
@@ -608,6 +683,11 @@ html, body, #root {
   padding: 0.5rem;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.bench-modal-cancel:hover {
+  background: #202126;
 }
 
 .bench-import-button {
@@ -617,7 +697,7 @@ html, body, #root {
 }
 
 .bench-import-modal {
-  width: 480px;
+  width: min(480px, 100vw - 2rem);
 }
 
 .bench-file-input {
@@ -679,7 +759,211 @@ html, body, #root {
 .loading-screen, .error-screen {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  text-align: center;
   color: #9a9ba0;
+}
+
+/* ---------------------------------------------------------------------
+   Touch devices: every primary control clears the 44px target size,
+   inline icon buttons (✕, ↺) get a 32px hit area without bloating the
+   row they sit in, and the keyboard-shortcut hints go away — there is
+   no keyboard to press "1" on.
+   ------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .mode-tab,
+  .part-button,
+  .render-button,
+  .download-button,
+  .bench-modal-cancel,
+  .sidebar-toggle,
+  .bench-attach-here,
+  .search-input,
+  .field input[type="text"],
+  .field input[type="number"],
+  .field select,
+  .bench-child-meta select {
+    min-height: 44px;
+  }
+
+  .bench-remove,
+  .field-reset {
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .field input[type="checkbox"],
+  .bench-slot-list input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .shortcut-hint {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Narrow screens: the two-column shell becomes one scrolling column —
+   sidebar (capped, scrolls inside itself) on top, then the part header,
+   the parameter form, and the 3D viewer at a fixed viewport fraction so
+   the canvas has a real height to size itself against.
+   ------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .mode-tabs {
+    padding: 0.5rem 0.75rem;
+    gap: 0.15rem;
+  }
+
+  .brand {
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+  }
+
+  .mode-tab {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .shortcut-hint,
+  .settings-label {
+    display: none;
+  }
+
+  /* Icon-only on mobile, so give the gear a finger-sized face. */
+  .settings-tab {
+    font-size: 1.15rem;
+    padding: 0.3rem 0.7rem;
+  }
+
+  .shell-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app, .bench,
+  .app.sidebar-collapsed, .bench.sidebar-collapsed {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+    grid-template-columns: none;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid #2a2b2e;
+    padding: 0.75rem 1rem 1rem;
+    max-height: 45dvh;
+    flex-shrink: 0;
+  }
+
+  .sidebar-collapsed .sidebar {
+    padding: 0.75rem 1rem;
+    max-height: none;
+  }
+
+  .sidebar-toggle {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #17181b;
+    padding: 0.5rem 0;
+  }
+
+  .sidebar-toggle-chevron {
+    display: none;
+  }
+
+  .sidebar-toggle-text {
+    display: inline;
+  }
+
+  .sidebar-collapsed .sidebar-toggle {
+    margin-bottom: 0;
+  }
+
+  .system-group h2 {
+    margin-top: 1rem;
+  }
+
+  .part-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .part-header-actions {
+    width: 100%;
+  }
+
+  .part-header-actions button {
+    flex: 1;
+  }
+
+  .workspace {
+    flex: 1 0 auto;
+  }
+
+  .workspace-body {
+    grid-template-columns: 1fr;
+    flex: none;
+  }
+
+  .params-panel {
+    border-right: none;
+    border-top: 1px solid #2a2b2e;
+    padding: 1rem;
+    overflow: visible;
+  }
+
+  /* Preview first, form second: after picking a part you want to see it
+     before you start tweaking numbers. */
+  .viewer-panel,
+  .bench-viewer {
+    order: -1;
+    height: 60svh;
+    min-height: 260px;
+    flex: none;
+  }
+
+  .download-button {
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .bench-error {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .bench-empty {
+    padding: 1.25rem 1rem;
+  }
+
+  .bench-import-viewer {
+    height: 220px;
+  }
+
+  /* iOS Safari zooms the page into any focused field whose text is
+     smaller than 16px; keep every field at 1rem on small screens. */
+  .search-input,
+  .field input[type="text"],
+  .field input[type="number"],
+  .field select,
+  .bench-child-meta select,
+  .bench-offset-field input {
+    font-size: 1rem;
+  }
+
+  .bench-offset-field input {
+    width: 5.5rem;
+  }
 }

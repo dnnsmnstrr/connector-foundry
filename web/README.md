@@ -77,7 +77,17 @@ screen.
   a text input, `<select>`, or anything `contentEditable` — so typing "s" in the search box types
   an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL import) close on
   `Escape` too, but that's a second, local listener in `Bench.jsx` — that state is local to Bench,
-  so App doesn't need to reach into it.
+  so App doesn't need to reach into it. `src/components/Modal.jsx` is a native `<dialog>` opened
+  with `showModal()`, so the browser also fires its own `cancel` on Escape (routed to the same
+  `onClose`), keeps Tab inside the dialog, makes the page behind it inert, and returns focus to
+  the opener on close; the `title` prop is what the dialog is `aria-labelledby`.
+- Narrow screens (`max-width: 768px` in `styles.css`): the two-column shell stacks into one
+  scrolling column — sidebar (capped at 45% of the viewport, scrolls inside itself) on top, then
+  the header, the 3D viewer at a fixed viewport fraction (the canvas sizes itself from its mount,
+  so it needs a real height), then the parameter form. The `[` shortcut hints and the "Settings"
+  word hide; `SidebarToggle` shows text instead of a chevron. A `(pointer: coarse)` block gives
+  every primary control a 44px hit area and skips `PartBrowser`'s `autoFocus` so the keyboard
+  doesn't pop over the list.
 - Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
   best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
   and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the

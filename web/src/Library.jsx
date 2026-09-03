@@ -99,7 +99,12 @@ export default function Library({ parts, onOpenInBench, sidebarCollapsed, onTogg
                 >
                   Open in Bench
                 </button>
-                <button className="render-button" onClick={() => doRender(params)} disabled={status === "rendering"}>
+                <button
+                  className="render-button"
+                  onClick={() => doRender(params)}
+                  disabled={status === "rendering"}
+                  aria-live="polite"
+                >
                   {status === "rendering" ? "Rendering…" : "Render"}
                 </button>
               </div>
@@ -115,7 +120,11 @@ export default function Library({ parts, onOpenInBench, sidebarCollapsed, onTogg
                   showSavedNote
                 />
                 <p className="source-note">Source: {selected.source}</p>
-                {renderError && <p className="error-text">{renderError}</p>}
+                {renderError && (
+                  <p className="error-text" role="alert">
+                    {renderError}
+                  </p>
+                )}
               </div>
 
               <div className="viewer-panel">

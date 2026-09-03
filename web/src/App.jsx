@@ -84,28 +84,37 @@ export default function App() {
 
   return (
     <div className="shell">
-      <nav className="mode-tabs">
-        <span className="brand">Connector Foundry</span>
+      <nav className="mode-tabs" aria-label="Main">
+        <h1 className="brand">Connector Foundry</h1>
         <button
+          type="button"
           className={mode === "library" ? "mode-tab active" : "mode-tab"}
+          aria-current={mode === "library" ? "page" : undefined}
           onClick={() => setMode("library")}
           title="Library (1)"
         >
           Library<kbd className="shortcut-hint">1</kbd>
         </button>
         <button
+          type="button"
           className={mode === "bench" ? "mode-tab active" : "mode-tab"}
+          aria-current={mode === "bench" ? "page" : undefined}
           onClick={() => setMode("bench")}
           title="Bench (2)"
         >
           Bench<kbd className="shortcut-hint">2</kbd>
         </button>
         <button
+          type="button"
           className="mode-tab settings-tab"
           onClick={() => setSettingsOpen(true)}
+          aria-label="Printer settings"
+          aria-haspopup="dialog"
           title="Printer settings (s)"
         >
-          ⚙ Settings<kbd className="shortcut-hint">s</kbd>
+          <span aria-hidden="true">⚙</span>
+          <span className="settings-label"> Settings</span>
+          <kbd className="shortcut-hint">s</kbd>
         </button>
       </nav>
       <div className="shell-body">

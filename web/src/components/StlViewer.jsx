@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -42,9 +42,15 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const callbacksRef = useRef(null);
+  // A browser with WebGL disabled (or a GPU process that just died)
+  // throws from the WebGLRenderer constructor. Without this, that throw
+  // escapes the effect and React unmounts the whole app to a blank page
+  // — so show a message in the viewer's place instead.
+  const [webglError, setWebglError] = useState(null);
 
   useEffect(() => {
     const mount = mountRef.current;
+    if (!mount) return;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(BACKGROUND_COLOR);
@@ -53,7 +59,13 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
     camera.position.set(80, -80, 80);
     camera.up.set(0, 0, 1);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+    } catch (err) {
+      setWebglError(err);
+      return;
+    }
     renderer.setPixelRatio(window.devicePixelRatio);
     mount.appendChild(renderer.domElement);
 
@@ -247,7 +259,16 @@ export default function StlViewer({ stlBuffer, geometry, markers, onMarkerClick,
     requestRender();
   }, [markers]);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
+  if (webglError) {
+    return (
+      <div className="viewer-placeholder viewer-unavailable" role="alert">
+        <p>
+          This browser can't show the 3D preview (WebGL is unavailable). Rendering and downloads still work.
+        </p>
+      </div>
+    );
+  }
+  return <div ref={mountRef} className="viewer-canvas" />;
 }
 
 function disposeModel(scene) {

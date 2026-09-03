@@ -24,7 +24,13 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
     <li className="bench-tree-node">
       <div className="bench-child-row">
         <span>{part.name}</span>
-        <button className="bench-remove" onClick={() => actions.remove(nodeId)} title="Remove (and anything attached to it)">
+        <button
+          type="button"
+          className="bench-remove"
+          onClick={() => actions.remove(nodeId)}
+          aria-label={`Remove ${part.name} and anything attached to it`}
+          title="Remove (and anything attached to it)"
+        >
           ✕
         </button>
       </div>

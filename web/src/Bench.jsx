@@ -275,7 +275,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
 
   if (!assembly) {
     return (
-      <div className="bench-empty">
+      <main className="bench-empty">
         <h2>Start a bench</h2>
         <p className="muted">
           Pick a base part with slots — Gridfinity base or openGrid board are good starting points — or import your
@@ -296,7 +296,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
         {importMode === "root" && (
           <ImportFlow mode="root" onCancel={() => setImportMode(null)} onConfirm={confirmRootImport} />
         )}
-      </div>
+      </main>
     );
   }
 
@@ -363,7 +363,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
         <header className="part-header">
           <div>
             <h2>Bench</h2>
-            <p className="print-note">
+            <p className="print-note" aria-live="polite">
               {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. A part with a "bot"
               anchor (a Basics plate or post) keeps offering it once attached — look for another marker on top of it
               to stack something there.
@@ -375,18 +375,23 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
           {stlBuffer ? (
             <StlViewer stlBuffer={stlBuffer} markers={markers} onMarkerClick={(id) => setPendingSlot(parseMarkerId(id))} />
           ) : (
-            <div className="viewer-placeholder">Rendering…</div>
+            <div className="viewer-placeholder" role="status">
+              Rendering…
+            </div>
           )}
-          {renderError && <p className="error-text bench-error">{renderError}</p>}
+          {renderError && (
+            <p className="error-text bench-error" role="alert">
+              {renderError}
+            </p>
+          )}
         </div>
       </main>
 
       {pendingSlot && !importMode && (
-        <Modal onClose={() => setPendingSlot(null)}>
-          <h3>
-            Attach to {pendingSlot.slotName}
-            {pendingSlot.parentId !== ROOT_ID && ` on ${pendingParentPart.name}`}
-          </h3>
+        <Modal
+          onClose={() => setPendingSlot(null)}
+          title={`Attach to ${pendingSlot.slotName}${pendingSlot.parentId !== ROOT_ID ? ` on ${pendingParentPart.name}` : ""}`}
+        >
           <label className="field">
             Joint
             <JointSelect value={pendingJoint} onChange={setPendingJoint} />
@@ -409,7 +414,7 @@ export default function Bench({ parts, pendingRoot, onConsumePendingRoot, sideba
               }
             />
           </div>
-          <button className="bench-modal-cancel" onClick={() => setPendingSlot(null)}>
+          <button type="button" className="bench-modal-cancel" onClick={() => setPendingSlot(null)}>
             Cancel
           </button>
         </Modal>

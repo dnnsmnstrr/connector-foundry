@@ -7,10 +7,15 @@ import { groupBySystem, matchesSearch } from "../lib/catalogueUtils.js";
 // same heading with the same badge everywhere. `toolbar` renders
 // between the search box and the list (the Bench's "Import STL…"
 // button); `activeId` highlights the selected part where there is one.
+//
+// `autoFocus` is honoured only with a fine pointer: on a touch device it
+// would pop the keyboard over the list the moment it appears. The same
+// flag marks the box data-autofocus so Modal.jsx can steer focus to it.
 export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocus = false }) {
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => parts.filter((p) => matchesSearch(p, search)), [parts, search]);
   const groups = useMemo(() => groupBySystem(filtered), [filtered]);
+  const focusOnOpen = autoFocus && !hasCoarsePointer();
 
   return (
     <>
@@ -18,12 +23,18 @@ export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocu
         type="search"
         className="search-input"
         placeholder="Search parts…"
+        aria-label="Search parts"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        autoFocus={autoFocus}
+        autoFocus={focusOnOpen}
+        data-autofocus={focusOnOpen ? "" : undefined}
       />
       {toolbar}
-      {filtered.length === 0 && <p className="muted no-results">No parts match "{search}".</p>}
+      {filtered.length === 0 && (
+        <p className="muted no-results" role="status">
+          No parts match "{search}".
+        </p>
+      )}
       {[...groups.entries()].map(([system, systemParts]) => (
         <div key={system} className="system-group">
           <h2>{system}</h2>
@@ -31,7 +42,9 @@ export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocu
             {systemParts.map((part) => (
               <li key={part.id}>
                 <button
+                  type="button"
                   className={part.id === activeId ? "part-button active" : "part-button"}
+                  aria-current={part.id === activeId ? "true" : undefined}
                   onClick={() => onPick(part)}
                 >
                   <span>{part.name}</span>
@@ -44,4 +57,8 @@ export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocu
       ))}
     </>
   );
+}
+
+function hasCoarsePointer() {
+  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
 }

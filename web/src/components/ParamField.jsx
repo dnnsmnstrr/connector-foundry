@@ -7,10 +7,23 @@ export default function ParamField({ name, value, options, catalogueDefault, onC
   const differs = catalogueDefault !== undefined && value !== catalogueDefault;
   const label = (
     <span className="field-label">
-      {differs && <span className="field-differs" title={`Catalogue default: ${catalogueDefault}`} />}
+      {differs && (
+        <span
+          className="field-differs"
+          role="img"
+          aria-label={`Differs from catalogue default ${catalogueDefault}`}
+          title={`Catalogue default: ${catalogueDefault}`}
+        />
+      )}
       {name}
       {differs && onReset && (
-        <button type="button" className="field-reset" title="Reset to catalogue default" onClick={onReset}>
+        <button
+          type="button"
+          className="field-reset"
+          aria-label={`Reset ${name} to catalogue default`}
+          title="Reset to catalogue default"
+          onClick={onReset}
+        >
           ↺
         </button>
       )}

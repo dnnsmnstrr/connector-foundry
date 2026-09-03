@@ -82,8 +82,11 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     : [];
 
   return (
-    <Modal onClose={onCancel} className="bench-import-modal">
-      <h3>Import STL {mode === "root" ? "as base part" : "to attach here"}</h3>
+    <Modal
+      onClose={onCancel}
+      className="bench-import-modal"
+      title={`Import STL ${mode === "root" ? "as base part" : "to attach here"}`}
+    >
 
       {stage === "pick" && (
         <>
@@ -95,11 +98,17 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
         </>
       )}
 
-      {stage === "validating" && <p className="muted">Checking watertightness and winding…</p>}
+      {stage === "validating" && (
+        <p className="muted" role="status">
+          Checking watertightness and winding…
+        </p>
+      )}
 
       {stage === "rejected" && (
         <>
-          <p className="error-text">This mesh can't be used as-is:</p>
+          <p className="error-text" role="alert">
+            This mesh can't be used as-is:
+          </p>
           <ul className="bench-report">
             {validation.report.map((line, i) => (
               <li key={i}>{line}</li>
@@ -138,7 +147,13 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
                     />
                     {a.name}
                   </label>
-                  <button className="bench-remove" onClick={() => deleteSlot(a.name)}>
+                  <button
+                    type="button"
+                    className="bench-remove"
+                    aria-label={`Remove slot ${a.name}`}
+                    title="Remove this slot"
+                    onClick={() => deleteSlot(a.name)}
+                  >
                     ✕
                   </button>
                 </li>
@@ -157,7 +172,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
         </>
       )}
 
-      <button className="bench-modal-cancel" onClick={onCancel}>
+      <button type="button" className="bench-modal-cancel" onClick={onCancel}>
         Cancel
       </button>
     </Modal>
