@@ -13,3 +13,6 @@
 [submodule "vendor/bitbeam-lib"]
 	path = vendor/bitbeam-lib
 	url = https://github.com/ondratu/bitbeam-lib.git
+[submodule "vendor/AluminumExtrusionProfile"]
+	path = vendor/AluminumExtrusionProfile
+	url = https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library.git

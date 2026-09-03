@@ -73,18 +73,25 @@ def test_declared_pitch_matches_the_geometry(part, render_dir):
 
     origin = _corner(part, origin_name, render_dir)
     x_neighbor = _corner(part, x_neighbor_name, render_dir)
-    y_neighbor = _corner(part, y_neighbor_name, render_dir)
 
     assert abs(x_neighbor[0] - origin[0]) == pytest.approx(pitch, abs=TOL_MM), (
         f"{part['id']}: {origin_name} to {x_neighbor_name} is "
         f"{abs(x_neighbor[0] - origin[0]):.3f}mm apart on X, "
         f"catalogue.yaml declares slots.pitch={pitch}"
     )
-    assert abs(y_neighbor[1] - origin[1]) == pytest.approx(pitch, abs=TOL_MM), (
-        f"{part['id']}: {origin_name} to {y_neighbor_name} is "
-        f"{abs(y_neighbor[1] - origin[1]):.3f}mm apart on Y, "
-        f"catalogue.yaml declares slots.pitch={pitch}"
-    )
+    if ny > 1:
+        y_neighbor = _corner(part, y_neighbor_name, render_dir)
+        assert abs(y_neighbor[1] - origin[1]) == pytest.approx(pitch, abs=TOL_MM), (
+            f"{part['id']}: {origin_name} to {y_neighbor_name} is "
+            f"{abs(y_neighbor[1] - origin[1]):.3f}mm apart on Y, "
+            f"catalogue.yaml declares slots.pitch={pitch}"
+        )
+    else:
+        # A grid one slot wide (extrusion2020/rail: a 20mm profile at 20mm
+        # pitch) has no Y neighbour. Prove the absence the same way the
+        # edge test below does for X: BOSL2 refuses the name.
+        with pytest.raises(foundry.OpenSCADError):
+            render_variant(part, {"anchor": y_neighbor_name}, render_dir, f"anchor-{y_neighbor_name}")
 
 
 @pytest.mark.parametrize("part", _slotted_parts(), ids=lambda p: p["id"])

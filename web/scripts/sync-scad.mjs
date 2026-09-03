@@ -24,7 +24,9 @@ export const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
 // source in front of every visitor.
 // An entry may also name a single file, for an upstream whose one
 // library file is all a part reaches for (technic.scad ships gears,
-// examples and customizer files alongside it that no part here uses).
+// examples and customizer files alongside it that no part here uses;
+// AluminumExtrusionProfile ships an examples.scad with live top-level
+// calls and ~1MB of example STLs next to its one library file).
 export const SOURCE_DIRS = [
   "vendor/BOSL2",
   "vendor/gridfinity-rebuilt/src",
@@ -32,6 +34,7 @@ export const SOURCE_DIRS = [
   "vendor/QuackWorks/openGrid",
   "vendor/bitbeam-lib",
   "vendor/technic.scad/Technic.scad",
+  "vendor/AluminumExtrusionProfile/AluminumExtrusionProfile.scad",
   "lib",
   "parts",
   "assemblies",

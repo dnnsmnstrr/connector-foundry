@@ -51,8 +51,9 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | --- | --- |
 | `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference, the render-in-progress indicator |
 | `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
+| `src/hooks/useSystemOrder.js` | The saved system-heading order, live (subscribes to `uiPrefs.js`) so every part list reorders as Settings changes it |
 | `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
-| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers |
+| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `JointSelect` |
@@ -62,8 +63,8 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library" |
-| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order |
+| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
 
 ## Shell (`src/App.jsx`)
 
@@ -97,6 +98,14 @@ screen.
   The same ref goes back down as Library's `initialSelection` when it remounts, so switching to
   the Bench and back lands on the part (and parameter edits) that were showing, not on the first
   part in the catalogue.
+- Settings → "Part list" sets the order of the system headings in every `PartBrowser` (Library
+  sidebar, start-a-bench, attach-to-slot). Default is catalogue order — `catalogue.yaml` is kept
+  in the intended default order (Gridfinity, openGrid, GoPro, DeckMate, BitBeam, Basics, 2020
+  Extrusion), so nothing here restates it. A saved order (`uiPrefs.js`, one JSON array) is
+  resolved against the live catalogue by `catalogueUtils.js`'s `resolveSystemOrder()`: systems it
+  does not name are appended in catalogue order, names that no longer exist are dropped. The lists
+  read it through `useSystemOrder()` (a `useSyncExternalStore` over `uiPrefs.js`), so the sidebar
+  behind the open dialog reorders as ▲/▼ are pressed; "Reset to catalogue order" removes the key.
 - Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
   best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
   and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the
@@ -258,8 +267,8 @@ things specific to the web implementation:
   mechanism `cli/foundry.py`'s `run_openscad()` uses, and it overrides a constant set via
   `include` the same way on both: confirmed with a native `openscad -D FIT_CLEARANCE=...` run
   before relying on it here, not assumed. Only affects a part that actually reads
-  `FIT_CLEARANCE` — Gridfinity/GoPro/openGrid wrap a vendored module with its own fit logic and
-  won't move.
+  `FIT_CLEARANCE` — Gridfinity/GoPro/openGrid and the 2020 rail wrap a vendored module with its
+  own geometry and won't move.
 
 ## Local dev
 

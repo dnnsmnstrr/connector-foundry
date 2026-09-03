@@ -7,7 +7,7 @@
 # to mate with a reference model of that hardware.
 #
 # Nothing here is vendored. Sources are either a submodule already in
-# vendor/ (MIT only — see README "Licensing") or a pinned git commit
+# vendor/ (permissively licensed — see README "Licensing") or a pinned git commit
 # fetched on demand into refs/, which is gitignored. That keeps sources
 # we may read and measure but may not redistribute (CC-BY-NC-SA, GPL)
 # out of this MIT repository entirely.
@@ -114,6 +114,19 @@ sources:
       NOT vendored — GPL cannot be redistributed from an MIT repository.
       Fetched into refs/ and used only as a measured model of real
       20-series extrusion to test our extrusion parts' fit against.
+
+  alu-extrusion-profile:
+    kind: submodule
+    path: vendor/AluminumExtrusionProfile
+    license: Apache-2.0
+    url: https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library
+    note: >
+      Vendored. parts/extrusion2020/rail.scad calls its generic
+      extrusion_profile() directly — not the 2020_extrusion_profile()
+      preset, whose digit-leading name current OpenSCAD snapshots
+      deprecate — with the preset's numbers restated in the wrapper. The
+      rail is checked against nopscadlib's E2020t below, as a record of
+      how far this printable profile is from real extrusion.
 
 # ---------------------------------------------------------------------
 # Shape checks: is our part the same solid as the reference?
@@ -320,6 +333,36 @@ shape_checks:
       max_surface_rms_mm: 0.01
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
+
+  # The rail is the one 2020 part that wraps a vendored profile, and that
+  # profile is NOT E2020t — this records how far off it is rather than
+  # claiming a match. Same 20x20 envelope, 6.2mm mouth and 1.8mm lip (the
+  # numbers the fittings depend on); the channel behind the lip is ~13mm
+  # wide against 11 and its floor 1.2mm deeper, which is where the 5%
+  # volume and 0.93 IoU go. Measured 2026-09-03: bbox 0.000mm, vol 5.17%,
+  # rms 0.19mm, max 1.00mm, IoU 0.9251. Tolerances sit ~1.5x above so the
+  # sampled surface metrics do not flap, while a wrong $fn (19.90mm
+  # envelope), a wrong rotation or a mistyped preset number still fails.
+  - id: extrusion2020/rail-vs-E2020t
+    part: extrusion2020/rail
+    params: {len: 40}
+    reference_source: nopscadlib
+    ours: |
+      include <{repo}/parts/extrusion2020/rail.scad>
+      // The rail lies along X; NopSCADlib extrudes along Z. Stand ours up
+      // so sections_z cut the profile; both are centred on the origin.
+      rotate([0, -90, 0]) ex_rail(len = 40, anchor = CENTER);
+    reference: |
+      include <{nopscadlib}/lib.scad>
+      extrusion(E2020t, 40, center = true);
+    align: none
+    sections_z: [-15.0, 0.0, 15.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 8.0
+      max_surface_rms_mm: 0.3
+      max_surface_max_mm: 1.5
+      min_section_iou: 0.90
 
 # ---------------------------------------------------------------------
 # Fit checks: do two solids actually go together?

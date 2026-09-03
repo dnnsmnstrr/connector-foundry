@@ -157,6 +157,25 @@ extrusion2020/endcap:
     - 20.0
     - 5.0
     volume_mm3: 1341.12
+extrusion2020/rail:
+  default:
+    bbox:
+    - 100.0
+    - 20.0
+    - 20.0
+    volume_mm3: 16208.39
+  short-40:
+    bbox:
+    - 40.0
+    - 20.0
+    - 20.0
+    volume_mm3: 6483.35
+  v-slot:
+    bbox:
+    - 100.0
+    - 20.0
+    - 20.0
+    volume_mm3: 14770.3
 extrusion2020/tab:
   default:
     bbox:

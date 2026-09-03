@@ -172,7 +172,9 @@ export default function App() {
           />
         )}
       </div>
-      {settingsOpen && <SettingsModal globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsModal parts={parts} globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />
+      )}
     </div>
   );
 }

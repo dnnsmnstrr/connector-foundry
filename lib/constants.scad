@@ -123,6 +123,11 @@ BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
 // checks on every `make verify`, so drift shows up as a failed check
 // rather than as a part that will not go in.
 //
+// parts/extrusion2020/rail.scad deliberately does not use these: it
+// wraps a vendored profile library with that library's own numbers, and
+// references.yaml's extrusion2020/rail-vs-E2020t records how far that
+// printable profile is from E2020t instead of pretending it matches.
+//
 // Cross-section of one slot, from the outer face inward:
 //
 //     |<-- EX_RECESS_W -->|            outer face

@@ -95,139 +95,6 @@ parts:
       - name: thumbscrew
         params: { thumbscrew: true }
 
-  - id: gopro/male
-    system: GoPro
-    name: Two-prong male buckle
-    file: parts/gopro/male.scad
-    module: gopro_male
-    confidence: exact
-    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
-    print_note: >-
-      Legs face down for slot consistency; use a brim for first-layer
-      adhesion. Mates with any GoPro-standard three-prong buckle — proved
-      against the upstream model, not just against our own female.
-    defaults:
-      base_h: 3
-      base_w: 20
-      leg_h: 17
-    variants:
-      - name: wide-plate
-        params: { base_w: 30 }
-
-  - id: gopro/female
-    system: GoPro
-    name: Three-prong female buckle
-    file: parts/gopro/female.scad
-    module: gopro_female
-    confidence: exact
-    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
-    print_note: >-
-      Legs face down for slot consistency; use a brim for first-layer
-      adhesion. nut_depth sinks a captive square-nut pocket in the far
-      leg; set it to 0 for a plain through-hole.
-    defaults:
-      base_h: 3
-      base_w: 20
-      leg_h: 17
-      nut_depth: 3
-    variants:
-      - name: no-nut-pocket
-        params: { nut_depth: 0 }
-
-  - id: extrusion2020/tab
-    system: 2020 Extrusion
-    name: T-slot tab (hammer-head)
-    file: parts/extrusion2020/tab.scad
-    module: ex_tab
-    confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
-    print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the
-      channel floor. tab_len <= 6mm (the default) drops into the slot
-      face-first and twists 90 degrees to lock, anywhere along the rail;
-      longer heads must be fed in endwise from an open end.
-    defaults:
-      tab_len: 6
-      head_t: 2.0
-      shaft_len: 8
-    variants:
-      - name: end-feed-length
-        params: { tab_len: 16 }
-
-  - id: extrusion2020/clip
-    system: 2020 Extrusion
-    name: Snap-in clip
-    file: parts/extrusion2020/clip.scad
-    module: ex_clip
-    confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
-    print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Push straight into the slot mid-rail, no end access needed;
-      the legs flex through EX_SLOT_OPEN and the barbs spring out under
-      the lip. Print in a flexible-enough filament (PETG/nylon) — stiff
-      PLA legs may snap.
-    defaults:
-      leg_len: 7
-      post_h: 8
-
-  - id: extrusion2020/endcap
-    system: 2020 Extrusion
-    name: End-face plate
-    file: parts/extrusion2020/endcap.scad
-    module: ex_endcap
-    confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
-    print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Locating keys print face-down as oriented; the plate
-      overhangs them at its four corners, so add a brim or light support
-      there.
-    defaults:
-      plate_t: 3
-      boss_h: 2
-
-  - id: extrusion2020/corner-bracket
-    system: 2020 Extrusion
-    name: Corner bracket
-    file: parts/extrusion2020/corner-bracket.scad
-    module: ex_corner_bracket
-    confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
-    print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Print with the base flange down as oriented; the upright
-      flange is a self-supporting 90 degree wall. Bore centers assume the
-      bracket sits centered on each extrusion face — check against your
-      T-nut/bore spacing.
-    defaults: {}
-
-  - id: extrusion2020/c-clip
-    system: 2020 Extrusion
-    name: Profile C-clip
-    file: parts/extrusion2020/c-clip.scad
-    module: ex_c_clip
-    confidence: parametric
-    source: >-
-      20-series slot geometry measured off NopSCADlib's E2020t
-      (GPL-3.0 — measured against, not vendored); see references.yaml
-    print_note: >-
-      Supplier-dependent — check EX_* in lib/constants.scad against your
-      rail. Snaps over the OUTSIDE of the extrusion through its open
-      side; print with the ring axis vertical as oriented (zero overhang
-      either way up). Confirm your printer's flex/tolerance can open the
-      gap without cracking.
-    defaults: {}
-
   - id: opengrid/board
     system: openGrid
     name: Mounting board
@@ -297,77 +164,133 @@ parts:
       - name: directional
         params: { directional: true }
 
-  - id: basics/plate
-    system: Basics
-    name: Flat plate
-    file: parts/basics/plate.scad
-    module: basics_plate
+  - id: gopro/male
+    system: GoPro
+    name: Two-prong male buckle
+    file: parts/gopro/male.scad
+    module: gopro_male
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
     print_note: >-
-      Flat on the bed, no supports needed. Named anchors on all 6 faces —
-      branch composition off any side, not just top/bottom.
-    anchors: [bot, xpos, xneg, ypos, yneg]
+      Legs face down for slot consistency; use a brim for first-layer
+      adhesion. Mates with any GoPro-standard three-prong buckle — proved
+      against the upstream model, not just against our own female.
     defaults:
-      w: 40
-      d: 40
-      t: 4
-      r: 3
+      base_h: 3
+      base_w: 20
+      leg_h: 17
     variants:
-      - name: with-bolts
-        params: { bolts: true }
+      - name: wide-plate
+        params: { base_w: 30 }
 
-  - id: basics/post
-    system: Basics
-    name: Round post
-    file: parts/basics/post.scad
-    module: basics_post
+  - id: gopro/female
+    system: GoPro
+    name: Three-prong female buckle
+    file: parts/gopro/female.scad
+    module: gopro_female
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
-    print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
+    source: "Wraps GoProScad (ridercz, MIT), vendored at vendor/GoProScad"
+    print_note: >-
+      Legs face down for slot consistency; use a brim for first-layer
+      adhesion. nut_depth sinks a captive square-nut pocket in the far
+      leg; set it to 0 for a plain through-hole.
+    defaults:
+      base_h: 3
+      base_w: 20
+      leg_h: 17
+      nut_depth: 3
+    variants:
+      - name: no-nut-pocket
+        params: { nut_depth: 0 }
+
+  # DeckMate / Mechanism: three of Mechanism's own models, imported
+  # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry
+  # Mechanism's three-hole screw pattern; `screw_pattern: deckmate` is
+  # what makes the "screwed" joint available on them in the Bench (see
+  # lib/joints.scad's deckmate_screw_flange()), and `mount_offset` is
+  # where their "mount"/"bot" anchors sit relative to the bounding-box
+  # center — at the pattern's reference point, so mount-to-mount lines
+  # the holes up. The web editor reads it to place the markers;
+  # tests/test_anchors.py checks it against the rendered geometry.
+  - id: deckmate/innie
+    system: DeckMate / Mechanism
+    name: Innie (Universal Grip)
+    file: parts/deckmate/innie.scad
+    module: deckmate_innie
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own Universal Grip model (Mechanism_Universal_Grip_03.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+    print_note: >-
+      The socket half of the DeckMate interface. Oriented per the slot
+      convention: socket down, flat back up with "mount" at its center —
+      that back is where Mechanism puts the adhesive, and it is the face to
+      fuse a connector onto instead. The socket side has undercuts, so to
+      print the grip itself turn it flat-back-down in the slicer. "bot"
+      marks the center of the socket side's bounding box; it sits over the
+      socket recess, not on material, so attach there deliberately. No
+      screw pattern on this one — that is the Outie and the Universal.
     anchors: [bot]
-    defaults:
-      dia: 10
-      h: 20
-    variants:
-      - name: bored
-        params: { bore: 4 }
 
-  - id: basics/dovetail_rail
-    system: Basics
-    name: Dovetail rail
-    file: parts/basics/dovetail_rail.scad
-    module: dovetail_rail
+  - id: deckmate/outie
+    system: DeckMate / Mechanism
+    name: Outie (Bot Print)
+    file: parts/deckmate/outie.scad
+    module: deckmate_outie
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own "Bot Print" model (Deck_Mate_Mechanism_Bot_Print_02.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
     print_note: >-
-      Tip down, no supports needed — the taper narrows going down. Was
-      originally a guess at DeckMate's dimensions; confirmed wrong
-      against a real DeckMate part, so it lives here as a generic
-      dovetail instead. For a part that actually mates with a DeckMate
-      accessory, import the real Mechanism model into the web Bench.
+      The rail half of the DeckMate interface — slides into an Innie.
+      Oriented per the slot convention: rail down, flat base up with
+      "mount" on it. Fuse it, or pick the "screwed" joint: its base has
+      Mechanism's three-hole pattern, so the other side gets a flange with
+      heat-set insert bores at the same spacing and the rail can be printed
+      in its own best orientation (rail up) and fastened on. The holes
+      taper from 4.45mm at the base face to 2.4mm at the rail face — a
+      self-tapping hole for a screw driven from the base side, or a seat
+      for an M3 insert in the wide end; nothing over 2.4mm passes through
+      from the rail side. Fusing it and not screwing anything into it?
+      fill_holes plugs all three solid — same footprint, no open mouths
+      on the rail side. Leave it off for the "screwed" joint.
+    screw_pattern: deckmate
+    mount_offset: [0, 3.391]
     defaults:
-      rail_len: 36
-      end_stop: false
+      fill_holes: false
     variants:
-      - name: with-end-stop
-        params: { end_stop: true }
+      - name: filled-holes
+        params: { fill_holes: true }
 
-  - id: basics/dovetail_channel
-    system: Basics
-    name: Dovetail channel
-    file: parts/basics/dovetail_channel.scad
-    module: dovetail_channel
+  - id: deckmate/universal
+    system: DeckMate / Mechanism
+    name: Universal base
+    file: parts/deckmate/universal.scad
+    module: deckmate_universal
     confidence: exact
-    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's own "Deck Mate Universal" model (Deck_Mate_Universal_02.stl,
+      getmechanism.com/pages/digital-files), imported unmodified — it is the
+      manufacturer's own model, so there is nothing independent to check it
+      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
     print_note: >-
-      Mouth down, no supports needed — the channel widens going up.
-      Mates with basics/dovetail_rail; see its print note for why this
-      isn't in DeckMate.
-    defaults:
-      rail_len: 36
-      wall: 2.4
-      clearance: 0.3
+      Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto:
+      the three-hole pattern (2.98mm through, countersunk on the adhesive
+      side) plus a 41mm round recess for the adhesive disc. Oriented per
+      the slot convention: pattern face down with "bot" on it, adhesive
+      face up as "mount" — fuse that face onto anything in place of the
+      adhesive, then stack an Outie on "bot" with the "screwed" joint (no
+      flange needed: both carry the pattern). Prints flat either way up.
+    anchors: [bot]
+    screw_pattern: deckmate
+    mount_offset: [0, 4.896]
 
   - id: bitbeam/beam
     system: BitBeam
@@ -488,91 +411,206 @@ parts:
       height: 1
       side_holes: true
 
-  # DeckMate / Mechanism: three of Mechanism's own models, imported
-  # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry
-  # Mechanism's three-hole screw pattern; `screw_pattern: deckmate` is
-  # what makes the "screwed" joint available on them in the Bench (see
-  # lib/joints.scad's deckmate_screw_flange()), and `mount_offset` is
-  # where their "mount"/"bot" anchors sit relative to the bounding-box
-  # center — at the pattern's reference point, so mount-to-mount lines
-  # the holes up. The web editor reads it to place the markers;
-  # tests/test_anchors.py checks it against the rendered geometry.
-  - id: deckmate/innie
-    system: DeckMate / Mechanism
-    name: Innie (Universal Grip)
-    file: parts/deckmate/innie.scad
-    module: deckmate_innie
+  - id: basics/plate
+    system: Basics
+    name: Flat plate
+    file: parts/basics/plate.scad
+    module: basics_plate
     confidence: exact
-    license: CC-BY-NC-4.0
-    source: >-
-      Mechanism's own Universal Grip model (Mechanism_Universal_Grip_03.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
     print_note: >-
-      The socket half of the DeckMate interface. Oriented per the slot
-      convention: socket down, flat back up with "mount" at its center —
-      that back is where Mechanism puts the adhesive, and it is the face to
-      fuse a connector onto instead. The socket side has undercuts, so to
-      print the grip itself turn it flat-back-down in the slicer. "bot"
-      marks the center of the socket side's bounding box; it sits over the
-      socket recess, not on material, so attach there deliberately. No
-      screw pattern on this one — that is the Outie and the Universal.
-    anchors: [bot]
-
-  - id: deckmate/outie
-    system: DeckMate / Mechanism
-    name: Outie (Bot Print)
-    file: parts/deckmate/outie.scad
-    module: deckmate_outie
-    confidence: exact
-    license: CC-BY-NC-4.0
-    source: >-
-      Mechanism's own "Bot Print" model (Deck_Mate_Mechanism_Bot_Print_02.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
-    print_note: >-
-      The rail half of the DeckMate interface — slides into an Innie.
-      Oriented per the slot convention: rail down, flat base up with
-      "mount" on it. Fuse it, or pick the "screwed" joint: its base has
-      Mechanism's three-hole pattern, so the other side gets a flange with
-      heat-set insert bores at the same spacing and the rail can be printed
-      in its own best orientation (rail up) and fastened on. The holes
-      taper from 4.45mm at the base face to 2.4mm at the rail face — a
-      self-tapping hole for a screw driven from the base side, or a seat
-      for an M3 insert in the wide end; nothing over 2.4mm passes through
-      from the rail side. Fusing it and not screwing anything into it?
-      fill_holes plugs all three solid — same footprint, no open mouths
-      on the rail side. Leave it off for the "screwed" joint.
-    screw_pattern: deckmate
-    mount_offset: [0, 3.391]
+      Flat on the bed, no supports needed. Named anchors on all 6 faces —
+      branch composition off any side, not just top/bottom.
+    anchors: [bot, xpos, xneg, ypos, yneg]
     defaults:
-      fill_holes: false
+      w: 40
+      d: 40
+      t: 4
+      r: 3
     variants:
-      - name: filled-holes
-        params: { fill_holes: true }
+      - name: with-bolts
+        params: { bolts: true }
 
-  - id: deckmate/universal
-    system: DeckMate / Mechanism
-    name: Universal base
-    file: parts/deckmate/universal.scad
-    module: deckmate_universal
+  - id: basics/post
+    system: Basics
+    name: Round post
+    file: parts/basics/post.scad
+    module: basics_post
     confidence: exact
-    license: CC-BY-NC-4.0
-    source: >-
-      Mechanism's own "Deck Mate Universal" model (Deck_Mate_Universal_02.stl,
-      getmechanism.com/pages/digital-files), imported unmodified — it is the
-      manufacturer's own model, so there is nothing independent to check it
-      against. CC BY-NC 4.0, NOT MIT — see README "Licensing".
-    print_note: >-
-      Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto:
-      the three-hole pattern (2.98mm through, countersunk on the adhesive
-      side) plus a 41mm round recess for the adhesive disc. Oriented per
-      the slot convention: pattern face down with "bot" on it, adhesive
-      face up as "mount" — fuse that face onto anything in place of the
-      adhesive, then stack an Outie on "bot" with the "screwed" joint (no
-      flange needed: both carry the pattern). Prints flat either way up.
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: Stands upright on its "bot" anchor (flat end down), no supports needed.
     anchors: [bot]
-    screw_pattern: deckmate
-    mount_offset: [0, 4.896]
+    defaults:
+      dia: 10
+      h: 20
+    variants:
+      - name: bored
+        params: { bore: 4 }
+
+  - id: basics/dovetail_rail
+    system: Basics
+    name: Dovetail rail
+    file: parts/basics/dovetail_rail.scad
+    module: dovetail_rail
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: >-
+      Tip down, no supports needed — the taper narrows going down. Was
+      originally a guess at DeckMate's dimensions; confirmed wrong
+      against a real DeckMate part, so it lives here as a generic
+      dovetail instead. For a part that actually mates with a DeckMate
+      accessory, import the real Mechanism model into the web Bench.
+    defaults:
+      rail_len: 36
+      end_stop: false
+    variants:
+      - name: with-end-stop
+        params: { end_stop: true }
+
+  - id: basics/dovetail_channel
+    system: Basics
+    name: Dovetail channel
+    file: parts/basics/dovetail_channel.scad
+    module: dovetail_channel
+    confidence: exact
+    source: "Generic geometry, not tied to an external spec — nothing to check it against"
+    print_note: >-
+      Mouth down, no supports needed — the channel widens going up.
+      Mates with basics/dovetail_rail; see its print note for why this
+      isn't in DeckMate.
+    defaults:
+      rail_len: 36
+      wall: 2.4
+      clearance: 0.3
+
+  - id: extrusion2020/tab
+    system: 2020 Extrusion
+    name: T-slot tab (hammer-head)
+    file: parts/extrusion2020/tab.scad
+    module: ex_tab
+    confidence: parametric
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the
+      channel floor. tab_len <= 6mm (the default) drops into the slot
+      face-first and twists 90 degrees to lock, anywhere along the rail;
+      longer heads must be fed in endwise from an open end.
+    defaults:
+      tab_len: 6
+      head_t: 2.0
+      shaft_len: 8
+    variants:
+      - name: end-feed-length
+        params: { tab_len: 16 }
+
+  - id: extrusion2020/clip
+    system: 2020 Extrusion
+    name: Snap-in clip
+    file: parts/extrusion2020/clip.scad
+    module: ex_clip
+    confidence: parametric
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Push straight into the slot mid-rail, no end access needed;
+      the legs flex through EX_SLOT_OPEN and the barbs spring out under
+      the lip. Print in a flexible-enough filament (PETG/nylon) — stiff
+      PLA legs may snap.
+    defaults:
+      leg_len: 7
+      post_h: 8
+
+  - id: extrusion2020/endcap
+    system: 2020 Extrusion
+    name: End-face plate
+    file: parts/extrusion2020/endcap.scad
+    module: ex_endcap
+    confidence: parametric
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Locating keys print face-down as oriented; the plate
+      overhangs them at its four corners, so add a brim or light support
+      there.
+    defaults:
+      plate_t: 3
+      boss_h: 2
+
+  - id: extrusion2020/corner-bracket
+    system: 2020 Extrusion
+    name: Corner bracket
+    file: parts/extrusion2020/corner-bracket.scad
+    module: ex_corner_bracket
+    confidence: parametric
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Print with the base flange down as oriented; the upright
+      flange is a self-supporting 90 degree wall. Bore centers assume the
+      bracket sits centered on each extrusion face — check against your
+      T-nut/bore spacing.
+    defaults: {}
+
+  - id: extrusion2020/c-clip
+    system: 2020 Extrusion
+    name: Profile C-clip
+    file: parts/extrusion2020/c-clip.scad
+    module: ex_c_clip
+    confidence: parametric
+    source: >-
+      20-series slot geometry measured off NopSCADlib's E2020t
+      (GPL-3.0 — measured against, not vendored); see references.yaml
+    print_note: >-
+      Supplier-dependent — check EX_* in lib/constants.scad against your
+      rail. Snaps over the OUTSIDE of the extrusion through its open
+      side; print with the ring axis vertical as oriented (zero overhang
+      either way up). Confirm your printer's flex/tolerance can open the
+      gap without cracking.
+    defaults: {}
+
+  - id: extrusion2020/rail
+    system: 2020 Extrusion
+    name: T-slot rail (printable stand-in)
+    file: parts/extrusion2020/rail.scad
+    module: ex_rail
+    confidence: parametric
+    license: Apache-2.0
+    source: >-
+      Wraps extrusion_profile() from vendor/AluminumExtrusionProfile
+      (ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library, Jen Reed,
+      Apache-2.0 — stated in its README; it ships no LICENSE file), with
+      that library's own 2020 preset numbers. Not NopSCADlib's E2020t and
+      not lib/constants.scad's EX_* (which describe E2020t): same 20mm
+      envelope, 6.2mm slot mouth and 1.8mm lip, but the channel behind
+      the lip is ~13mm wide against 11 and its floor 1.2mm deeper.
+      references.yaml's extrusion2020/rail-vs-E2020t records the gap
+      (section IoU 0.93) instead of claiming a match.
+    print_note: >-
+      A printable stand-in for a length of real rail — for trying the
+      fittings in this group and for Bench layouts — not a substitute for
+      aluminium. Prints lying flat as oriented; the two side slot mouths
+      are 6.2mm bridges. slot "t" is what every other 2020 part here is
+      sized for; "v" is a V-slot profile (same envelope, not the same
+      fittings). Does not read FIT_CLEARANCE. The top slot carries a
+      mount_<i>_0 row at 20mm pitch.
+    slots:
+      pitch: 20  # EX_PROFILE — one profile width along the top slot; a free subdivision
+    defaults:
+      len: 100
+      slot: "t"
+    options:
+      slot: ["t", "v"]
+    variants:
+      - name: v-slot
+        params: { slot: "v" }
+      - name: short-40
+        params: { len: 40 }

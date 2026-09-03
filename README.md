@@ -34,10 +34,11 @@ convention:
 | `vendor/QuackWorks` | [AndyLevesque/QuackWorks](https://github.com/AndyLevesque/QuackWorks) | `parts/opengrid/` |
 | `vendor/bitbeam-lib` | [ondratu/bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | `parts/bitbeam/beam.scad`, `parts/bitbeam/plate.scad` |
 | `vendor/technic.scad` | [cfinke/technic.scad](https://github.com/cfinke/technic.scad) — a single-file copy, not a submodule: see `vendor/technic.scad/UPSTREAM` | `parts/bitbeam/pin.scad`, `parts/bitbeam/axle.scad` |
+| `vendor/AluminumExtrusionProfile` | [ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) | `parts/extrusion2020/rail.scad` |
 
-Systems with no reference implementation to call — 2020 extrusion, BitBeam — are modelled here
-from published dimensions, and the ones that can be are checked against an independent model
-instead. See **Accuracy** below.
+Systems with no reference implementation to call — the 2020-extrusion *fittings*, BitBeam's
+plate — are modelled here from published dimensions, and the ones that can be are checked
+against an independent model instead. See **Accuracy** below.
 
 ## Quick start
 
@@ -219,26 +220,27 @@ generated from it — run `foundry readme` after adding a part. Confidence:
 | Part | System | Confidence | Licence | Print note |
 | --- | --- | --- | --- | --- |
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | MIT | Print as-is, functional face (feet) down. No supports needed. |
+| ![Mounting board](docs/img/opengrid_board.png)<br>Mounting board | openGrid | exact | CC-BY-NC-SA-4.0 | Grid face up, flat on the bed. A tile is exactly cells x 28mm, so boards butt against each other with no border. "full" is the default; "lite" is 4mm, "heavy" is 13.8mm. The heavy tile is two halves back to back with a deliberate gap between them, so it contains one sealed cavity per cell — expected, not a modelling error, but it does mean the interior is unreachable once printed. |
+| ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | CC-BY-NC-SA-4.0 | Print in a material with some flex (PETG/PLA+) so the retaining wings can compress; no supports needed. A snap sits within the board's thickness. Note the "lite" snap is a half-height snap (3.4mm), which is not the same thing as a lite tile (4.0mm). |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. Mates with any GoPro-standard three-prong buckle — proved against the upstream model, not just against our own female. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | Legs face down for slot consistency; use a brim for first-layer adhesion. nut_depth sinks a captive square-nut pocket in the far leg; set it to 0 for a plain through-hole. |
+| ![Innie (Universal Grip)](docs/img/deckmate_innie.png)<br>Innie (Universal Grip) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The socket half of the DeckMate interface. Oriented per the slot convention: socket down, flat back up with "mount" at its center — that back is where Mechanism puts the adhesive, and it is the face to fuse a connector onto instead. The socket side has undercuts, so to print the grip itself turn it flat-back-down in the slicer. "bot" marks the center of the socket side's bounding box; it sits over the socket recess, not on material, so attach there deliberately. No screw pattern on this one — that is the Outie and the Universal. |
+| ![Outie (Bot Print)](docs/img/deckmate_outie.png)<br>Outie (Bot Print) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The rail half of the DeckMate interface — slides into an Innie. Oriented per the slot convention: rail down, flat base up with "mount" on it. Fuse it, or pick the "screwed" joint: its base has Mechanism's three-hole pattern, so the other side gets a flange with heat-set insert bores at the same spacing and the rail can be printed in its own best orientation (rail up) and fastened on. The holes taper from 4.45mm at the base face to 2.4mm at the rail face — a self-tapping hole for a screw driven from the base side, or a seat for an M3 insert in the wide end; nothing over 2.4mm passes through from the rail side. Fusing it and not screwing anything into it? fill_holes plugs all three solid — same footprint, no open mouths on the rail side. Leave it off for the "screwed" joint. |
+| ![Universal base](docs/img/deckmate_universal.png)<br>Universal base | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto: the three-hole pattern (2.98mm through, countersunk on the adhesive side) plus a 41mm round recess for the adhesive disc. Oriented per the slot convention: pattern face down with "bot" on it, adhesive face up as "mount" — fuse that face onto anything in place of the adhesive, then stack an Outie on "bot" with the "screwed" joint (no flange needed: both carry the pattern). Prints flat either way up. |
+| ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | Print flat, no supports or brim needed. Holes run through top/ bottom on 8mm pitch, and — with side_holes on, the default — through front/back too, so beams can join at a right angle as well as end to end. LEGO Technic-compatible. |
+| ![Friction pin](docs/img/bitbeam_pin.png)<br>Friction pin | BitBeam | exact | MIT | A real split friction pin — hollow body, collar between the halves, a lip at each tip, friction ridges — so it grips a beam's 4.8mm hole the way a LEGO pin does; no FIT_CLEARANCE involved. Prints standing up as the library intends; the 0.75mm tip slit wants a printer that does small gaps cleanly. top_length/bottom_length are per half, in Technic units (7.8mm). |
+| ![Axle](docs/img/bitbeam_axle.png)<br>Axle | BitBeam | exact | MIT | Prints standing up as the library intends (a long one wants a brim). `length` is in Technic units (7.8mm), so 4 is LEGO's 3705. It spins in a plain round hole and drives whatever has a matching cross-shaped one — the reason to want an axle rather than a pin. |
+| ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | Flat on the bed, no supports needed. Every hole is bitbeam-lib's own — the same 4.8mm bore, lead-in and sub-surface groove a beam's holes have — so a BitBeam pin behaves in this plate exactly as in a beam; fit is tuned on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side holes go one cell deep into every edge cell at mid-thickness and need a full unit of thickness: on at height=1 (8mm, a beam's own); go thinner and side_holes has to come off, or the render refuses rather than emit an undersized bore. Sizes are in 8mm BitBeam units. |
+| ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom. |
+| ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Stands upright on its "bot" anchor (flat end down), no supports needed. |
+| ![Dovetail rail](docs/img/basics_dovetail_rail.png)<br>Dovetail rail | Basics | exact | MIT | Tip down, no supports needed — the taper narrows going down. Was originally a guess at DeckMate's dimensions; confirmed wrong against a real DeckMate part, so it lives here as a generic dovetail instead. For a part that actually mates with a DeckMate accessory, import the real Mechanism model into the web Bench. |
+| ![Dovetail channel](docs/img/basics_dovetail_channel.png)<br>Dovetail channel | Basics | exact | MIT | Mouth down, no supports needed — the channel widens going up. Mates with basics/dovetail_rail; see its print note for why this isn't in DeckMate. |
 | ![T-slot tab (hammer-head)](docs/img/extrusion2020_tab.png)<br>T-slot tab (hammer-head) | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Head flanks are chamfered at EX_FLOOR_ANGLE to follow the channel floor. tab_len <= 6mm (the default) drops into the slot face-first and twists 90 degrees to lock, anywhere along the rail; longer heads must be fed in endwise from an open end. |
 | ![Snap-in clip](docs/img/extrusion2020_clip.png)<br>Snap-in clip | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Push straight into the slot mid-rail, no end access needed; the legs flex through EX_SLOT_OPEN and the barbs spring out under the lip. Print in a flexible-enough filament (PETG/nylon) — stiff PLA legs may snap. |
 | ![End-face plate](docs/img/extrusion2020_endcap.png)<br>End-face plate | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Locating keys print face-down as oriented; the plate overhangs them at its four corners, so add a brim or light support there. |
 | ![Corner bracket](docs/img/extrusion2020_corner-bracket.png)<br>Corner bracket | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Print with the base flange down as oriented; the upright flange is a self-supporting 90 degree wall. Bore centers assume the bracket sits centered on each extrusion face — check against your T-nut/bore spacing. |
 | ![Profile C-clip](docs/img/extrusion2020_c-clip.png)<br>Profile C-clip | 2020 Extrusion | parametric | MIT | Supplier-dependent — check EX_* in lib/constants.scad against your rail. Snaps over the OUTSIDE of the extrusion through its open side; print with the ring axis vertical as oriented (zero overhang either way up). Confirm your printer's flex/tolerance can open the gap without cracking. |
-| ![Mounting board](docs/img/opengrid_board.png)<br>Mounting board | openGrid | exact | CC-BY-NC-SA-4.0 | Grid face up, flat on the bed. A tile is exactly cells x 28mm, so boards butt against each other with no border. "full" is the default; "lite" is 4mm, "heavy" is 13.8mm. The heavy tile is two halves back to back with a deliberate gap between them, so it contains one sealed cavity per cell — expected, not a modelling error, but it does mean the interior is unreachable once printed. |
-| ![Cell snap](docs/img/opengrid_snap.png)<br>Cell snap | openGrid | exact | CC-BY-NC-SA-4.0 | Print in a material with some flex (PETG/PLA+) so the retaining wings can compress; no supports needed. A snap sits within the board's thickness. Note the "lite" snap is a half-height snap (3.4mm), which is not the same thing as a lite tile (4.0mm). |
-| ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Flat on the bed, no supports needed. Named anchors on all 6 faces — branch composition off any side, not just top/bottom. |
-| ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Stands upright on its "bot" anchor (flat end down), no supports needed. |
-| ![Dovetail rail](docs/img/basics_dovetail_rail.png)<br>Dovetail rail | Basics | exact | MIT | Tip down, no supports needed — the taper narrows going down. Was originally a guess at DeckMate's dimensions; confirmed wrong against a real DeckMate part, so it lives here as a generic dovetail instead. For a part that actually mates with a DeckMate accessory, import the real Mechanism model into the web Bench. |
-| ![Dovetail channel](docs/img/basics_dovetail_channel.png)<br>Dovetail channel | Basics | exact | MIT | Mouth down, no supports needed — the channel widens going up. Mates with basics/dovetail_rail; see its print note for why this isn't in DeckMate. |
-| ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | Print flat, no supports or brim needed. Holes run through top/ bottom on 8mm pitch, and — with side_holes on, the default — through front/back too, so beams can join at a right angle as well as end to end. LEGO Technic-compatible. |
-| ![Friction pin](docs/img/bitbeam_pin.png)<br>Friction pin | BitBeam | exact | MIT | A real split friction pin — hollow body, collar between the halves, a lip at each tip, friction ridges — so it grips a beam's 4.8mm hole the way a LEGO pin does; no FIT_CLEARANCE involved. Prints standing up as the library intends; the 0.75mm tip slit wants a printer that does small gaps cleanly. top_length/bottom_length are per half, in Technic units (7.8mm). |
-| ![Axle](docs/img/bitbeam_axle.png)<br>Axle | BitBeam | exact | MIT | Prints standing up as the library intends (a long one wants a brim). `length` is in Technic units (7.8mm), so 4 is LEGO's 3705. It spins in a plain round hole and drives whatever has a matching cross-shaped one — the reason to want an axle rather than a pin. |
-| ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | Flat on the bed, no supports needed. Every hole is bitbeam-lib's own — the same 4.8mm bore, lead-in and sub-surface groove a beam's holes have — so a BitBeam pin behaves in this plate exactly as in a beam; fit is tuned on the pin (bitbeam/pin's FIT_CLEARANCE), not here. Side holes go one cell deep into every edge cell at mid-thickness and need a full unit of thickness: on at height=1 (8mm, a beam's own); go thinner and side_holes has to come off, or the render refuses rather than emit an undersized bore. Sizes are in 8mm BitBeam units. |
-| ![Innie (Universal Grip)](docs/img/deckmate_innie.png)<br>Innie (Universal Grip) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The socket half of the DeckMate interface. Oriented per the slot convention: socket down, flat back up with "mount" at its center — that back is where Mechanism puts the adhesive, and it is the face to fuse a connector onto instead. The socket side has undercuts, so to print the grip itself turn it flat-back-down in the slicer. "bot" marks the center of the socket side's bounding box; it sits over the socket recess, not on material, so attach there deliberately. No screw pattern on this one — that is the Outie and the Universal. |
-| ![Outie (Bot Print)](docs/img/deckmate_outie.png)<br>Outie (Bot Print) | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | The rail half of the DeckMate interface — slides into an Innie. Oriented per the slot convention: rail down, flat base up with "mount" on it. Fuse it, or pick the "screwed" joint: its base has Mechanism's three-hole pattern, so the other side gets a flange with heat-set insert bores at the same spacing and the rail can be printed in its own best orientation (rail up) and fastened on. The holes taper from 4.45mm at the base face to 2.4mm at the rail face — a self-tapping hole for a screw driven from the base side, or a seat for an M3 insert in the wide end; nothing over 2.4mm passes through from the rail side. Fusing it and not screwing anything into it? fill_holes plugs all three solid — same footprint, no open mouths on the rail side. Leave it off for the "screwed" joint. |
-| ![Universal base](docs/img/deckmate_universal.png)<br>Universal base | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | Mechanism's 56.7 x 28.4 x 3mm base plate an Outie screws onto: the three-hole pattern (2.98mm through, countersunk on the adhesive side) plus a 41mm round recess for the adhesive disc. Oriented per the slot convention: pattern face down with "bot" on it, adhesive face up as "mount" — fuse that face onto anything in place of the adhesive, then stack an Outie on "bot" with the "screwed" joint (no flange needed: both carry the pattern). Prints flat either way up. |
+| ![T-slot rail (printable stand-in)](docs/img/extrusion2020_rail.png)<br>T-slot rail (printable stand-in) | 2020 Extrusion | parametric | Apache-2.0 | A printable stand-in for a length of real rail — for trying the fittings in this group and for Bench layouts — not a substitute for aluminium. Prints lying flat as oriented; the two side slot mouths are 6.2mm bridges. slot "t" is what every other 2020 part here is sized for; "v" is a V-slot profile (same envelope, not the same fittings). Does not read FIT_CLEARANCE. The top slot carries a mount_<i>_0 row at 20mm pitch. |
 <!-- CATALOGUE:END -->
 
 ## User overrides
@@ -315,7 +317,7 @@ Two kinds of check:
   OpenSCAD's own Manifold kernel, which copes with upstream models a mesh boolean refuses.
 
 `confidence: exact` in the catalogue is a claim, and a test fails if a part makes it without a
-check to back it. Current state — all 14 checks pass:
+check to back it. Current state — every check passes:
 
 ```
 pass  gridfinity/base-1x1                 vol 0.00%  rms 0.0000mm  section IoU 1.0000
@@ -356,13 +358,14 @@ shipping, and three of them were labelled `confidence: exact`:
 
 ## Licensing
 
-This repository's own files are MIT. **Seven parts are not**, and the catalogue says so per entry:
+This repository's own files are MIT. **Eight parts are not**, and the catalogue says so per entry:
 
 | Part | Licence | Why |
 | --- | --- | --- |
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They call into `vendor/QuackWorks`, which is CC-BY-NC-SA repo-wide. Rendering either part runs that code, so NonCommercial applies to that use and ShareAlike applies to adaptations. |
 | `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC-BY-NC 4.0** | `parts/deckmate/*.stl` are [Mechanism](https://getmechanism.com/pages/digital-files)'s own models (Universal Grip, Bot Print, Deck Mate Universal), redistributed unmodified under the licence Mechanism publishes its digital files under. The only meshes committed to this repo as sources rather than outputs (`.gitignore` excepts that directory). Attribution is in each catalogue entry; NonCommercial applies to the files, to anything printed from them, and to anything the Bench fuses onto them. The screw pattern's dimensions, measured from two of these files into `lib/constants.scad`, are facts, not expression — the generated `deckmate_screw_flange()` is this repo's own MIT code. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib` — permissive (attribution + no-endorsement, no NC/SA restriction), but not textually MIT, so it gets the same explicit `license:` field rather than folding it into "MIT, unstated." |
+| `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile` — permissive (attribution, a patent grant, notice of changes), but not textually MIT, so it carries its own `license:` field like the bitbeam-lib parts. Upstream states Apache-2.0 in its README and ships no LICENSE file. |
 | everything else | MIT | — |
 
 openGrid is designed by David D; the OpenSCAD implementation is by Andy (BlackjackDuck), the snap
@@ -384,13 +387,16 @@ dimensions as-is rather than anything from `lib/constants.scad`: a fastener has 
 holes, not this repo's restatement of them.
 
 The permissively-licensed upstreams — `gridfinity-rebuilt` (kennetek, MIT), `GoProScad` (ridercz,
-MIT), `bitbeam-lib` (ondratu, BSD-3-Clause), `technic.scad` (cfinke, MIT), `BOSL2` (MIT) — impose
-nothing substantive on callers, which is why wrapping them was uncomplicated.
+MIT), `bitbeam-lib` (ondratu, BSD-3-Clause), `technic.scad` (cfinke, MIT),
+`AluminumExtrusionProfile` (ServerNinja, Apache-2.0), `BOSL2` (MIT) — impose nothing substantive
+on callers, which is why wrapping them was uncomplicated.
 
 Two upstreams are **measured against but never called and never vendored**, because including
 them would relicense our parts: `NopSCADlib` (GPL-3.0), used as a model of real 20-series
 extrusion for the fit checks. Its numbers — dimensions, which are facts — are recorded in
-`lib/constants.scad`; none of its code is here.
+`lib/constants.scad`; none of its code is here. The one rail this repo *can* generate,
+`extrusion2020/rail`, is a different, permissively licensed profile, and the shape check
+`extrusion2020/rail-vs-E2020t` records how far it sits from E2020t rather than claiming a match.
 
 `openscad-wasm` bundles OpenSCAD itself (GPL-2.0). It is used as an external tool the browser
 fetches and runs, the same way the CLI shells out to the `openscad` binary — no OpenSCAD source
@@ -418,6 +424,7 @@ Called directly (submodules): [gridfinity-rebuilt-openscad](https://github.com/k
 [QuackWorks](https://github.com/AndyLevesque/QuackWorks) ·
 [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) ·
 [technic.scad](https://github.com/cfinke/technic.scad) ·
+[AluminumExtrusionProfile](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) ·
 [BOSL2](https://github.com/BelfrySCAD/BOSL2)
 
 Measured against, never vendored: [NopSCADlib](https://github.com/nophead/NopSCADlib)

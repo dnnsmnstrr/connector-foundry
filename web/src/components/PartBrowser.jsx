@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { groupBySystem, matchesSearch } from "../lib/catalogueUtils.js";
+import { useSystemOrder } from "../hooks/useSystemOrder.js";
+import { groupBySystem, matchesSearch, resolveSystemOrder } from "../lib/catalogueUtils.js";
 
 // Search box + the catalogue grouped by system, one button per part —
 // Library's sidebar and both of the Bench's pickers (start a bench,
@@ -11,10 +12,16 @@ import { groupBySystem, matchesSearch } from "../lib/catalogueUtils.js";
 // `autoFocus` is honoured only with a fine pointer: on a touch device it
 // would pop the keyboard over the list the moment it appears. The same
 // flag marks the box data-autofocus so Modal.jsx can steer focus to it.
+//
+// The system headings follow the order saved in Settings ("Part list"),
+// catalogue order by default — resolved against the full `parts` list,
+// not the filtered one, so a search never reshuffles what is left.
 export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocus = false }) {
   const [search, setSearch] = useState("");
+  const savedOrder = useSystemOrder();
+  const order = useMemo(() => resolveSystemOrder(parts, savedOrder), [parts, savedOrder]);
   const filtered = useMemo(() => parts.filter((p) => matchesSearch(p, search)), [parts, search]);
-  const groups = useMemo(() => groupBySystem(filtered), [filtered]);
+  const groups = useMemo(() => groupBySystem(filtered, order), [filtered, order]);
   const focusOnOpen = autoFocus && !hasCoarsePointer();
 
   return (
