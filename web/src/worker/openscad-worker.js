@@ -165,7 +165,14 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
       os.FS.writeFile(mainPath, `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`);
     }
 
-    const rc = os.callMain([mainPath, "-o", "/output.stl", "--backend=Manifold", ...extraArgs]);
+    // Binary STL, not OpenSCAD's default ASCII: a fifth of the bytes for
+    // the same triangles (the ASCII form spells every float out as text),
+    // so the result copies to the main thread, sits in the render cache,
+    // parses in three.js (a fixed-layout scan instead of a text scan) and
+    // downloads faster. Vertices are float32 either way — OpenSCAD writes
+    // its ASCII STL from the same single-precision values — so bounding
+    // boxes and slot positions are bit-identical between the two.
+    const rc = os.callMain([mainPath, "-o", "/output.stl", "--export-format=binstl", "--backend=Manifold", ...extraArgs]);
     if (rc !== 0) {
       throw new Error("OpenSCAD render failed — check the parameters (see worker console for details)");
     }

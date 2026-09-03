@@ -27,7 +27,8 @@ running in a Web Worker.
    every `.scad` file uses relative `include`s), writes a one-line stub —
    `include </repo/parts/.../x.scad>; module_name(args);` — and calls OpenSCAD with
    `--backend=Manifold`.
-4. The resulting STL bytes come back to the main thread and render via `three.js`
+4. The resulting STL bytes — binary STL, a fifth the size of OpenSCAD's default ASCII export and
+   far quicker to parse — come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
 5. `src/lib/openscad-client.js` keeps each result for five minutes, keyed on the exact
    (file, module, parameters) triple, so switching back to a part — or to parameters tried a
