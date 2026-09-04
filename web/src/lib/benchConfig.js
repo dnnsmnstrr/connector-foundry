@@ -23,7 +23,7 @@
 // OpenSCAD error on the next render, the same way a bad parameter does,
 // not as a silent misplacement.
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { JOINTS, ROOT_ID, allocateChildId, normalizeSpin } from "./assembly.js";
+import { JOINTS, MAX_ATTACHED, ROOT_ID, allocateChildId, normalizeSpin } from "./assembly.js";
 import { createImportedPart } from "./importedPart.js";
 import { validateAndRepair } from "./meshValidate.js";
 
@@ -103,6 +103,9 @@ export function checkBenchConfig(doc) {
     throw new Error("The config has no valid root part.");
   }
   if (!Array.isArray(doc.nodes)) throw new Error("The config's \"nodes\" isn't a list.");
+  if (doc.nodes.length > MAX_ATTACHED) {
+    throw new Error(`This config attaches ${doc.nodes.length} parts; a bench takes at most ${MAX_ATTACHED}.`);
+  }
   doc.nodes.forEach((n, i) => {
     if (!isObject(n) || typeof n.id !== "string" || typeof n.parentId !== "string" || typeof n.partId !== "string"
       || typeof n.slotName !== "string") {

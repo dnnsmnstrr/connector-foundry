@@ -12,14 +12,16 @@ import SpinButtons from "./SpinButtons.jsx";
 // an "Attach on top" button here, both resolving to the same
 // attachAt(nodeId, "bot"); an imported part's arbitrary user-placed
 // anchors get one "attach here" button each, since there's no single
-// predictable "up" for those.
+// predictable "up" for those. Neither is offered once the bench is full
+// (`canAttach` false — assembly.js's MAX_ATTACHED), the same moment the
+// scene stops showing markers.
 //
 // Clicking the part's name selects it — the same selection a click on
 // the part in the scene makes (`selectedId`), so the row lights up when
 // the part is picked either way, and the scene's floating ↺/↻ buttons
 // and the outline follow. The "Rotation (°)" field is the exact-value
 // twin of those buttons: type any angle, or step by 90 with the arrows.
-export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions, selectedId }) {
+export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions, selectedId, canAttach }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
   const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
@@ -110,7 +112,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
           allowSavedDefaults={!isImported}
         />
       </details>
-      {stackSlot && (
+      {canAttach && stackSlot && (
         <div className="bench-node-slots">
           <button
             type="button"
@@ -122,7 +124,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
           </button>
         </div>
       )}
-      {openSlots.length > 0 && (
+      {canAttach && openSlots.length > 0 && (
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
             <button key={slot.name} className="bench-attach-here" onClick={() => actions.attachAt(nodeId, slot.name)}>
@@ -142,6 +144,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
               nodeId={kid.id}
               actions={actions}
               selectedId={selectedId}
+              canAttach={canAttach}
             />
           ))}
         </ul>

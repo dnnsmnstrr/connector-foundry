@@ -10,9 +10,11 @@ import PartBrowser from "./components/PartBrowser.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import {
+  MAX_ATTACHED,
   ROOT_ID,
   addChild,
   bodyTags,
+  canAttach,
   childrenOf,
   compileToScad,
   createAssembly,
@@ -167,6 +169,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   }, []);
 
   const rootPart = assembly ? partsById.get(assembly.root.partId) : null;
+  // Whether another part may be attached (assembly.js's MAX_ATTACHED).
+  // When not, nothing that would attach one is offered: no markers
+  // outside move mode, no "+ Attach" buttons in the tree, and the header
+  // says why.
+  const roomToAttach = assembly ? canAttach(assembly) : false;
 
   // Every node's own standalone bounding box (its part rendered alone,
   // with its own params, no attach() context) — needed to enumerate
@@ -261,12 +268,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the ones standing on the part itself or anything attached to it
   // (its own open "bot", a stacked child's) are left out — moveChild()
   // would refuse those anyway, but a marker that does nothing is worse
-  // than no marker.
+  // than no marker. Outside move mode a marker means "attach here", so
+  // a full bench shows none at all.
   const shownMarkers = useMemo(() => {
-    if (!moveMode || !selectedNodeId || !assembly) return markers;
+    if (!assembly) return markers;
+    if (!moveMode || !selectedNodeId) return roomToAttach ? markers : [];
     const subtree = descendantIds(assembly, selectedNodeId).add(selectedNodeId);
     return markers.filter((m) => !subtree.has(parseMarkerId(m.id).parentId));
-  }, [markers, moveMode, selectedNodeId, assembly]);
+  }, [markers, moveMode, selectedNodeId, assembly, roomToAttach]);
 
   // Where each node's body is, for click-to-select and the selection
   // outline — only the nodes whose place can be known without redoing
@@ -410,7 +419,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   function handleMarkerClick(id) {
     const target = parseMarkerId(id);
     if (moveMode && selectedNodeId) moveNode(selectedNodeId, target);
-    else setPendingSlot(target);
+    else if (roomToAttach) setPendingSlot(target);
   }
 
   // Everything NodeTree can do to a node, bundled once here instead of
@@ -602,7 +611,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               />
             </details>
 
-            <h3>Attached ({assembly.nodes.length})</h3>
+            <h3>Attached ({assembly.nodes.length} of {MAX_ATTACHED})</h3>
             {assembly.nodes.length === 0 && <p className="muted">Nothing attached yet.</p>}
             <ul className="bench-child-list">
               {childrenOf(assembly, ROOT_ID).map((child) => (
@@ -614,6 +623,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   nodeId={child.id}
                   actions={nodeActions}
                   selectedId={selectedNodeId}
+                  canAttach={roomToAttach}
                 />
               ))}
             </ul>
@@ -662,10 +672,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the arrow
                   keys. Esc cancels.
                 </>
-              ) : (
+              ) : roomToAttach ? (
                 <>
                   {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a marker
                   to attach a part there; click an attached part to select it, then turn, move, or delete it.
+                </>
+              ) : (
+                <>
+                  {MAX_ATTACHED} parts attached — the most a bench takes. Remove one to attach another; click an
+                  attached part to select it, then turn, move, or delete it.
                 </>
               )}
               {status === "rendering" && " Rendering…"}

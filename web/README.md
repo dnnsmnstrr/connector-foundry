@@ -161,7 +161,10 @@ a part actually has anchors left over. A few implementation notes that don't bel
 
 - `src/lib/assembly.js` holds the tree: `{ root: {id:"root", partId, params}, nodes: [...] }`,
   where every node but root carries a `parentId` naming what it's attached to — "root" or another
-  node's id, to any depth. `getNode()`/`childrenOf()`/`occupiedSlotNames()` all take that id the
+  node's id, to any depth, but at most `MAX_ATTACHED` (three) nodes in all: `addChild()` refuses a
+  fourth, `benchConfig.js`'s checks reject a file or link carrying more, and the Bench stops
+  offering markers and "+ Attach" buttons once a bench is full.
+  `getNode()`/`childrenOf()`/`occupiedSlotNames()` all take that id the
   same way for root and any child, which is what lets `src/lib/benchLayout.js`'s `slotsForNode()`
   and `components/bench/NodeTree.jsx` treat every node identically regardless of depth.
 - The "screwed" joint (`emitScrewedChild()`) is the one joint whose shape depends on the two parts:

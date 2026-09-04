@@ -80,7 +80,8 @@ Every non-fused joint exposes one `part=` tag per printable body, so each export
 
 The web app's Bench tab is a visual editor. Pick a base part, click a slot marker, attach a part
 with a joint, repeat. A part that still has an open anchor after attaching (a Basics plate, any
-grid) offers it as a new marker, so assemblies stack to any depth. Each attached part has:
+grid) offers it as a new marker, so assemblies stack. A bench takes up to three attached parts. Each
+attached part has:
 
 - **Joint** and **Offset (mm)** — negative sinks it into its parent, positive leaves a gap.
 - **Rotation (°)** — turn it on its slot. Click a part in the scene (or its name in the sidebar) to

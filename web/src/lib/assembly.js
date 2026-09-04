@@ -64,6 +64,18 @@ export function jointsFor(parentPart, childPart) {
   return JOINTS.filter((joint) => joint !== "screwed" || screwedApplies(parentPart, childPart));
 }
 
+// How many parts one bench takes, root not counted. A deliberate ceiling:
+// a few parts is what a bench is for, and the browser's OpenSCAD build
+// has a very small stack that deeply nested assemblies overflow (see
+// Bench.jsx's friendlyRenderError()), so keeping benches small keeps them
+// in the range that renders. Enforced here in addChild() and by
+// benchConfig.js's checks, so neither the UI nor a loaded file exceeds it.
+export const MAX_ATTACHED = 3;
+
+export function canAttach(assembly) {
+  return assembly.nodes.length < MAX_ATTACHED;
+}
+
 export function createAssembly(rootPartId, rootParams) {
   return { root: { id: ROOT_ID, partId: rootPartId, params: { ...rootParams } }, nodes: [] };
 }
@@ -104,7 +116,13 @@ export function occupiedSlotNames(assembly, parentId) {
 // about the parent anchor's outward direction, BOSL2's own attach()
 // `spin=` convention — see spinArg()). Multiples of 90 are what the
 // scene's ↺/↻ buttons produce; any angle is allowed via the sidebar.
+//
+// A bench already holding MAX_ATTACHED parts comes back unchanged — the
+// same "nothing happened" answer moveChild() gives for a move that isn't
+// one. The Bench checks canAttach() before offering a slot, so this is
+// the backstop, not the UI.
 export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0 }) {
+  if (!canAttach(assembly)) return assembly;
   const child = { id: allocateChildId(), parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin };
   return { ...assembly, nodes: [...assembly.nodes, child] };
 }
