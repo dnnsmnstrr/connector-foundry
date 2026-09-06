@@ -320,6 +320,11 @@ button, input, select, textarea {
   cursor: wait;
 }
 
+.download-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .workspace-body {
   display: grid;
   grid-template-columns: 280px 1fr;

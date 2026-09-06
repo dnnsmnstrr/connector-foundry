@@ -22,3 +22,7 @@ web/public/global-defaults.json
 # rendered reference meshes. Never committed — some of it is under
 # licences this repository cannot redistribute (see references.yaml).
 refs/
+
+# Browser test output (failure traces are uploaded by CI).
+web/test-results/
+web/playwright-report/

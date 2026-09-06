@@ -38,7 +38,8 @@ running in a Web Worker.
 This build of `openscad-wasm` can only run `callMain` once per instance (a second call aborts
 with an opaque WASM trap), and can't run two instances concurrently either — both confirmed by
 testing, not assumed. So `openscad-worker.js` spins up a fresh instance per render and serialises
-every request through one FIFO queue. Only the instance is fresh: the compiled WebAssembly module
+work defensively in the worker; `openscad-client.js` now owns the cancellable FIFO
+and sends only one job at a time. Only the instance is fresh: the compiled WebAssembly module
 is reused across them (`scripts/vite-plugin-openscad-wasm-memo.mjs` — the package would otherwise
 decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). See the
 worker's header comment for the full story,
@@ -424,3 +425,33 @@ npm run dev
 external tool the browser fetches and runs, the same way the CLI shells out to the `openscad`
 binary — no OpenSCAD source is copied into this repository. See the root `README.md` for the
 project's own MIT license.
+
+## Verification
+
+```bash
+npm test                       # render scheduler unit tests (Node.js 20+)
+npx playwright install chromium
+npm run test:browser            # builds and tests the production app in Chromium
+```
+
+The browser suite covers stale-download prevention, printer-setting changes,
+worker recovery and cancellation, export preservation during edits, Bench tab/URL
+restoration, and the existing config round trip with an embedded mesh. Most UI
+cases use a controllable worker to exercise delays and failures deterministically.
+A separate real `openscad-wasm` test checks the dimensions of Library and generated
+Bench STL exports. CI runs both suites and retains browser traces on failure.
+
+Render requests queue on the main thread, with only one job sent to the worker at
+a time. Library and Bench previews subscribe with an `AbortSignal`; edits and
+unmounting remove obsolete subscriptions. A job is interrupted only when nobody
+still needs it, so explicit STL exports survive preview changes. **Cancel renders**
+stops all current work, including exports. A two-minute per-job timeout replaces a
+stuck worker and continues queued jobs; failed results are never cached. Bench
+shows **Retry preview** after cancellation or a failure.
+
+Library downloads require a successful render matching the selected part,
+parameters, and printer overrides. An older mesh may remain visible while editing
+or rendering, with downloading disabled until the current render succeeds.
+
+The future plan for complete OpenSCAD exports is recorded in
+[docs/IMPROVEMENTS.md](../docs/IMPROVEMENTS.md).

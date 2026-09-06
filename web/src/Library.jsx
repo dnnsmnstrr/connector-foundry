@@ -4,9 +4,10 @@ import PartBrowser from "./components/PartBrowser.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { downloadBlob } from "./lib/download.js";
-import { getCachedRender, renderPart } from "./lib/openscad-client.js";
-import { getGlobalOverrides, resolveParams } from "./lib/userOverrides.js";
+import { getCachedRender, renderPart, renderRequestKey } from "./lib/openscad-client.js";
+import { resolveParams } from "./lib/userOverrides.js";
 import { listedParts, slugify } from "./lib/catalogueUtils.js";
+import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 
 // Library mode: pick a part, edit its parameters, render, download the
@@ -30,7 +31,10 @@ export default function Library({
   // Consumed by the first selection effect only — after that a pick
   // resolves its params from catalogue defaults + saved overrides.
   const carried = useRef(initialSelection);
-  const [stlBuffer, setStlBuffer] = useState(null);
+  const [rendered, setRendered] = useState(null);
+  const stlBuffer = rendered?.buffer;
+  const previewController = useRef(null);
+  const globalOverrides = useGlobalOverrides();
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
   // Renders resolve out of order — a cached part swaps in instantly while
@@ -54,16 +58,20 @@ export default function Library({
       scadFile: selected.file,
       module: selected.module,
       params: renderParams,
-      globalOverrides: getGlobalOverrides(),
+      globalOverrides,
     };
 
+    previewController.current?.abort();
+    const controller = new AbortController();
+    previewController.current = controller;
     const seq = ++renderSeq.current;
+    const key = renderRequestKey(request);
 
     // Still-warm result: show it straight away rather than flashing a
     // "Rendering…" state for a render that isn't going to happen.
     const cached = getCachedRender(request);
     if (cached) {
-      setStlBuffer(cached);
+      setRendered({ buffer: cached, key });
       setRenderError(null);
       setStatus("done");
       return;
@@ -72,14 +80,14 @@ export default function Library({
     setStatus("rendering");
     setRenderError(null);
     try {
-      const buffer = await renderPart(request);
+      const buffer = await renderPart(request, { signal: controller.signal });
       if (seq !== renderSeq.current) return;
-      setStlBuffer(buffer);
+      setRendered({ buffer, key });
       setStatus("done");
     } catch (err) {
       if (seq !== renderSeq.current) return;
-      setRenderError(err.message);
-      setStatus("error");
+      setRenderError(err.name === "AbortError" ? null : err.message);
+      setStatus(err.name === "AbortError" ? "idle" : "error");
     }
   };
 
@@ -93,15 +101,42 @@ export default function Library({
     const initial = seed && seed.part.id === selected.id ? seed.params : resolveParams(selected, {});
     setParams(initial);
     doRender(initial);
+    return () => {
+      ++renderSeq.current;
+      previewController.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
+
+  // Keep parameter edits when printer settings change, but cancel the
+  // preview produced under the old settings and render the current ones.
+  const previousGlobals = useRef(globalOverrides);
+  useEffect(() => {
+    if (previousGlobals.current === globalOverrides) return;
+    previousGlobals.current = globalOverrides;
+    doRender(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalOverrides]);
 
   useEffect(() => {
     if (selected) onSelectionChange?.({ part: selected, params });
   }, [selected, params, onSelectionChange]);
 
+  const currentKey = selected && renderRequestKey({
+    scadFile: selected.file, module: selected.module, params, globalOverrides,
+  });
+  const canDownload = status === "done" && rendered?.key === currentKey;
+
+  function changeParams(next) {
+    ++renderSeq.current;
+    previewController.current?.abort();
+    setStatus("idle");
+    setRenderError(null);
+    setParams(next);
+  }
+
   function downloadStl() {
-    if (!stlBuffer) return;
+    if (!canDownload) return;
     downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
@@ -144,7 +179,7 @@ export default function Library({
                 <ParamsEditor
                   part={selected}
                   params={params}
-                  onChange={setParams}
+                  onChange={changeParams}
                   emptyText="No parameters — defaults only."
                   showSavedNote
                 />
@@ -171,8 +206,11 @@ export default function Library({
                 ) : (
                   <div className="viewer-placeholder">Render a part to preview it here.</div>
                 )}
+                {stlBuffer && !canDownload && (
+                  <p className="muted">Preview is out of date. Render the current settings before downloading.</p>
+                )}
                 {stlBuffer && (
-                  <button className="download-button" onClick={downloadStl}>
+                  <button className="download-button" onClick={downloadStl} disabled={!canDownload}>
                     Download STL
                   </button>
                 )}

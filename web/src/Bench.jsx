@@ -31,6 +31,7 @@ import {
   updateChildSpin,
   updateNodeParams,
 } from "./lib/assembly.js";
+import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { configFilename, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
@@ -43,7 +44,7 @@ import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
-import { getGlobalOverrides, getOverrides, resolveParams } from "./lib/userOverrides.js";
+import { getOverrides, resolveParams } from "./lib/userOverrides.js";
 
 // A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -87,6 +88,7 @@ const ARROW_DIRECTIONS = {
 };
 
 export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
+  const globalOverrides = useGlobalOverrides();
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
   // The tree and the imported meshes live in lib/benchSession.js, not
   // here: this component unmounts whenever the Library tab is up, and the
@@ -120,6 +122,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const [status, setStatus] = useState("idle");
   const [renderError, setRenderError] = useState(null);
   const renderSeq = useRef(0);
+  const [renderRetry, setRenderRetry] = useState(0);
   // Saved setups (lib/benchPresets.js) and whatever the last config
   // load/save had to complain about — shown in the presets panel, on the
   // start screen or in the sidebar, whichever is up, with the session's
@@ -198,13 +201,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     let timer = null;
     const allNodes = [{ id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params }, ...assembly.nodes];
     const requestFor = (part, node) => ({
       scadFile: part.file,
       module: part.module,
       params: node.params,
-      globalOverrides: getGlobalOverrides(),
+      globalOverrides,
     });
     const compute = async () => {
       // allSettled, not all: one node's own standalone render hitting
@@ -216,14 +220,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         allNodes.map(async (n) => {
           const part = partsById.get(n.partId);
           if (part.kind === "imported") return [n.id, part.extents];
-          return [n.id, meshExtents(await renderPart(requestFor(part, n)))];
+          return [n.id, meshExtents(await renderPart(requestFor(part, n), { signal: controller.signal }))];
         }),
       );
       if (cancelled) return;
       const entries = [];
       for (const result of results) {
         if (result.status === "fulfilled") entries.push(result.value);
-        else console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
+        else if (result.reason?.name !== "AbortError") console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
       }
       setNodeExtents(new Map(entries));
     };
@@ -235,9 +239,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     else timer = setTimeout(compute, RENDER_DEBOUNCE_MS);
     return () => {
       cancelled = true;
+      controller.abort();
       if (timer !== null) clearTimeout(timer);
     };
-  }, [assembly, partsById]);
+  }, [assembly, partsById, globalOverrides, renderRetry]);
 
   const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
 
@@ -289,32 +294,37 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   useEffect(() => {
     if (!assembly) return;
     const seq = ++renderSeq.current;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setStatus("rendering");
       setRenderError(null);
       try {
-        const buf = await renderAssembly("all");
+        const buf = await renderAssembly("all", { signal: controller.signal });
         if (seq !== renderSeq.current) return;
         setStlBuffer(buf);
         setStatus("done");
       } catch (err) {
         if (seq !== renderSeq.current) return;
-        setRenderError(friendlyRenderError(err.message));
-        setStatus("error");
+        setRenderError(err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message));
+        setStatus(err.name === "AbortError" ? "idle" : "error");
       }
     }, RENDER_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      ++renderSeq.current;
+      clearTimeout(timer);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assembly, partsById]);
+  }, [assembly, partsById, globalOverrides, renderRetry]);
 
   // The current assembly as one STL — `tag` picks the printable body
   // ("all", "root", or a joint child's own id; see assembly.js's
   // bodyTags()). The generated source is the same for every tag; only
   // the -D part= selector differs.
-  function renderAssembly(tag) {
+  function renderAssembly(tag, options) {
     const importedFiles = new Map();
     const scadSource = compileToScad(assembly, partsById, importedFiles);
-    return renderPart({ scadSource, part: tag, importedFiles, globalOverrides: getGlobalOverrides() });
+    return renderPart({ scadSource, part: tag, importedFiles, globalOverrides }, options);
   }
 
   function pickRoot(part) {
@@ -752,13 +762,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             </StlViewer>
           ) : (
             <div className="viewer-placeholder" role="status">
-              Rendering…
+              {status === "rendering" ? "Rendering…" : "No preview yet."}
             </div>
           )}
           {renderError && (
             <p className="error-text bench-error" role="alert">
               {renderError}
             </p>
+          )}
+          {renderError && status !== "rendering" && (
+            <button className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
+              Retry preview
+            </button>
           )}
         </div>
       </main>

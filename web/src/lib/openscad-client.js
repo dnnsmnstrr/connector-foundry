@@ -37,56 +37,97 @@ export function subscribeRenderActivity(listener) {
   return () => activityListeners.delete(listener);
 }
 
-// Every request the worker still owes an answer for fails with `error`.
-// Used when the worker itself dies: a request whose worker is gone would
-// otherwise hang forever, since no "result"/"error" message is coming.
-function failAllPending(error) {
-  for (const entry of pending.values()) entry.reject(error);
-  pending.clear();
-}
+// Keep the queue on the main thread: a worker inside synchronous WASM
+// cannot receive a cancellation message. Only one job is posted at a
+// time; terminating its worker is the way to interrupt an active render.
+const RENDER_TIMEOUT_MS = 120_000;
+let active = null;
 
-function onWorkerMessage(event) {
-  const { id, type } = event.data;
-  // The worker's own printErr forwards any OpenSCAD stderr line
-  // matching /error/i this way, untied to a specific request (no
-  // `id`) — surface it to the console rather than silently drop it,
-  // since it's often the only place the REAL reason a render failed
-  // (as opposed to the generic "check the parameters" thrown on a
-  // non-zero exit code) actually shows up.
-  if (type === "log") {
-    console.error("[openscad]", event.data.text);
-    return;
-  }
-  const entry = pending.get(id);
-  if (!entry) return;
-  pending.delete(id);
-  if (type === "result") entry.resolve(event.data.stl);
-  else entry.reject(new Error(event.data.message));
-}
-
-// A worker that failed to load, or threw outside any request, is
-// replaced on the next render rather than kept as a dead letterbox.
-function onWorkerFailure(detail) {
-  failAllPending(new Error(`OpenSCAD worker failed: ${detail}`));
+function stopWorker() {
   worker?.terminate();
   worker = null;
 }
 
+function finish(job, error, stl) {
+  if (!pending.has(job.id)) return;
+  clearTimeout(job.timer);
+  pending.delete(job.id);
+  inFlight.delete(job.key);
+  if (active === job) active = null;
+  if (!error) store(job.key, stl);
+  for (const consumer of job.consumers) {
+    consumer.cleanup();
+    if (error) consumer.reject(error);
+    else consumer.resolve(stl);
+  }
+  job.consumers.clear();
+  notifyActivity();
+  queueMicrotask(pump);
+}
+
+function onWorkerMessage(event) {
+  const { id, type } = event.data;
+  if (type === "log") {
+    console.error("[openscad]", event.data.text);
+    return;
+  }
+  const job = pending.get(id);
+  if (!job || job !== active) return;
+  finish(job, type === "result" ? null : new Error(event.data.message), event.data.stl);
+}
+
 function getWorker() {
   if (!worker) {
-    worker = new Worker(new URL("../worker/openscad-worker.js", import.meta.url), { type: "module" });
-    worker.onmessage = onWorkerMessage;
-    worker.onerror = (event) => onWorkerFailure(event.message || "script error");
-    worker.onmessageerror = () => onWorkerFailure("message could not be deserialised");
+    const created = new Worker(new URL("../worker/openscad-worker.js", import.meta.url), { type: "module" });
+    worker = created;
+    created.onmessage = (event) => {
+      if (worker === created) onWorkerMessage(event);
+    };
+    const fail = (detail) => {
+      if (worker !== created) return;
+      stopWorker();
+      if (active) finish(active, new Error(`OpenSCAD worker failed: ${detail}`));
+    };
+    created.onerror = (event) => fail(event.message || "script error");
+    created.onmessageerror = () => fail("message could not be deserialised");
   }
   return worker;
+}
+
+function pump() {
+  if (active || pending.size === 0) return;
+  const job = pending.values().next().value;
+  active = job;
+  job.timer = setTimeout(() => {
+    stopWorker();
+    finish(job, new Error("OpenSCAD render timed out after 2 minutes. Try simpler parameters or render again."));
+  }, RENDER_TIMEOUT_MS);
+  try {
+    // Clone imported buffers: exports and later previews still need them.
+    getWorker().postMessage({ ...job.request, id: job.id });
+  } catch (err) {
+    stopWorker();
+    finish(job, err);
+  }
+}
+
+function abortError() {
+  return new DOMException("Render cancelled", "AbortError");
+}
+
+// Explicit user cancellation includes exports. Automatic preview cleanup
+// only removes that preview's subscription, preserving any export that
+// happens to need the same mesh.
+export function cancelRenders() {
+  stopWorker();
+  for (const job of [...pending.values()]) finish(job, abortError());
 }
 
 function sortedEntries(obj) {
   return Object.entries(obj || {}).sort(([a], [b]) => a.localeCompare(b));
 }
 
-function cacheKey({ scadFile, module, params, scadSource, part, globalOverrides }) {
+export function renderRequestKey({ scadFile, module, params, scadSource, part, globalOverrides }) {
   // globalOverrides folded in so a FIT_CLEARANCE change actually
   // busts the cache instead of replaying a stale mesh rendered under
   // the old value.
@@ -121,7 +162,7 @@ function store(key, stl) {
 // key: read it (three.js parsing, `new Blob([...])`) but never transfer
 // or mutate it.
 export function getCachedRender(request) {
-  const key = cacheKey(request);
+  const key = renderRequestKey(request);
   const entry = cache.get(key);
   if (!entry) return null;
   if (entry.expires <= Date.now()) {
@@ -133,47 +174,37 @@ export function getCachedRender(request) {
   return entry.stl;
 }
 
-export function renderPart(request) {
+// Callers own their subscription through an AbortSignal. A replaced
+// preview unsubscribes on effect cleanup; jobs with no remaining callers
+// are removed before they can block the latest preview. Exports omit the
+// signal and survive edits, tab changes, and other preview cancellations.
+export function renderPart(request, { signal } = {}) {
+  if (signal?.aborted) return Promise.reject(abortError());
   const cached = getCachedRender(request);
   if (cached) return Promise.resolve(cached);
 
-  // Two renders of the same thing can overlap if the user clicks around
-  // while one is running; the second waits on the first instead.
-  const key = cacheKey(request);
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-
-  const { scadFile, module, params, scadSource, part, importedFiles, globalOverrides } = request;
-  const id = nextId++;
+  const key = renderRequestKey(request);
+  let job = inFlight.get(key);
+  if (!job) {
+    job = { id: nextId++, key, request, consumers: new Set(), timer: null };
+    inFlight.set(key, job);
+    pending.set(job.id, job);
+  }
   const promise = new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    try {
-      // importedFiles' ArrayBuffers are NOT in the transfer list on
-      // purpose: the same imported part can feed many renders as the
-      // assembly evolves, and transferring would detach the buffer after
-      // the first one, leaving it unusable for the next. Structured
-      // clone copies it instead — a bit more work per render, but the
-      // bytes stay valid for the imported part's whole session lifetime.
-      getWorker().postMessage({ id, scadFile, module, params, scadSource, part, importedFiles, globalOverrides });
-    } catch (err) {
-      // e.g. a DataCloneError — nothing was sent, so nothing will answer.
-      pending.delete(id);
-      reject(err);
+    const consumer = { resolve, reject, cleanup: () => signal?.removeEventListener("abort", abort) };
+    function abort() {
+      consumer.cleanup();
+      job.consumers.delete(consumer);
+      reject(abortError());
+      if (job.consumers.size === 0) {
+        if (active === job) stopWorker();
+        finish(job, abortError());
+      }
     }
-  }).then(
-    (stl) => {
-      inFlight.delete(key);
-      notifyActivity();
-      store(key, stl);
-      return stl;
-    },
-    (err) => {
-      inFlight.delete(key);
-      notifyActivity();
-      throw err;
-    },
-  );
-  inFlight.set(key, promise);
+    job.consumers.add(consumer);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
   notifyActivity();
+  queueMicrotask(pump);
   return promise;
 }

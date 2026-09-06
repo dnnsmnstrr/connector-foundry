@@ -19,6 +19,19 @@
 const PRESET_NAME = "user-default";
 const GLOBAL_ID = "__global__";
 
+let globalVersion = 0;
+const globalListeners = new Set();
+export function getGlobalVersion() { return globalVersion; }
+export function subscribeGlobalOverrides(listener) {
+  globalListeners.add(listener);
+  return () => globalListeners.delete(listener);
+}
+function notifyGlobalChange(partId) {
+  if (partId !== GLOBAL_ID) return;
+  globalVersion++;
+  for (const listener of globalListeners) listener();
+}
+
 function storageKey(partId) {
   return `connector-foundry:overrides:${partId}`;
 }
@@ -60,6 +73,7 @@ function read(partId) {
 function write(partId, params) {
   const doc = { parameterSets: { [PRESET_NAME]: params }, fileFormatVersion: "1" };
   safeSet(storageKey(partId), JSON.stringify(doc));
+  notifyGlobalChange(partId);
 }
 
 export function getOverrides(partId) {
@@ -83,12 +97,16 @@ export function updateOverrides(partId, params) {
 export function clearOverrides(partId, keys) {
   if (!keys) {
     safeRemove(storageKey(partId));
+    notifyGlobalChange(partId);
     return;
   }
   const remaining = { ...read(partId) };
   for (const k of keys) delete remaining[k];
   if (Object.keys(remaining).length) write(partId, remaining);
-  else safeRemove(storageKey(partId));
+  else {
+    safeRemove(storageKey(partId));
+    notifyGlobalChange(partId);
+  }
 }
 
 export function getGlobalOverrides() {

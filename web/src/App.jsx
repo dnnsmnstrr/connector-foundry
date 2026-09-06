@@ -8,6 +8,7 @@ import { useRenderActivity } from "./hooks/useRenderActivity.js";
 import { createAssembly } from "./lib/assembly.js";
 import { replaceBenchSession } from "./lib/benchSession.js";
 import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
+import { cancelRenders } from "./lib/openscad-client.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
 
@@ -233,6 +234,11 @@ export default function App() {
             <span className="render-spinner" aria-hidden="true" />
             <span className="render-indicator-text">Rendering…</span>
           </span>
+          {rendersInFlight > 0 && (
+            <button type="button" className="mode-tab" onClick={cancelRenders}>
+              Cancel renders
+            </button>
+          )}
           <button
             type="button"
             className="mode-tab settings-tab"

@@ -105,7 +105,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
             </button>
           )}
         </span>
-        <input type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
+        <input aria-label="FIT_CLEARANCE (mm)" type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
       </label>
 
       <h4 className="settings-section">Bench</h4>
