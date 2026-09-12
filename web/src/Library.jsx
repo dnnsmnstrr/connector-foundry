@@ -9,6 +9,8 @@ import { resolveParams } from "./lib/userOverrides.js";
 import { listedParts, slugify } from "./lib/catalogueUtils.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
+import { meshExtents } from "./lib/meshExtents.js";
+import { outsideDimensions } from "./lib/outsideDimensions.js";
 
 // Library mode: pick a part, edit its parameters, render, download the
 // STL — or hand it to the Bench as a root with those same parameters.
@@ -126,6 +128,10 @@ export default function Library({
     scadFile: selected.file, module: selected.module, params, globalOverrides,
   });
   const canDownload = status === "done" && rendered?.key === currentKey;
+  const dimensions = useMemo(
+    () => (canDownload && stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
+    [canDownload, stlBuffer],
+  );
 
   function changeParams(next) {
     ++renderSeq.current;
@@ -154,6 +160,11 @@ export default function Library({
               <div>
                 <h2>{selected.name}</h2>
                 <p className="print-note">{selected.print_note}</p>
+                {dimensions && (
+                  <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
+                    Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
+                  </p>
+                )}
               </div>
               <div className="part-header-actions">
                 <button

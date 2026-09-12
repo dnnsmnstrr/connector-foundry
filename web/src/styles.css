@@ -293,6 +293,13 @@ button, input, select, textarea {
   max-width: 60ch;
 }
 
+.outside-dimensions {
+  margin: 0.45rem 0 0;
+  color: #cdd7f5;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .render-button, .download-button {
   background: #3a5aa0;
   color: white;

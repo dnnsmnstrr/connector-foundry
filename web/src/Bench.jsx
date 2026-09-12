@@ -42,6 +42,7 @@ import { replaceBenchSession, setBenchAssembly, setBenchImportedParts } from "./
 import { downloadBlob } from "./lib/download.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
+import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
 import { getOverrides, resolveParams } from "./lib/userOverrides.js";
@@ -245,6 +246,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   }, [assembly, partsById, globalOverrides, renderRetry]);
 
   const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
+  const dimensions = useMemo(
+    () => (stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
+    [stlBuffer],
+  );
 
   const allSlots = useMemo(
     () => rootSlots(rootPart, assembly?.root.params, rootExtents),
@@ -676,6 +681,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         <header className="part-header">
           <div>
             <h2>Bench</h2>
+            {dimensions && (
+              <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
+                Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
+              </p>
+            )}
             <p className="print-note" aria-live="polite">
               {moving ? (
                 <>
