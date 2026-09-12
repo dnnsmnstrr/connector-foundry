@@ -13,6 +13,8 @@ import { enumerateSlots } from "./slots.js";
 // exactly 2 × 4mm above the slot it's bolted to.
 const JOINT_FLANGE_T = 4;
 const JOINT_PIN_FLANGE_T = 8;
+const CENTER_MARKER_RADIUS = 3.2;
+const CENTER_SLOT_TOLERANCE_MM = 1e-6;
 
 function jointRise(node, parentPart, childPart) {
   switch (node.joint) {
@@ -230,9 +232,22 @@ export function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
 // more per stacked node that still has its "bot" anchor open.
 export function sceneMarkers({ assembly, partsById, openRootSlots, rootExtents, rootSlotWorldPositions, nodeExtents }) {
   if (!assembly || !rootExtents) return [];
+  // On an odd grid, gently emphasize the slot at the root part's centre.
+  // Requiring one unique (0, 0) slot avoids arbitrarily favouring a corner
+  // when an even grid has several equally central slots.
+  const centeredSlots = openRootSlots.length > 1
+    ? openRootSlots.filter((s) => Math.hypot(s.point[0], s.point[1]) <= CENTER_SLOT_TOLERANCE_MM)
+    : [];
+  const centeredSlotName = centeredSlots.length === 1 ? centeredSlots[0].name : null;
   const markers = openRootSlots.map((s) => {
     const [x, y, z] = centeredToWorld(s.point, rootExtents);
-    return { id: markerId(ROOT_ID, s.name), x, y, z };
+    return {
+      id: markerId(ROOT_ID, s.name),
+      x,
+      y,
+      z,
+      ...(s.name === centeredSlotName ? { radius: CENTER_MARKER_RADIUS } : {}),
+    };
   });
   for (const node of assembly.nodes) {
     if (!stackSlotFor(assembly, partsById, node.id)) continue;
