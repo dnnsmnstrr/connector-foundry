@@ -49,8 +49,10 @@ Web app: `cd web && npm install && npm run dev`. No local OpenSCAD needed — it
 sources in a Web Worker. See `web/README.md` for the internals. Already cloned without
 submodules? `git submodule update --init --recursive`.
 
-macOS app: download the DMG for Apple Silicon or Intel from the
-[latest release](https://github.com/dnnsmnstrr/connector-foundry/releases/latest),
+macOS app: download it for
+[Apple Silicon](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-apple-silicon.dmg)
+or [Intel](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-intel.dmg)
+(all versions: [releases](https://github.com/dnnsmnstrr/connector-foundry/releases)),
 or run it from source with `cd web && npm ci && npm run desktop`. Build a `.app`, DMG and ZIP with
 `npm run desktop:dist`. Native Open/Save dialogs support STL and bench config files.
 Build and install (or update) the app with `npm run desktop:install` from `web/`.

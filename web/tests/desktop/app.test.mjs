@@ -74,14 +74,23 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     await (await meshChooser).setFiles({ name: 'exported-plate.stl', mimeType: 'model/stl', buffer: body });
     const usePart = page.getByRole('button', { name: 'Use as base part', exact: true });
     await expect(usePart).toBeVisible();
-    await page.getByRole('dialog').locator('canvas').click();
-    await expect(usePart).toBeEnabled();
-    await usePart.click();
-    const importedConfig = JSON.parse(await exportFile(page.getByRole('button', { name: 'Download config', exact: true })));
-    assert.equal(importedConfig.imports.length, 1);
-    assert.ok(importedConfig.imports[0].stl.length > 0);
+    // Slots are placed by clicking the 3D preview. GPU-less CI VMs (the Intel
+    // runners) have no WebGL, and Electron on macOS has no working software
+    // fallback, so only there may the test stop at the viewer's notice.
+    const webgl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl'));
+    if (webgl) {
+      await page.getByRole('dialog').locator('canvas').click();
+      await expect(usePart).toBeEnabled();
+      await usePart.click();
+      const importedConfig = JSON.parse(await exportFile(page.getByRole('button', { name: 'Download config', exact: true })));
+      assert.equal(importedConfig.imports.length, 1);
+      assert.ok(importedConfig.imports[0].stl.length > 0);
+    } else {
+      assert.equal(process.env.DESKTOP_ALLOW_NO_WEBGL, '1', 'WebGL is unavailable; set DESKTOP_ALLOW_NO_WEBGL=1 only on GPU-less CI');
+      await expect(page.getByRole('dialog').getByText('WebGL is unavailable')).toBeVisible();
+    }
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ exportedSTLBytes: body.length, dimensions: [43, 31, 4], protocol: 'foundry:', sandbox: true }));
+    console.log(JSON.stringify({ exportedSTLBytes: body.length, dimensions: [43, 31, 4], protocol: 'foundry:', sandbox: true, webgl }));
   } finally {
     await app?.close();
     await rm(directory, { recursive: true, force: true });

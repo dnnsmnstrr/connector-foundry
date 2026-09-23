@@ -31,6 +31,7 @@ mac:
     - '\.pak$'
   entitlements: desktop/entitlements.mac.plist
   entitlementsInherit: desktop/entitlements.mac.plist
-  artifactName: '${productName}-${version}-${arch}.${ext}'
+  # Release builds override this with fixed, versionless names (desktop.yml).
+  artifactName: 'Connector-Foundry-${version}-mac-${arch}.${ext}'
 dmg:
   title: Connector Foundry

@@ -65,7 +65,10 @@ and notices. No Node, Python, OpenSCAD installation or network is needed to use 
 `.github/workflows/desktop.yml` builds, tests, and packages the app natively on
 an Apple Silicon (`macos-15`) and an Intel (`macos-15-intel`) runner. A manual
 run keeps the DMG/ZIP as workflow artifacts for 14 days. Pushing a version tag
-also publishes them, with `SHA256SUMS.txt`, as a GitHub release:
+also publishes the two DMGs, with `SHA256SUMS.txt`, as a GitHub release. The
+DMGs are named without a version (`Connector-Foundry-mac-apple-silicon.dmg`,
+`Connector-Foundry-mac-intel.dmg`), so
+`releases/latest/download/<name>` always links to the newest build:
 
 ```sh
 npm --prefix web version 0.2.0 --no-git-tag-version   # bump web/package.json
