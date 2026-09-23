@@ -17,7 +17,9 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     const page = await app.firstWindow();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeVisible();
+    // The first render includes WASM engine startup; on slow CI VMs (Intel)
+    // that outlasts expect's 5 s default, like the render waits below.
+    await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeVisible({ timeout: 90_000 });
     assert.equal(new URL(page.url()).protocol, 'foundry:');
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     const prefs = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
