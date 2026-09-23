@@ -26,3 +26,5 @@ refs/
 # Browser test output (failure traces are uploaded by CI).
 web/test-results/
 web/playwright-report/
+web/release/
+web/desktop/generated/

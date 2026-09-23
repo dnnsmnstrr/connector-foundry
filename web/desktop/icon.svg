@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Connector Foundry</title>
+  <desc>Two machined plates with a dovetail connection, in orange and pale metal on a charcoal tile.</desc>
+  <!-- Editable master. All shapes are vectors; no fonts or external assets.
+       Palette: charcoal #171e29, orange #ff983c, metal #e5edf0.
+       The 64-unit outer margin is transparent for the macOS Dock silhouette. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.85" y2="1">
+      <stop stop-color="#303b4a"/>
+      <stop offset="1" stop-color="#111720"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#ffbc66"/>
+      <stop offset="0.5" stop-color="#ff983c"/>
+      <stop offset="1" stop-color="#ee6b27"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#e5edf0"/>
+      <stop offset="1" stop-color="#aabfc9"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#03070c" flood-opacity="0.5"/>
+    </filter>
+    <!-- Opposing dovetail profiles. Change these two paths to change the mark. -->
+    <path id="left" d="M300 282 H458 V408 H576 L532 494 L576 580 H458 V706 H300 Q266 706 266 672 V316 Q266 282 300 282 Z"/>
+    <path id="right" d="M560 282 H724 Q758 282 758 316 V672 Q758 706 724 706 H560 V612 H626 L566 494 L626 376 H560 Z"/>
+  </defs>
+
+  <!-- Rounded tile and restrained edge highlight. -->
+  <rect x="64" y="72" width="896" height="896" rx="202" fill="#080d14" opacity="0.22"/>
+  <rect x="64" y="64" width="896" height="896" rx="202" fill="url(#tile)"/>
+  <rect x="67" y="67" width="890" height="890" rx="199" fill="none" stroke="url(#rim)" stroke-width="6"/>
+
+  <!-- A shallow extrusion gives the plates weight without perspective distortion. -->
+  <g filter="url(#shadow)">
+    <use href="#left" transform="translate(0 24)" fill="#a8431b"/>
+    <use href="#right" transform="translate(0 24)" fill="#617985"/>
+    <use href="#left" fill="url(#orange)" stroke="#ffd195" stroke-opacity="0.5" stroke-width="3" stroke-linejoin="round"/>
+    <use href="#right" fill="url(#metal)" stroke="#ffffff" stroke-opacity="0.65" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Recessed mounting bores. Keep their centers aligned when editing the plates. -->
+  <g fill="#17202b">
+    <circle cx="358" cy="364" r="27"/>
+    <circle cx="358" cy="624" r="27"/>
+    <circle cx="684" cy="364" r="27"/>
+    <circle cx="684" cy="624" r="27"/>
+  </g>
+  <g fill="none" stroke-width="4">
+    <path d="M332 368 A27 27 0 0 0 384 368 M332 628 A27 27 0 0 0 384 628" stroke="#ffce8b" opacity="0.7"/>
+    <path d="M658 368 A27 27 0 0 0 710 368 M658 628 A27 27 0 0 0 710 628" stroke="#ffffff" opacity="0.8"/>
+  </g>
+</svg>
