@@ -49,6 +49,13 @@ Web app: `cd web && npm install && npm run dev`. No local OpenSCAD needed — it
 sources in a Web Worker. See `web/README.md` for the internals. Already cloned without
 submodules? `git submodule update --init --recursive`.
 
+macOS app: download the DMG for Apple Silicon or Intel from the
+[latest release](https://github.com/dnnsmnstrr/connector-foundry/releases/latest),
+or run it from source with `cd web && npm ci && npm run desktop`. Build a `.app`, DMG and ZIP with
+`npm run desktop:dist`. Native Open/Save dialogs support STL and bench config files.
+Build and install (or update) the app with `npm run desktop:install` from `web/`.
+See [macOS packaging and runtime evaluation](docs/MACOS.md).
+
 ## Slot convention
 
 - A part's functional face is its **BOTTOM**, which is also its print orientation.

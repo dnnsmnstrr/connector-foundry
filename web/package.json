@@ -12,7 +12,16 @@
     "preview": "vite preview",
     "test": "node --test tests/unit/*.test.js",
     "test:browser": "playwright test",
-    "pretest:browser": "npm run build"
+    "pretest:browser": "npm run build",
+    "desktop": "npm run icon && npm run build && electron .",
+    "desktop:pack": "npm run icon && npm run build && electron-builder --mac --dir",
+    "desktop:dist": "npm run icon && npm run build && electron-builder --mac",
+    "test:desktop": "node --test tests/desktop/*.test.mjs",
+    "benchmark:runtime": "node scripts/benchmark-runtime.mjs",
+    "postbuild": "node scripts/desktop-notices.mjs",
+    "icon": "node scripts/generate-icon.mjs",
+    "pretest:desktop": "npm run icon",
+    "desktop:install": "node scripts/install-desktop.mjs"
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
@@ -23,9 +32,18 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
     "vite": "^5.4.8"
+  },
+  "main": "desktop/main.cjs",
+  "description": "Parametric 3D-printable connectors and assemblies",
+  "author": "Dennis Muensterer",
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

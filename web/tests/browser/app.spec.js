@@ -51,6 +51,58 @@ const config = (root = { partId: "basics/plate", params: { w: 40, d: 40, t: 4, r
   format: "connector-foundry/bench", version: 1, root, nodes: [], imports: [],
 });
 
+for (const width of [1280, 640]) {
+  test(`desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 600 });
+    // Also exercise the CSS width reached by zooming a native window: it must
+    // keep independent panes instead of switching into the mobile layout.
+    await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop-mac')));
+    await mockWorker(page, true);
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveClass(/desktop-mac/);
+    await page.getByRole('button', { name: 'Board exact', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled();
+    const sidebar = page.locator('.sidebar');
+    const params = page.locator('.params-panel');
+    const header = page.locator('.mode-tabs');
+    const headerBefore = await header.boundingBox();
+    const viewerBefore = await page.locator('.viewer-panel').boundingBox();
+    await sidebar.hover();
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() => sidebar.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    const sidebarTop = await sidebar.evaluate(el => el.scrollTop);
+    expect(await params.evaluate(el => el.scrollTop)).toBe(0);
+    await params.hover();
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() => params.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    expect(await sidebar.evaluate(el => el.scrollTop)).toBe(sidebarTop);
+    expect(await header.boundingBox()).toEqual(headerBefore);
+    expect(await page.locator('.viewer-panel').boundingBox()).toEqual(viewerBefore);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(600);
+
+    await page.getByTitle('Bench (2)').click();
+    await page.locator('.bench-empty').hover();
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() => page.locator('.bench-empty').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    expect(await header.boundingBox()).toEqual(headerBefore);
+    await importConfig(page, config());
+    await sidebar.hover();
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() => sidebar.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    expect(await header.boundingBox()).toEqual(headerBefore);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+}
+
+test("header links to the source in a new tab", async ({ page }) => {
+  await catalogue(page);
+  await page.goto("/");
+  const source = page.getByRole("link", { name: "GitHub", exact: true });
+  await expect(source).toHaveAttribute("href", "https://github.com/dnnsmnstrr/connector-foundry");
+  await expect(source).toHaveAttribute("target", "_blank");
+});
+
 test("selection changes and failed renders cannot download a previous part", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

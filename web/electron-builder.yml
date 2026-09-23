@@ -1,0 +1,36 @@
+appId: com.connectorfoundry.desktop
+productName: Connector Foundry
+asar: true
+npmRebuild: false
+directories:
+  output: release
+files:
+  - dist/**/*
+  - desktop/*.cjs
+  - package.json
+  - '!node_modules/**/*'
+extraResources:
+  - from: ../LICENSE
+    to: LICENSE
+  - from: ../README.md
+    to: SOURCE-README.md
+mac:
+  icon: desktop/generated/icon.icns
+  # Local builds must not silently select a certificate from the user's keychain.
+  # Override explicitly with --config.mac.identity='Developer ID Application: …'
+  # when producing a signed release.
+  identity: '-'
+  category: public.app-category.graphics-design
+  target:
+    - target: dmg
+    - target: zip
+  hardenedRuntime: true
+  # Chromium locale packs are data, sealed by the enclosing framework signature.
+  # Signing each as if it were executable adds hundreds of needless codesign calls.
+  signIgnore:
+    - '\.pak$'
+  entitlements: desktop/entitlements.mac.plist
+  entitlementsInherit: desktop/entitlements.mac.plist
+  artifactName: '${productName}-${version}-${arch}.${ext}'
+dmg:
+  title: Connector Foundry
