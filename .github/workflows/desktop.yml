@@ -1,8 +1,9 @@
 name: Desktop app
 
-# Manual runs build and test the macOS app and keep it as a workflow artifact.
-# Pushing a version tag (v0.1.0, matching web/package.json) additionally
-# publishes the DMG and ZIP for both architectures as a GitHub release.
+# Manual runs build and test the macOS app and keep the DMG and ZIP as workflow
+# artifacts. Pushing a version tag (v0.1.0, matching web/package.json) also
+# publishes the DMGs as a GitHub release. Their names carry no version, so
+# releases/latest/download/Connector-Foundry-mac-<label>.dmg is a stable link.
 on:
   workflow_dispatch:
   push:
@@ -10,12 +11,17 @@ on:
 
 jobs:
   build:
+    name: macOS (${{ matrix.name }})
     strategy:
       matrix:
         include:
           - arch: arm64
+            name: Apple Silicon
+            label: apple-silicon
             runner: macos-15
           - arch: x64
+            name: Intel
+            label: intel
             runner: macos-15-intel
             # GPU-less VM: no WebGL, so the desktop test skips slot placement.
             allow-no-webgl: '1'
@@ -43,7 +49,9 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm test
-      - run: npm run desktop:dist -- --${{ matrix.arch }}
+      - run: >-
+          npm run desktop:dist -- --${{ matrix.arch }}
+          '--config.mac.artifactName=Connector-Foundry-mac-${{ matrix.label }}.${ext}'
       - name: Test packaged app
         env:
           DESKTOP_ALLOW_NO_WEBGL: ${{ matrix.allow-no-webgl }}
@@ -52,7 +60,7 @@ jobs:
           DESKTOP_EXECUTABLE="$PWD/${executables[0]}" npm run test:desktop
       - uses: actions/upload-artifact@v4
         with:
-          name: connector-foundry-macos-${{ matrix.arch }}
+          name: connector-foundry-mac-${{ matrix.label }}
           path: |
             web/release/*.dmg
             web/release/*.zip
@@ -68,12 +76,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: connector-foundry-macos-*
+          pattern: connector-foundry-mac-*
           path: dist
           merge-multiple: true
+      # The ZIPs hold the same app and only matter for auto-update, which the
+      # app doesn't do; publishing just the DMGs keeps the choice simple.
+      - name: Keep only the DMGs
+        run: rm -f dist/*.zip
       - name: Checksums
         working-directory: dist
-        run: sha256sum *.dmg *.zip > SHA256SUMS.txt
+        run: sha256sum *.dmg > SHA256SUMS.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,8 +93,13 @@ jobs:
           cat > notes.md <<'NOTES'
           ## Connector Foundry for macOS
 
-          Download the DMG for your Mac: **arm64** for Apple Silicon (M1 and later),
-          **x64** for Intel. The ZIP files contain the same app.
+          Download the DMG for your Mac:
+
+          - **Apple Silicon** (M1 and later): `Connector-Foundry-mac-apple-silicon.dmg`
+          - **Intel**: `Connector-Foundry-mac-intel.dmg`
+
+          Not sure which? Apple menu → About This Mac: "Chip" means Apple Silicon,
+          "Processor" means Intel.
 
           These builds are not notarized by Apple. On first launch macOS will refuse
           to open the app: open **System Settings → Privacy & Security**, scroll down
