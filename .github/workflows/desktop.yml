@@ -17,6 +17,8 @@ jobs:
             runner: macos-15
           - arch: x64
             runner: macos-15-intel
+            # GPU-less VM: no WebGL, so the desktop test skips slot placement.
+            allow-no-webgl: '1'
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -43,6 +45,8 @@ jobs:
       - run: npm test
       - run: npm run desktop:dist -- --${{ matrix.arch }}
       - name: Test packaged app
+        env:
+          DESKTOP_ALLOW_NO_WEBGL: ${{ matrix.allow-no-webgl }}
         run: |
           executables=(release/mac*/Connector\ Foundry.app/Contents/MacOS/Connector\ Foundry)
           DESKTOP_EXECUTABLE="$PWD/${executables[0]}" npm run test:desktop
