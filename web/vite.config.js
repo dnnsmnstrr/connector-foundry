@@ -14,6 +14,10 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ["openscad-wasm"],
+    // Only the STEP worker imports it, and only once someone imports a
+    // STEP file — left to be discovered then, the dev server would
+    // pre-bundle it mid-import and reload the page, losing the upload.
+    include: ["occt-import-js"],
   },
   build: {
     chunkSizeWarningLimit: 20000,

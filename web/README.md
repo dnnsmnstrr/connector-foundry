@@ -63,13 +63,14 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
-| `src/components/bench/` | Bench-only: `ImportFlow` (STL upload + slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
+| `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
-| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
@@ -87,7 +88,7 @@ screen.
   single-key shortcut (not `Escape`, which is expected to work
   from inside a focused field the same way a native `<dialog>` does) whenever the event's target is
   a text input, `<select>`, or anything `contentEditable` — so typing "s" in the search box types
-  an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL import) close on
+  an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL/STEP import) close on
   `Escape` too, but that's a second, local listener in `Bench.jsx` — that state is local to Bench,
   so App doesn't need to reach into it. `src/components/Modal.jsx` is a native `<dialog>` opened
   with `showModal()`, so the browser also fires its own `cancel` on Escape (routed to the same
@@ -350,6 +351,27 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `lib/assembly.js`'s `overlapArg()` flips the sign: BOSL2's own convention is positive-sinks-in,
   the Bench's is negative-sinks-in (reads more naturally as "push it in further" = "more negative"),
   and 0 is omitted from the generated `.scad` entirely rather than emitted as a no-op argument.
+- **STEP import** (`src/lib/stepMesh.js`, `src/lib/stepImport.js`, `src/worker/step-worker.js`):
+  a STEP file (by `.step`/`.stp` extension, or by its `ISO-10303-21;` header whatever it is
+  called) is B-rep, so it is tessellated first and only then joins the STL path below. The reader
+  is `occt-import-js` — OpenCASCADE's STEP reader and mesher compiled to WebAssembly, the same
+  OCCT `tools/refcache.py` drives through `cascadio` for `make verify` — running in its own Web
+  Worker (`step-worker.js`) so a multi-second tessellation never blocks the UI. Unlike
+  `openscad-wasm` it can be called repeatedly, so one instance is kept for the worker's life and
+  the 7.6 MB `.wasm` (a separate Vite asset, found via `locateFile`) is fetched once, on the first
+  STEP import, never at startup. Output is always in millimetres regardless of the file's declared
+  unit (`linearUnit`); the deflections are `STEP_TESSELLATION` in `stepMesh.js` — 0.05 mm chord
+  error, 0.2 rad angular — coarser than `refcache.py`'s metrology settings because here triangle
+  count is Bench render time. `bodiesFromOcct()` turns each OCCT mesh (a STEP body) into the same
+  non-indexed triangle soup `STLLoader` produces, with the body's own extents and triangle count.
+  A file with one body goes straight to validation; with several, `ImportFlow` shows a body picker
+  (`bodyLabels()` — the file's names, or "Body N", disambiguated when a name repeats) with "all
+  bodies as one mesh" as the default, since the validate gate refuses more than one disconnected
+  solid and an assembly file would otherwise just be rejected. Whichever is chosen,
+  `geometryFromBodies()` is handed to the same `validateAndRepair()` as an STL, the part record
+  gets the same `stlBytes`, and a config embeds the same STL — the STEP file itself is never kept.
+  `stepImport.js` keeps the render worker's contract: requests matched by id, and a worker that
+  dies rejects everything pending and is replaced on the next import.
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
   parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
@@ -410,7 +432,7 @@ localStorage), so a preset can always become a file and a file a preset with no 
   no such limit.
 - **UI** (`components/bench/PresetsPanel.jsx`): the same panel in two places. On the start screen
   the saved presets sit above the part picker (only once there are any, or a config import has an
-  error to show) and "Import config…" is in the picker's toolbar beside "Import STL…"
+  error to show) and "Import config…" is in the picker's toolbar beside "Import STL / STEP…"
   (`ConfigImportButton`, a button fronting a hidden file input); in a running bench's sidebar the
   panel also has the name field + Save (reads "Replace" when the name is taken) and its own import
   button, and "Download config" joins the STL/.scad buttons under Export. Loading over an existing

@@ -154,8 +154,10 @@ outputs can always be recreated. Browser-only builds do not run this macOS step.
   parameter editor, and Bench sidebar have independent scroll areas. The empty
   Bench picker scrolls below the header. Electron keeps this pane layout when
   zoomed; narrow browser windows still use the mobile layout.
-- **Import STL** and **Import config…** open the native macOS file picker.
-  Imported files still pass through the app's mesh/config validation.
+- **Import STL / STEP** and **Import config…** open the native macOS file picker.
+  Imported files still pass through the app's mesh/config validation; a STEP
+  file is tessellated in a Web Worker by the bundled OpenCASCADE WASM module,
+  which loads from the app's own origin on first use (no network).
 - Every STL, SCAD, and bench config export opens a native Save dialog, allowing
   selection of the filename and destination. The last successful export folder
   is reused until the app quits. Cancellation is silent; failed writes show an error.

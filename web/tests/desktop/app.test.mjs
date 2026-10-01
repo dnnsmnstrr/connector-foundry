@@ -70,9 +70,9 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     const scad = await exportFile(page.getByRole('button', { name: /Download .scad/ }));
     assert.match(scad.toString(), /basics_plate/);
     await page.getByRole('button', { name: 'Start over', exact: true }).click();
-    await page.getByRole('button', { name: 'Import STL…', exact: true }).click();
+    await page.getByRole('button', { name: 'Import STL / STEP…', exact: true }).click();
     const meshChooser = page.waitForEvent('filechooser');
-    await page.locator('input[type=file][accept=".stl"]').click();
+    await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
     await (await meshChooser).setFiles({ name: 'exported-plate.stl', mimeType: 'model/stl', buffer: body });
     const usePart = page.getByRole('button', { name: 'Use as base part', exact: true });
     await expect(usePart).toBeVisible();

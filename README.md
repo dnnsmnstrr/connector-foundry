@@ -117,10 +117,12 @@ attached part has:
   part itself and a joint's flanges are never trimmed, only what overhangs.
 - Its own **parameter editor**, with the same defaults/overrides as the Library.
 
-**STL import** brings in any mesh — a Mechanism or Printables download — as a Bench part: click a
-flat face to put a slot at its centre. Meshes are validated and repaired on the way in (welded,
-winding fixed) and refused with an explanation if they have real holes. Imports live in your
-browser tab only; nothing is fetched or committed.
+**STL and STEP import** bring in any part — a Mechanism or Printables download, a supplier's CAD
+file — as a Bench part: click a flat face to put a slot at its centre. A STEP file is converted to
+a mesh in the browser (OpenCASCADE compiled to WebAssembly, in millimetres whatever unit the file
+declares); one that holds several bodies asks which to use. Meshes are validated and repaired on
+the way in (welded, winding fixed) and refused with an explanation if they have real holes. Imports
+live in your browser tab only; nothing is fetched or committed.
 
 Export walks the whole tree: one STL per body, or the generated `.scad`. Every exported file is
 named after the bench — `<name>_<body>.stl`, `<name>.scad`, `<name>.bench.json` — so a downloads
@@ -236,7 +238,9 @@ BitBeam's own site (bitbeam.cc) is CC-BY-NC-SA and its STL pack is not used; the
 from `bitbeam-lib`, a separately and permissively licensed implementation by the same author, and
 from `technic.scad` for the pin and axle (a BitBeam pin *is* a LEGO Technic pin). NopSCADlib (GPL)
 is measured, never called or vendored. `openscad-wasm` bundles OpenSCAD itself (GPL-2.0) as an
-external tool the browser runs, the same way the CLI shells out to `openscad`.
+external tool the browser runs, the same way the CLI shells out to `openscad`. The web app's STEP
+reader, `occt-import-js`, is Open CASCADE Technology (LGPL-2.1 with the OCCT exception) compiled
+to WebAssembly and loaded as a separate file only when a STEP file is imported.
 
 ## Repo layout
 

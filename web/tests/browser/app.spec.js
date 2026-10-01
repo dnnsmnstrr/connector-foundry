@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { BoxGeometry, Mesh } from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -271,6 +272,59 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   const exported = page.waitForEvent("download", { timeout: 90_000 });
   await page.getByRole("button", { name: "STL: root", exact: true }).click();
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
+});
+
+// The two STEP tests run the real workers: mockWorker() replaces
+// window.Worker wholesale, which would swallow the STEP reader too.
+test("a STEP file is tessellated in the browser and offered for slot placement", async ({ page }) => {
+  test.setTimeout(120_000);
+  await catalogue(page);
+  await page.goto("/");
+  await page.getByTitle("Bench (2)").click();
+  await page.getByRole("button", { name: "Import STL / STEP…", exact: true }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
+  // occt-import-js ships a 10 x 10 x 10 mm rounded cube as a test fixture.
+  const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/rounded-cube/rounded-cube.step", import.meta.url));
+  await (await chooser).setFiles(fixture);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible({ timeout: 90_000 });
+  const usePart = dialog.getByRole("button", { name: "Use as base part", exact: true });
+  await expect(usePart).toBeVisible();
+  await expect(usePart).toBeDisabled();
+  // Placing a slot needs a WebGL click on the preview; headless Chromium
+  // has SwiftShader, so this part runs wherever that holds.
+  if (await page.evaluate(() => !!document.createElement("canvas").getContext("webgl"))) {
+    await dialog.locator("canvas").click();
+    await expect(usePart).toBeEnabled();
+    await usePart.click();
+    // An unnamed bench asks for a name before its first export.
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("cube");
+    const exported = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download config", exact: true }).click();
+    const config = JSON.parse((await downloadBytes(await exported)).toString());
+    expect(config.imports).toHaveLength(1);
+    expect(config.imports[0].name).toBe("rounded-cube.step");
+    expect(extents(Buffer.from(config.imports[0].stl, "base64"))).toEqual([10, 10, 10]);
+  }
+});
+
+test("a multi-body STEP file asks which body to import", async ({ page }) => {
+  test.setTimeout(120_000);
+  await catalogue(page);
+  await page.goto("/");
+  await page.getByTitle("Bench (2)").click();
+  await page.getByRole("button", { name: "Import STL / STEP…", exact: true }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
+  const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/cax-if/as1_pe_203.stp", import.meta.url));
+  await (await chooser).setFiles(fixture);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("This file holds 18 bodies.")).toBeVisible({ timeout: 90_000 });
+  await dialog.getByLabel("SOLID (1)", { exact: true }).check();
+  await dialog.getByRole("button", { name: "Use SOLID (1)", exact: true }).click();
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Use as base part", exact: true })).toBeVisible();
 });
 
 function extents(bytes) {
