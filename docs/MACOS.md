@@ -42,7 +42,8 @@ References: [Tauri WebView versions](https://tauri.app/reference/webview-version
 
 ## Build and run
 
-Use Node 22.12+ (Node 24 recommended) and a recursive submodule checkout.
+Use Node 22.12+ (Node 24 recommended) and a recursive submodule checkout. The
+same shell also builds for Windows; see [WINDOWS.md](WINDOWS.md).
 
 ```sh
 cd web
@@ -63,11 +64,12 @@ and notices. No Node, Python, OpenSCAD installation or network is needed to use 
 ## Publishing a release
 
 `.github/workflows/desktop.yml` builds, tests, and packages the app natively on
-an Apple Silicon (`macos-15`) and an Intel (`macos-15-intel`) runner. A manual
-run keeps the DMG/ZIP as workflow artifacts for 14 days. Pushing a version tag
-also publishes the two DMGs, with `SHA256SUMS.txt`, as a GitHub release. The
-DMGs are named without a version (`Connector-Foundry-mac-apple-silicon.dmg`,
-`Connector-Foundry-mac-intel.dmg`), so
+an Apple Silicon (`macos-15`), an Intel (`macos-15-intel`) and a Windows
+(`windows-latest`) runner. A manual run keeps the DMG/ZIP and the Windows
+installer as workflow artifacts for 14 days. Pushing a version tag also
+publishes the two DMGs and the installer, with `SHA256SUMS.txt`, as a GitHub
+release. They are named without a version (`Connector-Foundry-mac-apple-silicon.dmg`,
+`Connector-Foundry-mac-intel.dmg`, `Connector-Foundry-windows-x64-setup.exe`), so
 `releases/latest/download/<name>` always links to the newest build:
 
 ```sh
@@ -134,9 +136,11 @@ npm run desktop:dist    # regenerate icons and rebuild the app, DMG and ZIP
 
 `scripts/generate-icon.mjs` uses the lockfile-pinned resvg renderer to rasterize
 each size directly from the SVG, then Apple's `iconutil` assembles the `.icns`.
-It requires macOS. Generated files in `desktop/generated/` are ignored by Git:
+The `.icns` step runs only on macOS, the rest everywhere. Generated files in
+`desktop/generated/` are ignored by Git:
 
 - `icon.png`: full 1024 × 1024 preview and development Dock icon.
+- `icon.ico`: the Windows icon, 16 to 256 pixels (`scripts/ico.mjs` writes it).
 - `ConnectorFoundry.iconset/`: standard and Retina PNGs from 16 to 1024 pixels.
 - `icon.icns`: used by `electron-builder.yml` for the packaged application.
 

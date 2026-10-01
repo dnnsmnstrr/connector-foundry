@@ -55,25 +55,36 @@ button, input, select, textarea {
   flex-shrink: 0;
 }
 
-/* This row is the macOS title bar too. Electron's overlay bounds keep the
-   inset aligned with the native traffic lights even when the page is zoomed
-   or the window enters fullscreen. */
-.desktop-mac .mode-tabs {
+/* In the desktop app this row is the title bar too. Electron's overlay
+   bounds keep the insets aligned with the native window controls even when
+   the page is zoomed or the window enters fullscreen. */
+.desktop .mode-tabs {
   min-height: max(52px, env(titlebar-area-height, 52px));
   padding: 10px 20px;
-  padding-left: calc(env(titlebar-area-x, 80px) + 20px);
   -webkit-app-region: drag;
   user-select: none;
 }
 
-.desktop-mac .mode-tabs button,
-.desktop-mac .mode-tabs a {
+/* macOS: traffic lights on the left. */
+.desktop-mac .mode-tabs {
+  padding-left: calc(env(titlebar-area-x, 80px) + 20px);
+}
+
+/* Windows: minimise, maximise and close over the top-right corner. The
+   title bar area ends where they begin, so the rest of the row's width is
+   theirs. Outside the overlay (no env values) this is plain padding. */
+.desktop-win .mode-tabs {
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 20px);
+}
+
+.desktop .mode-tabs button,
+.desktop .mode-tabs a {
   -webkit-app-region: no-drag;
 }
 
 /* Keep even loading/error states clear of the overlaid window controls. */
-.desktop-mac .loading-screen,
-.desktop-mac .error-screen {
+.desktop .loading-screen,
+.desktop .error-screen {
   padding-top: 52px;
 }
 
@@ -1414,40 +1425,40 @@ a.mode-tab {
    the canvas has a real height to size itself against.
    ------------------------------------------------------------------- */
 @media (max-width: 768px) {
-  :root:not(.desktop-mac) .mode-tabs {
+  :root:not(.desktop) .mode-tabs {
     padding: 0.5rem 0.75rem;
     gap: 0.15rem;
   }
 
-  :root:not(.desktop-mac) .mode-tab {
+  :root:not(.desktop) .mode-tab {
     padding: 0.4rem 0.6rem;
   }
 
-  :root:not(.desktop-mac) .shortcut-hint,
-  :root:not(.desktop-mac) .settings-label,
-  :root:not(.desktop-mac) .render-indicator-text {
+  :root:not(.desktop) .shortcut-hint,
+  :root:not(.desktop) .settings-label,
+  :root:not(.desktop) .render-indicator-text {
     display: none;
   }
 
-  :root:not(.desktop-mac) .nav-end {
+  :root:not(.desktop) .nav-end {
     gap: 0.4rem;
   }
 
   /* Icon-only on mobile, so give the gear a finger-sized face. */
-  :root:not(.desktop-mac) .settings-tab {
+  :root:not(.desktop) .settings-tab {
     font-size: 1.15rem;
     padding: 0.3rem 0.7rem;
   }
 
-  :root:not(.desktop-mac) .shell-body {
+  :root:not(.desktop) .shell-body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  :root:not(.desktop-mac) .app,
-  :root:not(.desktop-mac) .bench,
-  :root:not(.desktop-mac) .app.sidebar-collapsed,
-  :root:not(.desktop-mac) .bench.sidebar-collapsed {
+  :root:not(.desktop) .app,
+  :root:not(.desktop) .bench,
+  :root:not(.desktop) .app.sidebar-collapsed,
+  :root:not(.desktop) .bench.sidebar-collapsed {
     display: flex;
     flex-direction: column;
     height: auto;
@@ -1455,7 +1466,7 @@ a.mode-tab {
     grid-template-columns: none;
   }
 
-  :root:not(.desktop-mac) .sidebar {
+  :root:not(.desktop) .sidebar {
     border-right: none;
     border-bottom: 1px solid #2a2b2e;
     padding: 0.75rem 1rem 1rem;
@@ -1463,12 +1474,12 @@ a.mode-tab {
     flex-shrink: 0;
   }
 
-  :root:not(.desktop-mac) .sidebar-collapsed .sidebar {
+  :root:not(.desktop) .sidebar-collapsed .sidebar {
     padding: 0.75rem 1rem;
     max-height: none;
   }
 
-  :root:not(.desktop-mac) .sidebar-toggle {
+  :root:not(.desktop) .sidebar-toggle {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -1476,51 +1487,51 @@ a.mode-tab {
     padding: 0.5rem 0;
   }
 
-  :root:not(.desktop-mac) .sidebar-toggle-chevron {
+  :root:not(.desktop) .sidebar-toggle-chevron {
     display: none;
   }
 
-  :root:not(.desktop-mac) .sidebar-toggle-text {
+  :root:not(.desktop) .sidebar-toggle-text {
     display: inline;
   }
 
-  :root:not(.desktop-mac) .sidebar-collapsed .sidebar-toggle {
+  :root:not(.desktop) .sidebar-collapsed .sidebar-toggle {
     margin-bottom: 0;
   }
 
-  :root:not(.desktop-mac) .system-group h2 {
+  :root:not(.desktop) .system-group h2 {
     margin-top: 1rem;
   }
 
-  :root:not(.desktop-mac) .bench-empty .system-group h2 {
+  :root:not(.desktop) .bench-empty .system-group h2 {
     margin-top: 1.5rem;
   }
 
-  :root:not(.desktop-mac) .part-header {
+  :root:not(.desktop) .part-header {
     flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
     padding: 1rem;
   }
 
-  :root:not(.desktop-mac) .part-header-actions {
+  :root:not(.desktop) .part-header-actions {
     width: 100%;
   }
 
-  :root:not(.desktop-mac) .part-header-actions button {
+  :root:not(.desktop) .part-header-actions button {
     flex: 1;
   }
 
-  :root:not(.desktop-mac) .workspace {
+  :root:not(.desktop) .workspace {
     flex: 1 0 auto;
   }
 
-  :root:not(.desktop-mac) .workspace-body {
+  :root:not(.desktop) .workspace-body {
     grid-template-columns: 1fr;
     flex: none;
   }
 
-  :root:not(.desktop-mac) .params-panel {
+  :root:not(.desktop) .params-panel {
     border-right: none;
     border-top: 1px solid #2a2b2e;
     padding: 1rem;
@@ -1529,46 +1540,46 @@ a.mode-tab {
 
   /* Preview first, form second: after picking a part you want to see it
      before you start tweaking numbers. */
-  :root:not(.desktop-mac) .viewer-panel,
-  :root:not(.desktop-mac) .bench-viewer {
+  :root:not(.desktop) .viewer-panel,
+  :root:not(.desktop) .bench-viewer {
     order: -1;
     height: 60svh;
     min-height: 260px;
     flex: none;
   }
 
-  :root:not(.desktop-mac) .download-button {
+  :root:not(.desktop) .download-button {
     bottom: 1rem;
     right: 1rem;
   }
 
-  :root:not(.desktop-mac) .bench-error {
+  :root:not(.desktop) .bench-error {
     left: 1rem;
     right: 1rem;
     bottom: 1rem;
   }
 
-  :root:not(.desktop-mac) .bench-empty {
+  :root:not(.desktop) .bench-empty {
     padding: 1.25rem 1rem;
   }
 
-  :root:not(.desktop-mac) .bench-import-viewer {
+  :root:not(.desktop) .bench-import-viewer {
     height: 220px;
   }
 
   /* iOS Safari zooms the page into any focused field whose text is
      smaller than 16px; keep every field at 1rem on small screens. */
-  :root:not(.desktop-mac) .search-input,
-  :root:not(.desktop-mac) .field input[type="text"],
-  :root:not(.desktop-mac) .field input[type="number"],
-  :root:not(.desktop-mac) .field select,
-  :root:not(.desktop-mac) .bench-child-meta select,
-  :root:not(.desktop-mac) .bench-offset-field input,
-  :root:not(.desktop-mac) .bench-preset-name {
+  :root:not(.desktop) .search-input,
+  :root:not(.desktop) .field input[type="text"],
+  :root:not(.desktop) .field input[type="number"],
+  :root:not(.desktop) .field select,
+  :root:not(.desktop) .bench-child-meta select,
+  :root:not(.desktop) .bench-offset-field input,
+  :root:not(.desktop) .bench-preset-name {
     font-size: 1rem;
   }
 
-  :root:not(.desktop-mac) .bench-offset-field input {
+  :root:not(.desktop) .bench-offset-field input {
     width: 5.5rem;
   }
 

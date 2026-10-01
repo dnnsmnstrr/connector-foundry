@@ -49,14 +49,18 @@ Web app: `cd web && npm install && npm run dev`. No local OpenSCAD needed — it
 sources in a Web Worker. See `web/README.md` for the internals. Already cloned without
 submodules? `git submodule update --init --recursive`.
 
-macOS app: download it for
+Desktop app: download it for
 [Apple Silicon](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-apple-silicon.dmg)
 or [Intel](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-intel.dmg)
-(all versions: [releases](https://github.com/dnnsmnstrr/connector-foundry/releases)),
-or run it from source with `cd web && npm ci && npm run desktop`. Build a `.app`, DMG and ZIP with
-`npm run desktop:dist`. Native Open/Save dialogs support STL and bench config files.
-Build and install (or update) the app with `npm run desktop:install` from `web/`.
-See [macOS packaging and runtime evaluation](docs/MACOS.md).
+Macs, or the
+[Windows installer](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-windows-x64-setup.exe)
+(64-bit; all versions: [releases](https://github.com/dnnsmnstrr/connector-foundry/releases)),
+or run it from source with `cd web && npm ci && npm run desktop`. `npm run desktop:dist` builds the
+app for the machine it runs on: a `.app`, DMG and ZIP on a Mac, an installer on Windows (and
+`npm run desktop:dist -- --win --x64` builds that installer from a Mac). Native Open/Save dialogs
+support STL and bench config files. On a Mac, build and install (or update) the app with
+`npm run desktop:install` from `web/`. See [macOS packaging and runtime evaluation](docs/MACOS.md)
+and [the Windows build](docs/WINDOWS.md).
 
 ## Slot convention
 

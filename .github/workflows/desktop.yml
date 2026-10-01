@@ -1,9 +1,11 @@
 name: Desktop app
 
-# Manual runs build and test the macOS app and keep the DMG and ZIP as workflow
-# artifacts. Pushing a version tag (v0.1.0, matching web/package.json) also
-# publishes the DMGs as a GitHub release. Their names carry no version, so
-# releases/latest/download/Connector-Foundry-mac-<label>.dmg is a stable link.
+# Manual runs build and test the macOS and Windows apps and keep the DMGs, ZIPs
+# and installer as workflow artifacts. Pushing a version tag (v0.1.0, matching
+# web/package.json) also publishes the DMGs and the Windows installer as a
+# GitHub release. Their names carry no version, so
+# releases/latest/download/Connector-Foundry-<platform>-<label>.<ext> is a
+# stable link.
 on:
   workflow_dispatch:
   push:
@@ -11,23 +13,33 @@ on:
 
 jobs:
   build:
-    name: macOS (${{ matrix.name }})
+    name: ${{ matrix.name }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - arch: arm64
-            name: Apple Silicon
-            label: apple-silicon
+          - name: macOS (Apple Silicon)
             runner: macos-15
-          - arch: x64
-            name: Intel
-            label: intel
+            platform: mac
+            arch: arm64
+            artifact: Connector-Foundry-mac-apple-silicon
+          - name: macOS (Intel)
             runner: macos-15-intel
+            platform: mac
+            arch: x64
+            artifact: Connector-Foundry-mac-intel
             # GPU-less VM: no WebGL, so the desktop test skips slot placement.
             allow-no-webgl: '1'
+          - name: Windows (x64)
+            runner: windows-latest
+            platform: win
+            arch: x64
+            artifact: Connector-Foundry-windows-x64-setup
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
+        # The same scripts on every runner; Git for Windows provides bash there.
+        shell: bash
         working-directory: web
     steps:
       - uses: actions/checkout@v4
@@ -50,21 +62,67 @@ jobs:
       - run: node node_modules/electron/install.js
       - run: npm test
       - run: >-
-          npm run desktop:dist -- --${{ matrix.arch }}
-          '--config.mac.artifactName=Connector-Foundry-mac-${{ matrix.label }}.${ext}'
+          npm run desktop:dist -- --${{ matrix.platform }} --${{ matrix.arch }}
+          '--config.${{ matrix.platform }}.artifactName=${{ matrix.artifact }}.${ext}'
+      # Windows: run the installer the way a user would (silently, into a
+      # scratch folder), and test the app it installed rather than the
+      # unpacked build. /D= must come last and takes no quotes.
+      - name: Install (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $setup = Get-Item release/${{ matrix.artifact }}.exe
+          $target = Join-Path $env:RUNNER_TEMP 'installed'
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S', "/D=$target" -Wait
+          $exe = Join-Path $target 'Connector Foundry.exe'
+          $uninstaller = Join-Path $target 'Uninstall Connector Foundry.exe'
+          foreach ($file in $exe, $uninstaller) {
+            if (-not (Test-Path $file)) { Write-Error "installer did not create $file"; Get-ChildItem $target -Recurse | Select-Object -First 50; exit 1 }
+          }
+          (Get-Item $exe).VersionInfo | Format-List ProductName, ProductVersion, FileVersion, CompanyName
+          "DESKTOP_EXECUTABLE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Test packaged app
         env:
           DESKTOP_ALLOW_NO_WEBGL: ${{ matrix.allow-no-webgl }}
         run: |
-          executables=(release/mac*/Connector\ Foundry.app/Contents/MacOS/Connector\ Foundry)
-          DESKTOP_EXECUTABLE="$PWD/${executables[0]}" npm run test:desktop
+          if [ -z "${DESKTOP_EXECUTABLE:-}" ]; then
+            shopt -s nullglob
+            executables=(release/mac*/Connector\ Foundry.app/Contents/MacOS/Connector\ Foundry release/win*-unpacked/Connector\ Foundry.exe)
+            if [ "${#executables[@]}" -ne 1 ]; then
+              echo "::error::expected exactly one packaged executable under web/release, found ${#executables[@]}: ${executables[*]}"
+              exit 1
+            fi
+            DESKTOP_EXECUTABLE="${executables[0]}"
+          fi
+          echo "testing $DESKTOP_EXECUTABLE"
+          DESKTOP_EXECUTABLE="$DESKTOP_EXECUTABLE" npm run test:desktop
+      # _?= keeps the uninstaller running in place so -Wait really waits.
+      - name: Uninstall (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'installed'
+          Start-Process -FilePath (Join-Path $target 'Uninstall Connector Foundry.exe') -ArgumentList '/S', "_?=$target" -Wait
+          if (Test-Path (Join-Path $target 'Connector Foundry.exe')) { Write-Error 'uninstaller left the app behind'; exit 1 }
+          if (Test-Path (Join-Path $target 'resources')) { Write-Error 'uninstaller left resources behind'; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
-          name: connector-foundry-mac-${{ matrix.label }}
+          name: ${{ matrix.artifact }}
           path: |
             web/release/*.dmg
             web/release/*.zip
+            web/release/*.exe
+            !web/release/*__uninstaller.exe
           if-no-files-found: error
+          retention-days: 14
+      # Window screenshots from the packaged-app test, for a look at each
+      # platform's title bar without owning a machine that runs it.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-test-results-${{ matrix.platform }}-${{ matrix.arch }}
+          path: web/test-results/
+          if-no-files-found: ignore
           retention-days: 14
 
   release:
@@ -76,24 +134,26 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: connector-foundry-mac-*
+          pattern: Connector-Foundry-*
           path: dist
           merge-multiple: true
-      # The ZIPs hold the same app and only matter for auto-update, which the
-      # app doesn't do; publishing just the DMGs keeps the choice simple.
-      - name: Keep only the DMGs
-        run: rm -f dist/*.zip
+      # The macOS ZIPs hold the same app as the DMGs and only matter for
+      # auto-update, which the app doesn't do; the blockmap is for the same
+      # purpose on Windows. Publishing one file per platform keeps the choice
+      # simple.
+      - name: Keep only the installers
+        run: rm -f dist/*.zip dist/*.blockmap
       - name: Checksums
         working-directory: dist
-        run: sha256sum *.dmg > SHA256SUMS.txt
+        run: sha256sum *.dmg *.exe > SHA256SUMS.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat > notes.md <<'NOTES'
-          ## Connector Foundry for macOS
+          ## Connector Foundry for macOS and Windows
 
-          Download the DMG for your Mac:
+          **macOS** — download the DMG for your Mac:
 
           - **Apple Silicon** (M1 and later): `Connector-Foundry-mac-apple-silicon.dmg`
           - **Intel**: `Connector-Foundry-mac-intel.dmg`
@@ -104,7 +164,16 @@ jobs:
           These builds are not notarized by Apple. On first launch macOS will refuse
           to open the app: open **System Settings → Privacy & Security**, scroll down
           and click **Open Anyway** next to the Connector Foundry message. This is
-          only needed once. Verify downloads against `SHA256SUMS.txt`.
+          only needed once.
+
+          **Windows** (64-bit, Windows 10 or later): `Connector-Foundry-windows-x64-setup.exe`
+
+          The installer is not code-signed, so SmartScreen shows "Windows protected
+          your PC" the first time: click **More info**, then **Run anyway**. It
+          installs for the current user only, without an administrator prompt, and
+          can be removed from Settings → Apps like any other program.
+
+          Verify downloads against `SHA256SUMS.txt`.
 
           The web version runs at https://dnnsmnstrr.github.io/connector-foundry/.
           NOTES

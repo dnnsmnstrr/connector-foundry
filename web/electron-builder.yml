@@ -4,6 +4,11 @@ asar: true
 npmRebuild: false
 directories:
   output: release
+toolsets:
+  # electron-builder's unified NSIS bundle (makensis 3.12 with its plugins)
+  # ships a native compiler for every host, Apple Silicon included; the
+  # legacy default is x86_64-only on macOS and fails without Rosetta.
+  nsis: '1.2.1'
 files:
   - dist/**/*
   - desktop/*.cjs
@@ -35,3 +40,21 @@ mac:
   artifactName: 'Connector-Foundry-${version}-mac-${arch}.${ext}'
 dmg:
   title: Connector Foundry
+win:
+  icon: desktop/generated/icon.ico
+  # No certificate: SmartScreen warns once per download (the release notes say
+  # what to click). For a signed release point electron-builder at one with
+  # CSC_LINK/CSC_KEY_PASSWORD or the azureSignOptions, never a file here.
+  target:
+    - target: nsis
+  # Release builds override this with fixed, versionless names (desktop.yml).
+  artifactName: 'Connector-Foundry-${version}-win-${arch}-setup.${ext}'
+nsis:
+  # An assisted installer: a Next button, a folder choice, no admin prompt.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Connector Foundry
+  uninstallDisplayName: Connector Foundry
+  # Preferences and presets outlive an uninstall, like the macOS app's do.
+  deleteAppDataOnUninstall: false

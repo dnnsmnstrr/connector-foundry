@@ -52,15 +52,16 @@ const config = (root = { partId: "basics/plate", params: { w: 40, d: 40, t: 4, r
   format: "connector-foundry/bench", version: 1, root, nodes: [], imports: [],
 });
 
-for (const width of [1280, 640]) {
-  test(`desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
+for (const [platform, width] of [['mac', 1280], ['mac', 640], ['win', 1280], ['win', 640]]) {
+  test(`${platform} desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
     await page.setViewportSize({ width, height: 600 });
     // Also exercise the CSS width reached by zooming a native window: it must
-    // keep independent panes instead of switching into the mobile layout.
-    await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop-mac')));
+    // keep independent panes instead of switching into the mobile layout,
+    // on either desktop (main.jsx adds these classes under foundry://).
+    await page.addInitScript((platform) => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop', `desktop-${platform}`)), platform);
     await mockWorker(page, true);
     await page.goto('/');
-    await expect(page.locator('html')).toHaveClass(/desktop-mac/);
+    await expect(page.locator('html')).toHaveClass(new RegExp(`desktop-${platform}`));
     await page.getByRole('button', { name: 'Board exact', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled();
     const sidebar = page.locator('.sidebar');
