@@ -696,6 +696,56 @@ a.mode-tab {
   font-size: 0.75rem;
 }
 
+.bench-shift-inputs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.bench-shift-inputs input {
+  width: 3.6rem;
+}
+
+/* The bench's name (what its exports are called) — the sidebar field,
+   and the one-time ask before an unnamed bench's first export
+   (components/bench/NameBenchModal.jsx). */
+.bench-name-field {
+  margin: 0.5rem 0 0.9rem;
+}
+
+.bench-name-field input {
+  background: #1c1d20;
+  border: 1px solid #33343a;
+  color: #e6e6e6;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.bench-name-field input::placeholder {
+  color: #8b8c91;
+}
+
+.bench-name-modal {
+  width: min(440px, 100vw - 2rem);
+}
+
+.bench-name-help {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bench-name-help code {
+  font-size: 0.78rem;
+  color: #d8d9db;
+}
+
+.bench-name-form {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .bench-export {
   display: flex;
   flex-direction: column;
@@ -1504,5 +1554,9 @@ a.mode-tab {
 
   :root:not(.desktop-mac) .bench-offset-field input {
     width: 5.5rem;
+  }
+
+  .bench-shift-inputs input {
+    width: 4.2rem;
   }
 }

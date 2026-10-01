@@ -1,4 +1,4 @@
-import { childrenOf, getNode, jointsFor } from "../../lib/assembly.js";
+import { childrenOf, getNode, jointsFor, normalizeShift } from "../../lib/assembly.js";
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
@@ -21,6 +21,8 @@ import SpinButtons from "./SpinButtons.jsx";
 // the part is picked either way, and the scene's floating ↺/↻ buttons
 // and the outline follow. The "Rotation (°)" field is the exact-value
 // twin of those buttons: type any angle, or step by 90 with the arrows.
+// "Offset" moves the part along the mating axis, "Shift X / Y" across
+// it (assembly.js's `overlap` and `shift`).
 export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions, selectedId, canAttach }) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
@@ -30,6 +32,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
   const openSlots = isImported ? slotsForNode(assembly, partsById, nodeExtents, nodeId) : [];
   const stackSlot = isImported ? null : stackSlotFor(assembly, partsById, nodeId);
   const selected = selectedId === nodeId;
+  const shift = normalizeShift(node.shift);
 
   return (
     <li className={selected ? "bench-tree-node is-selected" : "bench-tree-node"}>
@@ -71,6 +74,29 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
             if (e.target.value !== "") actions.setOverlap(nodeId, Number(e.target.value));
           }}
         />
+      </label>
+      <label
+        className="field bench-offset-field bench-shift-field"
+        title="Slide it sideways on its slot, in mm — across the mating face, along the slot's own x and y (they turn with the rotation). Lines a part up when its slot isn't quite centred on the feature that should sit over the parent's, e.g. an imported buckle whose chosen face is off its middle prong."
+      >
+        Shift X / Y (mm)
+        <span className="bench-shift-inputs">
+          {[0, 1].map((axis) => (
+            <input
+              key={axis}
+              type="number"
+              step="any"
+              aria-label={`Shift ${axis === 0 ? "X" : "Y"} (mm)`}
+              value={shift[axis]}
+              onChange={(e) => {
+                if (e.target.value === "") return;
+                const next = [...shift];
+                next[axis] = Number(e.target.value);
+                actions.setShift(nodeId, next);
+              }}
+            />
+          ))}
+        </span>
       </label>
       <label
         className="field bench-offset-field bench-rotation-field"

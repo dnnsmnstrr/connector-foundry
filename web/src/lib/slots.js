@@ -15,10 +15,11 @@
 // same function. Nothing here needs to know where in a tree the part
 // sits.
 
-// `offset` is the catalogue's `mount_offset` ([x, y], default none): a
-// part whose module puts "mount" and "bot" somewhere other than the face
-// center — the DeckMate parts put both at their screw pattern's
-// reference point — declares it here so the markers land on the real
+// `offset` is the catalogue's `mount_offset` (default none, see
+// mountOffset()): a part whose module puts "mount" and "bot" somewhere
+// other than the face center — the DeckMate parts put both at their
+// screw pattern's reference point, the GoPro female puts "mount" over
+// its middle prong — declares it so the markers land on the real
 // anchors. tests/test_anchors.py holds the declaration to the geometry.
 const FACE_ANCHOR_LOCAL = {
   mount: (e, [ox, oy]) => [ox, oy, e[2] / 2],
@@ -29,8 +30,24 @@ const FACE_ANCHOR_LOCAL = {
   yneg: (e) => [0, -e[1] / 2, 0],
 };
 
-function mountOffset(part) {
-  return part.mount_offset ?? [0, 0];
+// The catalogue's `mount_offset` as [x, y] mm for this instance: a fixed
+// pair, or a per-axis `{param, scale, unless}` evaluated against the
+// node's params over the catalogue defaults — the GoPro female's "mount"
+// is half its nut pocket's depth off the plate's center, and back at the
+// center when the buckle is symmetric. The same rule as cli/foundry.py's
+// mount_offset(); catalogue.yaml's schema comment is the definition.
+export function mountOffset(part, params = {}) {
+  const spec = part.mount_offset;
+  if (!spec) return [0, 0];
+  if (Array.isArray(spec)) return spec;
+  const merged = { ...(part.defaults ?? {}), ...params };
+  const axis = (expr) => {
+    if (expr === undefined) return 0;
+    if (typeof expr === "number") return expr;
+    if (expr.unless !== undefined && merged[expr.unless]) return 0;
+    return Number(merged[expr.param] ?? 0) * (expr.scale ?? 1);
+  };
+  return [axis(spec.x), axis(spec.y)];
 }
 
 function gridCounts(part, params, meshExtents) {
@@ -86,7 +103,7 @@ export function enumerateSlots(part, params, meshExtents) {
       }
     }
   } else {
-    const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents, mountOffset(part));
+    const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents, mountOffset(part, params));
     slots.push({ name: "mount", x, y, z });
   }
 
@@ -98,7 +115,7 @@ export function enumerateSlots(part, params, meshExtents) {
       console.warn(`slots: ${part.id} declares anchor "${name}", which has no face formula — skipped`);
       continue;
     }
-    const [x, y, z] = place(extents, mountOffset(part));
+    const [x, y, z] = place(extents, mountOffset(part, params));
     slots.push({ name, x, y, z });
   }
 

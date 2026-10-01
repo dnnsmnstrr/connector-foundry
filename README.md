@@ -93,6 +93,11 @@ grid) offers it as a new marker, so assemblies stack. A bench takes up to three 
 attached part has:
 
 - **Joint** and **Offset (mm)** — negative sinks it into its parent, positive leaves a gap.
+- **Shift X / Y (mm)** — slide it sideways on its slot, across the mating face. The two axes are
+  the slot's own and turn with the part's rotation, so a correction stays right whichever way the
+  part is then turned. Made for an imported STL whose chosen face center isn't quite over the
+  feature that should sit on the slot (a buckle whose plate runs further to one side of its
+  prongs); catalogue parts put their own `mount` over the right feature already.
 - **Rotation (°)** — turn it on its slot. Click a part in the scene (or its name in the sidebar) to
   select it; ↺/↻ buttons above it turn it in 90° steps, the field takes any angle. Only the part
   turns, never a joint's flanges. Parts whose place in the scene can be computed (catalogue parts
@@ -117,7 +122,11 @@ flat face to put a slot at its centre. Meshes are validated and repaired on the 
 winding fixed) and refused with an explanation if they have real holes. Imports live in your
 browser tab only; nothing is fetched or committed.
 
-Export walks the whole tree: one STL per body, or the generated `.scad`.
+Export walks the whole tree: one STL per body, or the generated `.scad`. Every exported file is
+named after the bench — `<name>_<body>.stl`, `<name>.scad`, `<name>.bench.json` — so a downloads
+folder full of them says what each one is. The **Name** field at the top of the sidebar sets it;
+a bench exported without one is asked first, with a name built from its parts proposed
+(`gridfinity-base_gopro-female`).
 
 **Configs and presets** keep a bench setup itself: "Download config" writes a `.bench.json` (parts,
 parameters, joints, offsets, rotations, and any imported meshes embedded, so the file stands alone),
@@ -149,7 +158,7 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Board](docs/img/opengrid_board.png)<br>Board | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks openGrid.scad (openGrid by David D, OpenSCAD by BlackjackDuck), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Grid face up, flat on the bed. A board is exactly cells x 28mm with no border, so boards butt together. lite is 4mm, full 6.8mm, heavy 13.8mm (two halves back to back, with a sealed cavity per cell). |
 | ![Snap](docs/img/opengrid_snap.png)<br>Snap | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks opengrid-snap.scad (openGrid by David D, snap by metasyntactic), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Print in PETG or another filament with some flex so the wings can compress; no supports. The lite snap is half height (3.4mm), which is not the same as a lite board. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | MIT | [GoProScad (ridercz, MIT), vendored](https://github.com/ridercz/GoProScad) | Legs down; use a brim. Mates with any GoPro three-prong buckle. |
-| ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | [GoProScad (ridercz, MIT), vendored](https://github.com/ridercz/GoProScad) | Legs down; use a brim. nut_depth sinks a captive pocket for an M5 hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4 with nut_dia 11.5 takes a square nut instead. |
+| ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | [GoProScad (ridercz, MIT), vendored](https://github.com/ridercz/GoProScad) | Legs down; use a brim. nut_depth sinks a captive pocket for an M5 hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4 with nut_dia 11.5 takes a square nut instead. The pocket makes the far outer leg thicker than the near one, so the plate runs nut_depth further to that side; "mount" sits over the middle prong regardless. symmetric pads the near leg to match, for a plate centred on the prongs. |
 | ![Innie](docs/img/deckmate_innie.png)<br>Innie | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | [Mechanism's Universal Grip STL — the manufacturer's own model, imported unmodified. CC BY-NC 4.0 — see README "Licensing".](https://getmechanism.com/pages/digital-files) | The socket half. Flat back up as "mount" (where Mechanism puts the adhesive); the socket side has undercuts, so flip it in the slicer. "bot" sits over the socket recess, not on material. |
 | ![Outie](docs/img/deckmate_outie.png)<br>Outie | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | [Mechanism's Bot Print STL — the manufacturer's own model, imported unmodified. CC BY-NC 4.0 — see README "Licensing".](https://getmechanism.com/pages/digital-files) | The rail half; slides into an Innie. Base up as "mount". Fuse it, or use the screwed joint on its three-hole pattern and print the rail on its own, rail up. fill_holes plugs the holes on a fused one. |
 | ![Universal base](docs/img/deckmate_universal.png)<br>Universal base | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | [Mechanism's Deck Mate Universal STL — the manufacturer's own model, imported unmodified. CC BY-NC 4.0 — see README "Licensing".](https://getmechanism.com/pages/digital-files) | Mechanism's 56.7 x 28.4 x 3mm base plate: hole pattern down as "bot", adhesive face up as "mount". Stack an Outie on "bot" with the screwed joint (no flange needed). Prints flat either way up. |

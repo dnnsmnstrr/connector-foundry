@@ -83,6 +83,29 @@ def catalogue_cases(catalogue: dict) -> Iterator[tuple[dict, dict, str]]:
             yield part, variant["params"], variant["name"]
 
 
+def mount_offset(part: dict, params: dict[str, object] | None = None) -> tuple[float, float]:
+    """Where the part's "mount"/"bot" anchors sit relative to the center
+    of their face, per catalogue `mount_offset` — a fixed [x, y], or a
+    per-axis `{param, scale, unless}` evaluated against `params` on top
+    of the catalogue defaults (see the schema comment in catalogue.yaml).
+    web/src/lib/slots.js's mountOffset() is the same evaluation."""
+    spec = part.get("mount_offset")
+    if spec is None:
+        return (0.0, 0.0)
+    if isinstance(spec, list):
+        return (float(spec[0]), float(spec[1]))
+    merged = {**part.get("defaults", {}), **(params or {})}
+
+    def axis(expr) -> float:
+        if isinstance(expr, (int, float)):
+            return float(expr)
+        if expr.get("unless") is not None and merged.get(expr["unless"]):
+            return 0.0
+        return float(merged[expr["param"]]) * float(expr.get("scale", 1))
+
+    return (axis(spec.get("x", 0)), axis(spec.get("y", 0)))
+
+
 # ------------------------------------------------------- OpenSCAD values
 
 class Raw(str):

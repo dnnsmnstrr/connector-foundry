@@ -105,23 +105,76 @@ def test_side_slot_params_are_real_parameters():
     assert not problems, "\n".join(problems)
 
 
+def _is_mm(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _mount_offset_problems(part: dict) -> list[str]:
+    """The shapes catalogue.yaml's schema comment allows for
+    `mount_offset`: a fixed [x, y], or a map of x/y to a number or a
+    `{param, scale, unless}` naming real parameters of the module (a
+    typo there would make slots.js place the marker from an undefined
+    value — the same class of bug test_declared_parameters_exist_on_the_module
+    catches for defaults)."""
+    offset = part.get("mount_offset")
+    if offset is None:
+        return []
+    if isinstance(offset, list):
+        if len(offset) == 2 and all(_is_mm(v) for v in offset):
+            return []
+        return [f"{part['id']}: mount_offset must be [x, y] in mm, got {offset!r}"]
+    if not isinstance(offset, dict) or not offset or set(offset) - {"x", "y"}:
+        return [f"{part['id']}: mount_offset must be [x, y] or a map of x/y, got {offset!r}"]
+    known = set(foundry.module_parameters(part))
+    defaults = part.get("defaults", {})
+    problems = []
+    for axis, expr in offset.items():
+        if _is_mm(expr):
+            continue
+        if not isinstance(expr, dict) or "param" not in expr or set(expr) - {"param", "scale", "unless"}:
+            problems.append(f"{part['id']}: mount_offset.{axis} must be a number or {{param, scale, unless}}, got {expr!r}")
+            continue
+        for field in ("param", "unless"):
+            name = expr.get(field)
+            if name is None:
+                continue
+            if name not in known:
+                problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} is not a parameter of {part['module']}()")
+            elif name not in defaults:
+                problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} has no catalogue default to evaluate from")
+        if "scale" in expr and not _is_mm(expr["scale"]):
+            problems.append(f"{part['id']}: mount_offset.{axis} scale must be a number, got {expr['scale']!r}")
+    return problems
+
+
 def test_screw_pattern_and_mount_offset_are_well_formed():
     """`screw_pattern` names a flange the web editor can generate;
-    `mount_offset` is an [x, y] pair (the "mount"/"bot" anchors' position
-    relative to the bounding-box center). tests/test_anchors.py checks the
-    offset against the rendered geometry; this only checks the shape."""
+    `mount_offset` has one of the two shapes the schema allows (the
+    "mount"/"bot" anchors' position relative to the bounding-box center,
+    fixed or evaluated from the part's parameters). tests/test_anchors.py
+    checks the offset against the rendered geometry; this only checks
+    the shape."""
     problems = []
     for part in _parts():
         pattern = part.get("screw_pattern")
         if pattern is not None and pattern not in SCREW_PATTERNS:
             problems.append(f"{part['id']}: screw_pattern {pattern!r} is not one of {sorted(SCREW_PATTERNS)}")
-        offset = part.get("mount_offset")
-        if offset is not None and not (
-            isinstance(offset, list) and len(offset) == 2
-            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in offset)
-        ):
-            problems.append(f"{part['id']}: mount_offset must be [x, y] in mm, got {offset!r}")
+        problems.extend(_mount_offset_problems(part))
     assert not problems, "\n".join(problems)
+
+
+def test_mount_offset_evaluates_as_documented():
+    """The GoPro female's offset is the worked example of the parameter
+    form: half the nut pocket's depth, gone when the buckle is symmetric.
+    Pins cli/foundry.py's mount_offset() to the schema comment's meaning."""
+    female = next(p for p in _parts() if p["id"] == "gopro/female")
+    assert foundry.mount_offset(female) == (0.0, 1.5)
+    assert foundry.mount_offset(female, {"nut_depth": 0}) == (0.0, 0.0)
+    assert foundry.mount_offset(female, {"nut_depth": 4}) == (0.0, 2.0)
+    assert foundry.mount_offset(female, {"symmetric": True}) == (0.0, 0.0)
+    fixed = next(p for p in _parts() if isinstance(p.get("mount_offset"), list))
+    assert foundry.mount_offset(fixed, {"anything": 1}) == tuple(float(v) for v in fixed["mount_offset"])
+    assert foundry.mount_offset({"id": "x"}) == (0.0, 0.0)
 
 
 def test_declared_anchors_are_placeable():

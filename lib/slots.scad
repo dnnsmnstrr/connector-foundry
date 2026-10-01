@@ -26,8 +26,13 @@
 include <../vendor/BOSL2/std.scad>
 
 // Standard top-mount anchor, at height `h` above the part's local origin
-// (which is itself centered per attachable() convention).
-function mount_anchor(h) = named_anchor("mount", [0, 0, h], UP, 0);
+// (which is itself centered per attachable() convention). `xy` moves it
+// off the face center for a part whose mating feature isn't centered in
+// its own bounding box (the GoPro female's middle prong, a DeckMate
+// screw pattern) — catalogue.yaml's `mount_offset` restates the same
+// offset for the web editor, and tests/test_anchors.py holds the two
+// together.
+function mount_anchor(h, xy = [0, 0]) = named_anchor("mount", [xy.x, xy.y, h], UP, 0);
 
 // Nearest odd slot count that fits `extent` at `pitch`, so a centered
 // grid always has a true center index (0) at every gx/gy — never even,

@@ -23,7 +23,7 @@
 // OpenSCAD error on the next render, the same way a bad parameter does,
 // not as a silent misplacement.
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { JOINTS, MAX_ATTACHED, ROOT_ID, allocateChildId, normalizeSpin } from "./assembly.js";
+import { JOINTS, MAX_ATTACHED, ROOT_ID, allocateChildId, hasShift, normalizeShift, normalizeSpin } from "./assembly.js";
 import { createImportedPart } from "./importedPart.js";
 import { validateAndRepair } from "./meshValidate.js";
 
@@ -32,9 +32,10 @@ export const CONFIG_VERSION = 1;
 export const CONFIG_EXTENSION = ".bench.json";
 
 // The plain, JSON-ready document for the current assembly. `name` is
-// optional — the preset name, when saving one, or the root part's name
-// for a downloaded file (a hint for whoever opens it later, nothing more).
-export function serializeBenchConfig(assembly, partsById, name) {
+// the bench's own name (assembly.js's setAssemblyName — what its exports
+// are called) unless the caller passes one: a preset is saved under the
+// preset's name. Left out when there is neither.
+export function serializeBenchConfig(assembly, partsById, name = assembly.name) {
   const imports = [];
   const seen = new Set();
   const allPartIds = [assembly.root.partId, ...assembly.nodes.map((n) => n.partId)];
@@ -65,6 +66,10 @@ export function serializeBenchConfig(assembly, partsById, name) {
       childAnchor: n.childAnchor,
       overlap: n.overlap ?? 0,
       spin: n.spin ?? 0,
+      // The sideways shift (assembly.js's addChild) only when there is
+      // one, so a file written before shifts existed and one with none
+      // look the same.
+      ...(hasShift(n) ? { shift: normalizeShift(n.shift) } : {}),
     })),
     // The node everything else is cropped to (assembly.js's setCropTo),
     // only when set — the common case has no key at all.
@@ -118,7 +123,9 @@ export function checkBenchConfig(doc) {
     if (n.childAnchor !== undefined && typeof n.childAnchor !== "string") throw new Error(`Attached part "${n.id}" has a malformed anchor.`);
     if (n.overlap !== undefined && typeof n.overlap !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric offset.`);
     if (n.spin !== undefined && typeof n.spin !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric rotation.`);
+    if (n.shift !== undefined && !isVec2(n.shift)) throw new Error(`Attached part "${n.id}" has a malformed sideways shift (expected [x, y] in mm).`);
   });
+  if (doc.name !== undefined && typeof doc.name !== "string") throw new Error("The config's \"name\" isn't text.");
   if (doc.cropTo !== undefined && typeof doc.cropTo !== "string") throw new Error("The config's \"cropTo\" isn't a part id.");
   if (doc.imports !== undefined) {
     if (!Array.isArray(doc.imports)) throw new Error("The config's \"imports\" isn't a list.");
@@ -200,6 +207,7 @@ export function hydrateBenchConfig(doc, catalogueById) {
         childAnchor: n.childAnchor ?? "mount",
         overlap: n.overlap ?? 0,
         spin: normalizeSpin(n.spin ?? 0),
+        shift: normalizeShift(n.shift),
       });
       pending.splice(i, 1);
     }
@@ -214,17 +222,20 @@ export function hydrateBenchConfig(doc, catalogueById) {
   // the bench is complete without it, and a mask with nothing in it
   // would cut everything away.
   if (doc.cropTo !== undefined && nodeIdMap.has(doc.cropTo)) assembly.cropTo = nodeIdMap.get(doc.cropTo);
+  // The document's name becomes the bench's (a preset's name, or what the
+  // bench was called when the file was written), so its exports are
+  // called the same thing as the file they came back from.
+  const name = typeof doc.name === "string" ? doc.name.trim() : "";
+  if (name) assembly.name = name;
   return { assembly, importedParts };
-}
-
-// A filename for a downloaded config: the given name slugged, or "bench".
-export function configFilename(name) {
-  const slug = String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${slug || "bench"}${CONFIG_EXTENSION}`;
 }
 
 function isObject(v) {
   return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+function isVec2(v) {
+  return Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === "number" && Number.isFinite(x));
 }
 
 function isVec3(v) {

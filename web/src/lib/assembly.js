@@ -117,14 +117,59 @@ export function occupiedSlotNames(assembly, parentId) {
 // `spin=` convention — see spinArg()). Multiples of 90 are what the
 // scene's ↺/↻ buttons produce; any angle is allowed via the sidebar.
 //
+// `shift` ([x, y] mm, default none): the child slid sideways on its slot
+// — across the mating face rather than along the mating axis, which is
+// what `overlap` does. The two axes are the slot's own, turned with the
+// child's `spin`, so a correction that lines an imported part's feature
+// up with its slot (a buckle whose chosen face center is 1.5mm off its
+// middle prong) stays right whichever way the part is then rotated. See
+// shiftArg() for how it lands in the generated .scad.
+//
 // A bench already holding MAX_ATTACHED parts comes back unchanged — the
 // same "nothing happened" answer moveChild() gives for a move that isn't
 // one. The Bench checks canAttach() before offering a slot, so this is
 // the backstop, not the UI.
-export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0 }) {
+export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0, shift = [0, 0] }) {
   if (!canAttach(assembly)) return assembly;
-  const child = { id: allocateChildId(), parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin };
+  const child = { id: allocateChildId(), parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin, shift: normalizeShift(shift) };
   return { ...assembly, nodes: [...assembly.nodes, child] };
+}
+
+// A shift is always a finite [x, y]; anything else (a half-typed field,
+// an old config with no shift at all) reads as none.
+export function normalizeShift(shift) {
+  if (!Array.isArray(shift)) return [0, 0];
+  return [0, 1].map((i) => (Number.isFinite(shift[i]) ? shift[i] : 0));
+}
+
+// Whether a node is shifted at all — the generated .scad, the URL and
+// the config file all leave a zero shift out.
+export function hasShift(node) {
+  const [x, y] = normalizeShift(node?.shift);
+  return x !== 0 || y !== 0;
+}
+
+// The bench's own name — what its exports are called (Bench.jsx asks
+// for one before the first export if none is set; defaultBenchName() in
+// benchName.js proposes one from the parts). Kept as typed, since the
+// sidebar field edits it live (trimming here would eat the space being
+// typed between two words); blank clears it, and benchName() below is
+// the trimmed reading everything else uses.
+export function setAssemblyName(assembly, name) {
+  if (typeof name !== "string" || name.trim() === "") {
+    if (assembly.name === undefined) return assembly;
+    const next = { ...assembly };
+    delete next.name;
+    return next;
+  }
+  if (assembly.name === name) return assembly;
+  return { ...assembly, name };
+}
+
+// The bench's name, trimmed — null when it has none.
+export function benchName(assembly) {
+  const trimmed = assembly?.name?.trim();
+  return trimmed ? trimmed : null;
 }
 
 // The one source of child ids for this session. benchConfig.js's
@@ -228,6 +273,14 @@ export function updateChildOverlap(assembly, childId, overlap) {
   return {
     ...assembly,
     nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, overlap } : c)),
+  };
+}
+
+export function updateChildShift(assembly, childId, shift) {
+  const normalized = normalizeShift(shift);
+  return {
+    ...assembly,
+    nodes: assembly.nodes.map((c) => (c.id === childId ? { ...c, shift: normalized } : c)),
   };
 }
 
@@ -362,6 +415,23 @@ function mateArgs(child) {
   return `${overlapArg(child)}${spinArg(child)}`;
 }
 
+// The sideways shift, as a `translate()` between the attach() and the
+// child's own call. attach() leaves its children in the slot's frame —
+// `translate(pos) rot(spin) rot(to=anchor_dir) translate(overlap)` in
+// vendor/BOSL2/attachments.scad — so a translate there with z=0 slides
+// the child across the mating face, along the slot's own x/y as turned
+// by the spin (the spin is applied before the orientation, so the shift
+// turns with the part). The child's attachable() then still lines its
+// anchor up as usual: $attach_to is a special variable, and translate()
+// passes those through untouched — as it does $tag, so a hide_this() or
+// tag_this() in front of the translate still reaches the part call.
+// Omitted entirely at [0, 0], like overlap and spin.
+function shiftArg(child) {
+  if (!hasShift(child)) return "";
+  const [x, y] = normalizeShift(child.shift);
+  return `translate([${x}, ${y}, 0]) `;
+}
+
 // hide_this() only suppresses ONE level's own geometry — its own
 // attach()'d children stay visible by default ("Use an invisible
 // parent to position children", per BOSL2's own doc example). So
@@ -440,7 +510,7 @@ function emitScrewedChild(ctx, child, hide, indent) {
   const { assembly, partsById } = ctx;
   const childPart = partsById.get(child.partId);
   const parentPart = partsById.get(getNode(assembly, child.parentId).partId);
-  const call = partCall(ctx, child.id, childPart, child.params);
+  const call = `${shiftArg(child)}${partCall(ctx, child.id, childPart, child.params)}`;
   const mate = mateArgs(child);
   const pattern = childPart.screw_pattern ?? parentPart.screw_pattern ?? "deckmate";
   const flange = SCREW_FLANGES[pattern] ?? SCREW_FLANGES.deckmate;
@@ -478,7 +548,7 @@ function emitScrewedChild(ctx, child, hide, indent) {
 
 function emitFusedChild(ctx, child, hide, indent) {
   const childPart = ctx.partsById.get(child.partId);
-  const call = partCall(ctx, child.id, childPart, child.params);
+  const call = `${shiftArg(child)}${partCall(ctx, child.id, childPart, child.params)}`;
   const mate = mateArgs(child);
   const grandkids = emitChildren(ctx, child.id, hide, indent + "    ");
   const body = grandkids ? ` {\n${grandkids}\n${indent}}` : ";";
@@ -495,7 +565,7 @@ function emitFusedChild(ctx, child, hide, indent) {
 // pin_flange()).
 function emitJointChild(ctx, child, hide, indent) {
   const childPart = ctx.partsById.get(child.partId);
-  const call = partCall(ctx, child.id, childPart, child.params);
+  const call = `${shiftArg(child)}${partCall(ctx, child.id, childPart, child.params)}`;
   const mate = mateArgs(child);
   const [flangeA, flangeB] = child.joint === "bolted" ? ["bolted_flange_a", "bolted_flange_b"]
     : child.joint === "snap" ? ["snap_flange_a", "snap_flange_b"]

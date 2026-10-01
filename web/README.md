@@ -174,7 +174,13 @@ a part actually has anchors left over. A few implementation notes that don't bel
   pattern. `jointsFor()` decides where the joint is offered (a node's dropdown), and the attach
   dialog narrows the part list to patterned parts when "screwed" is picked under a plain parent.
   A patterned part's `mount`/`bot` anchors sit at the pattern's reference point, not the box
-  center — catalogue `mount_offset`, which `slots.js` applies to those two markers.
+  center — catalogue `mount_offset`, which `slots.js` applies to those two markers. The field is
+  either a fixed `[x, y]` or, for an offset that depends on the part's parameters, a per-axis
+  `{param, scale, unless}` that `slots.js`'s `mountOffset(part, params)` evaluates against the
+  node's params over the catalogue defaults — the GoPro female's `mount` sits over its middle
+  prong, `nut_depth / 2` off the plate's center, and back at the center when `symmetric` pads the
+  other leg to match. `cli/foundry.py`'s `mount_offset()` is the same rule, and
+  `tests/test_anchors.py` renders every variant of such a part to hold both to the geometry.
 - `compileToScad()` generates one `.scad` source per assembly state, through the *same*
   worker/render pipeline as everything else (a second request shape, `{ scadSource, part }`,
   alongside the single-part `{ scadFile, module, params }` one) — the Bench never has its own
@@ -200,6 +206,27 @@ a part actually has anchors left over. A few implementation notes that don't bel
   turn in place about the mating axis, so the Bench can store a plain angle and hand it through.
   `updateChildSpin()` sets it, `rotateChild()` adds ±90 to it (the ↺/↻ buttons in
   `components/bench/SpinButtons.jsx`, used both floating over the scene and inline in `NodeTree`).
+- The sideways shift is `shift` on a node (`[x, y]` mm, `normalizeShift()`/`updateChildShift()`),
+  emitted as a `translate([x, y, 0])` between the child's `attach()` and its own module call
+  (`shiftArg()`). `attach()` leaves its children in the slot's frame — translated to the anchor,
+  spun, oriented, sunk by the overlap — so a translate there with z=0 slides the part across the
+  mating face along the slot's own x/y, turned with the spin. `translate()` is transparent to
+  BOSL2's special variables, so the child's `$attach_to` alignment and a `hide_this()`/`tag_this()`
+  in front of it both still land on the part call. `benchLayout.js`'s `shiftWorldXY()` is the same
+  displacement in world terms for an upward-facing slot (the slot's axes are world x/y and the
+  spin a turn about z), used to move a stacked node's "bot" marker and, in `benchPick.js`, its box
+  along with it; on a downward slot the box is padded by the magnitude instead, like the mount
+  offset.
+- The bench's name (`assembly.name`, `setAssemblyName()`/`benchName()`) is what its exports are
+  called: `src/lib/benchName.js`'s `exportFilename(name, bodyTag, ext)` gives `<name>_<tag>.stl`,
+  `<name>.scad`, `<name>.bench.json`, with `safeStem()` turning the characters a file system
+  refuses into dashes. `Bench.jsx`'s `withName()` runs an export straight away when the bench is
+  named and otherwise parks it (`pendingExport`) behind `components/bench/NameBenchModal.jsx`,
+  which proposes `defaultBenchName()` — each distinct part in tree order, catalogue ids with the
+  slash turned into a dash, imported meshes by file stem, joined with `_`
+  (`gridfinity-base_gopro-female`) — and, on confirm, names the bench and lets the export go. The
+  sidebar's Name field edits the same thing; it is kept as typed (trimming on every keystroke
+  would eat the space between two words) and read trimmed everywhere.
 - Selection is `Bench.jsx`'s `selectedNodeId` (never root). A click on the rendered mesh goes
   through `StlViewer`'s `onModelClick` (the hit point, or null for empty space; a drag isn't a click
   — `CLICK_SLOP_PX`) and `src/lib/benchPick.js` decides which part that point is on:
@@ -353,12 +380,14 @@ localStorage), so a preset can always become a file and a file a preset with no 
 
 - **Format**: JSON, `{ format: "connector-foundry/bench", version: 1, root, nodes, imports }`.
   `root` and `nodes` are `assembly.js`'s own shape (`partId`, `params`, `parentId`, `slotName`,
-  `joint`, `childAnchor`, `overlap`, `spin`) rather than a second schema to keep in step. `imports`
-  carries every imported STL the tree references — name, the user-placed anchors, and the
-  validated mesh bytes base64-encoded — so the file is self-contained: a config that merely
-  *named* an upload would be unloadable in any other browser. Files are named
-  `<root-part-slug>.bench.json`; `version` is bumped on any incompatible change and an unknown
-  version is refused with a message, not guessed at.
+  `joint`, `childAnchor`, `overlap`, `spin`, and `shift` when there is one) rather than a second
+  schema to keep in step. `name` is the bench's own name (`assembly.name`) — or the preset's, when
+  saving one — and loading a document makes it the bench's. `imports` carries every imported STL
+  the tree references — name, the user-placed anchors, and the validated mesh bytes
+  base64-encoded — so the file is self-contained: a config that merely *named* an upload would be
+  unloadable in any other browser. Files are named `<bench-name>.bench.json`, like every other
+  export (see `src/lib/benchName.js` below); `version` is bumped on any incompatible change and an
+  unknown version is refused with a message, not guessed at.
 - **Loading is a checked hydration, not a `JSON.parse` into state** (`hydrateBenchConfig()`):
   the format tag, every field's shape, every part id against the live catalogue, every joint
   name, and every `parentId` (resolved parents-first, so node order in the file doesn't matter and

@@ -4,6 +4,6 @@ include <_body.scad>
 
 module gopro_male(base_h = GP_BASE_T, base_w = GP_BASE_W, leg_h = GP_LEG_H,
                   anchor = BOTTOM, spin = 0, orient = UP) {
-    _gopro_buckle("male", base_h, base_w, leg_h, 0, 0, 4, anchor, spin, orient)
+    _gopro_buckle("male", base_h, base_w, leg_h, 0, 0, 4, false, anchor, spin, orient)
         children();
 }

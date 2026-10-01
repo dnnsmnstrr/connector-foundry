@@ -76,6 +76,19 @@
 #   `source` — see tests/test_reference.py for the three accepted
 #   phrases.
 #
+# mount_offset: where a part's "mount" (and "bot") anchor sits relative
+#   to the center of that face of its own rendered bounding box, in mm —
+#   for a part whose mating feature isn't centered in its own box (a
+#   DeckMate screw pattern, the GoPro female's middle prong). Omitted
+#   means the face center. Either a fixed `[x, y]`, or, when the offset
+#   depends on the part's parameters, a map with an `x` and/or `y` entry
+#   that is a number or `{param, scale, unless}`: the named parameter's
+#   current value times `scale` (default 1), or 0 when the boolean
+#   parameter named by `unless` is true. cli/foundry.py's mount_offset()
+#   and web/src/lib/slots.js evaluate both forms the same way, and
+#   tests/test_anchors.py holds the result to the rendered geometry at
+#   the defaults and every variant.
+#
 # hidden: true keeps a part out of every part list (web app, README
 #   table) while the CLI and the Bench's code can still use it — the
 #   BitBeam pin and axle are LEGO-Technic fasteners that print badly and
@@ -230,7 +243,16 @@ parts:
     print_note: >-
       Legs down; use a brim. nut_depth sinks a captive pocket for an M5
       hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4
-      with nut_dia 11.5 takes a square nut instead.
+      with nut_dia 11.5 takes a square nut instead. The pocket makes the
+      far outer leg thicker than the near one, so the plate runs
+      nut_depth further to that side; "mount" sits over the middle prong
+      regardless. symmetric pads the near leg to match, for a plate
+      centred on the prongs.
+    # The nut pocket thickens the far leg only, so the middle prong —
+    # where "mount" sits — is nut_depth/2 off the plate's center, until
+    # `symmetric` pads the other leg to match.
+    mount_offset:
+      y: { param: nut_depth, scale: 0.5, unless: symmetric }
     defaults:
       base_h: 3
       base_w: 20
@@ -238,11 +260,14 @@ parts:
       nut_depth: 3
       nut_sides: 6
       nut_dia: 9.5
+      symmetric: false
     variants:
       - name: no-nut-pocket
         params: { nut_depth: 0 }
       - name: square-nut
         params: { nut_sides: 4, nut_dia: 11.5 }
+      - name: symmetric
+        params: { symmetric: true }
 
   # DeckMate / Mechanism: three of Mechanism's own models, imported
   # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry

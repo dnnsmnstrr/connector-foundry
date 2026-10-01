@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
+import NameBenchModal from "./components/bench/NameBenchModal.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
 import PresetsPanel, { ConfigImportButton } from "./components/bench/PresetsPanel.jsx";
 import SpinButtons from "./components/bench/SpinButtons.jsx";
@@ -13,6 +14,7 @@ import {
   MAX_ATTACHED,
   ROOT_ID,
   addChild,
+  benchName,
   bodyTags,
   canAttach,
   childrenOf,
@@ -25,17 +27,20 @@ import {
   removeChild,
   rotateChild,
   screwedApplies,
+  setAssemblyName,
   setCropTo,
   updateChildJoint,
   updateChildOverlap,
+  updateChildShift,
   updateChildSpin,
   updateNodeParams,
 } from "./lib/assembly.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
-import { configFilename, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
+import { CONFIG_EXTENSION, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
 import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint, slotInDirection } from "./lib/benchLayout.js";
+import { defaultBenchName, exportFilename } from "./lib/benchName.js";
 import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { deletePreset, savePreset } from "./lib/benchPresets.js";
 import { replaceBenchSession, setBenchAssembly, setBenchImportedParts } from "./lib/benchSession.js";
@@ -110,6 +115,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
+  // An export waiting for the bench to be named: the function to run with
+  // the name, once NameBenchModal has one (see withName()). Null otherwise.
+  const [pendingExport, setPendingExport] = useState(null);
   // The attached node whose rotate controls are showing — picked by
   // clicking the part in the scene or its name in the sidebar. Never
   // root: there's nothing to spin root against (orbit the camera instead).
@@ -140,21 +148,22 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   //
   // Escape backs out of whichever is up — the import flow first (it's on
   // top when both are technically "open"), then the attach-a-part picker,
-  // then move mode, then the selection. The rest act on the selected part,
-  // and only with no modal up and the key not meant for a field:
-  // Delete/Backspace removes it (subtree and all, like the sidebar's ✕),
-  // M arms/disarms move mode, an arrow key steps it to the next open slot
-  // that way.
+  // then the name-before-export ask, then move mode, then the selection.
+  // The rest act on the selected part, and only with no modal up and the
+  // key not meant for a field: Delete/Backspace removes it (subtree and
+  // all, like the sidebar's ✕), M arms/disarms move mode, an arrow key
+  // steps it to the next open slot that way.
   const keyHandlerRef = useRef(null);
   keyHandlerRef.current = (e) => {
     if (e.key === "Escape") {
       if (importMode) setImportMode(null);
       else if (pendingSlot) setPendingSlot(null);
+      else if (pendingExport) setPendingExport(null);
       else if (moveMode) setMoveMode(false);
       else if (selectedNodeId) setSelectedNodeId(null);
       return;
     }
-    if (importMode || pendingSlot || !assembly || isEditableTarget(e.target)) return;
+    if (importMode || pendingSlot || pendingExport || !assembly || isEditableTarget(e.target)) return;
     if (!selectedNodeId || !getNode(assembly, selectedNodeId)) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault(); // Backspace is "back" in some browsers
@@ -444,6 +453,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     remove: (id) => setAssembly((a) => removeChild(a, id)),
     setJoint: (id, joint) => setAssembly((a) => updateChildJoint(a, id, joint)),
     setOverlap: (id, overlap) => setAssembly((a) => updateChildOverlap(a, id, overlap)),
+    setShift: (id, shift) => setAssembly((a) => updateChildShift(a, id, shift)),
     setSpin: (id, spin) => setAssembly((a) => updateChildSpin(a, id, spin)),
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta)),
     setParams: (id, params) => setAssembly((a) => updateNodeParams(a, id, params)),
@@ -463,17 +473,40 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     selectNode(id && id !== ROOT_ID ? id : null);
   }
 
-  async function downloadBody(tag) {
-    try {
-      const buf = await renderAssembly(tag);
-      downloadBlob(buf, `bench_${tag}.stl`, "model/stl");
-    } catch (err) {
-      setRenderError(friendlyRenderError(err.message));
-    }
+  // --- Export ---
+  // Every exported file is named after the bench (lib/benchName.js's
+  // exportFilename()), so a downloads folder full of them says what each
+  // one is. A bench that has no name yet is asked for one first — the
+  // export is parked in `pendingExport` and NameBenchModal proposes a
+  // name built from the parts; confirming names the bench (the sidebar
+  // field shows it from then on) and runs the export. Cancelling exports
+  // nothing.
+  function withName(exportFn) {
+    const name = benchName(assembly);
+    if (name) exportFn(name);
+    else setPendingExport(() => exportFn);
+  }
+
+  function confirmBenchName(name) {
+    const run = pendingExport;
+    setPendingExport(null);
+    setAssembly((a) => setAssemblyName(a, name));
+    run?.(name);
+  }
+
+  function downloadBody(tag) {
+    withName(async (name) => {
+      try {
+        const buf = await renderAssembly(tag);
+        downloadBlob(buf, exportFilename(name, tag, ".stl"), "model/stl");
+      } catch (err) {
+        setRenderError(friendlyRenderError(err.message));
+      }
+    });
   }
 
   function downloadScad() {
-    downloadBlob(compileToScad(assembly, partsById), "bench_assembly.scad", "text/plain");
+    withName((name) => downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain"));
   }
 
   // --- Configs and presets (lib/benchConfig.js, lib/benchPresets.js) ---
@@ -482,8 +515,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // through the same applyConfig().
 
   function downloadConfig() {
-    const doc = serializeBenchConfig(assembly, partsById, rootPart.name);
-    downloadBlob(configToJson(doc), configFilename(rootPart.name), "application/json");
+    withName((name) => {
+      const doc = serializeBenchConfig(assembly, partsById, name);
+      downloadBlob(configToJson(doc), exportFilename(name, null, CONFIG_EXTENSION), "application/json");
+    });
   }
 
   // Replaces the whole bench (root, tree, imported meshes) with a checked
@@ -591,6 +626,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           <>
             <h2>{rootPart.name}</h2>
             <p className="muted">Root part. Click an open slot in the scene to attach something to it.</p>
+            <label
+              className="field bench-name-field"
+              title="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export."
+            >
+              <span className="field-label">Name</span>
+              <input
+                type="text"
+                placeholder={defaultBenchName(assembly, partsById)}
+                value={assembly.name ?? ""}
+                onChange={(e) => setAssembly((a) => setAssemblyName(a, e.target.value))}
+              />
+            </label>
             <button
               className="render-button bench-reset"
               onClick={() => {
@@ -666,7 +713,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             <PresetsPanel
               key={assembly.root.partId}
               presets={presets}
-              defaultName={rootPart.name}
+              defaultName={benchName(assembly) ?? rootPart.name}
               onSave={saveCurrentAsPreset}
               onLoad={loadPreset}
               onDelete={removePreset}
@@ -823,6 +870,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
       {pendingSlot && importMode === "child" && (
         <ImportFlow mode="child" onCancel={() => setImportMode(null)} onConfirm={confirmChildImport} />
+      )}
+
+      {pendingExport && (
+        <NameBenchModal
+          defaultName={defaultBenchName(assembly, partsById)}
+          onConfirm={confirmBenchName}
+          onCancel={() => setPendingExport(null)}
+        />
       )}
     </div>
   );

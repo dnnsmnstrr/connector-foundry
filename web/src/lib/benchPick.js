@@ -11,7 +11,7 @@
 // scene and its outline isn't drawn; it stays selectable from the
 // sidebar. Pure functions; Bench.jsx wires state to them.
 import { ROOT_ID, getNode } from "./assembly.js";
-import { STACK_ANCHOR, attachPointWorld, matingRise } from "./benchLayout.js";
+import { STACK_ANCHOR, attachPointWorld, matingRise, shiftWorldXY } from "./benchLayout.js";
 import { enumerateSlots } from "./slots.js";
 
 // Which way a child mated onto `slotName` of `parentId` points in world
@@ -83,15 +83,24 @@ export function nodeWorldBox(assembly, partsById, rootSlotWorldPositions, nodeEx
   // (DeckMate) parts that have one.
   const mount = enumerateSlots(part, node.params, extents).find((s) => s.name === "mount" || s.name === "mount_0_0");
   const [ox, oy] = mount ? [Math.abs(mount.x), Math.abs(mount.y)] : [0, 0];
-  const [hx, hy] = spunHalfExtents(ex / 2 + ox, ey / 2 + oy, node.spin ?? 0);
+  let [hx, hy] = spunHalfExtents(ex / 2 + ox, ey / 2 + oy, node.spin ?? 0);
+
+  // The sideways shift moves the whole part across the slot. On an
+  // upward slot that's an exact world displacement (shiftWorldXY()); on
+  // a downward one BOSL2's flip mirrors an axis, so pad the footprint by
+  // the magnitude instead, the same bargain as the mount offset above.
+  let [cx, cy] = [attach[0], attach[1]];
+  const [dx, dy] = shiftWorldXY(node);
+  if (dir > 0) [cx, cy] = [cx + dx, cy + dy];
+  else [hx, hy] = [hx + Math.abs(dx), hy + Math.abs(dy)];
 
   // The part's own mating face sits a joint's flanges (plus the Offset)
   // out from the slot, along the mating direction.
   const z0 = attach[2] + dir * matingRise(assembly, partsById, node);
   const z1 = z0 + dir * ez;
   return {
-    min: [attach[0] - hx, attach[1] - hy, Math.min(z0, z1)],
-    max: [attach[0] + hx, attach[1] + hy, Math.max(z0, z1)],
+    min: [cx - hx, cy - hy, Math.min(z0, z1)],
+    max: [cx + hx, cy + hy, Math.max(z0, z1)],
   };
 }
 

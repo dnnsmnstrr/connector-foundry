@@ -3,8 +3,24 @@
 // the assembly tree (assembly.js), the parts map, and each node's own
 // standalone extents — no React, no three.js — so Bench.jsx only wires
 // state to them.
-import { ROOT_ID, getNode, hasScrewPattern, occupiedSlotNames } from "./assembly.js";
+import { ROOT_ID, getNode, hasScrewPattern, normalizeShift, occupiedSlotNames } from "./assembly.js";
 import { enumerateSlots } from "./slots.js";
+
+// A node's sideways shift (assembly.js's `shift`, in the slot's own x/y
+// as turned by the node's spin — see shiftArg() there) as a world x/y
+// displacement, for a node mated on an upward-facing slot: the slot's
+// axes are then world x/y, and the spin is a plain turn about world z.
+// Exact for root's top grid and a "bot" stack (the only slots whose
+// markers and boxes are placed, see exposedTopWorldPosition()); on a
+// downward slot BOSL2's flip would mirror one axis, so callers that
+// handle those pad by the magnitude instead.
+export function shiftWorldXY(node) {
+  const [sx, sy] = normalizeShift(node.shift);
+  const rad = ((node.spin ?? 0) * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return [c * sx - s * sy, s * sx + c * sy];
+}
 
 // What a joint puts between the two parts, along the mating direction —
 // lib/joints.scad's flange thicknesses (JOINT_FLANGE_T, and
@@ -198,13 +214,16 @@ export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, no
 // to rely on it.) A spin about that same vertical (the node's `spin`)
 // leaves the point alone too, for the same reason. What does move it is
 // anything the joint puts between the parts, and the Offset — hence
-// matingRise().
+// matingRise() — and, sideways, the node's own shift (shiftWorldXY()),
+// which slides the whole part, "bot" included, across the slot.
 export function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
   const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
   const extents = nodeExtents.get(nodeId);
   if (!attachPoint || !extents) return null;
-  const rise = matingRise(assembly, partsById, getNode(assembly, nodeId));
-  return [attachPoint[0], attachPoint[1], attachPoint[2] + rise + extents[2]];
+  const node = getNode(assembly, nodeId);
+  const rise = matingRise(assembly, partsById, node);
+  const [dx, dy] = shiftWorldXY(node);
+  return [attachPoint[0] + dx, attachPoint[1] + dy, attachPoint[2] + rise + extents[2]];
 }
 
 // A non-root node's open slots for the sidebar's "+ Attach" buttons —
