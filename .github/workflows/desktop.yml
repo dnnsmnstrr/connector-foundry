@@ -35,7 +35,17 @@ jobs:
             platform: win
             arch: x64
             artifact: Connector-Foundry-windows-x64-setup
+          # Windows on ARM (Snapdragon laptops, Surface Pro). GitHub's ARM
+          # runner is a public preview; the x64 build runs there under
+          # emulation, so this one is a bonus and must not block a release.
+          - name: Windows (ARM64)
+            runner: windows-11-arm
+            platform: win
+            arch: arm64
+            artifact: Connector-Foundry-windows-arm64-setup
+            experimental: true
     runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.experimental == true }}
     defaults:
       run:
         # The same scripts on every runner; Git for Windows provides bash there.
@@ -166,7 +176,9 @@ jobs:
           and click **Open Anyway** next to the Connector Foundry message. This is
           only needed once.
 
-          **Windows** (64-bit, Windows 10 or later): `Connector-Foundry-windows-x64-setup.exe`
+          **Windows** (Windows 10 or later): `Connector-Foundry-windows-x64-setup.exe`
+          for the usual 64-bit Intel/AMD PCs; `Connector-Foundry-windows-arm64-setup.exe`
+          for Windows on ARM (Snapdragon laptops, Surface Pro X), when present.
 
           The installer is not code-signed, so SmartScreen shows "Windows protected
           your PC" the first time: click **More info**, then **Run anyway**. It

@@ -5,8 +5,10 @@ const { APP_URL, assetPath, isAppURL } = require('./paths.cjs');
 
 const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
-// The header row's height, which the window controls overlay matches on Windows.
+// The header row's height. On Windows the window controls overlay is one
+// pixel shorter, so the row's bottom border runs under the controls too.
 const HEADER_HEIGHT = 52;
+const OVERLAY_HEIGHT = HEADER_HEIGHT - 1;
 
 app.setName('Connector Foundry');
 // Windows groups taskbar buttons and pins by this id; electron-builder stamps
@@ -48,7 +50,7 @@ function createWindow() {
     } : {}),
     ...(isWindows ? {
       titleBarStyle: 'hidden',
-      titleBarOverlay: { color: '#17181b', symbolColor: '#e8e8ea', height: HEADER_HEIGHT },
+      titleBarOverlay: { color: '#17181b', symbolColor: '#e8e8ea', height: OVERLAY_HEIGHT },
       // The menu only carries shortcuts; Alt still shows it.
       autoHideMenuBar: true,
     } : {}),

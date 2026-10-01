@@ -257,7 +257,7 @@ export default function App() {
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            title="Source code and Mac app on GitHub"
+            title="Source code and desktop apps on GitHub"
             aria-label="GitHub"
           >
             <GitHubMark />

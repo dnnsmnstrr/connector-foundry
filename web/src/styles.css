@@ -63,6 +63,15 @@ button, input, select, textarea {
   padding: 10px 20px;
   -webkit-app-region: drag;
   user-select: none;
+  /* Whatever does not fit the row at a high zoom is clipped rather than
+     laid under the native window controls, where it could not be clicked. */
+  overflow: hidden;
+}
+
+/* The row's height is matched by the native overlay, so the touch-target
+   rule below must not grow it. */
+.desktop .mode-tab {
+  min-height: 0;
 }
 
 /* macOS: traffic lights on the left. */

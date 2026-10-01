@@ -90,8 +90,13 @@ overlay is active and the header's padding reaches past the controls, and
 that a second launch quits with exit code 0 and un-minimises the first
 window. It saves screenshots of the Library and the Bench import dialog to
 `test-results/desktop/<platform>-<arch>/`; CI uploads them as the
-`desktop-test-results-win-x64` artifact, which is how the Windows title bar
-was reviewed for this port.
+`desktop-test-results-win-x64` artifact. They show the page as Windows
+renders it, with the header's right end left free; the controls themselves
+are drawn by Windows outside the page, so their clearance is what the
+overlay-rect assertion checks, not the picture. On `windows-latest`
+(2026-10-02, run 36942639310) the window came up 1024 px wide, the overlay
+reported a 887 px title bar area, so the controls took 137 px, and the header
+reserved 157 px; the suite took eight seconds against the installed app.
 
 ## CI and releases
 
