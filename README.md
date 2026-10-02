@@ -52,9 +52,10 @@ submodules? `git submodule update --init --recursive`.
 Desktop app: download it for
 [Apple Silicon](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-apple-silicon.dmg)
 or [Intel](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-intel.dmg)
-Macs, or the
-[Windows installer](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-windows-x64-setup.exe)
-(64-bit; all versions: [releases](https://github.com/dnnsmnstrr/connector-foundry/releases)),
+Macs, or the Windows installer for
+[x64](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-windows-x64-setup.exe)
+or [ARM](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-windows-arm64-setup.exe)
+PCs (all versions: [releases](https://github.com/dnnsmnstrr/connector-foundry/releases)),
 or run it from source with `cd web && npm ci && npm run desktop`. `npm run desktop:dist` builds the
 app for the machine it runs on: a `.app`, DMG and ZIP on a Mac, an installer on Windows (and
 `npm run desktop:dist -- --win --x64` builds that installer from a Mac). Native Open/Save dialogs

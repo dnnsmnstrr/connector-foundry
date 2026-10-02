@@ -11,7 +11,9 @@ and inspected on a Mac and run, tested and screenshotted on GitHub's
 ## What a user gets
 
 - `Connector-Foundry-windows-x64-setup.exe`, an NSIS installer for 64-bit
-  Windows 10 and later. It offers a per-user install (the default, no
+  Windows 10 and later, and `Connector-Foundry-windows-arm64-setup.exe` for
+  Windows on ARM (Snapdragon laptops, Surface Pro X; the x64 one runs there
+  too, under emulation). Each offers a per-user install (the default, no
   administrator prompt, into `%LOCALAPPDATA%\Programs\Connector Foundry`) or
   one for all users (which asks for administrator rights), lets the folder be
   changed, and adds Start menu and desktop shortcuts. Settings → Apps
@@ -124,9 +126,15 @@ build. A version tag publishes the installers alongside the DMGs; see
   or Azure Trusted Signing (`win.azureSignOptions`) would remove the
   SmartScreen warning; both are configured through electron-builder's
   environment, never through a file in this repository.
-- **Windows on ARM.** Electron and electron-builder support `--arm64`, and
-  GitHub has `windows-11-arm` runners; a matrix entry mirroring the x64 one
-  is all it would take, once there is a machine to try the result on.
+- **Windows on ARM is built but marked experimental.** GitHub's
+  `windows-11-arm` runner is a public preview, so its job may fail without
+  failing the run (`continue-on-error`), and a release then simply lacks that
+  installer. One thing the build needs that x64 does not:
+  `ELECTRON_BUILDER_7Z_FILTER=BCJ2`. 7-Zip applies its ARM64 branch filter to
+  arm64 executables by default, and the installer's Nsis7z plugin predates
+  that filter, so without it the install "succeeds" with every `.exe` and
+  `.dll` missing. Verified on the runner (2026-10-02, run 36979259223):
+  silent install, the full desktop suite, silent uninstall.
 - **Auto-update, file associations, a portable build.** Same status as on
   macOS: not implemented. The `.blockmap` electron-builder emits is for
   differential updates and is dropped from releases.
