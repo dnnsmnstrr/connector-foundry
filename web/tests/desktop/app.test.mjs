@@ -146,10 +146,13 @@ test('bundled desktop renders offline and imports/exports files through Chromium
   }
 });
 
-test('a second launch hands over to the running instance instead of opening another window', { timeout: 120_000 }, async () => {
+// The lock is only taken where a launch starts a new process (Windows,
+// Linux); macOS activates the running app itself.
+test('a second launch hands over to the running instance instead of opening another window', { timeout: 120_000, skip: process.platform === 'darwin' && 'macOS launches are single-instance already' }, async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'foundry-desktop-'));
   const args = (extra) => [...(executable ? [] : ['.']), `--user-data-dir=${path.join(directory, 'profile')}`, ...extra];
   let first;
+  let child;
   try {
     first = await electron.launch({ ...(executable ? { executablePath: executable } : {}), args: args([]) });
     await first.firstWindow();
@@ -161,12 +164,16 @@ test('a second launch hands over to the running instance instead of opening anot
     // The second process must quit on its own without ever showing a window.
     // Playwright would wait for one, so launch it as a plain child process.
     const { spawn } = await import('node:child_process');
-    const child = spawn(executable ?? (await import('electron')).default, args([]), { stdio: 'ignore', windowsHide: true });
-    const exitCode = await new Promise((resolve, reject) => { child.once('exit', resolve); child.once('error', reject); });
-    assert.equal(exitCode, 0);
+    child = spawn(executable ?? (await import('electron')).default, args([]), { stdio: 'ignore', windowsHide: true });
+    const exit = await Promise.race([
+      new Promise((resolve, reject) => { child.once('exit', (code, signal) => resolve({ code, signal })); child.once('error', reject); }),
+      new Promise((_resolve, reject) => setTimeout(() => reject(new Error('the second instance did not quit within 60 s')), 60_000).unref()),
+    ]);
+    assert.deepEqual(exit, { code: 0, signal: null });
     assert.equal(await first.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
     await expect.poll(() => first.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized())).toBe(false);
   } finally {
+    if (child && child.exitCode === null) child.kill();
     await first?.close();
     await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }

@@ -48,11 +48,11 @@ function createWindow() {
       titleBarOverlay: true,
       trafficLightPosition: { x: 16, y: 18 },
     } : {}),
+    // A hidden title bar makes the window frameless on Windows, so it has
+    // no menu bar; the application menu below only supplies the shortcuts.
     ...(isWindows ? {
       titleBarStyle: 'hidden',
       titleBarOverlay: { color: '#17181b', symbolColor: '#e8e8ea', height: OVERLAY_HEIGHT },
-      // The menu only carries shortcuts; Alt still shows it.
-      autoHideMenuBar: true,
     } : {}),
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
@@ -81,11 +81,13 @@ function focusWindow() {
 // Windows and Linux start a new process for every launch (a double-click on
 // the shortcut, a second pin), where macOS activates the running app. Hand
 // the second launch to the first instance, which is keyed by the profile
-// directory so tests with their own --user-data-dir stay independent.
-if (!app.requestSingleInstanceLock()) {
+// directory so tests with their own --user-data-dir stay independent. Not on
+// macOS: the development launcher and the installed app share a profile
+// there, and `npm run desktop` must not quit because the app is open.
+if (!isMac && !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', focusWindow);
+  if (!isMac) app.on('second-instance', focusWindow);
   app.whenReady().then(start);
 }
 

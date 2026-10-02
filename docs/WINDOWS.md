@@ -11,23 +11,28 @@ and inspected on a Mac and run, tested and screenshotted on GitHub's
 ## What a user gets
 
 - `Connector-Foundry-windows-x64-setup.exe`, an NSIS installer for 64-bit
-  Windows 10 and later. It asks for a destination (default
-  `%LOCALAPPDATA%\Programs\Connector Foundry`), installs for the current user
-  without an administrator prompt, and adds Start menu and desktop shortcuts.
-  Settings → Apps uninstalls it; preferences and presets under
-  `%APPDATA%\Connector Foundry` survive that, like on macOS.
+  Windows 10 and later. It offers a per-user install (the default, no
+  administrator prompt, into `%LOCALAPPDATA%\Programs\Connector Foundry`) or
+  one for all users (which asks for administrator rights), lets the folder be
+  changed, and adds Start menu and desktop shortcuts. Settings → Apps
+  uninstalls it; preferences and presets under `%APPDATA%\Connector Foundry`
+  survive that, like on macOS.
 - The installer is not code-signed, so SmartScreen shows "Windows protected
   your PC" on first run: **More info**, then **Run anyway**. The release notes
   say so, and `SHA256SUMS.txt` is published next to it.
 - The navigation row is the title bar: Electron's window controls overlay
   draws minimise, maximise and close over the top-right corner, and the row
   keeps clear of them by reading the overlay's bounds (`env(titlebar-area-*)`),
-  the same way the macOS build keeps clear of the traffic lights. The menu
-  bar is hidden; Alt shows it, and its shortcuts (zoom, fullscreen, quit)
-  work regardless.
+  the same way the macOS build keeps clear of the traffic lights. A hidden
+  title bar makes the window frameless on Windows, so there is no menu bar;
+  the application menu only supplies shortcuts, which work all the same:
+  Ctrl+0, Ctrl+Plus and Ctrl+Minus for zoom, F11 for fullscreen, Ctrl+W to
+  close the window (Alt+F4 quits, as everywhere on Windows).
 - Launching the app a second time focuses the running window instead of
   opening another one. Windows starts a fresh process per launch, so the
-  main process takes Electron's single-instance lock; macOS never needed it.
+  main process takes Electron's single-instance lock there (and on Linux);
+  on macOS, where the development launcher and the installed app share a
+  profile, it is deliberately not taken.
 - The taskbar groups and pins the app by its AppUserModelID, the same
   `com.connectorfoundry.desktop` electron-builder writes into the shortcut.
 - Imports and exports go through the native Windows file dialogs, as on
@@ -45,17 +50,19 @@ npm run desktop          # build the web app and launch Electron
 npm run desktop:dist     # build release\win-unpacked\ and the installer
 ```
 
-From a Mac (or Linux), the same installer cross-builds:
+From a Mac, the same installer cross-builds:
 
 ```sh
 cd web
 npm run desktop:dist -- --win --x64
 ```
 
-No Wine is involved. electron-builder 26 edits the executable's icon and
-version resources with a pure-JS PE editor (`resedit`), runs its own
-`makensis` build for the host platform, and extracts the uninstaller from the
-freshly built installer itself. `electron-builder.yml` selects its unified
+No Wine is involved there. electron-builder 26 edits the executable's icon
+and version resources with a pure-JS PE editor (`resedit`), runs its own
+`makensis` build for the host platform, and on macOS extracts the uninstaller
+from the freshly built installer itself (a Linux host runs the installer
+under Wine for that step, so Linux needs Wine installed, or electron-builder's
+`toolsets.wine` bundle). `electron-builder.yml` selects its unified
 NSIS toolset (`toolsets.nsis: '1.2.1'`, makensis 3.12) because that one
 ships a native compiler for Apple Silicon; the legacy default is an x86_64
 binary that needs Rosetta. The first build downloads the toolset into
@@ -100,13 +107,16 @@ reserved 157 px; the suite took eight seconds against the installed app.
 
 ## CI and releases
 
-`.github/workflows/desktop.yml` runs one job per platform, all with `bash`
-(Git for Windows provides it on the Windows runner). The Windows job installs
-dependencies, runs the unit tests, builds the installer with a fixed name,
-runs the desktop suite against `release/win-unpacked/Connector Foundry.exe`,
-and uploads the installer and the screenshots. A version tag publishes the
-installer alongside the DMGs; see [MACOS.md](MACOS.md#publishing-a-release)
-for the tagging steps.
+`.github/workflows/desktop.yml` runs one job per platform; the shared steps
+use `bash` (Git for Windows provides it on the Windows runners), the two
+Windows-only ones PowerShell. The Windows job installs dependencies, runs the
+unit tests, builds the installer with a fixed name, runs that installer
+silently into a scratch folder (`/S /D=…`), runs the desktop suite against the
+installed `Connector Foundry.exe`, runs the uninstaller silently and checks it
+cleaned up, and uploads the installer and the screenshots. An experimental
+`windows-11-arm` entry (`continue-on-error`) does the same for an ARM64
+build. A version tag publishes the installers alongside the DMGs; see
+[MACOS.md](MACOS.md#publishing-a-release) for the tagging steps.
 
 ## Not done
 
