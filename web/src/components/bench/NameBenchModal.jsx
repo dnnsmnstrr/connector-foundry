@@ -18,11 +18,7 @@ export default function NameBenchModal({ defaultName, onConfirm, onCancel }) {
 
   return (
     <Modal onClose={onCancel} title="Name this bench" className="bench-name-modal">
-      <p className="muted bench-name-help">
-        Exports are named after the bench — <code>{trimmed || "name"}_root.stl</code>,{" "}
-        <code>{trimmed || "name"}.scad</code>, <code>{trimmed || "name"}.bench.json</code> — so the files say
-        what they are. This one is built from the parts; change it to anything.
-      </p>
+      <p className="muted bench-name-help">Exported files are named after the bench.</p>
       <form className="bench-name-form" onSubmit={submit}>
         <input
           type="text"
