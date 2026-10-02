@@ -44,6 +44,11 @@ jobs:
             arch: arm64
             artifact: Connector-Foundry-windows-arm64-setup
             experimental: true
+            # 7-Zip applies its ARM64 branch filter to arm64 executables by
+            # default, which the installer's old Nsis7z plugin cannot decode:
+            # the install then silently drops every .exe and .dll. BCJ2 (what
+            # the x64 payload gets) it can decode, at a little compression.
+            sevenzip-filter: BCJ2
     runs-on: ${{ matrix.runner }}
     continue-on-error: ${{ matrix.experimental == true }}
     defaults:
@@ -74,6 +79,8 @@ jobs:
       - run: >-
           npm run desktop:dist -- --${{ matrix.platform }} --${{ matrix.arch }}
           '--config.${{ matrix.platform }}.artifactName=${{ matrix.artifact }}.${ext}'
+        env:
+          ELECTRON_BUILDER_7Z_FILTER: ${{ matrix.sevenzip-filter }}
       # Windows: run the installer the way a user would (silently, into a
       # scratch folder), and test the app it installed rather than the
       # unpacked build. /D= must come last and takes no quotes.
