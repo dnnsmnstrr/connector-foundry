@@ -1443,9 +1443,13 @@ a.mode-tab {
     padding: 0.4rem 0.6rem;
   }
 
-  :root:not(.desktop) .shortcut-hint,
-  :root:not(.desktop) .settings-label,
-  :root:not(.desktop) .render-indicator-text {
+  /* The desktop shells keep their pane layout at this width (a zoomed
+     window), but shed the header's labels like everyone else: the row
+     cannot wrap or grow, and on Windows its right end is the window
+     controls', so what does not fit must go rather than slide under them. */
+  .shortcut-hint,
+  .settings-label,
+  .render-indicator-text {
     display: none;
   }
 
