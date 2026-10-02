@@ -77,6 +77,17 @@ jobs:
       # Windows: run the installer the way a user would (silently, into a
       # scratch folder), and test the app it installed rather than the
       # unpacked build. /D= must come last and takes no quotes.
+      # Unsigned Electron binaries are a known Defender false positive
+      # (Wacapew and friends); if the installed tree comes up short of its
+      # .exe and .dll files, this is where to look.
+      - name: Defender status (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          Get-MpComputerStatus | Select-Object AntivirusEnabled, RealTimeProtectionEnabled, AntivirusSignatureVersion | Format-List
+          "detections so far: $((Get-MpThreatDetection | Measure-Object).Count)"
+          Get-MpThreatDetection | Select-Object -First 10 | Format-List InitialDetectionTime, ThreatID, Resources, ActionSuccess
+          Test-Path 'release/win-${{ matrix.arch == 'x64' && '' || format('{0}-', matrix.arch) }}unpacked/Connector Foundry.exe'
       - name: Install (Windows)
         if: matrix.platform == 'win'
         shell: pwsh
@@ -93,8 +104,11 @@ jobs:
               # Where did it go instead? The scratch folder and the default per-user location.
               foreach ($dir in $env:RUNNER_TEMP, (Join-Path $env:LOCALAPPDATA 'Programs')) {
                 "--- $dir"
-                Get-ChildItem $dir -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 40 | Format-Table FullName, Length
+                Get-ChildItem $dir -Recurse -Depth 1 -ErrorAction SilentlyContinue | Where-Object Name -notlike '*.pak' | Select-Object -First 40 | Format-Table FullName, Length
               }
+              "--- Defender detections"
+              Get-MpThreatDetection | Select-Object -First 10 | Format-List InitialDetectionTime, ThreatID, Resources, ActionSuccess
+              Get-MpThreat | Select-Object -First 10 | Format-List ThreatName, Resources
               exit 1
             }
           }
