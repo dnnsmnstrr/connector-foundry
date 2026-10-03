@@ -81,7 +81,7 @@ async function main() {
       return;
     } else throw new Error(`Unknown or incomplete option: ${args[i]}`);
   }
-  if (process.platform !== 'darwin') throw new Error('This installer requires macOS.');
+  if (process.platform !== 'darwin') throw new Error('This installer requires macOS. On Windows, build the installer with `npm run desktop:dist -- --win --x64` and run release/Connector-Foundry-*-setup.exe (see docs/WINDOWS.md).');
   if (!['arm64', 'x64'].includes(process.arch)) throw new Error(`Unsupported architecture: ${process.arch}`);
   destination ??= await exists(path.join('/Applications', appName)) ? '/Applications' : path.join(os.homedir(), 'Applications');
   await mkdir(destination, { recursive: true });

@@ -1,9 +1,10 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Keep notices next to the compiled application, including upstream SCAD
 // notices that a JS bundler cannot discover.
-const root = new URL('../../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../../', import.meta.url));
 let notices = '# Connector Foundry — bundled third-party notices\n\n';
 notices += 'The OpenSCAD WASM package declares GPL-2.0. The STEP reader (occt-import-js, bundling Open CASCADE Technology) is LGPL-2.1 with the OCCT exception. Geometry sources and meshes have separate licenses; see SOURCE-README.md in this app bundle. This file does not relicense them.\n\n';
 for (const base of ['vendor', 'web/node_modules']) {

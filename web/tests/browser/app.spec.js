@@ -48,19 +48,22 @@ async function importConfig(page, config) {
   await page.getByRole("button", { name: "Import config…", exact: true }).click();
   await (await chooser).setFiles({ name: "test.bench.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(config)) });
 }
+// Named, so exports start at once: a bench without a name asks for one
+// before its first export, and these tests wait on the download instead.
 const config = (root = { partId: "basics/plate", params: { w: 40, d: 40, t: 4, r: 3 } }) => ({
-  format: "connector-foundry/bench", version: 1, root, nodes: [], imports: [],
+  format: "connector-foundry/bench", version: 1, name: "bench", root, nodes: [], imports: [],
 });
 
-for (const width of [1280, 640]) {
-  test(`desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
+for (const [platform, width] of [['mac', 1280], ['mac', 640], ['win', 1280], ['win', 640]]) {
+  test(`${platform} desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
     await page.setViewportSize({ width, height: 600 });
     // Also exercise the CSS width reached by zooming a native window: it must
-    // keep independent panes instead of switching into the mobile layout.
-    await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop-mac')));
+    // keep independent panes instead of switching into the mobile layout,
+    // on either desktop (main.jsx adds these classes under foundry://).
+    await page.addInitScript((platform) => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop', `desktop-${platform}`)), platform);
     await mockWorker(page, true);
     await page.goto('/');
-    await expect(page.locator('html')).toHaveClass(/desktop-mac/);
+    await expect(page.locator('html')).toHaveClass(new RegExp(`desktop-${platform}`));
     await page.getByRole('button', { name: 'Board exact', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled();
     const sidebar = page.locator('.sidebar');
@@ -216,6 +219,9 @@ test("Bench state survives mode switches and URL reload", async ({ page }) => {
   await mockWorker(page, true);
   await page.goto("/");
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
+  // The name is bench state too; set, it also lets the export below start
+  // without the name prompt a fresh bench shows first.
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("kept");
   await page.getByText("Root parameters", { exact: true }).click();
   await page.getByRole("spinbutton", { name: "w", exact: true }).fill("57");
   await expect(page).toHaveURL(/bench=/);
@@ -226,10 +232,14 @@ test("Bench state survives mode switches and URL reload", async ({ page }) => {
   // Read the config after reload too, so a stale URL mirror cannot hide
   // behind the still-live session store.
   await page.reload();
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("kept");
   const saved = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download config", exact: true }).click();
-  const doc = JSON.parse((await downloadBytes(await saved)).toString());
+  const download = await saved;
+  expect(download.suggestedFilename()).toBe("kept.bench.json");
+  const doc = JSON.parse((await downloadBytes(download)).toString());
   expect(doc.root.params.w).toBe(57);
+  expect(doc.name).toBe("kept");
 });
 
 test("embedded imported meshes survive config export and reload", async ({ page }) => {
