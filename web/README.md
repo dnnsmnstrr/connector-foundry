@@ -81,6 +81,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
+| `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root, and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |

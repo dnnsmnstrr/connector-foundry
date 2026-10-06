@@ -101,6 +101,15 @@
 #   the version that goes into a board, i.e. a bench root. A saved user
 #   default for the same parameter still wins (web/src/lib/userOverrides.js's
 #   resolveAttachedParams()). Keys must be parameters with a default.
+#
+# attached_up: [x, y] — an axis in the part's own mating plane that
+#   should point up when the Bench attaches the part to a side face.
+#   The Bench starts such a part at the spin that turns this axis as
+#   close to world up as it goes (web/src/lib/benchOrientation.js's
+#   uprightSpin()), so an openConnect head lands on the side of a box
+#   with its slide direction already vertical. Nothing happens on a top
+#   or bottom slot, where every spin keeps the axis level; the user's
+#   own rotation still applies afterwards.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -252,6 +261,8 @@ parts:
       attaching it).
     attached_defaults:
       body: none
+    # The head's +Y is the way it slides to seat: up, on a wall.
+    attached_up: [0, 1]
     defaults:
       variant: full
       body: directional

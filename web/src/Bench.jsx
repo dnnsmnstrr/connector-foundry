@@ -51,6 +51,7 @@ import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
+import { uprightSpin } from "./lib/benchOrientation.js";
 
 // A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -354,9 +355,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // Finish the pending "attach to this slot" with `partId`: a catalogue
   // part attaches via its own "mount"; an imported one via the anchor
   // the user picked in the import flow.
-  function attachPending(partId, params, childAnchor) {
+  function attachPending(partId, params, childAnchor, spin = 0) {
     setAssembly((a) =>
-      addChild(a, { parentId: pendingSlot.parentId, partId, params, slotName: pendingSlot.slotName, joint: pendingJoint, childAnchor }),
+      addChild(a, { parentId: pendingSlot.parentId, partId, params, slotName: pendingSlot.slotName, joint: pendingJoint, childAnchor, spin }),
     );
     setPendingSlot(null);
     setPendingJoint("fused");
@@ -378,7 +379,12 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         if (!(key in pinned)) params[key] = value;
       }
     }
-    attachPending(part.id, params, "mount");
+    // A part with an `attached_up` axis (the openConnect head's slide
+    // direction) starts turned so that axis points up when it lands on
+    // a side face — the way it hangs on a wall — instead of wherever
+    // BOSL2's attach() happens to leave it.
+    const spin = part.attached_up ? uprightSpin(assembly, partsById, pendingSlot.parentId, pendingSlot.slotName, part.attached_up) ?? 0 : 0;
+    attachPending(part.id, params, "mount", spin);
   }
 
   function registerImport(importedPart) {

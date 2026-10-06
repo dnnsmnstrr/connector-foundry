@@ -128,7 +128,9 @@ attached part has:
   to another may start from different values than the same part on its own (the catalogue's
   `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone
   (`body: none`), the thing you fuse onto a plate to hang it, while the version picked as a base
-  keeps its snap body. A saved user default for the parameter still wins.
+  keeps its snap body. A saved user default for the parameter still wins. The openConnect head
+  also starts turned so its slide direction points up when it lands on a side face, the way it
+  hangs on a wall (the catalogue's `attached_up`); the Rotation field turns it from there.
 
 **STL, STEP and 3MF import** bring in any part — a Mechanism or Printables download, a supplier's
 CAD file, a slicer project's model — as a Bench part: click a flat face to put a slot at its centre.

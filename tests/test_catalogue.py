@@ -63,6 +63,11 @@ def test_option_lists_agree_with_defaults_and_variants():
                     problems.append(
                         f"{part['id']} [{variant['name']}]: {key}={value!r} "
                         f"is not in {options[key]}")
+        # `attached_up` is an [x, y] axis the Bench turns up on a side face.
+        up = part.get("attached_up")
+        if up is not None and not (
+                isinstance(up, list) and len(up) == 2 and all(_is_mm(v) for v in up) and any(up)):
+            problems.append(f"{part['id']}: attached_up must be a non-zero [x, y], got {up!r}")
         # `attached_defaults` is the same kind of promise as `defaults`:
         # the Bench hands these values to the module unchecked.
         for key, value in part.get("attached_defaults", {}).items():
