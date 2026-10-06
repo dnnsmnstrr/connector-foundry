@@ -27,16 +27,16 @@ basics/dovetail_rail:
 basics/plate:
   default:
     bbox:
-    - 40.0
-    - 40.0
+    - 42.0
+    - 42.0
     - 4.0
-    volume_mm3: 6364.0
+    volume_mm3: 6995.93
   with-bolts:
     bbox:
-    - 40.0
-    - 40.0
+    - 42.0
+    - 42.0
     - 4.0
-    volume_mm3: 6196.35
+    volume_mm3: 6828.29
 basics/post:
   bored:
     bbox:
