@@ -54,7 +54,7 @@ module og_multiconnect_on_snap(variant, body, anchor, spin, orient) {
             // about Y, as in openconnect.scad); the neck's excess sinks
             // a hundredth into the body so the union is one solid.
             translate([0, 0, t + MC_HEAD_H]) rotate([0, 180, 0])
-                mc_head(excess = 0.01, anchor = BOTTOM, $fa = 1, $fs = 0.4);
+                mc_head(excess = 0.01, anchor = BOTTOM, $fa = detail_fa(1), $fs = detail_fs(0.4));
         }
         children();
     }

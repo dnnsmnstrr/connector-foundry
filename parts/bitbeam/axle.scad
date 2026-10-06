@@ -13,8 +13,8 @@ include <../../lib/slots.scad>
 include <../../vendor/technic.scad/Technic.scad>
 
 // Same reset as pin.scad — see there.
-$fa = 12;
-$fs = 2;
+$fa = DETAIL_FA;
+$fs = DETAIL_FS;
 
 BITBEAM_AXLE_FN = 32;
 

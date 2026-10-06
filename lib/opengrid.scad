@@ -38,7 +38,7 @@ use <../vendor/opengrid-projects/lib/opengrid_snap_lib.scad>
 // deeper nub and bottom corners that take the load on its back (+Y) —
 // or "symmetric" for a horizontal board. Bottom on z = 0, centred on
 // the 24.8 mm body; the nubs stand proud of it (see OG_SNAP_NUB).
-module og_snap_body(thickness = 6.8, body = "directional", $fa = 1, $fs = 0.4) {
+module og_snap_body(thickness = 6.8, body = "directional", $fa = detail_fa(1), $fs = detail_fs(0.4)) {
     assert(body == "directional" || body == "symmetric",
            "body must be \"directional\" or \"symmetric\"");
     cfg = snap_body_cfg(snap_thickness = thickness,

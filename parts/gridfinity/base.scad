@@ -14,6 +14,7 @@
 // and screw hole geometry (chamfers, crush ribs, supportless printing)
 // come from upstream and track it on submodule update.
 include <../../vendor/BOSL2/std.scad>
+include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 
 include <../../vendor/gridfinity-rebuilt/src/core/standard.scad>
@@ -42,9 +43,16 @@ module gf_base(gx = 1, gy = 1, magnets = false, screws = false,
     anchors = concat([mount_anchor(size.z / 2)], grid_mount_anchors(size, slot_pitch, size.z / 2));
 
     attachable(anchor, spin, orient, size = size, anchors = anchors) {
+        // Upstream's bin generator (gridfinity-rebuilt-bins.scad) renders
+        // at $fa = 4, $fs = 0.25, set at its file level — which this
+        // wrapper never loads, so without these the magnet and screw
+        // holes came out at OpenSCAD's defaults, as ~11-sided polygons.
+        // Passed on this call alone, so a part stacked on the base keeps
+        // its own detail.
         down(size.z / 2)
             gridfinityBase([gx, gy], hole_options = holes,
-                           only_corners = only_corners, thumbscrew = thumbscrew);
+                           only_corners = only_corners, thumbscrew = thumbscrew,
+                           $fa = detail_fa(4), $fs = detail_fs(0.25));
         children();
     }
 }

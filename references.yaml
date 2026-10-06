@@ -155,9 +155,13 @@ shape_checks:
     ours: |
       include <{repo}/parts/gridfinity/base.scad>
       gf_base(anchor = BOTTOM);
+    # Upstream's bin generator renders at $fa = 4, $fs = 0.25 (its file
+    # level); our wrapper passes the same on its call.
     reference: |
       include <{gridfinity-rebuilt}/src/core/standard.scad>
       use <{gridfinity-rebuilt}/src/core/base.scad>
+      $fa = 4;
+      $fs = 0.25;
       gridfinityBase([1, 1]);
     align: none
     sections_z: [0.01, 0.4, 0.8, 2.6, 4.0, 4.74, 5.5, 6.9]
@@ -179,6 +183,8 @@ shape_checks:
       include <{gridfinity-rebuilt}/src/core/standard.scad>
       use <{gridfinity-rebuilt}/src/core/base.scad>
       use <{gridfinity-rebuilt}/src/core/gridfinity-rebuilt-holes.scad>
+      $fa = 4;
+      $fs = 0.25;
       gridfinityBase([2, 1], hole_options = bundle_hole_options(
           magnet_hole = true, screw_hole = true, crush_ribs = true, chamfer = true));
     align: none
@@ -203,6 +209,9 @@ shape_checks:
       include <{gridfinity-rebuilt}/src/core/standard.scad>
       use <{gridfinity-rebuilt}/gridfinity-rebuilt-baseplate.scad>
       use <{gridfinity-rebuilt}/src/core/gridfinity-rebuilt-holes.scad>
+      // The baseplate generator's own $fa/$fs, as our wrapper passes.
+      $fa = 8;
+      $fs = 0.25;
       gridfinityBaseplate([1, 1], 42, [0, 0], 0,
                           bundle_hole_options(magnet_hole = false), 0);
     align: none

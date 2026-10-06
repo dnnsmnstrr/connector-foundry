@@ -40,7 +40,7 @@ module og_openconnect(variant = "full", body = "directional",
     if (body == "none") {
         size = [OC_HEAD_W, OC_HEAD_L, OC_HEAD_H];
         attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
-            translate([0, -OC_HEAD_SHIFT_Y, -size.z / 2]) oc_head(anchor = BOTTOM, $fa = 1, $fs = 0.4);
+            translate([0, -OC_HEAD_SHIFT_Y, -size.z / 2]) oc_head(anchor = BOTTOM, $fa = detail_fa(1), $fs = detail_fs(0.4));
             children();
         }
     } else
@@ -65,7 +65,7 @@ module og_openconnect_on_snap(variant, body, anchor, spin, orient) {
             // +Y (the slide direction) where it is. The neck's excess
             // sinks a hundredth into the body so the union is one solid.
             translate([0, 0, t + OC_HEAD_H]) rotate([0, 180, 0])
-                oc_head(excess = 0.01, anchor = BOTTOM, $fa = 1, $fs = 0.4);
+                oc_head(excess = 0.01, anchor = BOTTOM, $fa = detail_fa(1), $fs = detail_fs(0.4));
         }
         children();
     }

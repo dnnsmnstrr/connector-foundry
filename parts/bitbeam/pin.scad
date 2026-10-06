@@ -23,10 +23,12 @@ include <../../vendor/technic.scad/Technic.scad>
 // Technic.scad sets $fa/$fs to very fine values at file level, which —
 // as an include — would apply to every curve in the whole compile, not
 // just the pin (a Bench assembly with a pin in it would tessellate its
-// Gridfinity base at 0.05mm). Put OpenSCAD's defaults back; the pin
+// Gridfinity base at 0.05mm). Put the global circle detail back
+// (lib/constants.scad's DETAIL_FA/DETAIL_FS — OpenSCAD's defaults at
+// "normal"); the pin
 // itself gets an explicit $fn inside its module below.
-$fa = 12;
-$fs = 2;
+$fa = DETAIL_FA;
+$fs = DETAIL_FS;
 
 // Segment count for every curve of the pin. A multiple of 4, so the
 // collar's polygon has vertices on both axes and the rendered bounding

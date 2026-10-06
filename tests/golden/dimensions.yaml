@@ -239,50 +239,50 @@ gridfinity/base:
     - 83.5
     - 83.5
     - 7.0
-    volume_mm3: 42789.83
+    volume_mm3: 42789.56
   default:
     bbox:
     - 41.5
     - 41.5
     - 7.0
-    volume_mm3: 10704.88
+    volume_mm3: 10712.34
   thumbscrew:
     bbox:
     - 41.5
     - 41.5
     - 7.0
-    volume_mm3: 9928.98
+    volume_mm3: 9936.44
   with-magnets:
     bbox:
     - 41.5
     - 41.5
     - 7.0
-    volume_mm3: 10392.96
+    volume_mm3: 10383.5
   with-magnets-and-screws:
     bbox:
     - 41.5
     - 41.5
     - 7.0
-    volume_mm3: 10342.67
+    volume_mm3: 10317.36
 gridfinity/baseplate:
   default:
     bbox:
     - 42.0
     - 42.0
     - 5.0
-    volume_mm3: 1374.14
+    volume_mm3: 1380.67
   screw-together-magnets:
     bbox:
     - 42.0
     - 42.0
     - 11.75
-    volume_mm3: 6417.49
+    volume_mm3: 6371.6
   weighted-2x1:
     bbox:
     - 84.0
     - 42.0
     - 11.4
-    volume_mm3: 21034.89
+    volume_mm3: 21036.75
 opengrid/board:
   default:
     bbox:

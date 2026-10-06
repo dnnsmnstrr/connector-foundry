@@ -228,12 +228,26 @@ test("printer settings invalidate downloads and refresh the preview", async ({ p
   const download = page.getByRole("button", { name: "Download STL", exact: true });
   await expect(download).toBeEnabled();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("spinbutton", { name: "FIT_CLEARANCE (mm)", exact: true }).fill("0.3");
+  await page.getByRole("spinbutton", { name: "Fit clearance (mm)", exact: true }).fill("0.3");
   await expect.poll(() => jobCount(page)).toBe(2);
   expect(await page.evaluate(() => window.__renders.jobs[1].request.globalOverrides.FIT_CLEARANCE)).toBe(0.3);
+
+  // Circle detail rides the same layer: picking "fine" re-renders with
+  // it (cancelling the render still running); picking "normal" again
+  // clears the override, since it is the default, and renders without it.
+  const detail = page.getByRole("combobox", { name: "Circle detail" });
+  await expect(detail).toHaveValue("normal");
+  await detail.selectOption("fine");
+  await expect.poll(() => jobCount(page)).toBe(3);
+  expect(await page.evaluate(() => window.__renders.jobs[2].request.globalOverrides)).toEqual({ FIT_CLEARANCE: 0.3, CIRCLE_DETAIL: "fine" });
+  await detail.selectOption("normal");
+  await expect.poll(() => jobCount(page)).toBe(4);
+  expect(await page.evaluate(() => window.__renders.jobs[3].request.globalOverrides)).toEqual({ FIT_CLEARANCE: 0.3 });
+  expect(await page.evaluate(() => Object.values(localStorage).some((v) => v.includes("CIRCLE_DETAIL")))).toBe(false);
+
   await page.keyboard.press("Escape");
   await expect(download).toBeDisabled();
-  await finish(page, 1);
+  await finish(page, 3);
   await expect(download).toBeEnabled();
 });
 

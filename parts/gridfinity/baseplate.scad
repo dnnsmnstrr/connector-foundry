@@ -18,6 +18,7 @@
 // from the vendored file, so the declared size tracks upstream. `style`
 // and `screw_holes` map onto upstream's numeric style_plate/style_hole.
 include <../../vendor/BOSL2/std.scad>
+include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 
 include <../../vendor/gridfinity-rebuilt/src/core/standard.scad>
@@ -50,9 +51,13 @@ module gf_baseplate(gx = 1, gy = 1, style = "thin", magnets = false, screw_holes
     attachable(anchor, spin, orient, size = size, anchors = anchors) {
         // Upstream sits on z=0 pockets up; flip it about X so the pockets
         // face down and the back is on top, then centre it.
+        // Upstream's baseplate generator renders at $fa = 8, $fs = 0.25
+        // (gridfinity-rebuilt-baseplate.scad's file level, which `use`
+        // doesn't run) — see base.scad.
         xrot(180) down(size.z / 2)
             gridfinityBaseplate([gx, gy], GRID_DIMENSIONS_MM.x, [0, 0],
-                                style_plate, holes, style_hole);
+                                style_plate, holes, style_hole,
+                                $fa = detail_fa(8), $fs = detail_fs(0.25));
         children();
     }
 }

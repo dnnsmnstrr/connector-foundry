@@ -75,8 +75,11 @@ and [the Windows build](docs/WINDOWS.md).
 - Attaching through a slot spends it.
 
 Physical constants live in `lib/constants.scad`, or upstream where the geometry is vendored (a
-duplicated constant can drift; the few that must be restated are checked). Printer fit tolerance
-is the one global, `FIT_CLEARANCE`.
+duplicated constant can drift; the few that must be restated are checked). Two are global
+settings: printer fit tolerance, `FIT_CLEARANCE`, and how finely curves are faceted,
+`CIRCLE_DETAIL` (`draft`, `normal` or `fine`). At `normal` every part renders with the detail it
+was written for (Gridfinity and the openGrid connectors with their upstream generators' own
+settings); `draft` doubles the facet size for faster renders, `fine` halves it for rounder holes.
 
 ## Joints
 
@@ -251,6 +254,7 @@ foundry defaults set gridfinity/base --magnets   # always on, from now on
 foundry defaults show gridfinity/base
 foundry defaults clear gridfinity/base
 foundry settings set --fit-clearance 0.25        # global: FIT_CLEARANCE
+foundry settings set --circle-detail fine        # global: CIRCLE_DETAIL — rounder holes, slower
 foundry render gridfinity/base --no-user-config  # true catalogue defaults (what tests and CI use)
 ```
 

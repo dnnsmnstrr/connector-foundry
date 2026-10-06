@@ -9,6 +9,7 @@
     foundry defaults set gridfinity/base --magnets   # always render this on
     foundry defaults show gridfinity/base
     foundry settings set --fit-clearance 0.25        # printer runs tight
+    foundry settings set --circle-detail fine        # rounder holes, slower renders
     foundry render gridfinity/base                   # picks both up automatically
     foundry render gridfinity/base --no-user-config  # true catalogue defaults (what CI does)
 
@@ -202,6 +203,27 @@ def constants_names() -> list[str]:
     at render time (OpenSCAD ignores a -D that names nothing)."""
     source = CONSTANTS_PATH.read_text()
     return re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", source, re.MULTILINE)
+
+
+def circle_details() -> list[str]:
+    """The values lib/constants.scad's CIRCLE_DETAIL accepts, read from
+    its CIRCLE_DETAILS list so the two can't drift."""
+    match = re.search(r"^CIRCLE_DETAILS\s*=\s*\[([^\]]*)\]", CONSTANTS_PATH.read_text(), re.MULTILINE)
+    return re.findall(r'"([^"]+)"', match.group(1)) if match else []
+
+
+def check_settings(overrides: dict[str, object]) -> None:
+    """Reject a global setting that names no constant, or a circle detail
+    that isn't one of its levels (OpenSCAD would quietly treat an
+    unknown one as "normal")."""
+    known = constants_names()
+    unknown = [k for k in overrides if k not in known]
+    if unknown:
+        raise typer.BadParameter(f"not a constant in lib/constants.scad: {', '.join(unknown)}")
+    detail = overrides.get("CIRCLE_DETAIL")
+    if detail is not None and detail not in circle_details():
+        raise typer.BadParameter(
+            f"CIRCLE_DETAIL={detail!r} is not one of {', '.join(circle_details())}")
 
 
 def check_parameters(part: dict, overrides: dict[str, object]) -> None:
@@ -482,6 +504,9 @@ app.add_typer(settings_app, name="settings")
 @settings_app.command("set")
 def settings_set(
     fit_clearance: float = typer.Option(None, help="Shorthand for --set FIT_CLEARANCE=..."),
+    circle_detail: str = typer.Option(
+        None, help="How finely curves are faceted: draft, normal or fine. "
+                   "Shorthand for --set CIRCLE_DETAIL=..."),
     set_: list[str] = typer.Option(
         None, "--set", metavar="NAME=VALUE",
         help="Any constant from lib/constants.scad, repeatable."),
@@ -490,12 +515,11 @@ def settings_set(
     overrides = parse_set_items(set_, metavar="NAME=VALUE")
     if fit_clearance is not None:
         overrides["FIT_CLEARANCE"] = fit_clearance
+    if circle_detail is not None:
+        overrides["CIRCLE_DETAIL"] = circle_detail
     if not overrides:
-        raise typer.BadParameter("nothing to save — pass --fit-clearance or --set")
-    known = constants_names()
-    unknown = [k for k in overrides if k not in known]
-    if unknown:
-        raise typer.BadParameter(f"not a constant in lib/constants.scad: {', '.join(unknown)}")
+        raise typer.BadParameter("nothing to save — pass --fit-clearance, --circle-detail or --set")
+    check_settings(overrides)
     merged = userconfig.update_global_overrides(overrides)
     typer.echo(f"saved global settings: {merged}")
 

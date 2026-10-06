@@ -11,6 +11,7 @@ import {
   setSystemOrder,
 } from "../lib/uiPrefs.js";
 import { clearGlobalOverrides, getGlobalOverrides, updateGlobalOverrides } from "../lib/userOverrides.js";
+import InfoTip from "./InfoTip.jsx";
 import Modal from "./Modal.jsx";
 
 // App-wide settings, opened from the nav in either mode. Two kinds live
@@ -51,6 +52,17 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
     setSaved(getGlobalOverrides());
   }
 
+  // Circle detail (lib/constants.scad's CIRCLE_DETAIL): "normal" is the
+  // catalogue default, so picking it clears the override rather than
+  // saving the default as one.
+  const detailDefault = globalDefaults?.CIRCLE_DETAIL ?? "normal";
+  const detail = saved.CIRCLE_DETAIL ?? detailDefault;
+  function applyDetail(value) {
+    if (value === detailDefault) clearGlobalOverrides(["CIRCLE_DETAIL"]);
+    else updateGlobalOverrides({ CIRCLE_DETAIL: value });
+    setSaved(getGlobalOverrides());
+  }
+
   function toggleBenchFollows(on) {
     setBenchFollowsLibrary(on);
     setBenchFollows(on);
@@ -76,13 +88,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   return (
     <Modal onClose={onClose} title="Settings">
       <h4 className="settings-section">Printer</h4>
-      <p className="muted">
-        Applied to every render, on top of any part's own defaults — the same saved-override layer, just not
-        scoped to one part. Only affects parts that actually read FIT_CLEARANCE (Basics and the 2020-extrusion
-        fittings, and bolted/snap joints) — a part that wraps a vendored upstream module directly (Gridfinity,
-        GoPro, openGrid, the 2020 rail) uses that upstream's own geometry instead and won't change here.
-      </p>
-      <label className="field">
+      <label className="field has-info-tip">
         <span className="field-label">
           {differs && (
             <span
@@ -92,7 +98,11 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
               title={`Catalogue default: ${catalogueDefault}`}
             />
           )}
-          FIT_CLEARANCE (mm) — printer runs tight? increase it.
+          Fit clearance (mm)
+          <InfoTip
+            label="About fit clearance"
+            text="Extra gap in parts that fit into each other. Increase it if your printer prints tight. Affects the Basics parts, the 2020 extrusion fittings and bolted or snap joints; parts built on another project's model (Gridfinity, GoPro, openGrid) keep that model's fit."
+          />
           {differs && (
             <button
               type="button"
@@ -105,21 +115,45 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
             </button>
           )}
         </span>
-        <input aria-label="FIT_CLEARANCE (mm)" type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
+        <input aria-label="Fit clearance (mm)" type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
+      </label>
+      <label className="field has-info-tip">
+        <span className="field-label">
+          {detail !== detailDefault && (
+            <span className="field-differs" role="img" aria-label={`Differs from catalogue default ${detailDefault}`} title={`Catalogue default: ${detailDefault}`} />
+          )}
+          Circle detail
+          <InfoTip
+            label="About circle detail"
+            text="How smooth holes and curves come out. Draft is coarser and renders faster, fine is rounder and slower. Parts that need an exact shape to fit (the BitBeam pin and axle, the 2020 rail, the MultiConnect head) and drilled holes keep theirs."
+          />
+        </span>
+        <select aria-label="Circle detail" value={detail} onChange={(e) => applyDetail(e.target.value)}>
+          <option value="draft">Draft</option>
+          <option value="normal">Normal</option>
+          <option value="fine">Fine</option>
+        </select>
       </label>
 
       <h4 className="settings-section">Bench</h4>
-      <label className="field field-checkbox">
+      <label className="field field-checkbox has-info-tip">
         <input type="checkbox" checked={benchFollows} onChange={(e) => toggleBenchFollows(e.target.checked)} />
-        <span className="field-label">Switching to the Bench opens the Library's selected part</span>
+        <span className="field-label">
+          Start an empty Bench with the Library's part
+          <InfoTip
+            label="About starting the Bench"
+            text="When you switch to an empty Bench, the part selected in the Library, with its parameters, becomes its base, like the Open in Bench button. A bench you've started is never replaced."
+          />
+        </span>
       </label>
-      <p className="muted settings-help">
-        Same as the "Open in Bench" button: the part selected in the Library, with its current parameters,
-        becomes the root of a new bench — only while the Bench is empty; a bench you've started is never
-        replaced by a tab switch. Off, an empty Bench starts with its own part picker.
-      </p>
 
-      <h4 className="settings-section">Part list</h4>
+      <h4 className="settings-section has-info-tip">
+        Part list
+        <InfoTip
+          label="About the part list"
+          text="The parts the Library and the Bench pickers offer, and the order of their groups. A hidden part still works in any bench, link or config that uses it. New groups appear at the end."
+        />
+      </h4>
       <ol className="settings-order-list" aria-label="Systems: shown or hidden, and their order">
         {systemOrder.map((system, index) => {
           const systemHidden = hiddenSystems.has(system);
@@ -189,9 +223,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
         })}
       </ol>
       <p className="muted settings-help">
-        What the Library sidebar and both Bench pickers list, and in what order. Untick a system or a part to
-        keep it out of every list — a bench that already uses a hidden part keeps working, and so do links and
-        configs that name one. Catalogue order by default; a system added later appears at the end.
+        Untick to hide, use the arrows to reorder.
         {savedOrder && (
           <>
             {" "}

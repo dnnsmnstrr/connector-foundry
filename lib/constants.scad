@@ -229,6 +229,45 @@ EX_FLOOR_ANGLE  = 45;      // channel floor rise, degrees from the lip plane
 EX_BORE_R       = 5.2 / 2; // center bore clearance
 
 // ============================================================
+// Circle detail — how finely curves are faceted, one global setting.
+//
+// "normal" renders every part with the detail it was written for:
+// OpenSCAD's defaults ($fa = 12, $fs = 2) for a part that sets none,
+// and a part's own values where it does (Gridfinity: upstream's
+// generator settings; the openGrid connectors: their generator's).
+// "draft" doubles both (coarser, faster — for laying out a Bench),
+// "fine" halves both (rounder holes, slower renders). Parts that need
+// an exact facet count to match a reference keep it whatever this says
+// (the BitBeam pin and axle, the 2020 rail's profile, the Holes tab's
+// cutters).
+//
+// Override at render time like FIT_CLEARANCE: -D CIRCLE_DETAIL="fine",
+// `foundry settings set --circle-detail fine`, or the web app's
+// Settings. A part opts in by passing its own $fa/$fs through
+// detail_fa()/detail_fs(); one that sets none gets the top-level
+// defaults below, which every part picks up by including this file.
+// ============================================================
+
+CIRCLE_DETAIL = "normal";   // "draft" | "normal" | "fine"
+CIRCLE_DETAILS = ["draft", "normal", "fine"];
+
+function detail_scale() =
+    CIRCLE_DETAIL == "draft" ? 2 : CIRCLE_DETAIL == "fine" ? 0.5 : 1;
+function detail_fa(fa) = min(45, max(0.1, fa * detail_scale()));
+function detail_fs(fs) = max(0.01, fs * detail_scale());
+
+// OpenSCAD's own defaults, scaled — the detail of every curve a part
+// doesn't set itself. Files that have to reset $fa/$fs after an
+// upstream changed them (parts/bitbeam/pin.scad, axle.scad) reset them
+// to these same values: the last top-level assignment wins, so any
+// other value there would silently override the setting for a whole
+// Bench assembly that includes them.
+DETAIL_FA = detail_fa(12);
+DETAIL_FS = detail_fs(2);
+$fa = DETAIL_FA;
+$fs = DETAIL_FS;
+
+// ============================================================
 // Fit tolerance — one global slop, per BOSL2 convention.
 // Positive value widens clearance fits; override at render time
 // with -D FIT_CLEARANCE=... for a tighter or looser printer.
