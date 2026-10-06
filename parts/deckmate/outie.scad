@@ -25,6 +25,18 @@
 // are dead space nothing will ever be screwed into, and on the rail
 // side they are three open mouths facing the Innie. Leave it off for
 // the "screwed" joint, which needs them.
+//
+// slim=true is Mechanism's own slim Outie instead: the one its Adhesive
+// Puck (printables.com/model/1337452, Mechanism's official release,
+// same CC BY-NC 4.0) is built on, cut out of that file below the puck's
+// plate. Same rail, same depth and height, but no ears for the side
+// holes and the U's outer edge brought in — 30.6mm wide instead of
+// 35.3mm — since nothing engages the outside of the U (the mating piece
+// slots into its inside). Its holes are solid, so fill_holes does
+// nothing to it and the "screwed" joint has nothing to screw into:
+// it is for fusing onto something. The puck's U sits in exactly this
+// part's frame once recentred, rail down as here (checked against
+// outie.stl: the two coincide at zero offset).
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
@@ -35,6 +47,17 @@ DM_OUTIE_BBOX_MIN = [47.536338806152344, 181.843505859375, -26.609174728393555];
 DM_OUTIE_BBOX_MAX = [82.8399429321289, 208.3461151123047, -18.909175872802734];
 DM_OUTIE_SIZE     = DM_OUTIE_BBOX_MAX - DM_OUTIE_BBOX_MIN;   // ~ [35.30, 26.50, 7.70]
 DM_OUTIE_CENTER   = (DM_OUTIE_BBOX_MIN + DM_OUTIE_BBOX_MAX) / 2;
+
+// adhesive_puck.stl holds the puck (a 56.7 x 28.4 plate with the slim
+// Outie's U under it, rail down) and, off to one side, the separate
+// piece that slots into the U. The U's bounding box, from the rail
+// face up to the plate's underside (DM_PUCK_U_BBOX_MAX.z), measured
+// the same way as the box above; a box to that height and footprint
+// cuts the U out of the file and leaves the rest.
+DM_PUCK_U_BBOX_MIN = [-121.6103744506836, 89.6799087524414, -36.699188232421875];
+DM_PUCK_U_BBOX_MAX = [-91.0103759765625, 116.18252563476562, -28.9992];
+DM_PUCK_U_SIZE     = DM_PUCK_U_BBOX_MAX - DM_PUCK_U_BBOX_MIN;   // ~ [30.60, 26.50, 7.70]
+DM_PUCK_U_CENTER   = (DM_PUCK_U_BBOX_MIN + DM_PUCK_U_BBOX_MAX) / 2;
 
 // How far each hole runs down from the base face, in DM_SCREW_HOLES
 // order (side, side, third) — measured off outie.stl the same way as
@@ -55,15 +78,25 @@ DM_OUTIE_HOLE_DEPTHS = [DM_OUTIE_SIZE.z, DM_OUTIE_SIZE.z, 6.0];
 DM_OUTIE_PLUG_R_BASE = DM_OUTIE_HOLE_D_BASE / 2 + 0.3;
 DM_OUTIE_PLUG_R_RAIL = DM_OUTIE_HOLE_D_RAIL / 2 + 0.5;
 
-module deckmate_outie(fill_holes = false, anchor = BOTTOM, spin = 0, orient = UP) {
+module deckmate_outie(fill_holes = false, slim = false, anchor = BOTTOM, spin = 0, orient = UP) {
+    size = slim ? DM_PUCK_U_SIZE : DM_OUTIE_SIZE;
     anchors = [
-        named_anchor("mount", [0, DM_OUTIE_PATTERN_Y, DM_OUTIE_SIZE.z / 2], UP, 0),
+        named_anchor("mount", [0, DM_OUTIE_PATTERN_Y, size.z / 2], UP, 0),
     ];
-    attachable(anchor, spin, orient, size = DM_OUTIE_SIZE, anchors = anchors) {
-        union() {
-            rotate([0, 180, 0]) translate(-DM_OUTIE_CENTER) import("outie.stl", convexity = 6);
-            if (fill_holes) _deckmate_outie_plugs();
-        }
+    attachable(anchor, spin, orient, size = size, anchors = anchors) {
+        if (slim)
+            translate(-DM_PUCK_U_CENTER) intersection() {
+                import("adhesive_puck.stl", convexity = 6);
+                // The U's footprint (a hair over, so its sides aren't cut
+                // on their own faces) from below the rail to the plate.
+                translate(DM_PUCK_U_BBOX_MIN - [0.01, 0.01, 0.01])
+                    cube([DM_PUCK_U_SIZE.x + 0.02, DM_PUCK_U_SIZE.y + 0.02, DM_PUCK_U_SIZE.z + 0.01]);
+            }
+        else
+            union() {
+                rotate([0, 180, 0]) translate(-DM_OUTIE_CENTER) import("outie.stl", convexity = 6);
+                if (fill_holes) _deckmate_outie_plugs();
+            }
         children();
     }
 }

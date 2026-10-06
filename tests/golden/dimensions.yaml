@@ -122,6 +122,12 @@ deckmate/outie:
     - 26.503
     - 7.7
     volume_mm3: 2355.55
+  slim:
+    bbox:
+    - 30.6
+    - 26.503
+    - 7.7
+    volume_mm3: 1909.51
 deckmate/universal:
   default:
     bbox:

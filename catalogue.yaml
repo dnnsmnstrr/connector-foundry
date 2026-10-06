@@ -411,19 +411,28 @@ parts:
     license: CC-BY-NC-4.0
     source: >-
       Mechanism's Bot Print STL — the manufacturer's own model, imported
-      unmodified. CC BY-NC 4.0 — see README "Licensing".
+      unmodified; slim is cut from Mechanism's Adhesive Puck STL
+      (printables.com/model/1337452, also unmodified). CC BY-NC 4.0 —
+      see README "Licensing".
     source_url: https://getmechanism.com/pages/digital-files
     print_note: >-
       The rail half; slides into an Innie. Base up as "mount". Fuse it,
       or use the screwed joint on its three-hole pattern and print the
       rail on its own, rail up. fill_holes plugs the holes on a fused one.
+      slim is Mechanism's own slim Outie, from its Adhesive Puck: no
+      ears for the side holes and the U's outer edge brought in, 30.6mm
+      wide instead of 35.3mm, holes solid — for fusing onto something,
+      not for the screwed joint.
     screw_pattern: deckmate
     mount_offset: [0, 3.391]
     defaults:
       fill_holes: false
+      slim: false
     variants:
       - name: filled-holes
         params: { fill_holes: true }
+      - name: slim
+        params: { slim: true }
 
   - id: deckmate/universal
     system: DeckMate / Mechanism
