@@ -22,10 +22,27 @@ const CLICK_SLOP_PX = 5;
 // the caller's to dispose; one parsed here from stlBuffer is disposed
 // here when replaced or on unmount.
 //
-// markers: optional [{ id, x, y, z, radius? }] — small clickable spheres
-// overlaid on the model, in the model's own mm coordinates (existing
-// slots to attach something to).
+// markers: optional [{ id, x, y, z, radius?, color?, shape?, normal? }]
+// — small clickable objects overlaid on the model, in the model's own
+// mm coordinates (existing slots to attach something to; the Holes
+// tab's holes and snap points). A sphere by default, in the green
+// slot colour; `shape: "ring"` draws a flat ring lying on the surface
+// whose outward `normal` is given (a hole's outline). Hover turns any
+// of them yellow. `hitTest: false` makes a marker display-only: the
+// raycaster never sees it, so it neither takes clicks nor stops the
+// hover reports underneath it (the Holes tab's marker that follows the
+// pointer along a guide line would otherwise sit under the pointer and
+// freeze the hover).
 // onMarkerClick(id): called when a marker is clicked.
+//
+// labels: optional [{ id, point: [x,y,z], text }] — short texts pinned
+// to points in the scene (the Holes tab's measurements), re-projected
+// every frame like the overlay and hidden behind the camera.
+//
+// guides: optional [{ a: [x,y,z], b: [x,y,z], color?, dashed? }] — thin
+// line segments drawn over the model (the Holes tab's center and quarter
+// lines on the hovered face). Not clickable; lifted a hair off the
+// surface the caller puts them on by passing points already offset.
 //
 // placingMode + onSurfacePick([x,y,z], [nx,ny,nz]): when placingMode is
 // true, clicking anywhere on the model itself (not a marker) raycasts
@@ -36,6 +53,15 @@ const CLICK_SLOP_PX = 5;
 // the normal is its mating direction. A curved/faceted region has no
 // such flat neighbor, so this degrades to the hit triangle's own
 // centroid — never worse than a raw click point.
+//
+// onSurfaceHit(hit) + onSurfaceHover(hit | null): the raw alternative
+// to onSurfacePick for a caller that does its own snapping (the Holes
+// tab, lib/snapCandidates.js). With onSurfaceHit set, a placing-mode
+// click reports the hit as it is — { point, normal (the triangle's
+// own), faceIndex, altKey, shiftKey } — instead of a clustered face
+// center, and onSurfaceHover gets the same record as the pointer moves
+// over the model (null once it leaves it; not called while a marker is
+// under the pointer, so snap markers don't vanish on approach).
 //
 // onModelClick([x,y,z] | null): a plain click (no marker under the
 // cursor, not placing) reports where on the model it landed, in model
@@ -62,9 +88,13 @@ export default function StlViewer({
   stlBuffer,
   geometry,
   markers,
+  guides,
+  labels,
   onMarkerClick,
   placingMode,
   onSurfacePick,
+  onSurfaceHit,
+  onSurfaceHover,
   onModelClick,
   highlightBox,
   overlayAnchor,
@@ -72,9 +102,17 @@ export default function StlViewer({
 }) {
   const mountRef = useRef(null);
   const overlayRef = useRef(null);
+  // Label elements by id, and the labels themselves, for the per-frame
+  // projection (see positionLabels in the mount effect).
+  const labelElements = useRef(new Map());
+  const labelsRef = useRef([]);
   const sceneRef = useRef(null);
   const callbacksRef = useRef(null);
   const overlayAnchorRef = useRef(null);
+  // The bounding sphere the camera was last fitted to (see the geometry
+  // effect): a new model of the same size in the same place keeps the
+  // view the user has set up.
+  const fitRef = useRef(null);
   // A browser with WebGL disabled (or a GPU process that just died)
   // throws from the WebGLRenderer constructor. Without this, that throw
   // escapes the effect and React unmounts the whole app to a blank page
@@ -123,6 +161,23 @@ export default function StlViewer({
       controls.update();
       renderer.render(scene, camera);
       positionOverlay();
+      positionLabels();
+    };
+    // Same projection for each label.
+    const positionLabels = () => {
+      for (const label of labelsRef.current) {
+        const el = labelElements.current.get(label.id);
+        if (!el) continue;
+        projected.set(label.point[0], label.point[1], label.point[2]).project(camera);
+        if (projected.z > 1) {
+          el.style.visibility = "hidden";
+          continue;
+        }
+        const x = ((projected.x + 1) / 2) * mount.clientWidth;
+        const y = ((1 - projected.y) / 2) * mount.clientHeight;
+        el.style.visibility = "";
+        el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+      }
     };
     // Pin the overlay layer to the anchor's screen position. Behind the
     // camera (NDC z > 1) it's hidden rather than mirrored onto the screen.
@@ -167,6 +222,23 @@ export default function StlViewer({
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
+    // A raycast hit as the raw-hit callbacks report it: the triangle's
+    // own geometric normal (not an interpolated vertex normal), in world
+    // space, plus the click's modifier keys.
+    const rawHit = (hit, mesh, event) => {
+      const normal = hit.face.normal.clone().transformDirection(mesh.matrixWorld).normalize();
+      return {
+        point: [hit.point.x, hit.point.y, hit.point.z],
+        normal: [normal.x, normal.y, normal.z],
+        faceIndex: hit.faceIndex,
+        altKey: Boolean(event?.altKey),
+        shiftKey: Boolean(event?.shiftKey),
+      };
+    };
+    // Whether the last hover report was a hit, so "left the model" is
+    // reported once, not on every move over empty space.
+    let hovering = false;
+
     const onClick = (event) => {
       if (pointerDownAt && Math.hypot(event.clientX - pointerDownAt[0], event.clientY - pointerDownAt[1]) > CLICK_SLOP_PX) {
         return;
@@ -184,9 +256,14 @@ export default function StlViewer({
 
       if (callbacksRef.current?.placingMode) {
         const mesh = model();
-        if (!mesh || mesh.geometry.index === null) return;
+        if (!mesh) return;
         const hits = raycaster.intersectObject(mesh);
         if (!hits.length) return;
+        if (callbacksRef.current.onSurfaceHit) {
+          callbacksRef.current.onSurfaceHit(rawHit(hits[0], mesh, event));
+          return;
+        }
+        if (mesh.geometry.index === null) return;
         const cluster = clusterFace(mesh.geometry, hits[0].faceIndex);
         const point = new THREE.Vector3(...cluster.point).applyMatrix4(mesh.matrixWorld);
         const normal = new THREE.Vector3(...cluster.normal).transformDirection(mesh.matrixWorld).normalize();
@@ -216,7 +293,7 @@ export default function StlViewer({
         const hitSet = new Set(markerHits.map((h) => h.object));
         let recolored = false;
         for (const marker of group.children) {
-          const color = hitSet.has(marker) ? MARKER_HOVER_COLOR : MARKER_COLOR;
+          const color = hitSet.has(marker) ? MARKER_HOVER_COLOR : marker.userData.color ?? MARKER_COLOR;
           if (marker.material.color.getHex() !== color) {
             marker.material.color.setHex(color);
             recolored = true;
@@ -225,17 +302,35 @@ export default function StlViewer({
         if (recolored) requestRender();
       }
 
+      const callbacks = callbacksRef.current;
+      const mesh = model();
+      // One raycast against the model serves both the cursor and the
+      // hover report; neither is needed with nothing to do on a hit.
+      const wantsModelHit = mesh && !markerHits.length && (callbacks?.placingMode || callbacks?.onModelClick);
+      const modelHits = wantsModelHit ? raycaster.intersectObject(mesh) : [];
+
       let cursor = "default";
       if (markerHits.length) cursor = "pointer";
-      else if (callbacksRef.current?.placingMode) {
-        const mesh = model();
-        if (mesh && raycaster.intersectObject(mesh).length) cursor = "crosshair";
-      } else if (callbacksRef.current?.onModelClick) {
-        const mesh = model();
-        if (mesh && raycaster.intersectObject(mesh).length) cursor = "pointer";
-      }
+      else if (callbacks?.placingMode && modelHits.length) cursor = "crosshair";
+      else if (callbacks?.onModelClick && modelHits.length) cursor = "pointer";
       renderer.domElement.style.cursor = cursor;
+
+      if (callbacks?.placingMode && callbacks?.onSurfaceHover && !markerHits.length) {
+        if (modelHits.length) {
+          hovering = true;
+          callbacks.onSurfaceHover(rawHit(modelHits[0], mesh, event));
+        } else if (hovering) {
+          hovering = false;
+          callbacks.onSurfaceHover(null);
+        }
+      }
     };
+    const onPointerLeave = () => {
+      if (!hovering) return;
+      hovering = false;
+      callbacksRef.current?.onSurfaceHover?.(null);
+    };
+    renderer.domElement.addEventListener("pointerleave", onPointerLeave);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
 
     // Sized to the mount, and re-sized whenever the mount changes — a
@@ -264,8 +359,10 @@ export default function StlViewer({
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
+      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       disposeModel(scene);
       disposeMarkers(scene);
+      disposeGuides(scene);
       disposeHighlight(scene);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
@@ -298,18 +395,26 @@ export default function StlViewer({
     bbox.getSize(size);
     const radius = Math.max(size.x, size.y, size.z, 1);
 
-    controls.target.copy(center);
-    camera.position.set(center.x + radius * 1.6, center.y - radius * 1.6, center.z + radius * 1.6);
-    camera.near = radius / 100;
-    camera.far = radius * 20;
-    camera.updateProjectionMatrix();
-    controls.update();
+    // Re-fit the camera only when the model's size or place actually
+    // changed: a Bench part turned in place, or a hole drilled into a
+    // plate, leaves the view where the user put it.
+    const fit = fitRef.current;
+    const unchanged = fit && fit.center.distanceTo(center) < 0.02 * radius && Math.abs(fit.radius - radius) < 0.02 * radius;
+    if (!unchanged) {
+      controls.target.copy(center);
+      camera.position.set(center.x + radius * 1.6, center.y - radius * 1.6, center.z + radius * 1.6);
+      camera.near = radius / 100;
+      camera.far = radius * 20;
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+    fitRef.current = { center: center.clone(), radius };
     requestRender();
   }, [stlBuffer, geometry]);
 
   useEffect(() => {
-    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick, onModelClick };
-  }, [onMarkerClick, placingMode, onSurfacePick, onModelClick]);
+    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick, onSurfaceHit, onSurfaceHover, onModelClick };
+  }, [onMarkerClick, placingMode, onSurfacePick, onSurfaceHit, onSurfaceHover, onModelClick]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -325,6 +430,11 @@ export default function StlViewer({
     }
     requestRender();
   }, [highlightBox]);
+
+  useEffect(() => {
+    labelsRef.current = labels ?? [];
+    sceneRef.current?.requestRender();
+  }, [labels]);
 
   useEffect(() => {
     overlayAnchorRef.current = overlayAnchor ?? null;
@@ -345,26 +455,72 @@ export default function StlViewer({
     if (markers && markers.length) {
       const group = new THREE.Group();
       group.name = "markers";
-      // One sphere geometry per distinct radius, shared by every marker
-      // of that size, instead of a fresh tessellation per marker.
+      // One geometry per distinct shape and radius, shared by every
+      // marker of that kind, instead of a fresh tessellation per marker.
       const geometryByRadius = new Map();
+      const up = new THREE.Vector3(0, 0, 1);
       for (const marker of markers) {
         const radius = marker.radius ?? DEFAULT_MARKER_RADIUS;
-        let geom = geometryByRadius.get(radius);
+        const shape = marker.shape === "ring" ? "ring" : "sphere";
+        const key = `${shape}:${radius}`;
+        let geom = geometryByRadius.get(key);
         if (!geom) {
-          geom = new THREE.SphereGeometry(radius, 16, 16);
-          geometryByRadius.set(radius, geom);
+          geom = shape === "ring" ? new THREE.RingGeometry(radius * 0.7, radius, 48) : new THREE.SphereGeometry(radius, 16, 16);
+          geometryByRadius.set(key, geom);
         }
-        const sphere = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ color: MARKER_COLOR }));
-        sphere.position.set(marker.x, marker.y, marker.z);
-        sphere.userData.id = marker.id;
-        group.add(sphere);
+        const color = marker.color ?? MARKER_COLOR;
+        const object = new THREE.Mesh(
+          geom,
+          new THREE.MeshBasicMaterial({ color, side: shape === "ring" ? THREE.DoubleSide : THREE.FrontSide }),
+        );
+        object.position.set(marker.x, marker.y, marker.z);
+        if (shape === "ring" && marker.normal) {
+          // Flat on the surface, lifted a hair off it so it doesn't
+          // z-fight the face it outlines.
+          const normal = new THREE.Vector3(...marker.normal).normalize();
+          object.quaternion.setFromUnitVectors(up, normal);
+          object.position.addScaledVector(normal, 0.08);
+        }
+        object.userData.id = marker.id;
+        object.userData.color = color;
+        if (marker.hitTest === false) object.raycast = () => {};
+        group.add(object);
       }
       group.userData.geometries = [...geometryByRadius.values()];
       scene.add(group);
     }
     requestRender();
   }, [markers]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const { scene, requestRender } = sceneRef.current;
+    disposeGuides(scene);
+    if (guides && guides.length) {
+      const group = new THREE.Group();
+      group.name = "guides";
+      // One object per style (solid/dashed × colour), all of that
+      // style's segments in a single buffer.
+      const byStyle = new Map();
+      for (const g of guides) {
+        const key = `${g.dashed ? "d" : "s"}:${g.color ?? 0xffffff}`;
+        if (!byStyle.has(key)) byStyle.set(key, { dashed: Boolean(g.dashed), color: g.color ?? 0xffffff, points: [] });
+        byStyle.get(key).points.push(...g.a, ...g.b);
+      }
+      for (const { dashed, color, points } of byStyle.values()) {
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+        const material = dashed
+          ? new THREE.LineDashedMaterial({ color, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.7 })
+          : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
+        const lines = new THREE.LineSegments(geom, material);
+        if (dashed) lines.computeLineDistances();
+        group.add(lines);
+      }
+      scene.add(group);
+    }
+    requestRender();
+  }, [guides]);
 
   if (webglError) {
     return (
@@ -381,6 +537,22 @@ export default function StlViewer({
       {children && (
         <div ref={overlayRef} className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}>
           {children}
+        </div>
+      )}
+      {labels && labels.length > 0 && (
+        <div className="viewer-labels" aria-hidden="true">
+          {labels.map((label) => (
+            <div
+              key={label.id}
+              className="viewer-label"
+              ref={(el) => {
+                if (el) labelElements.current.set(label.id, el);
+                else labelElements.current.delete(label.id);
+              }}
+            >
+              {label.text}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -401,6 +573,16 @@ function disposeModel(scene) {
   scene.remove(previous);
   if (previous.userData.ownsGeometry) previous.geometry.dispose();
   previous.material.dispose();
+}
+
+function disposeGuides(scene) {
+  const previous = scene.getObjectByName("guides");
+  if (!previous) return;
+  scene.remove(previous);
+  for (const lines of previous.children) {
+    lines.geometry.dispose();
+    lines.material.dispose();
+  }
 }
 
 function disposeMarkers(scene) {

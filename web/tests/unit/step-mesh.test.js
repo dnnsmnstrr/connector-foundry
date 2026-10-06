@@ -40,7 +40,7 @@ test("recognises STEP by extension or by its ISO 10303-21 header", () => {
   assert.equal(looksLikeStep(new TextEncoder().encode("ISO-10303-21;\nHEADER;")), true);
   assert.equal(looksLikeStep(new TextEncoder().encode("solid cube\n facet normal")), false);
   assert.equal(looksLikeStep(new ArrayBuffer(0)), false);
-  assert.equal(MESH_FILE_ACCEPT, ".stl,.step,.stp");
+  assert.equal(MESH_FILE_ACCEPT, ".stl,.step,.stp,.3mf");
 });
 
 test("a single-body STEP tessellates to one watertight solid in millimetres", async () => {

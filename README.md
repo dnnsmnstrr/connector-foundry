@@ -122,10 +122,11 @@ attached part has:
   part itself and a joint's flanges are never trimmed, only what overhangs.
 - Its own **parameter editor**, with the same defaults/overrides as the Library.
 
-**STL and STEP import** bring in any part — a Mechanism or Printables download, a supplier's CAD
-file — as a Bench part: click a flat face to put a slot at its centre. A STEP file is converted to
-a mesh in the browser (OpenCASCADE compiled to WebAssembly, in millimetres whatever unit the file
-declares); one that holds several bodies asks which to use. Meshes are validated and repaired on
+**STL, STEP and 3MF import** bring in any part — a Mechanism or Printables download, a supplier's
+CAD file, a slicer project's model — as a Bench part: click a flat face to put a slot at its centre.
+A STEP file is converted to a mesh in the browser (OpenCASCADE compiled to WebAssembly, in
+millimetres whatever unit the file declares); a 3MF is unpacked and scaled by its declared unit;
+one that holds several bodies asks which to use. Meshes are validated and repaired on
 the way in (welded, winding fixed) and refused with an explanation if they have real holes. Imports
 live in your browser tab only; nothing is fetched or committed.
 
@@ -142,6 +143,32 @@ to reopen later — from the sidebar of a running bench or from the start screen
 stays put when you switch to the Library and back, and lives in the page URL, so a reload (or the
 link, pasted elsewhere) brings it back — imported meshes excepted, which only the tab that uploaded
 them has; use a config file to move those.
+
+## Holes
+
+The web app's Holes tab puts screw holes into a model. Start from a catalogue part (its
+parameters stay editable under a toggle in the sidebar while you work), a mesh of your own (STL, STEP or 3MF), or the
+bench as it stands, then click a face: the
+hole snaps to that face's significant points — its center, the center of each quadrant, the
+center of any hole already through it, and a point set in from each corner (the inset is
+adjustable; a plate with rounded corners gets its corner points where the sharp corners would be).
+Hovering a face also draws guide lines — its center and quarter lines, a radial from the center
+to each corner, and a circle of a radius you choose around the center: the crossings are snap
+points (a bolt circle of up to eight), and a click near a line or the circle lands on it, so a hole
+can go anywhere along the center line and still be exactly centered. Hold Option to see the
+pointed-at spot's distances to the face's edges and center, and the face's size; Shift-click places
+exactly where you click.
+
+Each hole has a diameter, a depth (or goes right through) and a head pocket — counterbore,
+countersink (with its angle), or a hex pocket for a nut trap — from a preset or typed in. The
+presets cover the usual suspects, each drawn as a cross-section so you can see what it cuts:
+M2–M6 socket caps (ISO 4762), M3–M6 countersunk (ISO 10642), button heads (ISO 7380), heat-set
+insert bores, thread-forming core holes for a machine screw straight into plastic, nut traps
+(ISO 4032), wood screws and their pilots, a plain hole and a dowel. Clearances are ISO 273 medium;
+treat every one as a starting point for your printer and measure the first print. A selected hole
+can be edited on its own, and whatever screw was picked or edited last is what the next holes get. Export the result as an
+STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working
+with a native OpenSCAD.
 
 ## Catalogue
 

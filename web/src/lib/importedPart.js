@@ -41,6 +41,26 @@ export function createImportedPart(name, validation, anchors = []) {
   };
 }
 
+// The mesh moved to sit on the grid at the origin — x/y centered, its
+// lowest point at z = 0 — as STL bytes plus its extents. The Holes tab
+// uses this for a mesh it drills: unlike a Bench part (which the
+// generated attachable() wrapper centers itself), a Holes source is
+// imported raw, and an STL saved wherever it last sat on a print bed
+// would otherwise show up far from the grid. `flip` turns it over first
+// (a half turn about X, so what was the underside faces up) — for a
+// file saved the way it prints rather than the way it is used.
+// `geometry` is not changed.
+export function groundedMesh(geometry, { flip = false } = {}) {
+  const moved = geometry.clone();
+  if (flip) moved.rotateX(Math.PI);
+  moved.computeBoundingBox();
+  const { min, max } = moved.boundingBox;
+  moved.translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -min.z);
+  const stlBytes = exportStlBytesFor(moved);
+  moved.dispose();
+  return { stlBytes, extents: [max.x - min.x, max.y - min.y, max.z - min.z] };
+}
+
 function exportStlBytesFor(geometry) {
   const mesh = new THREE.Mesh(geometry);
   const data = new STLExporter().parse(mesh, { binary: true });

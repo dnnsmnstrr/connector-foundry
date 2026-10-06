@@ -59,18 +59,21 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference, the render-in-progress indicator |
 | `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
 | `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
-| `src/Library.jsx`, `src/Bench.jsx` | The two modes — see the sections below |
+| `src/Library.jsx`, `src/Bench.jsx`, `src/Holes.jsx` | The three modes — see the sections below |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
-| `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx` | The rest of the shared UI |
-| `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
+| `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler |
+| `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
+| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields) |
+| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen; the fastener presets; the face-feature snap points; the live document as module state |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
-| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
+| `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
@@ -82,7 +85,7 @@ The nav bar, Settings modal, and the shared "sidebar collapsed?" preference both
 Bench's own `<aside>` read — these live at the `App` level since they're not specific to either
 screen.
 
-- Keyboard shortcuts: `1`/`2` switch Library/Bench, `s` opens Settings, `[` toggles the sidebar,
+- Keyboard shortcuts: `1`/`2`/`3` switch Library/Bench/Holes, `s` opens Settings, `[` toggles the sidebar,
   `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
   `isEditableTarget()` (`src/lib/isEditableTarget.js`, shared with the Bench's own keys) skips every
   single-key shortcut (not `Escape`, which is expected to work
@@ -372,6 +375,15 @@ a part actually has anchors left over. A few implementation notes that don't bel
   gets the same `stlBytes`, and a config embeds the same STL — the STEP file itself is never kept.
   `stepImport.js` keeps the render worker's contract: requests matched by id, and a worker that
   dies rejects everything pending and is replaced on the next import.
+- **3MF import** (`src/lib/threeMfMesh.js`): a 3MF (by `.3mf` extension, or by the zip signature any
+  3MF starts with) is opened with three.js's `ThreeMFLoader` on the main thread — it is XML in a zip,
+  no WebAssembly, and reads in milliseconds — which resolves components and build transforms into a
+  Group of meshes. `bodiesFromGroup()` flattens that into the same bodies list a STEP file gives
+  (one per mesh, in world space, named after the object), so a multi-object 3MF goes through the same
+  body picker. The one thing the loader leaves out is the model's `unit`: it reads the attribute and
+  never scales by it, so `modelUnitOf()` pulls it from the zip itself and `unitScale()` converts
+  (inch → 25.4, centimeter → 10, …) before validation. Colours, materials and print-ticket data
+  are dropped; a Bench part is one solid.
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
   parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
@@ -393,6 +405,109 @@ a part actually has anchors left over. A few implementation notes that don't bel
   the first click on an imported mesh pays for building it. The uploaded/repaired bytes travel to
   the worker as a `Map` in the render request (`importedFiles`), written into the WASM filesystem
   right next to the generated `.scad` before it compiles.
+
+## Holes (`src/Holes.jsx`)
+
+The third tab drills screw holes into a model: a catalogue part (its parameters under the
+sidebar's "Part parameters" toggle, the same `ParamsEditor` as everywhere else; a mesh source gets
+the toggle too, saying it has none), a mesh
+imported as STL/STEP/3MF (`ImportFlow` in its `mode="mesh"`, which stops right after the validate gate;
+`importedPart.js`'s `groundedMesh()` then re-centers it on the grid with its bottom at z = 0, since a
+Holes source is imported raw rather than through the Bench's centering wrapper; its "Part parameters"
+toggle offers one setting, **Flip upside down** — `groundedMesh()`'s `flip`, a half turn about X before
+grounding, with `screwHoles.js`'s `flipHoles()` moving the holes already placed to the same spots on the
+turned-over part),
+or the current bench rendered as one mesh. See the root README's "Holes" section for what it does;
+the implementation notes:
+
+- The document (`src/lib/screwHoles.js`) is `{ source, holes, name, nextSpec, nextPresetId }`:
+  `source` is `{ kind: "catalogue", partId, params }` or `{ kind: "mesh", name, stlBytes, extents }`;
+  each hole is `{ id, point, normal, spec, presetId }`, the point *on the surface* in the model's
+  own frame and the face's outward normal, so the hole is cut along `-normal`. `spec` is diameter,
+  depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`), head diameter (across
+  corners for hex), head depth (how far the pocket sinks; a countersink's extra sink on top of its
+  cone) and sink angle. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
+  edits it; with a hole selected the same editor edits that hole, and `nextSpec` follows along, so
+  the screw picked or edited last is what the next holes get. It lives in
+  `src/lib/holesSession.js` (module state, like `benchSession.js`) so a tab switch keeps it; it is
+  not in the URL.
+- `holesToScad()` emits `difference() { <base>; <one cutter per hole> }` — for a catalogue part the
+  same `include` + module call the Library renders, for a mesh an `import()` of bytes mounted beside
+  the file (the `importedFiles` contract `compileToScad()` uses). Each cutter is wrapped in a
+  `multmatrix()` whose columns are an orthonormal frame with +Z along the hole's normal
+  (`planeBasis()`, the same in-plane axes `faceCluster.js` picks), so every cutter is written once
+  in a local frame where the surface is z = 0: the shank from `-depth` (or past the far side, for a
+  through hole — the base's bounding-box diagonal) to 1 mm above the surface, a counterbore or hex
+  pocket (`$fn = 6`) from `-headDepth` up, a countersink as a cone from the shank diameter out to
+  the head diameter at the given angle under the sink. The render goes through `renderPart()` as a
+  `scadSource` request like a bench; with no holes the base is shown as it is (the part's own cached
+  standalone render, or the mesh bytes) rather than compiled again.
+- **Snapping** (`src/lib/snapCandidates.js`): the viewer reports raw hits (`StlViewer`'s
+  `onSurfaceHit` / `onSurfaceHover`, the alternative to `onSurfacePick` for a caller that snaps
+  itself) and `analyzeFace()` turns the hit triangle into the whole flat face around it via
+  `faceCluster.js`'s flood fill (which now also returns the cluster's triangles), then chains the
+  cluster's outline edges into loops. On a consistently wound mesh the outer loop runs CCW and hole
+  loops CW, but the outline is picked by size so a mirrored mesh still has one. Loops are simplified
+  to real corners (collinear runs merged); candidates are the face center, the center of each quadrant of
+  the face's bounding box (four screws spread over a plate), the centroid of each hole loop (so a
+  hole already in a catalogue part — a BitBeam plate's, a GoPro's — is a target, with its radius
+  reported), and a point `inset` mm inside each corner, where a corner is the intersection of two
+  consecutive long edges (longer than ~8% of the face) — so a filleted or chamfered plate gets the
+  four points a sharp one would. Edge midpoints are not offered: a screw on the edge of a face is
+  never where one goes. Quadrant centers and corner insets are kept only when they fall on the face
+  and outside its holes. The face also carries **guide lines** (`face.guides`): its two center lines
+  and four quarter lines, each clipped to the outline (`clipLine()` pairs a line's crossings with the
+  polygon's edges into inside intervals, so a line that leaves an L-shaped face and comes back is two
+  pieces). Where a center line crosses a quarter line is a snap point too (`intersection`), and a
+  click near a line but near no point slides onto the line (`nearestGuide()`, rounded to the grid
+  along it) — a hole anywhere along the center line, placed by eye but exactly centered. Two more
+  kinds of guide: a **radial** from the center out through each corner inset to its corner, and the
+  **center circle** — a bolt circle of the radius set in the sidebar ("Center radius", 0 for none,
+  not drawn when wider than the face). Where the circle meets the center lines and the radials are
+  snap points (`circle`), and a click near the circle slides onto it, rounded to whole degrees. The
+  viewer draws them while the face is hovered (`StlViewer`'s `guides` prop: center lines solid,
+  quarter lines and radials dashed, the circle as a 72-segment polyline, all lifted off the face),
+  and a yellow marker follows the pointer along whichever guide it would snap to. The face the
+  pointer last rested on keeps its lines and points after the pointer leaves the model
+  (`guideFaceKey`, re-analysed with the current inset and radius — `analyzeFace()` hands back a
+  fresh record when the settings change, so the memos redraw), so the two settings can be adjusted
+  with the result in view. Another face takes the lines over only after the pointer has rested on it
+  for a third of a second (`GUIDE_SWITCH_DELAY_MS`), or at once on a click, so a face crossed on the
+  way to the sidebar doesn't take them with it; a re-render of the mesh clears it, since the
+  triangles it is keyed on are renumbered. **Measurements:** with Option (Alt) held, the point the
+  pointer is on — snapped, or on a line, or on the grid — gets its distances to the guide face's
+  outline in the four directions of the face's frame and to its center (`edgeDistances()`: the
+  outline crossings of the two axis lines through the point, outer loop only), drawn as bright
+  dimension lines through `guides` and labelled through `StlViewer`'s new `labels` prop (texts
+  re-projected every frame like the overlay); the face's size sits at its center. With the pointer
+  off the model the selected hole is measured instead, when it lies on the guide face. Option-click
+  used to mean free placement; that moved to Shift so a measured snap point can be clicked as
+  snapped. Everything is
+  cached per geometry (face by its lowest triangle index, every triangle mapped to it), so hovering
+  across a face is a lookup. With snapping on, a click within `snapRadius` (4% of the model's
+  largest extent, at least 1.5 mm) of a candidate takes it; otherwise the click rounds to a 0.5 mm
+  grid in the face's own frame; Shift-click (or snapping off) uses the exact point. The analysed mesh
+  is a welded copy (`mergeVertices` on positions only — the display geometry keeps the file's flat
+  normals) in the same triangle order, so the viewer's `faceIndex` indexes it directly. Because it
+  is the *rendered* mesh that is analysed, holes already drilled are themselves snap targets, and a
+  click on one selects it instead of drilling through it (`placeAt()`).
+- Markers: holes are flat rings (`StlViewer` `shape: "ring"` markers, oriented by the hole's
+  normal and lifted 0.08 mm off the surface), the hovered face's snap points small spheres, the one
+  within reach and the selected hole in the selection yellow. Markers now take a `color`, and the
+  viewer keeps the camera where it is when a new model has the same bounding sphere as the last —
+  a hole drilled into a plate (or a Bench part turned in place) no longer resets the view.
+- `src/lib/screwPresets.js` holds the fastener presets — ISO 4762 socket caps, ISO 10642
+  countersunk, ISO 7380 button heads, heat-set inserts, thread-forming core holes, ISO 4032 nut
+  traps, wood screws and their pilots, a plain hole and a dowel — each with the `spec` it cuts and
+  a `screw` record (`style`, nominal, head diameter/height) that `components/holes/ScrewIcon.jsx`
+  draws as a cross-section: the slab, the cut, the fastener seated in it, to the preset's own
+  proportions. A hole remembers the preset it was placed from and says "(edited)" once its spec
+  differs (`specMatchesPreset()`).
+- Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected hole
+  and `Escape` deselects (or closes the import), same local-listener arrangement as the Bench.
+  Exports are `<name>_holes.stl` / `<name>_holes.scad` via `benchName.js`'s `exportFilename()`,
+  the name being the sidebar's field or the source's own stem (a mesh's file name minus its
+  extension).
 
 ## Bench configs and presets (`src/lib/benchConfig.js`, `src/lib/benchPresets.js`)
 
@@ -432,7 +547,7 @@ localStorage), so a preset can always become a file and a file a preset with no 
   no such limit.
 - **UI** (`components/bench/PresetsPanel.jsx`): the same panel in two places. On the start screen
   the saved presets sit above the part picker (only once there are any, or a config import has an
-  error to show) and "Import config…" is in the picker's toolbar beside "Import STL / STEP…"
+  error to show) and "Import config…" is in the picker's toolbar beside "Import STL / STEP / 3MF…"
   (`ConfigImportButton`, a button fronting a hidden file input); in a running bench's sidebar the
   panel also has the name field + Save (reads "Replace" when the name is taken) and its own import
   button, and "Download config" joins the STL/.scad buttons under Export. Loading over an existing

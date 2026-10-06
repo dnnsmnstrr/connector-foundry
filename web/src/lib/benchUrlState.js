@@ -1,8 +1,8 @@
 // The bench in the URL, so a reload (or a bookmarked/pasted link) comes
 // back to the same setup instead of the start screen.
 //
-// The hash carries two things: `mode=bench` when the Bench tab is up
-// (absent means Library, the default), and `bench=<payload>` — the
+// The hash carries two things: `mode=bench` or `mode=holes` when that
+// tab is up (absent means Library, the default), and `bench=<payload>` — the
 // assembly tree as compact JSON (benchConfig.js's own `root`/`nodes`
 // shape, with every default-valued field left out) in URL-safe base64.
 // A typical bench is a few hundred bytes; a big one a few KB, well inside
@@ -30,7 +30,7 @@ export function readUrlState() {
   const params = hashParams();
   const mode = params.get(MODE_PARAM);
   return {
-    mode: mode === "bench" || mode === "library" ? mode : null,
+    mode: mode === "bench" || mode === "library" || mode === "holes" ? mode : null,
     bench: params.get(BENCH_PARAM),
   };
 }

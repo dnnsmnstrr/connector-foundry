@@ -6,6 +6,9 @@ import scadWatchPlugin from "./scripts/vite-plugin-scad-watch.mjs";
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? "/connector-foundry/" : "/",
   plugins: [react(), scadWatchPlugin(), openscadWasmMemoPlugin()],
+  // Vite's default 5173 unless the launcher assigns a port through PORT
+  // (the desktop app's preview does, when 5173 is taken by something else).
+  server: { port: Number(process.env.PORT) || 5173 },
   worker: {
     format: "es",
     // Build-time worker bundling is a separate Rollup pass with its own

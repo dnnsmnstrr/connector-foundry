@@ -590,7 +590,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             toolbar={
               <div className="bench-picker-toolbar">
                 <button className="render-button bench-import-button" onClick={() => setImportMode("root")}>
-                  Import STL / STEP…
+                  Import STL / STEP / 3MF…
                 </button>
                 <ConfigImportButton onFile={importConfigFile} className="render-button bench-import-button" />
               </div>
@@ -857,7 +857,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               autoFocus
               toolbar={
                 <button className="render-button bench-import-button" onClick={() => setImportMode("child")}>
-                  Import STL / STEP…
+                  Import STL / STEP / 3MF…
                 </button>
               }
             />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
+import Holes from "./Holes.jsx";
 import Library from "./Library.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
@@ -36,15 +37,15 @@ function GitHubMark() {
 // is expected to work from inside a focused field too (native <dialog>
 // behaves the same way).
 
-// The shell: nav bar, the Library/Bench mode switch, the Settings modal,
+// The shell: nav bar, the Library/Bench/Holes mode switch, the Settings modal,
 // the sidebar-collapsed preference both modes share, and the URL mirror
 // of the bench (lib/benchUrlState.js) so a reload comes back to it.
 export default function App() {
   const { parts, error } = useCatalogue();
   const globalDefaults = useGlobalDefaults();
   const rendersInFlight = useRenderActivity();
-  // "library" | "bench" — from the URL hash on first load, so a reload
-  // lands on the tab that was showing.
+  // "library" | "bench" | "holes" — from the URL hash on first load, so a
+  // reload lands on the tab that was showing.
   const [mode, setMode] = useState(() => readUrlState().mode ?? "library");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
@@ -166,10 +167,11 @@ export default function App() {
     });
   }
 
-  // Global shortcuts: 1/2 switch mode, s opens Settings, [ toggles the
+  // Global shortcuts: 1/2/3 switch mode, s opens Settings, [ toggles the
   // sidebar, Escape closes Settings. Bench's own modals (attach-a-part,
-  // STL import) close on Escape too, but that's handled locally in
-  // Bench.jsx — it owns that state, App doesn't need to reach into it.
+  // STL import) and the Holes tab's import close on Escape too, but
+  // that's handled locally in Bench.jsx / Holes.jsx — they own that
+  // state, App doesn't need to reach into it.
   useEffect(() => {
     function onKeyDown(e) {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -184,6 +186,9 @@ export default function App() {
           break;
         case "2":
           switchToBench();
+          break;
+        case "3":
+          setMode("holes");
           break;
         case "s":
           setSettingsOpen(true);
@@ -233,6 +238,15 @@ export default function App() {
           title="Bench (2)"
         >
           Bench<kbd className="shortcut-hint">2</kbd>
+        </button>
+        <button
+          type="button"
+          className={mode === "holes" ? "mode-tab active" : "mode-tab"}
+          aria-current={mode === "holes" ? "page" : undefined}
+          onClick={() => setMode("holes")}
+          title="Holes (3)"
+        >
+          Holes<kbd className="shortcut-hint">3</kbd>
         </button>
         <div className="nav-end">
           {/* Always mounted so the live region exists before it has news;
@@ -284,6 +298,13 @@ export default function App() {
             initialSelection={librarySelection.current}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
+          />
+        ) : mode === "holes" ? (
+          <Holes
+            parts={parts}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+            librarySelection={librarySelection.current}
           />
         ) : (
           <Bench
