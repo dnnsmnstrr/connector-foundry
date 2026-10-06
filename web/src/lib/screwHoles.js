@@ -250,18 +250,18 @@ export function holesToScad(doc, partsById, { throughLength, importedFiles } = {
     base = `import(${JSON.stringify(path)});`;
   }
   // The connector slots come from this repo's own libraries, which the
-  // generated file reaches the same way it reaches the part. oc_slot()
-  // is BOSL2 underneath, and BOSL2 only works when std.scad is
+  // generated file reaches the same way it reaches the part. Both are
+  // BOSL2 underneath — oc_slot() openly, mc_slot() because BOSL2
+  // replaces OpenSCAD's own cylinder() with its attachable one in any
+  // file that includes it — and BOSL2 only works when std.scad is
   // *included* by the top-level file: its tag machinery reads special
   // variables ($tags_shown, …) that std.scad sets at file scope, and a
   // `use` does not carry those into the call. A catalogue part's own
-  // include usually brings it in; a mesh source has nothing, and the
-  // slot failed there with "Assertion is_list($tags_shown)". So include
-  // it whenever an openConnect slot is on the model.
-  if (holes.some((h) => h.spec.kind === "openconnect")) {
-    lines.push("include <../vendor/BOSL2/std.scad>");
-    lines.push("use <../lib/openconnect.scad>");
-  }
+  // include usually brings it in; a mesh source has nothing, and a slot
+  // failed there with "Assertion is_list($tags_shown)". So include it
+  // whenever a slot is on the model.
+  if (holes.some((h) => isSlot(h.spec))) lines.push("include <../vendor/BOSL2/std.scad>");
+  if (holes.some((h) => h.spec.kind === "openconnect")) lines.push("use <../lib/openconnect.scad>");
   if (holes.some((h) => h.spec.kind === "multiconnect")) lines.push("use <../lib/multiconnect.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");

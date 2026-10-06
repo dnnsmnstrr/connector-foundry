@@ -74,9 +74,10 @@ test("the cutter frame has +Z along the hole's normal and the surface point as o
   assert.match(m, /^\[\[-?[\d.]+, -?[\d.]+, 0, 1\], \[-?[\d.]+, -?[\d.]+, 1, 2\], \[-?[\d.]+, -?[\d.]+, 0, 3\], \[0, 0, 0, 1\]\]$/);
 });
 
-test("an openConnect slot brings BOSL2 in itself, so it works on a mesh source", () => {
-  // oc_slot() needs std.scad included at top level (its tag variables);
-  // a mesh source has no part include to bring it in.
+test("a connector slot brings BOSL2 in itself, so it works on a mesh source", () => {
+  // Both slots need std.scad included at top level (BOSL2's tag
+  // variables; mc_slot()'s cylinders are BOSL2's too), and a mesh
+  // source has no part include to bring it in.
   const { doc } = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
     point: [0, -20, 5],
     normal: [0, -1, 0],
@@ -84,13 +85,22 @@ test("an openConnect slot brings BOSL2 in itself, so it works on a mesh source",
   });
   const scad = holesToScad(doc, partsById, { throughLength: 60, importedFiles: new Map() });
   assert.match(scad, /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/openconnect\.scad>$/m);
-  // A MultiConnect slot is builtins only and needs nothing more.
-  const mc = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
+  // A MultiConnect slot alone needs it just the same, once.
+  let mc = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
     point: [0, 0, 10],
     normal: [0, 0, 1],
     spec: getPreset("mc-slot").spec,
   }).doc;
-  assert.doesNotMatch(holesToScad(mc, partsById, { throughLength: 60, importedFiles: new Map() }), /BOSL2/);
+  assert.match(holesToScad(mc, partsById, { throughLength: 60, importedFiles: new Map() }), /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/multiconnect\.scad>$/m);
+  mc = addHole(mc, { point: [10, 10, 10], normal: [0, 0, 1], spec: getPreset("oc-slot").spec }).doc;
+  assert.equal(holesToScad(mc, partsById, { throughLength: 60, importedFiles: new Map() }).match(/BOSL2\/std\.scad/g).length, 1);
+  // Screw holes are builtins only and need nothing more.
+  const screw = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
+    point: [0, 0, 10],
+    normal: [0, 0, 1],
+    spec: getPreset("m3-cap").spec,
+  }).doc;
+  assert.doesNotMatch(holesToScad(screw, partsById, { throughLength: 60, importedFiles: new Map() }), /BOSL2/);
 });
 
 test("a mesh source imports its STL and hands the bytes to the caller", () => {

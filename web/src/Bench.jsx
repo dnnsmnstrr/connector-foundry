@@ -72,17 +72,25 @@ function friendlyRenderError(message) {
   // then something bolted onto ONE of the plate's own further anchors:
   // that's the plate plus both bolted flanges, three rounded cuboids in
   // one attach() chain, the same limit as bolting a plate directly).
-  // All of these are the one known cause, not three different bugs:
-  // the WASM thread stack, which gives out about 70 nested module
-  // levels down (see web/README.md, "Known limit — nesting depth").
-  if (/table index|memory access out of bounds|is not a function/i.test(message)) {
-    return "This browser's OpenSCAD build can't preview this bolted/snap/pin combination " +
-      "(a known limitation, not a bad connection) — try \"fused\" for this joint instead, or for a stacked " +
-      "part, fuse just one of the joints in the chain. The generated .scad still renders correctly with a " +
-      "native OpenSCAD install.";
+  // All of these are the one known cause, not different bugs: the WASM
+  // thread stack, which gives out about 70 nested module levels down
+  // (see web/README.md, "Known limit — nesting depth"). Where the
+  // overflow lands decides the wording, so the list below is every
+  // symptom seen while measuring it (2026-10-06) — "Cannot convert 32
+  // to a BigInt" and "null function or function signature mismatch"
+  // included, which an openGrid snap body attached as a child produces.
+  if (WASM_STACK_SYMPTOMS.test(message)) {
+    return "This combination nests too deep for this browser's OpenSCAD build to preview " +
+      "(a known limitation, not a bad model). An openGrid snap with its body, attached to another part, " +
+      "always does: set its body to \"none\" to attach just the connector head. Otherwise try \"fused\" " +
+      "for a bolted/snap/pin joint, or fuse one of the joints in a stacked chain. The generated .scad still " +
+      "renders with a native OpenSCAD install.";
   }
   return message;
 }
+
+const WASM_STACK_SYMPTOMS =
+  /table index|invalid index .* into funcref|memory access out of bounds|is not a function|null function|function signature mismatch|to a BigInt|Maximum call stack size exceeded/i;
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
