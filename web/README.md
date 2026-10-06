@@ -413,7 +413,10 @@ sidebar's "Part parameters" toggle, the same `ParamsEditor` as everywhere else; 
 the toggle too, saying it has none), a mesh
 imported as STL/STEP/3MF (`ImportFlow` in its `mode="mesh"`, which stops right after the validate gate;
 `importedPart.js`'s `groundedMesh()` then re-centers it on the grid with its bottom at z = 0, since a
-Holes source is imported raw rather than through the Bench's centering wrapper),
+Holes source is imported raw rather than through the Bench's centering wrapper; its "Part parameters"
+toggle offers one setting, **Flip upside down** — `groundedMesh()`'s `flip`, a half turn about X before
+grounding, with `screwHoles.js`'s `flipHoles()` moving the holes already placed to the same spots on the
+turned-over part),
 or the current bench rendered as one mesh. See the root README's "Holes" section for what it does;
 the implementation notes:
 
@@ -424,7 +427,8 @@ the implementation notes:
   depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`), head diameter (across
   corners for hex), head depth (how far the pocket sinks; a countersink's extra sink on top of its
   cone) and sink angle. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
-  edits it; with a hole selected the same editor edits that hole alone. It lives in
+  edits it; with a hole selected the same editor edits that hole, and `nextSpec` follows along, so
+  the screw picked or edited last is what the next holes get. It lives in
   `src/lib/holesSession.js` (module state, like `benchSession.js`) so a tab switch keeps it; it is
   not in the URL.
 - `holesToScad()` emits `difference() { <base>; <one cutter per hole> }` — for a catalogue part the
@@ -451,11 +455,38 @@ the implementation notes:
   consecutive long edges (longer than ~8% of the face) — so a filleted or chamfered plate gets the
   four points a sharp one would. Edge midpoints are not offered: a screw on the edge of a face is
   never where one goes. Quadrant centers and corner insets are kept only when they fall on the face
-  and outside its holes. Everything is
+  and outside its holes. The face also carries **guide lines** (`face.guides`): its two center lines
+  and four quarter lines, each clipped to the outline (`clipLine()` pairs a line's crossings with the
+  polygon's edges into inside intervals, so a line that leaves an L-shaped face and comes back is two
+  pieces). Where a center line crosses a quarter line is a snap point too (`intersection`), and a
+  click near a line but near no point slides onto the line (`nearestGuide()`, rounded to the grid
+  along it) — a hole anywhere along the center line, placed by eye but exactly centered. Two more
+  kinds of guide: a **radial** from the center out through each corner inset to its corner, and the
+  **center circle** — a bolt circle of the radius set in the sidebar ("Center radius", 0 for none,
+  not drawn when wider than the face). Where the circle meets the center lines and the radials are
+  snap points (`circle`), and a click near the circle slides onto it, rounded to whole degrees. The
+  viewer draws them while the face is hovered (`StlViewer`'s `guides` prop: center lines solid,
+  quarter lines and radials dashed, the circle as a 72-segment polyline, all lifted off the face),
+  and a yellow marker follows the pointer along whichever guide it would snap to. The face the
+  pointer last rested on keeps its lines and points after the pointer leaves the model
+  (`guideFaceKey`, re-analysed with the current inset and radius — `analyzeFace()` hands back a
+  fresh record when the settings change, so the memos redraw), so the two settings can be adjusted
+  with the result in view. Another face takes the lines over only after the pointer has rested on it
+  for a third of a second (`GUIDE_SWITCH_DELAY_MS`), or at once on a click, so a face crossed on the
+  way to the sidebar doesn't take them with it; a re-render of the mesh clears it, since the
+  triangles it is keyed on are renumbered. **Measurements:** with Option (Alt) held, the point the
+  pointer is on — snapped, or on a line, or on the grid — gets its distances to the guide face's
+  outline in the four directions of the face's frame and to its center (`edgeDistances()`: the
+  outline crossings of the two axis lines through the point, outer loop only), drawn as bright
+  dimension lines through `guides` and labelled through `StlViewer`'s new `labels` prop (texts
+  re-projected every frame like the overlay); the face's size sits at its center. With the pointer
+  off the model the selected hole is measured instead, when it lies on the guide face. Option-click
+  used to mean free placement; that moved to Shift so a measured snap point can be clicked as
+  snapped. Everything is
   cached per geometry (face by its lowest triangle index, every triangle mapped to it), so hovering
   across a face is a lookup. With snapping on, a click within `snapRadius` (4% of the model's
   largest extent, at least 1.5 mm) of a candidate takes it; otherwise the click rounds to a 0.5 mm
-  grid in the face's own frame; Alt-click (or snapping off) uses the exact point. The analysed mesh
+  grid in the face's own frame; Shift-click (or snapping off) uses the exact point. The analysed mesh
   is a welded copy (`mergeVertices` on positions only — the display geometry keeps the file's flat
   normals) in the same triangle order, so the viewer's `faceIndex` indexes it directly. Because it
   is the *rendered* mesh that is analysed, holes already drilled are themselves snap targets, and a

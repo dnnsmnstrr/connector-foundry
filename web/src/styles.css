@@ -1281,6 +1281,30 @@ a.mode-tab {
   min-height: 2.6em;
 }
 
+/* Texts pinned to points in the scene (StlViewer's `labels`): the Holes
+   tab's measurements. The layer lets pointer events through. */
+.viewer-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.viewer-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0.1rem 0.4rem;
+  background: rgba(23, 24, 27, 0.9);
+  border: 1px solid #3a3b40;
+  border-radius: 4px;
+  color: #e6e6e6;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* The snap point under the pointer, named in a chip over the viewer's
    top-left corner — out of the layout, so it can come and go freely. */
 .holes-snap-hint {
@@ -1525,6 +1549,16 @@ a.mode-tab {
 
 .holes-inset-field input {
   width: 4.5rem;
+}
+
+.holes-key {
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: #c9cacd;
+  background: #111214;
+  border: 1px solid #33343a;
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
 }
 
 .holes-presets {

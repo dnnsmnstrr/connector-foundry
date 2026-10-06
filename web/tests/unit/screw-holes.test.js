@@ -6,6 +6,7 @@ import {
   countersinkConeHeight,
   createHolesDoc,
   cutterLines,
+  flipHoles,
   frameMatrix,
   holesToScad,
   normalizeSpec,
@@ -109,4 +110,22 @@ test("every preset has a usable spec and a drawable screw", () => {
     // The spec round-trips through normalisation unchanged.
     assert.deepEqual(normalizeSpec(preset.spec), preset.spec);
   }
+});
+
+test("flipping the mesh carries its holes to the same spots on the turned-over part", () => {
+  let { doc } = addHole(createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [10, 20, 4] }), {
+    point: [3, 5, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("m3-cap").spec,
+  });
+  ({ doc } = addHole(doc, { point: [5, 2, 1], normal: [1, 0, 0], spec: getPreset("m3-cap").spec }));
+  const flipped = flipHoles(doc, 4);
+  // The top-face hole is now on the bottom face, pointing down; the
+  // side hole keeps its x and still points out of the same side.
+  assert.deepEqual(flipped.holes[0].point, [3, -5, 0]);
+  assert.deepEqual(flipped.holes[0].normal, [0, -0, -1]);
+  assert.deepEqual(flipped.holes[1].point, [5, -2, 3]);
+  assert.deepEqual(flipped.holes[1].normal, [1, -0, -0]);
+  // Flipping back restores the originals.
+  assert.deepEqual(flipHoles(flipped, 4).holes.map((h) => h.point), doc.holes.map((h) => h.point));
 });

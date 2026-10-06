@@ -97,6 +97,15 @@ test("a click on a face drills a snapped hole and the render carries it", async 
     if ((await hint.count()) && (await hint.textContent()).includes("face center")) target = { x, y };
   }
   expect(target, "a canvas point snapping to the face center").not.toBeNull();
+
+  // Option held: the face's size and the snapped point's distances to
+  // the edges appear as labels; released, they go.
+  await page.keyboard.down("Alt");
+  await expect(page.locator(".viewer-label", { hasText: "10.0 × 10.0 mm" })).toBeVisible();
+  await expect(page.locator(".viewer-label", { hasText: /^5\.0 mm$/ })).toHaveCount(4);
+  await page.keyboard.up("Alt");
+  await expect(page.locator(".viewer-label")).toHaveCount(0);
+
   await page.mouse.click(target.x, target.y);
   await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
   const row = page.locator(".holes-row").first();
@@ -114,6 +123,23 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await page.getByRole("spinbutton", { name: "Diameter (mm)" }).fill("5");
   await expect.poll(async () => (await jobs(page)).length).toBe(3);
   expect((await jobs(page))[2].scadSource).toContain("cylinder(d = 5,");
+
+  // The screw edited last is what the next hole gets.
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("Escape");
+  // Move to a spot clear of hole 1's ring (a marker under the pointer
+  // takes the click), let the hover report its snap, then click — as a
+  // hand does.
+  const second = { x: box.x + box.width / 2, y: box.y + box.height / 2 + 30 };
+  await page.mouse.move(second.x, second.y);
+  await expect(page.locator(".holes-snap-hint")).toContainText("Snap:");
+  await page.mouse.click(second.x, second.y);
+  await expect(page.locator(".holes-row")).toHaveCount(2);
+  await expect.poll(async () => (await jobs(page)).length).toBe(4);
+  expect((await jobs(page))[3].scadSource.match(/cylinder\(d = 5,/g)).toHaveLength(2);
+  await page.locator(".holes-row").nth(1).getByRole("button", { name: "Remove hole 2" }).click();
+  await page.locator(".holes-row-main").first().click();
+  await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
 
   // Delete removes it (once focus has left the field — in a field the
   // key edits the value); the view goes back to the plain base.
@@ -176,6 +202,15 @@ test("a 3MF is unpacked, scaled by its unit and grounded on the grid", async ({ 
   expect(Math.abs(x)).toBeLessThanOrEqual(5);
   expect(Math.abs(y)).toBeLessThanOrEqual(5);
   expect(z).toBe(4);
+
+  // Flipping the mesh turns it over and takes the hole with it: it is now
+  // on the underside, at z = 0, and the part is re-rendered.
+  await page.getByText("Part parameters", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Flip upside down" }).check();
+  await expect(page.locator(".holes-row-meta").first()).toContainText(", 0.0]");
+  await expect.poll(async () => (await jobs(page)).length).toBe(2);
+  await page.getByRole("checkbox", { name: "Flip upside down" }).uncheck();
+  await expect(page.locator(".holes-row-meta").first()).toContainText(", 4.0]");
   const saved = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download .scad", exact: true }).click();
   expect((await saved).suggestedFilename()).toBe("lid_holes.scad");

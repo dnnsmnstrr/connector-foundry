@@ -46,7 +46,10 @@ export const DEFAULT_SPEC = Object.freeze({
 let nextHoleId = 1;
 
 // `source`: { kind: "catalogue", partId, params } or
-//           { kind: "mesh", name, stlBytes, extents }.
+//           { kind: "mesh", name, geometry, flip, stlBytes, extents } —
+//           `stlBytes`/`extents` are the grounded (and, with `flip`,
+//           turned-over) form of `geometry` (importedPart.js's
+//           groundedMesh()); `geometry` is kept so the flip can be redone.
 export function createHolesDoc(source, name = null) {
   return { source, holes: [], name, nextSpec: { ...DEFAULT_SPEC }, nextPresetId: "m3-cap" };
 }
@@ -104,6 +107,23 @@ export function updateHole(doc, id, patch) {
 // editor), remembered on the document so it survives a tab switch.
 export function setNextSpec(doc, spec, presetId) {
   return { ...doc, nextSpec: normalizeSpec(spec), nextPresetId: presetId ?? doc.nextPresetId ?? null };
+}
+
+// The holes after the mesh they sit on is turned over (groundedMesh()'s
+// `flip`): a half turn about X, then the mesh re-grounded, which for a
+// mesh of height `height` standing on z = 0 is p -> (x, -y, height - z)
+// and n -> (nx, -ny, -nz). Every hole stays on the same spot of the
+// same face, so the holes a user placed before deciding the part was
+// upside down are not lost. Its own inverse.
+export function flipHoles(doc, height) {
+  return {
+    ...doc,
+    holes: doc.holes.map((h) => ({
+      ...h,
+      point: [h.point[0], -h.point[1], height - h.point[2]],
+      normal: [h.normal[0], -h.normal[1], -h.normal[2]],
+    })),
+  };
 }
 
 export function setDocName(doc, name) {

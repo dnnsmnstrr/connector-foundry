@@ -28,8 +28,21 @@ const CLICK_SLOP_PX = 5;
 // tab's holes and snap points). A sphere by default, in the green
 // slot colour; `shape: "ring"` draws a flat ring lying on the surface
 // whose outward `normal` is given (a hole's outline). Hover turns any
-// of them yellow.
+// of them yellow. `hitTest: false` makes a marker display-only: the
+// raycaster never sees it, so it neither takes clicks nor stops the
+// hover reports underneath it (the Holes tab's marker that follows the
+// pointer along a guide line would otherwise sit under the pointer and
+// freeze the hover).
 // onMarkerClick(id): called when a marker is clicked.
+//
+// labels: optional [{ id, point: [x,y,z], text }] — short texts pinned
+// to points in the scene (the Holes tab's measurements), re-projected
+// every frame like the overlay and hidden behind the camera.
+//
+// guides: optional [{ a: [x,y,z], b: [x,y,z], color?, dashed? }] — thin
+// line segments drawn over the model (the Holes tab's center and quarter
+// lines on the hovered face). Not clickable; lifted a hair off the
+// surface the caller puts them on by passing points already offset.
 //
 // placingMode + onSurfacePick([x,y,z], [nx,ny,nz]): when placingMode is
 // true, clicking anywhere on the model itself (not a marker) raycasts
@@ -75,6 +88,8 @@ export default function StlViewer({
   stlBuffer,
   geometry,
   markers,
+  guides,
+  labels,
   onMarkerClick,
   placingMode,
   onSurfacePick,
@@ -87,6 +102,10 @@ export default function StlViewer({
 }) {
   const mountRef = useRef(null);
   const overlayRef = useRef(null);
+  // Label elements by id, and the labels themselves, for the per-frame
+  // projection (see positionLabels in the mount effect).
+  const labelElements = useRef(new Map());
+  const labelsRef = useRef([]);
   const sceneRef = useRef(null);
   const callbacksRef = useRef(null);
   const overlayAnchorRef = useRef(null);
@@ -142,6 +161,23 @@ export default function StlViewer({
       controls.update();
       renderer.render(scene, camera);
       positionOverlay();
+      positionLabels();
+    };
+    // Same projection for each label.
+    const positionLabels = () => {
+      for (const label of labelsRef.current) {
+        const el = labelElements.current.get(label.id);
+        if (!el) continue;
+        projected.set(label.point[0], label.point[1], label.point[2]).project(camera);
+        if (projected.z > 1) {
+          el.style.visibility = "hidden";
+          continue;
+        }
+        const x = ((projected.x + 1) / 2) * mount.clientWidth;
+        const y = ((1 - projected.y) / 2) * mount.clientHeight;
+        el.style.visibility = "";
+        el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+      }
     };
     // Pin the overlay layer to the anchor's screen position. Behind the
     // camera (NDC z > 1) it's hidden rather than mirrored onto the screen.
@@ -326,6 +362,7 @@ export default function StlViewer({
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       disposeModel(scene);
       disposeMarkers(scene);
+      disposeGuides(scene);
       disposeHighlight(scene);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
@@ -395,6 +432,11 @@ export default function StlViewer({
   }, [highlightBox]);
 
   useEffect(() => {
+    labelsRef.current = labels ?? [];
+    sceneRef.current?.requestRender();
+  }, [labels]);
+
+  useEffect(() => {
     overlayAnchorRef.current = overlayAnchor ?? null;
     const el = overlayRef.current;
     if (el && !overlayAnchor) {
@@ -441,6 +483,7 @@ export default function StlViewer({
         }
         object.userData.id = marker.id;
         object.userData.color = color;
+        if (marker.hitTest === false) object.raycast = () => {};
         group.add(object);
       }
       group.userData.geometries = [...geometryByRadius.values()];
@@ -448,6 +491,36 @@ export default function StlViewer({
     }
     requestRender();
   }, [markers]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const { scene, requestRender } = sceneRef.current;
+    disposeGuides(scene);
+    if (guides && guides.length) {
+      const group = new THREE.Group();
+      group.name = "guides";
+      // One object per style (solid/dashed × colour), all of that
+      // style's segments in a single buffer.
+      const byStyle = new Map();
+      for (const g of guides) {
+        const key = `${g.dashed ? "d" : "s"}:${g.color ?? 0xffffff}`;
+        if (!byStyle.has(key)) byStyle.set(key, { dashed: Boolean(g.dashed), color: g.color ?? 0xffffff, points: [] });
+        byStyle.get(key).points.push(...g.a, ...g.b);
+      }
+      for (const { dashed, color, points } of byStyle.values()) {
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+        const material = dashed
+          ? new THREE.LineDashedMaterial({ color, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.7 })
+          : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
+        const lines = new THREE.LineSegments(geom, material);
+        if (dashed) lines.computeLineDistances();
+        group.add(lines);
+      }
+      scene.add(group);
+    }
+    requestRender();
+  }, [guides]);
 
   if (webglError) {
     return (
@@ -464,6 +537,22 @@ export default function StlViewer({
       {children && (
         <div ref={overlayRef} className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}>
           {children}
+        </div>
+      )}
+      {labels && labels.length > 0 && (
+        <div className="viewer-labels" aria-hidden="true">
+          {labels.map((label) => (
+            <div
+              key={label.id}
+              className="viewer-label"
+              ref={(el) => {
+                if (el) labelElements.current.set(label.id, el);
+                else labelElements.current.delete(label.id);
+              }}
+            >
+              {label.text}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -484,6 +573,16 @@ function disposeModel(scene) {
   scene.remove(previous);
   if (previous.userData.ownsGeometry) previous.geometry.dispose();
   previous.material.dispose();
+}
+
+function disposeGuides(scene) {
+  const previous = scene.getObjectByName("guides");
+  if (!previous) return;
+  scene.remove(previous);
+  for (const lines of previous.children) {
+    lines.geometry.dispose();
+    lines.material.dispose();
+  }
 }
 
 function disposeMarkers(scene) {
