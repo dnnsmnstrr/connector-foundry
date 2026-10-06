@@ -458,9 +458,10 @@ the implementation notes:
   openGrid-projects' `openconnect_slot()`), `mc_slot(...)` from `lib/multiconnect.scad` — reached
   by a `use <../lib/…>` line the generated file carries only when a slot is on it, with the slit at
   z = 0 and the pocket below. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
-  +Y (the way the head travels to seat, "up" on the wall) the face's own up — the world's +Y
-  projected onto the face, failing that +Z, failing that +X, so a slot on a plate lying flat runs
-  along the plate's Y — turned by the spec's `spin` (degrees, counter-clockwise seen from outside
+  +Y (the way the head travels to seat, "up" on the wall) the face's own up — the world's +Z
+  projected onto the face, so a slot on a vertical face points straight up; for a face within 30°
+  of level, where that projection is too short, the world's +Y, so a slot on a plate lying flat
+  runs along the plate's Y; failing both, +X — turned by the spec's `spin` (degrees, counter-clockwise seen from outside
   the face). `flipHoles()` adds a half turn to a slot's spin, since the mesh flip sends the part's
   own Y the other way. The render goes through `renderPart()` as a
   `scadSource` request like a bench; with no holes the base is shown as it is (the part's own cached

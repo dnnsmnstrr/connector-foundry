@@ -30,11 +30,12 @@ export default function HoleSpecFields({ spec, onChange }) {
   }
 
   // Which way the slot points on its face: 0 is the face's own "up"
-  // (the part's Y on a plate lying flat), turned counter-clockwise as
+  // (straight up on a wall-like face; the part's Y on a face lying
+  // flat), turned counter-clockwise as
   // seen from outside the face. Quarter turns cover every orientation
   // a mount is likely to need; any angle is accepted.
   const spinField = (
-    <label className="field" htmlFor={`${id}-spin`} title="Which way the head travels to seat — up on the wall. 0 is the face's own up (the part's Y on a plate lying flat), turned counter-clockwise as seen from outside the face.">
+    <label className="field" htmlFor={`${id}-spin`} title="Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face.">
       <span className="field-label">Direction (°)</span>
       <input id={`${id}-spin`} type="number" step="90" value={spec.spin} onChange={(e) => number("spin", e.target.value)} />
     </label>

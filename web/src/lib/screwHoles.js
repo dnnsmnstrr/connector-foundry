@@ -403,14 +403,16 @@ export function planeBasis(normal) {
 // own +Y, the way the head travels to seat, "up" on the wall — is the
 // face's "up" turned by `spin` degrees (counter-clockwise, seen from
 // outside the face), and ex completes a right-handed frame. The face's
-// up is the world axis the part is most likely to hang by, projected
-// onto the face: +Y, failing that (a face normal to Y) +Z, failing
-// that +X — so a slot on the top or bottom of a plate lying on the
-// bed runs along the plate's Y, as it will on the wall.
+// up is world up wherever that means something: +Z projected onto the
+// face, so a slot on any wall-like face — a box's side, whichever way
+// it faces — points straight up, the way it hangs. A face too close to
+// level for that (its normal within 30° of ±Z: a plate lying on the
+// bed) uses +Y instead, so the slot runs along the plate's Y, which is
+// up once the plate is on the wall; failing both, +X.
 export function slotFrame(point, normal, spin = 0) {
   const n = unit(normal);
   let up = null;
-  for (const candidate of [[0, 1, 0], [0, 0, 1], [1, 0, 0]]) {
+  for (const candidate of [[0, 0, 1], [0, 1, 0], [1, 0, 0]]) {
     const along = dot(candidate, n);
     const inPlane = [candidate[0] - along * n[0], candidate[1] - along * n[1], candidate[2] - along * n[2]];
     if (Math.hypot(...inPlane) > 0.5) {

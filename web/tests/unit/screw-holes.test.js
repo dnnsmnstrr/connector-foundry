@@ -158,15 +158,23 @@ test("a connector slot is cut by the repo's own library in a frame whose +Y is t
   assert.doesNotMatch(holesToScad(plateDoc(), partsById, { throughLength: 50 }), /use </);
 });
 
-test("a slot's frame: up is +Y where the face allows it, else +Z, and spin turns it counter-clockwise", () => {
+test("a slot's frame: straight up on a vertical face, the part's Y on a level one, and spin turns it counter-clockwise", () => {
   const close = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
-  // A side face normal to +X: up is still the world's +Y.
-  let f = slotFrame([0, 0, 0], [1, 0, 0], 0);
-  assert.ok(close(f.ey, [0, 1, 0]) && close(f.ex, [0, 0, -1]), `side face ${JSON.stringify(f)}`);
-  // A face normal to Y has no +Y to project; +Z is up there, and +X
-  // completes the right-handed frame seen from the front.
-  f = slotFrame([0, 0, 0], [0, -1, 0], 0);
-  assert.ok(close(f.ey, [0, 0, 1]) && close(f.ex, [1, 0, 0]), `front face ${JSON.stringify(f)}`);
+  // Every vertical face, whichever way it faces, points the slot up.
+  for (const normal of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [Math.SQRT1_2, Math.SQRT1_2, 0]]) {
+    const f = slotFrame([0, 0, 0], normal, 0);
+    assert.ok(close(f.ey, [0, 0, 1]), `vertical face ${normal}: ${JSON.stringify(f)}`);
+  }
+  // Seen from the front (-Y), +X completes the right-handed frame.
+  let f = slotFrame([0, 0, 0], [0, -1, 0], 0);
+  assert.ok(close(f.ex, [1, 0, 0]), `front face ${JSON.stringify(f)}`);
+  // A face tilted back 20° from vertical still points up its slope.
+  const t = (20 * Math.PI) / 180;
+  f = slotFrame([0, 0, 0], [Math.cos(t), 0, Math.sin(t)], 0);
+  assert.ok(f.ey[2] > 0.9 && Math.abs(f.ey[1]) < 1e-9, `tilted face ${JSON.stringify(f)}`);
+  // Level faces (top and bottom) run along the part's Y.
+  assert.ok(close(slotFrame([0, 0, 0], [0, 0, 1], 0).ey, [0, 1, 0]));
+  assert.ok(close(slotFrame([0, 0, 0], [0, 0, -1], 0).ey, [0, 1, 0]));
   // A quarter turn on the top face sends the slot's +Y to the part's -X.
   f = slotFrame([0, 0, 0], [0, 0, 1], 90);
   assert.ok(close(f.ey, [-1, 0, 0]) && close(f.ex, [0, 1, 0]), `turned ${JSON.stringify(f)}`);

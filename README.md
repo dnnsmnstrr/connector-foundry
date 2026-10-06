@@ -184,8 +184,8 @@ snap's head slides into — upstream's own geometry, with its lock nub on the le
 sides or neither, and its two clearances) and a **MultiConnect** slot (for an `opengrid/multiconnect`
 snap or any Multiboard connector: a channel of the length you choose running down from the round
 end the head rests in, with an on-ramp funnel at the entry and the v2 detent, each optional). A slot
-has a direction on its face — the way the head travels to seat, "up" on the wall — which starts as
-the part's own Y and turns in the sidebar; the viewer draws each slot's outline, entry and an arrow
+has a direction on its face — the way the head travels to seat, "up" on the wall — which starts
+pointing straight up on a vertical face (the part's own Y on one lying flat) and turns in the sidebar; the viewer draws each slot's outline, entry and an arrow
 for it. The point you click is the openGrid cell centre for an openConnect slot (the head seats
 3.6 mm up from it) and the round end for a MultiConnect one; an openConnect slot needs about 3 mm
 of material under the surface, a MultiConnect slot about 4.5 mm. Export the result as an
