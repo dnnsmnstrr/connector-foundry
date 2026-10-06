@@ -88,7 +88,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live) |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
 
 ## Shell (`src/App.jsx`)
@@ -109,6 +109,20 @@ screen.
   with `showModal()`, so the browser also fires its own `cancel` on Escape (routed to the same
   `onClose`), keeps Tab inside the dialog, makes the page behind it inert, and returns focus to
   the opener on close; the `title` prop is what the dialog is `aria-labelledby`.
+- **Sidebar width.** The sidebar's right edge is a drag handle (`src/components/SidebarResizer.jsx`,
+  a `role="separator"`): drag it, or focus it and use ←/→ (16 px; Shift 64), Home/End; a
+  double-click restores the default. One width for all three modes, kept in `uiPrefs.js`
+  (220–640 px, default 280, stored only when not the default) and put on `.shell-body` as
+  `--sidebar-width`; the grid column and the handle both read it through the same
+  `clamp(220px, var(--sidebar-width), 60%)`, so a width saved on a big window still leaves the
+  workspace 40% of a small one and the handle stays on the edge. The handle is a sibling of the
+  `<aside>`, not a child, so it doesn't scroll away with the sidebar's content. The sidebar is a
+  size container (`container: sidebar / inline-size`) and its rows are written to reflow on its
+  own width rather than the viewport's: the Holes spec grid takes as many 7rem columns as fit
+  (one at the narrowest, three dragged wide), and the Bench's label/control rows wrap the control
+  under its label, right-aligned. Checked by measuring every element against the sidebar's
+  content box at 220–636 px in all three modes, with every section open. Hidden on narrow screens,
+  where the sidebar stacks above the workspace instead.
 - Narrow screens (`max-width: 768px` in `styles.css`): the two-column shell stacks into one
   scrolling column — sidebar (capped at 45% of the viewport, scrolls inside itself) on top, then
   the header, the 3D viewer at a fixed viewport fraction (the canvas sizes itself from its mount,

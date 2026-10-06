@@ -142,13 +142,64 @@ button, input, select, textarea {
   overflow: hidden;
 }
 
+/* The sidebar's width: --sidebar-width (set on .shell-body by App from
+   the dragged width, uiPrefs.js), held between 220px and 60% of the
+   shell so a width chosen on a big window can't push the viewer off a
+   small one. The resize handle is positioned with the same expression,
+   so the two can't disagree. */
 .app, .bench {
+  position: relative;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: clamp(220px, var(--sidebar-width, 280px), 60%) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   transition: grid-template-columns 0.15s ease;
+}
+
+/* Mid-drag: the column follows the pointer, not an easing curve, and a
+   drag across the page doesn't select its text. */
+.sidebar-resizing .app,
+.sidebar-resizing .bench {
+  transition: none;
+}
+
+.sidebar-resizing,
+.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+/* The drag handle over the column boundary: a sibling of the sidebar,
+   so it stays put while the sidebar scrolls. Wider than it looks, for
+   an easy grab; the visible line appears on hover, focus and drag. */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(clamp(220px, var(--sidebar-width, 280px), 60%) - 4px);
+  width: 8px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+.sidebar-resizing .sidebar-resizer::after {
+  background: #4a6fb5;
 }
 
 .app.sidebar-collapsed, .bench.sidebar-collapsed {
@@ -160,8 +211,14 @@ button, input, select, textarea {
   border-right: 1px solid #2a2b2e;
   padding: 1.25rem;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
+  min-width: 0;
   overscroll-behavior: contain;
+  /* Its contents reflow on the sidebar's own width (the @container
+     rules at the end of this file), which the user now sets — the
+     viewport's width says nothing about it. */
+  container: sidebar / inline-size;
 }
 
 .sidebar-collapsed .sidebar {
@@ -704,10 +761,18 @@ a.mode-tab {
 
 .bench-offset-field {
   flex-direction: row;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 0.25rem 0.5rem;
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
+}
+
+/* The control keeps to the right edge, also once a narrow sidebar has
+   wrapped it under its label. */
+.bench-offset-field > :last-child {
+  margin-left: auto;
 }
 
 .bench-offset-field input {
@@ -1640,10 +1705,23 @@ a.mode-tab {
   max-width: 100%;
 }
 
+/* As many columns as fit at 7rem each: one in a narrow sidebar, two at
+   the default width, three when it is dragged wide. The fields shrink
+   with their column instead of holding it open at an input's natural
+   width (which pushed the second column out of a 280px sidebar). */
 .holes-spec-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7rem), 1fr));
   gap: 0 0.5rem;
+}
+
+.holes-spec-grid > .field {
+  min-width: 0;
+}
+
+.holes-spec-grid > .field input,
+.holes-spec-grid > .field select {
+  width: 100%;
 }
 
 .holes-spec .field {
@@ -1850,6 +1928,10 @@ a.mode-tab {
     height: auto;
     min-height: 100%;
     grid-template-columns: none;
+  }
+
+  :root:not(.desktop) .sidebar-resizer {
+    display: none;
   }
 
   :root:not(.desktop) .sidebar {

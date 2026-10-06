@@ -8,6 +8,7 @@ import PresetPicker from "./components/holes/PresetPicker.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
+import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
@@ -764,6 +765,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           </>
         )}
       </aside>
+      {!sidebarCollapsed && <SidebarResizer />}
 
       <main className="workspace">
         <header className="part-header">

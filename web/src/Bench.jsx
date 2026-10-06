@@ -8,6 +8,7 @@ import SpinButtons from "./components/bench/SpinButtons.jsx";
 import Modal from "./components/Modal.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
+import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import {
@@ -734,6 +735,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           </>
         )}
       </aside>
+      {!sidebarCollapsed && <SidebarResizer />}
 
       <main className="workspace">
         <header className="part-header">

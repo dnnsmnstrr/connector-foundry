@@ -252,7 +252,7 @@ foundry render gridfinity/base --no-user-config  # true catalogue defaults (what
 Stored as OpenSCAD Customizer JSON under `~/.config/connector-foundry/`, so a saved file also
 opens as a parameter set in the OpenSCAD GUI. The web app does the same resolution in
 `localStorage`; a dot marks any field that differs from the catalogue default, and "Save as my
-default" works per part. The gear icon holds the global settings — including the part list itself:
+default" works per part. Drag the sidebar's edge to make it wider or narrower (double-click it to reset); the width is kept, and the same in every tab. The gear icon holds the global settings — including the part list itself:
 untick a system or a single part there and it leaves the Library sidebar and both Bench pickers,
 so the list shows only what you actually print. Hidden parts still work in any bench, link, or
 config that uses them; "Show all" brings everything back.

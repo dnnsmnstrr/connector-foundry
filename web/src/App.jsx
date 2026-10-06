@@ -12,6 +12,7 @@ import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } 
 import { cancelRenders } from "./lib/openscad-client.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
 import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
+import { useSidebarWidth } from "./hooks/useSidebarWidth.js";
 
 // Between the last bench edit and the URL catching up with it — typing a
 // parameter value shouldn't rewrite the address bar once per keystroke.
@@ -49,6 +50,9 @@ export default function App() {
   const [mode, setMode] = useState(() => readUrlState().mode ?? "library");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
+  // Dragged on the sidebar's edge (components/SidebarResizer.jsx); the
+  // grid reads it as --sidebar-width.
+  const sidebarWidth = useSidebarWidth();
   // The live bench (lib/benchSession.js) — read here only to mirror it
   // into the URL and to decide whether a switch may seed it.
   const { assembly, importedParts } = useBenchSession();
@@ -289,7 +293,7 @@ export default function App() {
           </button>
         </div>
       </nav>
-      <div className="shell-body">
+      <div className="shell-body" style={{ "--sidebar-width": `${sidebarWidth}px` }}>
         {mode === "library" ? (
           <Library
             parts={parts}
