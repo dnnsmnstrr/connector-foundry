@@ -314,6 +314,121 @@ shape_checks:
       max_surface_max_mm: 1.0
       min_section_iou: 0.98
 
+  # Connector holes, which og_board() cuts itself: openGrid() places
+  # them by its script's Full_or_Lite variable, which `use <>` leaves at
+  # "Lite", so through the module a full board got them at the lite
+  # height. The reference is upstream's own script, run with
+  # Full_or_Lite set to the variant — what it renders for a user who
+  # picks that variant in its customizer.
+  - id: opengrid/board-full-connector-holes
+    part: opengrid/board
+    params: {connector_holes: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 3, cells_y = 2, variant = "full", connector_holes = true, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/openGrid/openGrid.scad>
+      Full_or_Lite = "Full";
+      Board_Width = 3;
+      Board_Height = 2;
+      Chamfers = "None";
+      Screw_Mounting = "None";
+      Connector_Holes = true;
+      Stack_Count = 1;
+    align: none
+    sections_z: [0.5, 2.3, 3.4, 4.5, 6.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.999
+
+  - id: opengrid/board-lite-connector-holes
+    part: opengrid/board
+    params: {variant: lite, connector_holes: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 3, cells_y = 2, variant = "lite", connector_holes = true, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/openGrid/openGrid.scad>
+      Full_or_Lite = "Lite";
+      Board_Width = 3;
+      Board_Height = 2;
+      Chamfers = "None";
+      Screw_Mounting = "None";
+      Connector_Holes = true;
+      Add_Adhesive_Base = false;
+      Stack_Count = 1;
+    align: none
+    sections_z: [0.3, 0.7, 1.8, 2.9, 3.7]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.999
+
+  # Screw mounting, which og_board() also cuts itself (upstream's
+  # attach()-chained screw holes put a board past the browser's stack
+  # limit). "Everywhere" chamfers with screws is the case upstream turns
+  # into corner chamfers; "By Row and Column" on a 5-wide board the one
+  # it shifts half a cell.
+  - id: opengrid/board-full-screws
+    part: opengrid/board
+    params: {screw_mounting: Everywhere, chamfers: Everywhere, connector_holes: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 4, cells_y = 3, variant = "full", screw_mounting = "Everywhere",
+               chamfers = "Everywhere", connector_holes = true, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/openGrid/openGrid.scad>
+      Full_or_Lite = "Full";
+      Board_Width = 4;
+      Board_Height = 3;
+      Chamfers = "Everywhere";
+      Screw_Mounting = "Everywhere";
+      Connector_Holes = true;
+      Stack_Count = 1;
+    align: none
+    sections_z: [0.5, 2.3, 3.4, 4.5, 5.5, 6.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.999
+
+  - id: opengrid/board-lite-screws
+    part: opengrid/board
+    params: {variant: lite, screw_mounting: By Row and Column, chamfers: Corners}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/board.scad>
+      og_board(cells_x = 5, cells_y = 4, variant = "lite", screw_mounting = "By Row and Column",
+               chamfers = "Corners", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/openGrid/openGrid.scad>
+      Full_or_Lite = "Lite";
+      Board_Width = 5;
+      Board_Height = 4;
+      Chamfers = "Corners";
+      Screw_Mounting = "By Row and Column";
+      Connector_Holes = false;
+      Add_Adhesive_Base = false;
+      Stack_Count = 1;
+    align: none
+    sections_z: [0.3, 1.0, 2.0, 2.8, 3.7]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.999
+
   # The openGrid connector parts against openGrid-projects' own snap
   # generator with the same choices (text label off). This is the check
   # that lib/opengrid.scad's shallower re-expression of base_snap() —
