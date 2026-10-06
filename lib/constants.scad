@@ -37,6 +37,66 @@ OG_SNAP_H_LITE     = 3.4;   // ...a lite snap is half height, not lite-tile heig
 OG_SNAP_DIR_EXTRA  = 0.4;   // the directional variant adds this much, on +X only
 
 // ============================================================
+// openGrid connectors — exact, geometry owned upstream.
+//
+// The snap body and the openConnect head come from openGrid-projects
+// (mitufy, CC-BY 4.0), vendored as the submodule vendor/opengrid-projects
+// and wrapped by lib/opengrid.scad and lib/openconnect.scad. Upstream
+// keeps its numbers as top-level variables of lib/opengrid_base.scad,
+// which `use <>` does not import, so the few an envelope needs are
+// restated. They ARE duplicates and can drift — references.yaml has
+// shape checks against upstream's own generator that fail if they do.
+// ============================================================
+
+OG_SNAP_BODY    = 24.8;        // == OG_SNAP_WIDTH: the chamfered square body, nubs excluded
+OG_SNAP_CHAMFER = (2.7 + 1 / sqrt(2)) * sqrt(2); // == OG_SNAP_CORNER_CHAMFER, the body's corner cut
+OG_SNAP_NUB     = 0.4 - 0.005; // basic_nub_depth, minus the EPS the nub is sunk into the
+                               // body by: how far a wing nub stands proud of each side
+OG_SNAP_DIR_NUB = 0.8 - 0.005; // directional_nub_depth, the deeper nub on the BACK (+Y)
+                               // of a directional body, same EPS
+OC_HEAD_H       = 2.6;         // == OCHEAD_TOTAL_HEIGHT: 0.6 pocket + 1.4 taper + 0.6 neck
+OC_HEAD_W       = 17;          // == OCHEAD_LARGE_RECT_WIDTH, across the slot
+OC_HEAD_L       = 10.6;        // == OCHEAD_LARGE_RECT_HEIGHT, along it
+OC_HEAD_SHIFT_Y = 3.6;         // the head's centre sits this far up (+Y) from the snap's:
+                               // OCHEAD_LARGE_RECT_WIDTH / 2 + OCHEAD_BACK_POS_OFFSET
+                               // - OCHEAD_LARGE_RECT_HEIGHT / 2
+
+// ============================================================
+// MultiConnect — exact, published numbers, geometry written here.
+//
+// David D's MultiConnect (printables.com/model/1074671) is the
+// connector openConnect stays backwards compatible with: a Ø20 disc on
+// a 45° cone down to a Ø15 neck, and a keyhole channel in the item it
+// hangs. No permissively licensed implementation exists to vendor
+// (QuackWorks' is CC-BY-NC-SA), but the numbers are facts: the head as
+// openGrid-projects' generator restates it, the slot profile as
+// QuackWorks' multiconnectSlotDesign.scad does (Ø20.3 pocket, 1.21 deep,
+// 45° taper to a Ø15.3 slit, 4.15 from the surface to the floor; the
+// on-ramp funnel Ø24 → Ø20.3 over 5; the v2 detent 0.4 deep over 8).
+// lib/multiconnect.scad builds both from these; references.yaml checks
+// the head against openGrid-projects' render and the slot against the
+// head.
+// ============================================================
+
+MC_HEAD_D       = 20;    // disc
+MC_HEAD_NECK_D  = 15;
+MC_HEAD_DISC_H  = 1;
+MC_HEAD_CONE_H  = 2.5;   // disc radius to neck radius over this: 45°
+MC_HEAD_NECK_H  = 0.5;
+MC_HEAD_H       = MC_HEAD_DISC_H + MC_HEAD_CONE_H + MC_HEAD_NECK_H;
+
+MC_SLOT_D        = 20.3;  // pocket, the disc's clearance
+MC_SLOT_NECK_D   = 15.3;  // slit, the neck's clearance
+MC_SLOT_DEPTH    = 4.15;  // surface to pocket floor
+MC_SLOT_POCKET_H = 1.212; // full-width pocket at the floor
+MC_SLOT_CONE_H   = 2.5;   // the 45° taper above it; the slit is the rest
+MC_ONRAMP_D      = 24;    // funnel mouth, MC_ONRAMP_LIFT outside the surface...
+MC_ONRAMP_LIFT   = 0.85;  // ...narrowing to MC_SLOT_D at the pocket floor
+MC_DETENT_DEPTH  = 0.4;   // v2 detent: the channel narrows this much at the pocket end...
+MC_DETENT_LEN    = 8;     // ...tapering back to full width over this far down the channel
+MC_SLOT_PITCH    = 25;    // Multiboard's slot spacing — the default channel length
+
+// ============================================================
 // GoPro — exact, interface geometry owned upstream.
 //
 // The buckle interface itself (Ø15 leg ends, 3mm legs, 3.5mm slits, M5

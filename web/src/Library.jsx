@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
+import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import { downloadBlob } from "./lib/download.js";
@@ -152,6 +153,7 @@ export default function Library({
         <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
         {!sidebarCollapsed && <PartBrowser parts={parts} activeId={selectedId} onPick={(part) => setSelectedId(part.id)} />}
       </aside>
+      {!sidebarCollapsed && <SidebarResizer />}
 
       <main className="workspace">
         {selected && (

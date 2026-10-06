@@ -16,6 +16,9 @@ const CX = SIZE / 2;
 const MAX_SHOWN_DEPTH = BOTTOM_Y - SURFACE_Y - 4;
 
 export default function ScrewIcon({ spec, screw, title, className }) {
+  if (spec.kind === "openconnect" || spec.kind === "multiconnect") {
+    return <SlotIcon spec={spec} title={title} className={className} />;
+  }
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -217,4 +220,88 @@ function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, co
       break;
   }
   return parts;
+}
+
+// A connector slot in cross-section, across the channel: the slab with
+// the keyhole cut into it — slit at the surface, taper, pocket — and
+// the head seated in it, neck through the slit, on its snap outside.
+// The widths are the slots' own (lib/openconnect.scad's upstream
+// numbers, lib/constants.scad's MC_*); the depths are drawn four times
+// over, since a 2.8 mm slot at the width's scale would be a hairline.
+const SLOT_PROFILES = {
+  // [slit width, pocket width, slit depth, taper depth, pocket depth]
+  // of the cut, then of the head.
+  openconnect: { slit: 14.4, pocket: 17.2, slitD: 0.56, taperD: 1.4, pocketD: 0.74, head: { neck: 14.2, disc: 17, neckH: 0.6, taperH: 1.4, discH: 0.6 }, snap: 24.8 },
+  multiconnect: { slit: 15.3, pocket: 20.3, slitD: 0.44, taperD: 2.5, pocketD: 1.21, head: { neck: 15, disc: 20, neckH: 0.5, taperH: 2.5, discH: 1 }, snap: 24.8 },
+};
+const SLOT_DEPTH_SCALE = 4;
+
+function SlotIcon({ spec, title, className }) {
+  const p = SLOT_PROFILES[spec.kind];
+  const s = 30 / p.snap;
+  const px = (mm) => mm * s;
+  const pz = (mm) => mm * s * SLOT_DEPTH_SCALE;
+  const slitY = SURFACE_Y;
+  const taperY = slitY + pz(p.slitD);
+  const pocketY = taperY + pz(p.taperD);
+  const floorY = pocketY + pz(p.pocketD);
+  const cut = (
+    <polygon
+      points={[
+        [CX - px(p.slit) / 2, slitY - 1],
+        [CX + px(p.slit) / 2, slitY - 1],
+        [CX + px(p.slit) / 2, taperY],
+        [CX + px(p.pocket) / 2, pocketY],
+        [CX + px(p.pocket) / 2, floorY],
+        [CX - px(p.pocket) / 2, floorY],
+        [CX - px(p.pocket) / 2, pocketY],
+        [CX - px(p.slit) / 2, taperY],
+      ]
+        .map((pt) => pt.join(","))
+        .join(" ")}
+    />
+  );
+  // The head, seated: its disc on the pocket floor, less the clearance.
+  const h = p.head;
+  const discTop = floorY - pz(h.discH);
+  const neckBottom = discTop - pz(h.taperH);
+  const head = (
+    <polygon
+      points={[
+        [CX - px(h.neck) / 2, SURFACE_Y - 3],
+        [CX + px(h.neck) / 2, SURFACE_Y - 3],
+        [CX + px(h.neck) / 2, neckBottom],
+        [CX + px(h.disc) / 2, discTop],
+        [CX + px(h.disc) / 2, floorY - 0.6],
+        [CX - px(h.disc) / 2, floorY - 0.6],
+        [CX - px(h.disc) / 2, discTop],
+        [CX - px(h.neck) / 2, neckBottom],
+      ]
+        .map((pt) => pt.join(","))
+        .join(" ")}
+    />
+  );
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">{cut}</g>
+      <g className="screw-icon-fastener">
+        {/* The snap the head stands on, outside the surface. */}
+        <rect x={CX - px(p.snap) / 2} y={SURFACE_Y - 8} width={px(p.snap)} height={5.5} rx="0.8" />
+        {head}
+        {spec.kind === "multiconnect" && <rect x={CX - 1} y={floorY - 1.8} width={2} height={1.2} className="screw-icon-socket" />}
+      </g>
+    </svg>
+  );
 }

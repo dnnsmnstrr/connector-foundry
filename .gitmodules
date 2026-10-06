@@ -16,3 +16,6 @@
 [submodule "vendor/AluminumExtrusionProfile"]
 	path = vendor/AluminumExtrusionProfile
 	url = https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library.git
+[submodule "vendor/opengrid-projects"]
+	path = vendor/opengrid-projects
+	url = https://github.com/mitufy/opengrid-projects.git

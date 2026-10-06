@@ -4,10 +4,11 @@ import JointSelect from "./components/bench/JointSelect.jsx";
 import NameBenchModal from "./components/bench/NameBenchModal.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
 import PresetsPanel, { ConfigImportButton } from "./components/bench/PresetsPanel.jsx";
-import SpinButtons from "./components/bench/SpinButtons.jsx";
+import SpinButtons from "./components/SpinButtons.jsx";
 import Modal from "./components/Modal.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
+import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import {
@@ -50,7 +51,8 @@ import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
-import { getOverrides, resolveParams } from "./lib/userOverrides.js";
+import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
+import { uprightSpin } from "./lib/benchOrientation.js";
 
 // A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -70,7 +72,9 @@ function friendlyRenderError(message) {
   // then something bolted onto ONE of the plate's own further anchors:
   // that's the plate plus both bolted flanges, three rounded cuboids in
   // one attach() chain, the same limit as bolting a plate directly).
-  // All of these are the one known cause, not three different bugs.
+  // All of these are the one known cause, not three different bugs:
+  // the WASM thread stack, which gives out about 70 nested module
+  // levels down (see web/README.md, "Known limit — nesting depth").
   if (/table index|memory access out of bounds|is not a function/i.test(message)) {
     return "This browser's OpenSCAD build can't preview this bolted/snap/pin combination " +
       "(a known limitation, not a bad connection) — try \"fused\" for this joint instead, or for a stacked " +
@@ -352,16 +356,19 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // Finish the pending "attach to this slot" with `partId`: a catalogue
   // part attaches via its own "mount"; an imported one via the anchor
   // the user picked in the import flow.
-  function attachPending(partId, params, childAnchor) {
+  function attachPending(partId, params, childAnchor, spin = 0) {
     setAssembly((a) =>
-      addChild(a, { parentId: pendingSlot.parentId, partId, params, slotName: pendingSlot.slotName, joint: pendingJoint, childAnchor }),
+      addChild(a, { parentId: pendingSlot.parentId, partId, params, slotName: pendingSlot.slotName, joint: pendingJoint, childAnchor, spin }),
     );
     setPendingSlot(null);
     setPendingJoint("fused");
   }
 
   function attachChild(part) {
-    const params = resolveParams(part, {});
+    // ...plus the catalogue's `attached_defaults`: a part on something
+    // else may be a different thing from the part on its own (an
+    // openGrid connector here is just its head).
+    const params = resolveAttachedParams(part, {});
     // Size a grid part to the surface it lands on (a 5x5 BitBeam plate on
     // a single Gridfinity base, 3x3 on an openGrid snap) — except for a
     // count the user's saved default for this part already pins.
@@ -373,7 +380,12 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         if (!(key in pinned)) params[key] = value;
       }
     }
-    attachPending(part.id, params, "mount");
+    // A part with an `attached_up` axis (the openConnect head's slide
+    // direction) starts turned so that axis points up when it lands on
+    // a side face — the way it hangs on a wall — instead of wherever
+    // BOSL2's attach() happens to leave it.
+    const spin = part.attached_up ? uprightSpin(assembly, partsById, pendingSlot.parentId, pendingSlot.slotName, part.attached_up) ?? 0 : 0;
+    attachPending(part.id, params, "mount", spin);
   }
 
   function registerImport(importedPart) {
@@ -723,6 +735,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           </>
         )}
       </aside>
+      {!sidebarCollapsed && <SidebarResizer />}
 
       <main className="workspace">
         <header className="part-header">

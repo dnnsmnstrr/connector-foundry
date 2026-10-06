@@ -41,6 +41,62 @@ export function setSidebarCollapsed(collapsed) {
   setFlag(SIDEBAR_COLLAPSED_KEY, collapsed);
 }
 
+// The sidebar's width in px, set by dragging its edge (components/
+// SidebarResizer.jsx). One width for all three modes — it is the same
+// column. Clamped on the way in and out, so a stored value from a
+// wider screen, or a hand-edited one, can't push the workspace off
+// screen; styles.css clamps it again against the window (a stored
+// 600 px on a 900 px window still leaves the viewer room).
+const SIDEBAR_WIDTH_KEY = "connector-foundry.sidebarWidth";
+export const SIDEBAR_WIDTH_DEFAULT = 280;
+export const SIDEBAR_WIDTH_MIN = 220;
+export const SIDEBAR_WIDTH_MAX = 640;
+
+export function clampSidebarWidth(px) {
+  const n = Number(px);
+  if (!Number.isFinite(n)) return SIDEBAR_WIDTH_DEFAULT;
+  return Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, n)));
+}
+
+let sidebarWidth = null;
+const sidebarWidthListeners = new Set();
+
+export function getSidebarWidth() {
+  if (sidebarWidth === null) {
+    let stored = null;
+    try {
+      stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    } catch {
+      // best-effort — see header comment
+    }
+    sidebarWidth = stored === null ? SIDEBAR_WIDTH_DEFAULT : clampSidebarWidth(stored);
+  }
+  return sidebarWidth;
+}
+
+// `persist` false updates the live width only — a drag in progress
+// moves the column on every pointer move but writes storage once, on
+// release.
+export function setSidebarWidth(px, { persist = true } = {}) {
+  const next = clampSidebarWidth(px);
+  if (persist) {
+    try {
+      if (next === SIDEBAR_WIDTH_DEFAULT) localStorage.removeItem(SIDEBAR_WIDTH_KEY);
+      else localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next));
+    } catch {
+      // best-effort — see header comment
+    }
+  }
+  if (next === sidebarWidth) return;
+  sidebarWidth = next;
+  for (const listener of sidebarWidthListeners) listener();
+}
+
+export function subscribeSidebarWidth(listener) {
+  sidebarWidthListeners.add(listener);
+  return () => sidebarWidthListeners.delete(listener);
+}
+
 export function getBenchFollowsLibrary() {
   return getFlag(BENCH_FOLLOWS_LIBRARY_KEY);
 }

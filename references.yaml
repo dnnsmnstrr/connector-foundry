@@ -52,6 +52,23 @@ sources:
       guarding the wrapper (envelope, anchors, restated constants)
       rather than re-deriving upstream's geometry.
 
+  opengrid-projects:
+    kind: submodule
+    path: vendor/opengrid-projects
+    license: CC-BY-4.0
+    url: https://github.com/mitufy/opengrid-projects
+    note: >
+      Vendored. lib/opengrid.scad calls its snap feature modules and
+      lib/openconnect.scad its openConnect head and slot directly;
+      parts/opengrid/openconnect.scad and multiconnect.scad are
+      wrappers over those. CC-BY 4.0 — attribution, no other
+      restriction. The wrappers restate a few of its numbers
+      (lib/constants.scad OG_SNAP_*, OC_HEAD_*) for their envelopes,
+      and lib/opengrid.scad re-expresses base_snap()'s envelope and
+      uninstall notch shallower so the browser's OpenSCAD can render
+      the parts (its header says why) — the shape checks below are
+      what holds all of that to upstream's own generator output.
+
   bitbeam-lib:
     kind: submodule
     path: vendor/bitbeam-lib
@@ -288,6 +305,79 @@ shape_checks:
       max_surface_max_mm: 1.0
       min_section_iou: 0.98
 
+  # The openGrid connector parts against openGrid-projects' own snap
+  # generator with the same choices (text label off). This is the check
+  # that lib/opengrid.scad's shallower re-expression of base_snap() —
+  # and its notch written as plain boxes — is the same solid, and that
+  # the restated OG_SNAP_*/OC_HEAD_* numbers have not drifted. Ours
+  # recentres the directional body (0.2 mm on Y, for its deeper back
+  # nub), so the reference is posed to match.
+  - id: opengrid/openconnect
+    part: opengrid/openconnect
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      // Upstream's directional body stands 0.2 mm further on +Y (its
+      // deeper back nub) than on -Y; ours is recentred on its real
+      // extent, so move ours back into upstream's frame.
+      translate([0, 0.2, 0]) og_openconnect(anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.1, 8.5, 9.2]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: opengrid/openconnect-lite-symmetric
+    part: opengrid/openconnect
+    params: {variant: lite, body: symmetric}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      og_openconnect(variant = "lite", body = "symmetric", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      snap_thickness = 3.4;
+      snap_body_shape = "Symmetric";
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 1.7, 3.0, 3.7, 5.1, 5.8]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # Same for the MultiConnect snap — which also checks this repo's own
+  # mc_head() (lib/multiconnect.scad) against the head upstream's
+  # generator builds from the same published numbers.
+  - id: opengrid/multiconnect
+    part: opengrid/multiconnect
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/multiconnect.scad>
+      translate([0, 0.2, 0]) og_multiconnect(anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "multiConnect";
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.3, 8.5, 10.2]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # Guards the wrapper (envelope, anchor, the unit/hole reassignment
   # from lib/constants.scad) against calling vendor/bitbeam-lib's
   # cube_arm() directly with the same numbers — same purpose as the
@@ -477,6 +567,74 @@ fit_checks:
                        anchor = BOTTOM, spin = 0, orient = UP);
     expect:
       max_interference_mm3: 5.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: opengrid/openconnect-into-upstream-board
+    part: opengrid/openconnect
+    reference_source: quackworks
+    why: >
+      The connector is only useful in a real openGrid board. Seated
+      flush: the snap's top face level with the board's, the head
+      standing out of it, on a cell centre.
+    a: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      translate([14, 14, 0]) og_openconnect(anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/openGrid.scad>
+      openGrid(Board_Width = 2, Board_Height = 2, tileSize = 28, Tile_Thickness = 6.8,
+               Screw_Mounting = "None", Chamfers = "None", Connector_Holes = false,
+               anchor = BOT);
+    expect:
+      max_interference_mm3: 5.0
+      clearance_mm: [0.0, 0.5]
+
+  # The slot the Holes tab cuts has to take the head the snap carries —
+  # the two halves of a custom mount, both from this repo. The head is
+  # posed seated: neck through the slit, pocket face on the pocket
+  # floor, with the slot's depth clearance under it.
+  - id: opengrid/openconnect-head-in-our-slot
+    part: opengrid/openconnect
+    why: >
+      lib/openconnect.scad's oc_slot() is what the web app subtracts
+      from a part to make it hang on an openConnect snap; the head
+      (oc_head(), the same part's top) has to slide into it with the
+      slot's own clearance and nothing more.
+    a: |
+      include <{repo}/lib/openconnect.scad>
+      // Seated in the slot below: pocket face down on the pocket
+      // floor (OC_HEAD_H + depth clearance under the surface).
+      translate([0, 0, -OC_HEAD_H - 0.1]) oc_head(anchor = BOTTOM, $fa = 1, $fs = 0.4);
+    # Braces are doubled: a recipe is a format string ({repo}, {source}).
+    b: |
+      include <{repo}/lib/openconnect.scad>
+      difference() {{
+          translate([-20, -22, -6]) cube([40, 44, 6]);
+          oc_slot();
+      }}
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: opengrid/multiconnect-head-in-our-slot
+    part: opengrid/multiconnect
+    why: >
+      Same for MultiConnect: lib/multiconnect.scad's mc_slot() (the
+      Holes tab's cutter) has to take mc_head() (the snap's top), disc
+      in the pocket, neck through the slit.
+    a: |
+      include <{repo}/lib/multiconnect.scad>
+      // Disc down on the pocket floor; the published slot is 0.15 deeper
+      // than the head is tall.
+      translate([0, 0, -MC_SLOT_DEPTH]) mc_head(anchor = BOTTOM, $fa = 1, $fs = 0.4);
+    b: |
+      include <{repo}/lib/multiconnect.scad>
+      difference() {{
+          translate([-20, -45, -6]) cube([40, 60, 6]);
+          mc_slot();
+      }}
+    expect:
+      max_interference_mm3: 1.0
       clearance_mm: [0.0, 0.5]
 
   - id: extrusion2020/tab-in-slot

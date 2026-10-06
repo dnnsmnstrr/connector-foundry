@@ -8,10 +8,14 @@ import {
   cutterLines,
   flipHoles,
   frameMatrix,
+  holeFootprintRadius,
+  holeLabel,
   holesToScad,
   normalizeSpec,
   planeBasis,
   removeHole,
+  slotFrame,
+  slotOutline,
   updateHole,
 } from "../../src/lib/screwHoles.js";
 import { SCREW_PRESETS, getPreset, specMatchesPreset } from "../../src/lib/screwPresets.js";
@@ -70,6 +74,25 @@ test("the cutter frame has +Z along the hole's normal and the surface point as o
   assert.match(m, /^\[\[-?[\d.]+, -?[\d.]+, 0, 1\], \[-?[\d.]+, -?[\d.]+, 1, 2\], \[-?[\d.]+, -?[\d.]+, 0, 3\], \[0, 0, 0, 1\]\]$/);
 });
 
+test("an openConnect slot brings BOSL2 in itself, so it works on a mesh source", () => {
+  // oc_slot() needs std.scad included at top level (its tag variables);
+  // a mesh source has no part include to bring it in.
+  const { doc } = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
+    point: [0, -20, 5],
+    normal: [0, -1, 0],
+    spec: { ...getPreset("oc-slot").spec, spin: 90 },
+  });
+  const scad = holesToScad(doc, partsById, { throughLength: 60, importedFiles: new Map() });
+  assert.match(scad, /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/openconnect\.scad>$/m);
+  // A MultiConnect slot is builtins only and needs nothing more.
+  const mc = addHole(createHolesDoc({ kind: "mesh", name: "bench", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
+    point: [0, 0, 10],
+    normal: [0, 0, 1],
+    spec: getPreset("mc-slot").spec,
+  }).doc;
+  assert.doesNotMatch(holesToScad(mc, partsById, { throughLength: 60, importedFiles: new Map() }), /BOSL2/);
+});
+
 test("a mesh source imports its STL and hands the bytes to the caller", () => {
   const bytes = new ArrayBuffer(84);
   let { doc } = addHole(createHolesDoc({ kind: "mesh", name: "My Bracket.step", stlBytes: bytes, extents: [10, 10, 10] }), {
@@ -103,13 +126,95 @@ test("every preset has a usable spec and a drawable screw", () => {
   for (const preset of SCREW_PRESETS) {
     assert.ok(!ids.has(preset.id), `duplicate preset id ${preset.id}`);
     ids.add(preset.id);
-    assert.ok(preset.spec.diameter > 0, `${preset.id} diameter`);
-    assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
-    if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
+    if (preset.spec.kind === "screw") {
+      assert.ok(preset.spec.diameter > 0, `${preset.id} diameter`);
+      assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
+      if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
+    } else {
+      assert.ok(["openconnect", "multiconnect"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
+    }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
     // The spec round-trips through normalisation unchanged.
     assert.deepEqual(normalizeSpec(preset.spec), preset.spec);
   }
+});
+
+test("a connector slot is cut by the repo's own library in a frame whose +Y is the face's up", () => {
+  let { doc } = addHole(plateDoc(), { point: [5, -3, 4], normal: [0, 0, 1], spec: getPreset("oc-slot").spec, presetId: "oc-slot" });
+  ({ doc } = addHole(doc, { point: [0, 0, 0], normal: [0, 0, -1], spec: getPreset("mc-slot-open").spec, presetId: "mc-slot-open" }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /^use <\.\.\/lib\/openconnect\.scad>$/m);
+  assert.match(scad, /^use <\.\.\/lib\/multiconnect\.scad>$/m);
+  assert.match(scad, /oc_slot\(lock = "left", side_clearance = 0\.1, depth_clearance = 0\.1, overshoot = 1\);/);
+  assert.match(scad, /mc_slot\(length = 25, on_ramp = false, detent = true, clearance = 0, overshoot = 1\);/);
+  // On the top face of a plate lying flat, the slot's +Y is the part's +Y
+  // and its +X the part's +X: an identity frame at the point.
+  assert.match(scad, /multmatrix\(\[\[1, 0, 0, 5\], \[0, 1, 0, -3\], \[0, 0, 1, 4\], \[0, 0, 0, 1\]\]\)/);
+  // On the bottom face it still runs along +Y, seen from below (so X
+  // flips to keep the frame right-handed).
+  assert.match(scad, /multmatrix\(\[\[-1, 0, 0, 0\], \[0, 1, 0, 0\], \[0, 0, -1, 0\], \[0, 0, 0, 1\]\]\)/);
+  // A screw preset has no use lines to carry.
+  assert.doesNotMatch(holesToScad(plateDoc(), partsById, { throughLength: 50 }), /use </);
+});
+
+test("a slot's frame: straight up on a vertical face, the part's Y on a level one, and spin turns it counter-clockwise", () => {
+  const close = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
+  // Every vertical face, whichever way it faces, points the slot up.
+  for (const normal of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [Math.SQRT1_2, Math.SQRT1_2, 0]]) {
+    const f = slotFrame([0, 0, 0], normal, 0);
+    assert.ok(close(f.ey, [0, 0, 1]), `vertical face ${normal}: ${JSON.stringify(f)}`);
+  }
+  // Seen from the front (-Y), +X completes the right-handed frame.
+  let f = slotFrame([0, 0, 0], [0, -1, 0], 0);
+  assert.ok(close(f.ex, [1, 0, 0]), `front face ${JSON.stringify(f)}`);
+  // A face tilted back 20° from vertical still points up its slope.
+  const t = (20 * Math.PI) / 180;
+  f = slotFrame([0, 0, 0], [Math.cos(t), 0, Math.sin(t)], 0);
+  assert.ok(f.ey[2] > 0.9 && Math.abs(f.ey[1]) < 1e-9, `tilted face ${JSON.stringify(f)}`);
+  // Level faces (top and bottom) run along the part's Y.
+  assert.ok(close(slotFrame([0, 0, 0], [0, 0, 1], 0).ey, [0, 1, 0]));
+  assert.ok(close(slotFrame([0, 0, 0], [0, 0, -1], 0).ey, [0, 1, 0]));
+  // A quarter turn on the top face sends the slot's +Y to the part's -X.
+  f = slotFrame([0, 0, 0], [0, 0, 1], 90);
+  assert.ok(close(f.ey, [-1, 0, 0]) && close(f.ex, [0, 1, 0]), `turned ${JSON.stringify(f)}`);
+  // Spin is kept in [0, 360).
+  assert.equal(normalizeSpec({ kind: "openconnect", spin: -90 }).spin, 270);
+  assert.equal(normalizeSpec({ kind: "multiconnect", spin: 720 }).spin, 0);
+  assert.equal(normalizeSpec({ kind: "openconnect", lock: "sideways" }).lock, "left");
+  assert.equal(normalizeSpec({ kind: "multiconnect", length: -4 }).length, 25);
+});
+
+test("a slot keeps pointing the same way along a flipped mesh", () => {
+  let { doc } = addHole(createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 4] }), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("oc-slot").spec,
+  });
+  const before = slotFrame(doc.holes[0].point, doc.holes[0].normal, doc.holes[0].spec.spin);
+  const flipped = flipHoles(doc, 4);
+  assert.equal(flipped.holes[0].spec.spin, 180);
+  const after = slotFrame(flipped.holes[0].point, flipped.holes[0].normal, flipped.holes[0].spec.spin);
+  // The half turn about X sends the part's +Y to the world's -Y; the
+  // slot's +Y follows it.
+  assert.ok(after.ey.every((v, i) => Math.abs(v + before.ey[i]) < 1e-9), JSON.stringify({ before, after }));
+  assert.equal(flipHoles(flipped, 4).holes[0].spec.spin, 0);
+});
+
+test("a slot's outline and footprint are drawn around its point, in its frame", () => {
+  const hole = { point: [10, 0, 4], normal: [0, 0, 1], spec: normalizeSpec({ kind: "multiconnect", length: 20, onRamp: true, detent: true, spin: 0 }) };
+  const segments = slotOutline(hole);
+  assert.ok(segments.length > 40, "round end, channel, entry circle and arrow");
+  // Every point lies on the face (z = 4); the channel runs toward -Y
+  // from the point and the entry circle sits at its far end.
+  assert.ok(segments.every((s) => Math.abs(s.a[2] - 4) < 1e-9 && Math.abs(s.b[2] - 4) < 1e-9));
+  const ys = segments.flatMap((s) => [s.a[1], s.b[1]]);
+  assert.ok(Math.min(...ys) < -20 - 11 && Math.max(...ys) > 10, `extent ${Math.min(...ys)}..${Math.max(...ys)}`);
+  assert.ok(segments.some((s) => s.dashed), "the entry is dashed");
+  assert.equal(slotOutline({ ...hole, spec: getPreset("m3-cap").spec }).length, 0);
+  assert.ok(holeFootprintRadius(hole.spec) > 10 && holeFootprintRadius(getPreset("m3-cap").spec) < 4);
+  assert.equal(holeLabel(hole), "MultiConnect slot 20 long");
+  assert.equal(holeLabel({ ...hole, spec: normalizeSpec({ kind: "openconnect", lock: "none", spin: 90 }) }), "openConnect slot, no lock, 90°");
 });
 
 test("flipping the mesh carries its holes to the same spots on the turned-over part", () => {

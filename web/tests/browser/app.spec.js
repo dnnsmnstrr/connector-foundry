@@ -107,6 +107,56 @@ test("header links to the source in a new tab", async ({ page }) => {
   await expect(source).toHaveAttribute("target", "_blank");
 });
 
+test("the sidebar's edge resizes it, within limits, and the width sticks", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, true);
+  await page.goto("/");
+  const handle = page.getByRole("separator", { name: "Resize sidebar" });
+  const sidebarWidth = () => page.locator("aside.sidebar").evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  // A loaded page first: under a busy parallel run the app can take
+  // longer than a poll's 5s to come up, which would read as a wrong width.
+  const loaded = () => expect(handle).toBeVisible({ timeout: 20_000 });
+  await loaded();
+  await expect.poll(sidebarWidth).toBe(280);
+
+  // Keyboard: 16px a step, 64 with Shift; Home and End are the limits.
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(sidebarWidth).toBe(296);
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect.poll(sidebarWidth).toBe(232);
+  await page.keyboard.press("Home");
+  await expect.poll(sidebarWidth).toBe(220);
+  await page.keyboard.press("End");
+  // The widest is 640px, or 60% of the window when that is less.
+  await expect.poll(sidebarWidth).toBe(Math.min(640, Math.round(1280 * 0.6)));
+
+  // A drag moves it by the distance dragged.
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 300, box.y + 200, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(sidebarWidth).toBe(340);
+  // Stored on release (not on every move of the drag).
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("connector-foundry.sidebarWidth"))).toBe("340");
+
+  // It is kept, and the same column in every mode.
+  await page.reload();
+  await loaded();
+  await expect.poll(sidebarWidth).toBe(340);
+  await page.keyboard.press("3");
+  await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
+  // The Holes start screen focuses its search box, so click back.
+  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: /^Library/ }).click();
+  await expect.poll(sidebarWidth).toBe(340);
+
+  // A double-click puts the default back.
+  await handle.dblclick();
+  await expect.poll(sidebarWidth).toBe(280);
+  expect(await page.evaluate(() => localStorage.getItem("connector-foundry.sidebarWidth"))).toBeNull();
+});
+
 test("selection changes and failed renders cannot download a previous part", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

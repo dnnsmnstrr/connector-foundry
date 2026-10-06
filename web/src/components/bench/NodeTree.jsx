@@ -2,7 +2,7 @@ import { childrenOf, getNode, jointsFor, normalizeShift } from "../../lib/assemb
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
-import SpinButtons from "./SpinButtons.jsx";
+import RotationInput from "../RotationInput.jsx";
 
 // One node in the "Attached" tree (always a non-root node — root gets
 // its own params panel above this list in Bench's sidebar). Renders
@@ -103,19 +103,12 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
         title="Turn about the slot it sits on. Positive is counter-clockwise viewed from above the slot; the arrows step by 90°."
       >
         Rotation (°)
-        <span className="bench-rotation-controls">
-          <input
-            type="number"
-            step="90"
-            min="-360"
-            max="360"
-            value={node.spin ?? 0}
-            onChange={(e) => {
-              if (e.target.value !== "") actions.setSpin(nodeId, Number(e.target.value));
-            }}
-          />
-          <SpinButtons name={part.name} onRotate={(delta) => actions.rotate(nodeId, delta)} />
-        </span>
+        <RotationInput
+          value={node.spin ?? 0}
+          onChange={(degrees) => actions.setSpin(nodeId, degrees)}
+          onRotate={(delta) => actions.rotate(nodeId, delta)}
+          name={part.name}
+        />
       </label>
       <label
         className="field field-checkbox bench-crop-field"

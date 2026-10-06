@@ -8,7 +8,7 @@ include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 include <../../lib/util.scad>
 
-module basics_plate(w = 40, d = 40, t = 4, r = 3, bolts = false, bolt_r = 1.7, bolt_inset = 6,
+module basics_plate(w = 42, d = 42, t = 4, r = 4, bolts = false, bolt_r = 1.7, bolt_inset = 6,
                      anchor = BOTTOM, spin = 0, orient = UP) {
     size = [w, d, t];
     anchors = [
