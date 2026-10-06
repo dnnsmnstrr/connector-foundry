@@ -50,7 +50,7 @@ import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { fitGridCounts } from "./lib/slots.js";
-import { getOverrides, resolveParams } from "./lib/userOverrides.js";
+import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
 
 // A bolted/snap/pin joint nests two rounded-cuboid flanges around the
 // child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
@@ -70,7 +70,9 @@ function friendlyRenderError(message) {
   // then something bolted onto ONE of the plate's own further anchors:
   // that's the plate plus both bolted flanges, three rounded cuboids in
   // one attach() chain, the same limit as bolting a plate directly).
-  // All of these are the one known cause, not three different bugs.
+  // All of these are the one known cause, not three different bugs:
+  // the WASM thread stack, which gives out about 70 nested module
+  // levels down (see web/README.md, "Known limit — nesting depth").
   if (/table index|memory access out of bounds|is not a function/i.test(message)) {
     return "This browser's OpenSCAD build can't preview this bolted/snap/pin combination " +
       "(a known limitation, not a bad connection) — try \"fused\" for this joint instead, or for a stacked " +
@@ -361,7 +363,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   }
 
   function attachChild(part) {
-    const params = resolveParams(part, {});
+    // ...plus the catalogue's `attached_defaults`: a part on something
+    // else may be a different thing from the part on its own (an
+    // openGrid connector here is just its head).
+    const params = resolveAttachedParams(part, {});
     // Size a grid part to the surface it lands on (a 5x5 BitBeam plate on
     // a single Gridfinity base, 3x3 on an openGrid snap) — except for a
     // count the user's saved default for this part already pins.

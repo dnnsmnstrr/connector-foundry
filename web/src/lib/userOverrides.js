@@ -134,3 +134,14 @@ export function clearGlobalOverrides(keys) {
 export function resolveParams(part, instanceParams) {
   return { ...(part.defaults ?? {}), ...getOverrides(part.id), ...instanceParams };
 }
+
+// The same, for a part the Bench is attaching to another: the
+// catalogue's `attached_defaults` (what a part is when it is on
+// something rather than on its own — an openGrid connector sheds its
+// snap body) go over its plain defaults, but under a saved user default
+// for the same parameter, which is a deliberate choice.
+export function resolveAttachedParams(part, instanceParams) {
+  const pinned = getOverrides(part.id);
+  const attached = Object.fromEntries(Object.entries(part.attached_defaults ?? {}).filter(([key]) => !(key in pinned)));
+  return { ...resolveParams(part, {}), ...attached, ...instanceParams };
+}

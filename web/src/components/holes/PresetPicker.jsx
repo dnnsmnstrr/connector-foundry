@@ -35,8 +35,10 @@ export default function PresetPicker({ value, onPick }) {
   );
 }
 
-// "M3" under the icon when the group already says what kind it is.
+// "M3" under the icon when the group already says what kind it is; a
+// preset that names its own short form (the connector slots) uses that.
 function shortName(preset) {
+  if (preset.short) return preset.short;
   const m = preset.name.match(/^(M\d+(?:\.\d+)?)\b/);
   if (m) return m[1];
   const mm = preset.name.match(/(\d+(?:\.\d+)?) mm/);
@@ -45,6 +47,8 @@ function shortName(preset) {
 }
 
 function describe(spec) {
+  if (spec.kind === "openconnect") return `openConnect slot, lock nub ${spec.lock}, ${spec.sideClearance} mm side / ${spec.depthClearance} mm depth clearance`;
+  if (spec.kind === "multiconnect") return `MultiConnect slot, ${spec.length} mm channel${spec.onRamp ? " with on-ramp" : ", open-ended"}${spec.detent ? ", detent" : ", no detent"}`;
   const bits = [`Ø${spec.diameter} mm`, spec.depth > 0 ? `${spec.depth} mm deep` : "through"];
   if (spec.head === "counterbore") bits.push(`counterbore Ø${spec.headDiameter} × ${spec.headDepth}`);
   if (spec.head === "countersink") bits.push(`countersink Ø${spec.headDiameter}, ${spec.sinkAngle}°`);

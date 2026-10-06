@@ -22,7 +22,8 @@ only the slot convention:
 | [BOSL2](https://github.com/BelfrySCAD/BOSL2) | MIT | everything (attachments) |
 | [gridfinity-rebuilt-openscad](https://github.com/kennetek/gridfinity-rebuilt-openscad) | MIT | `gridfinity/base`, `gridfinity/baseplate` |
 | [GoProScad](https://github.com/ridercz/GoProScad) | MIT | `gopro/*` |
-| [QuackWorks](https://github.com/AndyLevesque/QuackWorks) | CC-BY-NC-SA 4.0 | `opengrid/*` |
+| [QuackWorks](https://github.com/AndyLevesque/QuackWorks) | CC-BY-NC-SA 4.0 | `opengrid/board`, `opengrid/snap` |
+| [openGrid-projects](https://github.com/mitufy/opengrid-projects) | CC-BY 4.0 | `opengrid/openconnect`, `opengrid/multiconnect`, the Holes tab's openConnect slot |
 | [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | BSD-3-Clause | `bitbeam/beam`, `bitbeam/plate` |
 | [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/pin`, `bitbeam/axle` |
 | [AluminumExtrusionProfile](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) | Apache-2.0 | `extrusion2020/rail` |
@@ -31,7 +32,10 @@ only the slot convention:
 The 2020 fittings are modelled here from dimensions measured off
 [NopSCADlib](https://github.com/nophead/NopSCADlib)'s E2020t (GPL, so measured against, never
 vendored). Specifications consulted: [gridfinity.xyz](https://gridfinity.xyz/specification/),
-[opengrid.world](https://www.opengrid.world/guides/board/), [bitbeam.cc](https://bitbeam.cc/).
+[opengrid.world](https://www.opengrid.world/guides/board/), [bitbeam.cc](https://bitbeam.cc/). The
+MultiConnect head and slot (`lib/multiconnect.scad`) are modelled here from the published numbers —
+openGrid-projects' head, QuackWorks' slot profile — since no permissively licensed implementation
+exists to vendor.
 Each catalogue entry links its own source; see "Licensing" for what the non-MIT ones mean for you.
 
 ## Quick start
@@ -120,7 +124,11 @@ attached part has:
   away — in the preview and in every exported body. Only the outer outline counts: a grid of holes
   or a screw hole in the cropping part is not cut through the others. One part crops at a time; the
   part itself and a joint's flanges are never trimmed, only what overhangs.
-- Its own **parameter editor**, with the same defaults/overrides as the Library.
+- Its own **parameter editor**, with the same defaults/overrides as the Library. A part attached
+  to another may start from different values than the same part on its own (the catalogue's
+  `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone
+  (`body: none`), the thing you fuse onto a plate to hang it, while the version picked as a base
+  keeps its snap body. A saved user default for the parameter still wins.
 
 **STL, STEP and 3MF import** bring in any part — a Mechanism or Printables download, a supplier's
 CAD file, a slicer project's model — as a Bench part: click a flat face to put a slot at its centre.
@@ -166,7 +174,19 @@ M2–M6 socket caps (ISO 4762), M3–M6 countersunk (ISO 10642), button heads (I
 insert bores, thread-forming core holes for a machine screw straight into plastic, nut traps
 (ISO 4032), wood screws and their pilots, a plain hole and a dowel. Clearances are ISO 273 medium;
 treat every one as a starting point for your printer and measure the first print. A selected hole
-can be edited on its own, and whatever screw was picked or edited last is what the next holes get. Export the result as an
+can be edited on its own, and whatever screw was picked or edited last is what the next holes get.
+
+Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
+custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
+snap's head slides into — upstream's own geometry, with its lock nub on the left, right, both
+sides or neither, and its two clearances) and a **MultiConnect** slot (for an `opengrid/multiconnect`
+snap or any Multiboard connector: a channel of the length you choose running down from the round
+end the head rests in, with an on-ramp funnel at the entry and the v2 detent, each optional). A slot
+has a direction on its face — the way the head travels to seat, "up" on the wall — which starts as
+the part's own Y and turns in the sidebar; the viewer draws each slot's outline, entry and an arrow
+for it. The point you click is the openGrid cell centre for an openConnect slot (the head seats
+3.6 mm up from it) and the round end for a MultiConnect one; an openConnect slot needs about 3 mm
+of material under the surface, a MultiConnect slot about 4.5 mm. Export the result as an
 STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working
 with a native OpenSCAD.
 
@@ -191,6 +211,8 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Baseplate](docs/img/gridfinity_baseplate.png)<br>Baseplate | Gridfinity | exact | MIT | [gridfinity-rebuilt-openscad (kennetek, MIT), vendored](https://github.com/kennetek/gridfinity-rebuilt-openscad) | Modelled pockets down so the flat back is the "mount" face; flip it in the slicer to print back-down. Magnets and screw holes only apply to the weighted, skeletonized and screw-together styles. |
 | ![Board](docs/img/opengrid_board.png)<br>Board | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks openGrid.scad (openGrid by David D, OpenSCAD by BlackjackDuck), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Grid face up, flat on the bed. A board is exactly cells x 28mm with no border, so boards butt together. lite is 4mm, full 6.8mm, heavy 13.8mm (two halves back to back, with a sealed cavity per cell). |
 | ![Snap](docs/img/opengrid_snap.png)<br>Snap | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks opengrid-snap.scad (openGrid by David D, snap by metasyntactic), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Print in PETG or another filament with some flex so the wings can compress; no supports. The lite snap is half height (3.4mm), which is not the same as a lite board. |
+| ![openConnect snap](docs/img/opengrid_openconnect.png)<br>openConnect snap | openGrid | exact | CC-BY-4.0 | [openGrid-projects (mitufy, CC-BY 4.0), vendored — its snap body and openConnect head, as its parametric snap generator renders them (text label off).](https://github.com/mitufy/opengrid-projects) | Snap on the bed, head up; no supports (the head's taper is 45°). Goes into any openGrid board cell; anything with an openConnect slot (Holes tab) or a MultiConnect slot hangs on it. The lite snap is half height (3.4mm) for lite boards. directional is the body for a wall-mounted board — its deeper back nub takes the load — symmetric for a horizontal one. body none is the head alone, for fusing onto another part (the Bench's default when attaching it). |
+| ![MultiConnect snap](docs/img/opengrid_multiconnect.png)<br>MultiConnect snap | openGrid | exact | CC-BY-4.0 | [openGrid-projects (mitufy, CC-BY 4.0), vendored, for the snap body; the MultiConnect head is this repo's own, from the published numbers (lib/constants.scad), checked against the head that generator renders.](https://github.com/mitufy/opengrid-projects) | Snap on the bed, head up; no supports. Hangs any Multiboard accessory — or anything with a MultiConnect slot from the Holes tab — off an openGrid board. variant and body as for the openConnect snap, body none being the head alone for fusing onto another part. |
 | ![Two-prong male buckle](docs/img/gopro_male.png)<br>Two-prong male buckle | GoPro | exact | MIT | [GoProScad (ridercz, MIT), vendored](https://github.com/ridercz/GoProScad) | Legs down; use a brim. Mates with any GoPro three-prong buckle. |
 | ![Three-prong female buckle](docs/img/gopro_female.png)<br>Three-prong female buckle | GoPro | exact | MIT | [GoProScad (ridercz, MIT), vendored](https://github.com/ridercz/GoProScad) | Legs down; use a brim. nut_depth sinks a captive pocket for an M5 hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4 with nut_dia 11.5 takes a square nut instead. The pocket makes the far outer leg thicker than the near one, so the plate runs nut_depth further to that side; "mount" sits over the middle prong regardless. symmetric pads the near leg to match, for a plate centred on the prongs. |
 | ![Innie](docs/img/deckmate_innie.png)<br>Innie | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | [Mechanism's Universal Grip STL — the manufacturer's own model, imported unmodified. CC BY-NC 4.0 — see README "Licensing".](https://getmechanism.com/pages/digital-files) | The socket half. Flat back up as "mount" (where Mechanism puts the adhesive); the socket side has undercuts, so flip it in the slicer. "bot" sits over the socket recess, not on material. |
@@ -256,11 +278,12 @@ it in `refs/manual/` and uncomment the example in `references.yaml`.
 
 ## Licensing
 
-This repository's own files are MIT. Eight parts are not, and each catalogue entry says so:
+This repository's own files are MIT. Ten parts are not, and each catalogue entry says so:
 
 | Parts | Licence | Why |
 | --- | --- | --- |
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They run `vendor/QuackWorks` code. NonCommercial applies to that use, ShareAlike to adaptations. Upstream licenses *generated tiles* CC-BY, so what you print is unrestricted. |
+| `opengrid/openconnect`, `opengrid/multiconnect` | **CC-BY 4.0** | They run `vendor/opengrid-projects` code (the snap body; the openConnect head). Attribution to mitufy, nothing else. The Holes tab's openConnect slot comes from the same library; its MultiConnect slot and the MultiConnect head are this repo's MIT code. |
 | `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC BY-NC 4.0** | Mechanism's own STLs, redistributed unmodified under the terms they publish their files under. NonCommercial applies to the files, to prints of them, and to anything fused onto them. The screw pattern's dimensions in `lib/constants.scad` are facts; the generated flange is this repo's MIT code. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
 | `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile`. Permissive, just not MIT. |

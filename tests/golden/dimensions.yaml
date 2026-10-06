@@ -308,6 +308,56 @@ opengrid/board:
     - 28.0
     - 4.0
     volume_mm3: 711.1
+opengrid/multiconnect:
+  default:
+    bbox:
+    - 25.59
+    - 25.99
+    - 10.8
+    volume_mm3: 4757.79
+  head-only:
+    bbox:
+    - 20.0
+    - 20.0
+    - 4.0
+    volume_mm3: 1006.13
+  lite:
+    bbox:
+    - 25.59
+    - 25.99
+    - 7.4
+    volume_mm3: 2907.14
+  symmetric:
+    bbox:
+    - 25.59
+    - 25.59
+    - 10.8
+    volume_mm3: 4711.82
+opengrid/openconnect:
+  default:
+    bbox:
+    - 25.59
+    - 25.99
+    - 9.4
+    volume_mm3: 4118.76
+  head-only:
+    bbox:
+    - 17.0
+    - 10.6
+    - 2.6
+    volume_mm3: 367.22
+  lite:
+    bbox:
+    - 25.59
+    - 25.99
+    - 6.0
+    volume_mm3: 2268.11
+  symmetric:
+    bbox:
+    - 25.59
+    - 25.59
+    - 9.4
+    volume_mm3: 4072.79
 opengrid/snap:
   default:
     bbox:

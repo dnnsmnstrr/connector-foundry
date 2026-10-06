@@ -36,6 +36,10 @@ export const SOURCE_DIRS = [
   "vendor/gridfinity-rebuilt/gridfinity-rebuilt-baseplate.scad",
   "vendor/GoProScad",
   "vendor/QuackWorks/openGrid",
+  // openGrid-projects' four library files (the snap body, the openConnect
+  // head and slot, their threads helper, the shared constants) — not its
+  // generators, which have live top-level calls and customizer UIs.
+  "vendor/opengrid-projects/lib",
   "vendor/bitbeam-lib",
   "vendor/technic.scad/Technic.scad",
   "vendor/AluminumExtrusionProfile/AluminumExtrusionProfile.scad",

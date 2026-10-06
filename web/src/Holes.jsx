@@ -28,11 +28,14 @@ import {
   distance,
   flipHoles,
   getHole,
+  holeFootprintRadius,
   holeLabel,
+  holeMeta,
   holesToScad,
   removeHole,
   setDocName,
   setNextSpec,
+  slotOutline,
   sourceLabel,
   sourceStem,
   updateHole,
@@ -75,7 +78,9 @@ const GUIDE_SWITCH_DELAY_MS = 350;
 // through it, and a point set in from each corner. Each hole
 // has a diameter, a depth (or goes through), and a head pocket —
 // counterbore, countersink or hex — from a preset (lib/screwPresets.js)
-// or typed in. The result is rendered as `difference() { base; holes }`
+// or typed in; or it is a connector slot (openConnect, MultiConnect)
+// cut by the repo's own libraries, with a direction on its face. The
+// result is rendered as `difference() { base; holes }`
 // through the same worker as everything else (lib/screwHoles.js's
 // holesToScad()) and exported as STL or .scad.
 //
@@ -378,7 +383,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // A spot that already has a hole selects it; anywhere else drills a
   // new one with the "new holes" spec and selects that.
   function placeAt(point, normal) {
-    const existing = doc.holes.find((h) => distance(h.point, point) < Math.max(1, Math.max(h.spec.diameter, h.spec.headDiameter) / 2));
+    const existing = doc.holes.find((h) => distance(h.point, point) < Math.max(1, holeFootprintRadius(h.spec)));
     if (existing) {
       setSelectedId(existing.id);
       return;
@@ -455,7 +460,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       y: h.point[1],
       z: h.point[2],
       normal: h.normal,
-      radius: Math.max(h.spec.diameter, h.spec.headDiameter) / 2 + 0.5,
+      radius: holeFootprintRadius(h.spec) + 0.5,
       color: h.id === selectedId ? SELECTED_COLOR : HOLE_COLOR,
     }));
     // The spot on a guide line the click would take: a marker that
@@ -490,13 +495,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   // The lines across the hovered face (nothing while a hole is being
   // dragged across it in the viewer — there is no such thing yet, so:
-  // whenever a face is hovered with snapping on). Each piece is lifted
-  // off the face along its normal.
+  // whenever a face is hovered with snapping on), and every connector
+  // slot's outline on its own face — its channel, its entry (dashed)
+  // and an arrow the way the head travels to seat, since a ring says
+  // nothing about which way a slot points. Each piece is lifted off
+  // its face along the normal.
   const guides = useMemo(() => {
-    const face = snapOn ? guideFace : null;
-    if (!face) return [];
-    const lift = (p) => [p[0] + face.normal[0] * GUIDE_LIFT_MM, p[1] + face.normal[1] * GUIDE_LIFT_MM, p[2] + face.normal[2] * GUIDE_LIFT_MM];
     const segments = [];
+    const lifted = (p, normal) => [p[0] + normal[0] * GUIDE_LIFT_MM, p[1] + normal[1] * GUIDE_LIFT_MM, p[2] + normal[2] * GUIDE_LIFT_MM];
+    for (const h of doc?.holes ?? []) {
+      const color = h.id === selectedId ? SELECTED_COLOR : HOLE_COLOR;
+      for (const seg of slotOutline(h)) segments.push({ a: lifted(seg.a, h.normal), b: lifted(seg.b, h.normal), color, dashed: seg.dashed });
+    }
+    const face = snapOn ? guideFace : null;
+    if (!face) return segments;
+    const lift = (p) => lifted(p, face.normal);
     for (const g of face.guides) {
       if (g.kind === "circle") {
         // The circle as a chain of short segments.
@@ -509,7 +522,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       segments.push({ a: lift(g.a), b: lift(g.b), color, dashed: g.kind !== "center" });
     }
     return segments;
-  }, [guideFace, snapOn]);
+  }, [guideFace, snapOn, doc?.holes, selectedId]);
 
   const hoveredSnap = hover?.snapId ? { label: hover.snapLabel } : hover?.linePoint ? { label: hover.lineLabel, point: hover.linePoint } : null;
 
@@ -691,7 +704,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 {formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
               </p>
             ) : (
-              <p className="muted holes-editor-note">The screw every new hole is made for — the one picked or edited last. Select a hole to change it.</p>
+              <p className="muted holes-editor-note">
+                The screw — or connector slot — every new hole is made for: the one picked or edited last. Select a hole to
+                change it.
+              </p>
             )}
             <PresetPicker value={editingPresetId} onPick={applyPreset} />
             <HoleSpecFields spec={editingSpec} onChange={(spec) => applySpec(spec)} />
@@ -724,7 +740,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                           {preset && !specMatchesPreset(h.spec, h.presetId) ? " (edited)" : ""}
                         </span>
                         <span className="muted holes-row-meta">
-                          {h.spec.depth > 0 ? `${h.spec.depth} mm deep` : "through"} · [{formatPoint(h.point)}]
+                          {holeMeta(h)} · [{formatPoint(h.point)}]
                         </span>
                       </span>
                     </button>

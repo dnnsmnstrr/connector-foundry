@@ -28,6 +28,7 @@ def test_declared_parameters_exist_on_the_module():
         declared = {
             "defaults": part.get("defaults", {}).keys(),
             "options": part.get("options", {}).keys(),
+            "attached_defaults": part.get("attached_defaults", {}).keys(),
         }
         for variant in part.get("variants", []):
             declared[f"variant {variant['name']}"] = variant["params"].keys()
@@ -62,6 +63,14 @@ def test_option_lists_agree_with_defaults_and_variants():
                     problems.append(
                         f"{part['id']} [{variant['name']}]: {key}={value!r} "
                         f"is not in {options[key]}")
+        # `attached_defaults` is the same kind of promise as `defaults`:
+        # the Bench hands these values to the module unchecked.
+        for key, value in part.get("attached_defaults", {}).items():
+            if key not in defaults:
+                problems.append(f"{part['id']}: attached_defaults {key!r} has no default")
+            elif key in options and value not in options[key]:
+                problems.append(
+                    f"{part['id']}: attached default {key}={value!r} is not in {options[key]}")
     assert not problems, "\n".join(problems)
 
 

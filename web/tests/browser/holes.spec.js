@@ -141,6 +141,19 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await page.locator(".holes-row-main").first().click();
   await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
 
+  // A connector slot is a kind of hole: picking the openConnect preset
+  // turns the selected hole into one, with its own fields, cut by the
+  // repo's own library in the generated source.
+  await page.getByRole("option", { name: /^openConnect slot$/ }).click();
+  await expect(page.getByRole("combobox", { name: "Lock nub" })).toHaveValue("left");
+  await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("0");
+  await expect(page.locator(".holes-row").first()).toContainText("1. openConnect slot");
+  await expect.poll(async () => (await jobs(page)).length).toBe(5);
+  const slotted = (await jobs(page))[4].scadSource;
+  expect(slotted).toContain("use <../lib/openconnect.scad>");
+  expect(slotted).toContain('oc_slot(lock = "left", side_clearance = 0.1, depth_clearance = 0.1, overshoot = 1);');
+  expect(slotted).not.toContain("cylinder(");
+
   // Delete removes it (once focus has left the field — in a field the
   // key edits the value); the view goes back to the plain base.
   await page.evaluate(() => document.activeElement.blur());

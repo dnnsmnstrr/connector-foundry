@@ -42,9 +42,20 @@ work defensively in the worker; `openscad-client.js` now owns the cancellable FI
 and sends only one job at a time. Only the instance is fresh: the compiled WebAssembly module
 is reused across them (`scripts/vite-plugin-openscad-wasm-memo.mjs` — the package would otherwise
 decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). See the
-worker's header comment for the full story,
-including a separate, still-unresolved WASM resource limit that shows up for some bolted/snap
-joint combinations in the Bench (`src/lib/assembly.js`'s `emitJointChild()` has that one).
+worker's header comment for the full story.
+
+**Known limit — nesting depth.** This `openscad-wasm` build runs out of thread stack about 70
+nested module levels down: a chain of 69 BOSL2 attachables renders, 70 traps, with the symptom
+varying by what the overflow lands on (`memory access out of bounds`, `table index out of bounds`,
+`original is not a function`). Measured on 2026-10-06 in Chrome's worker and in Node alike, with
+`$parent_modules` echoed from an instrumented BOSL2 `attachable()` to count the levels. It is the
+one cause behind every Bench render failure the READMEs blame on bolted/snap/pin joints
+(`src/lib/assembly.js`'s `emitJointChild()`, `Bench.jsx`'s `friendlyRenderError()`): each
+`attach()` / joint flange / rounded cuboid adds levels, and the deep parts (openGrid's snap, the
+openConnect and MultiConnect snaps) start near the limit — `lib/opengrid.scad`'s header says what
+was done so those two render here at all (65 levels), and why they will not survive being a
+Bench child. There is no knob for it: the stack size is fixed when the WASM is linked, and no
+newer `openscad-wasm` exists on npm.
 
 If the worker itself dies (a script error, a message that can't be deserialised), every render
 waiting on it is rejected with a message saying so and the worker is discarded, so the next
@@ -65,8 +76,8 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
-| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields) |
-| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen; the fastener presets; the face-feature snap points; the live document as module state |
+| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction) |
+| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes, and openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`); the fastener and slot presets; the face-feature snap points; the live document as module state |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
@@ -76,7 +87,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides; sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
 
 ## Shell (`src/App.jsx`)
@@ -423,10 +434,12 @@ the implementation notes:
 - The document (`src/lib/screwHoles.js`) is `{ source, holes, name, nextSpec, nextPresetId }`:
   `source` is `{ kind: "catalogue", partId, params }` or `{ kind: "mesh", name, stlBytes, extents }`;
   each hole is `{ id, point, normal, spec, presetId }`, the point *on the surface* in the model's
-  own frame and the face's outward normal, so the hole is cut along `-normal`. `spec` is diameter,
-  depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`), head diameter (across
-  corners for hex), head depth (how far the pocket sinks; a countersink's extra sink on top of its
-  cone) and sink angle. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
+  own frame and the face's outward normal, so the hole is cut along `-normal`. `spec.kind` is
+  `"screw"` (diameter, depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`),
+  head diameter (across corners for hex), head depth (how far the pocket sinks; a countersink's
+  extra sink on top of its cone) and sink angle), `"openconnect"` (lock side, side and depth
+  clearance, spin) or `"multiconnect"` (channel length, on-ramp, detent, clearance, spin) — the
+  slots carry only the choices upstream's geometry leaves open. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
   edits it; with a hole selected the same editor edits that hole, and `nextSpec` follows along, so
   the screw picked or edited last is what the next holes get. It lives in
   `src/lib/holesSession.js` (module state, like `benchSession.js`) so a tab switch keeps it; it is
@@ -439,7 +452,16 @@ the implementation notes:
   in a local frame where the surface is z = 0: the shank from `-depth` (or past the far side, for a
   through hole — the base's bounding-box diagonal) to 1 mm above the surface, a counterbore or hex
   pocket (`$fn = 6`) from `-headDepth` up, a countersink as a cone from the shank diameter out to
-  the head diameter at the given angle under the sink. The render goes through `renderPart()` as a
+  the head diameter at the given angle under the sink. A connector slot is one call into the
+  repo's own library instead — `oc_slot(...)` from `lib/openconnect.scad` (a wrapper over
+  openGrid-projects' `openconnect_slot()`), `mc_slot(...)` from `lib/multiconnect.scad` — reached
+  by a `use <../lib/…>` line the generated file carries only when a slot is on it, with the slit at
+  z = 0 and the pocket below. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
+  +Y (the way the head travels to seat, "up" on the wall) the face's own up — the world's +Y
+  projected onto the face, failing that +Z, failing that +X, so a slot on a plate lying flat runs
+  along the plate's Y — turned by the spec's `spin` (degrees, counter-clockwise seen from outside
+  the face). `flipHoles()` adds a half turn to a slot's spin, since the mesh flip sends the part's
+  own Y the other way. The render goes through `renderPart()` as a
   `scadSource` request like a bench; with no holes the base is shown as it is (the part's own cached
   standalone render, or the mesh bytes) rather than compiled again.
 - **Snapping** (`src/lib/snapCandidates.js`): the viewer reports raw hits (`StlViewer`'s
@@ -492,8 +514,12 @@ the implementation notes:
   is the *rendered* mesh that is analysed, holes already drilled are themselves snap targets, and a
   click on one selects it instead of drilling through it (`placeAt()`).
 - Markers: holes are flat rings (`StlViewer` `shape: "ring"` markers, oriented by the hole's
-  normal and lifted 0.08 mm off the surface), the hovered face's snap points small spheres, the one
-  within reach and the selected hole in the selection yellow. Markers now take a `color`, and the
+  normal and lifted 0.08 mm off the surface; `holeFootprintRadius()` sizes them — a slot's ring is
+  its channel's half width), the hovered face's snap points small spheres, the one
+  within reach and the selected hole in the selection yellow. A slot also gets its outline drawn
+  through the `guides` prop (`slotOutline()`: the channel and pocket or round end, the entry
+  dashed, and an arrow the way the head travels), since a ring says nothing about which way it
+  points. Markers now take a `color`, and the
   viewer keeps the camera where it is when a new model has the same bounding sphere as the last —
   a hole drilled into a plate (or a Bench part turned in place) no longer resets the view.
 - `src/lib/screwPresets.js` holds the fastener presets — ISO 4762 socket caps, ISO 10642
@@ -501,7 +527,10 @@ the implementation notes:
   traps, wood screws and their pilots, a plain hole and a dowel — each with the `spec` it cuts and
   a `screw` record (`style`, nominal, head diameter/height) that `components/holes/ScrewIcon.jsx`
   draws as a cross-section: the slab, the cut, the fastener seated in it, to the preset's own
-  proportions. A hole remembers the preset it was placed from and says "(edited)" once its spec
+  proportions — and the two connector groups (openConnect: lock left / both / none; MultiConnect:
+  with on-ramp / open-ended / quick release), drawn as the keyhole section with the head seated in
+  it on its snap, depths four times over since a 2.8 mm slot at its width's scale would be a
+  hairline. A hole remembers the preset it was placed from and says "(edited)" once its spec
   differs (`specMatchesPreset()`).
 - Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected hole
   and `Escape` deselects (or closes the import), same local-listener arrangement as the Bench.
