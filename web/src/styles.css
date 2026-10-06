@@ -1275,11 +1275,103 @@ a.mode-tab {
   width: min(480px, 100vw - 2rem);
 }
 
-.bench-file-input {
-  width: 100%;
+/* The Holes header's hint holds two lines whether it has two or one, so
+   the viewer under it never changes size while the pointer moves. */
+.holes-note {
+  min-height: 2.6em;
+}
+
+/* The snap point under the pointer, named in a chip over the viewer's
+   top-left corner — out of the layout, so it can come and go freely. */
+.holes-snap-hint {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 1;
+  pointer-events: none;
+  padding: 0.3rem 0.65rem;
+  background: rgba(23, 24, 27, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #ffd23f;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* A file picker that is also a drop target (components/FileDropzone.jsx):
+   the dashed panel is the visible control; the real input is stretched
+   invisibly over it so a click anywhere opens the chooser. */
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.6rem 1rem 1.4rem;
+  border: 1.5px dashed #3f4047;
+  border-radius: 10px;
+  background: #1c1d20;
   color: #d8d9db;
-  font-size: 0.82rem;
-  margin-top: 0.5rem;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone.is-over {
+  border-color: #6b84e8;
+  background: #1e2333;
+}
+
+.dropzone.is-over {
+  border-style: solid;
+  color: #cdd7f5;
+}
+
+.dropzone:focus-within {
+  outline: 2px solid #6b84e8;
+  outline-offset: 2px;
+}
+
+/* Everything but the input lets the pointer through to the input. */
+.dropzone > :not(.dropzone-input) {
+  pointer-events: none;
+}
+
+.dropzone-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dropzone-input:focus-visible {
+  outline: none;
+}
+
+.dropzone-icon {
+  color: #7d8bd8;
+  margin-bottom: 0.2rem;
+}
+
+.dropzone.is-over .dropzone-icon {
+  color: #a8b4ff;
+}
+
+.dropzone-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.dropzone-hint {
+  font-size: 0.78rem;
+  color: #8b8c91;
+}
+
+.bench-import-dropzone {
+  margin-top: 0.75rem;
 }
 
 .bench-report {
@@ -1359,6 +1451,248 @@ a.mode-tab {
 }
 
 /* ---------------------------------------------------------------------
+   Holes tab (src/Holes.jsx): the Bench's two-column layout (`.bench` is
+   on the same element) with its own sidebar sections — the preset grid
+   of screw cross-sections, the spec fields, the hole list.
+   ------------------------------------------------------------------- */
+:root {
+  /* ScrewIcon's palette: the slab, the hole cut into it, the fastener. */
+  --screw-material: #3a3b40;
+  --screw-cut: #121316;
+  --screw-metal: #c3cad8;
+  --screw-metal-dark: #6f7889;
+  --screw-socket: #2a2f3a;
+}
+
+.screw-icon {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.screw-icon-small {
+  width: 30px;
+  height: 30px;
+}
+
+.screw-icon-material rect {
+  fill: var(--screw-material);
+}
+
+.screw-icon-cut rect,
+.screw-icon-cut polygon {
+  fill: var(--screw-cut);
+}
+
+.screw-icon-fastener rect,
+.screw-icon-fastener polygon,
+.screw-icon-fastener path {
+  fill: var(--screw-metal);
+  stroke: var(--screw-metal-dark);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+.screw-icon-fastener .screw-icon-socket {
+  fill: var(--screw-socket);
+  stroke: none;
+}
+
+.screw-icon-fastener .screw-icon-thread {
+  stroke: var(--screw-metal-dark);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+}
+
+.holes-start-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.holes-start-toolbar .bench-import-button {
+  margin-bottom: 0;
+}
+
+.holes-params-note,
+.holes-editor-note {
+  font-size: 0.75rem;
+  margin: 0.4rem 0 0.5rem;
+  line-height: 1.4;
+}
+
+.holes-inset-field input {
+  width: 4.5rem;
+}
+
+.holes-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.holes-preset-group h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #9a9ba0;
+}
+
+.holes-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 0.3rem;
+}
+
+.holes-preset-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem 0.2rem 0.25rem;
+  background: #1c1d20;
+  border: 1px solid #2a2b2e;
+  border-radius: 6px;
+  color: #c9cacd;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.holes-preset-button:hover {
+  background: #202126;
+  border-color: #3a3b40;
+}
+
+.holes-preset-button.is-active {
+  background: #24304a;
+  border-color: #6b84e8;
+  color: #cdd7f5;
+}
+
+.holes-preset-button .screw-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.holes-preset-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.holes-spec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 0.5rem;
+}
+
+.holes-spec .field {
+  margin-bottom: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.holes-through-field {
+  gap: 0.45rem;
+  margin-top: -0.2rem;
+}
+
+.holes-through-field input {
+  margin: 0;
+}
+
+.holes-selected-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.holes-small-button {
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  background: #2a2b2e;
+}
+
+.holes-delete-button {
+  background: #3a1f1f;
+  color: #e0a8a8;
+}
+
+.holes-delete-button:hover {
+  background: #4d2424;
+}
+
+.holes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.holes-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #1c1d20;
+  border: 1px solid #2a2b2e;
+  border-radius: 6px;
+  padding: 0.2rem 0.3rem 0.2rem 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.holes-row.is-selected {
+  border-color: #ffd23f;
+}
+
+.holes-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #d8d9db;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  padding: 0.25rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.holes-row-main:hover {
+  background: #25262a;
+}
+
+.holes-row-main[aria-pressed="true"] .holes-row-title {
+  color: #ffd23f;
+}
+
+.holes-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.holes-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.holes-row-meta {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------
    Touch devices: every primary control clears the 44px target size,
    inline icon buttons (✕, ↺) get a 32px hit area without bloating the
    row they sit in, and the keyboard-shortcut hints go away — there is
@@ -1382,7 +1716,12 @@ a.mode-tab {
     min-height: 44px;
   }
 
+  .dropzone {
+    min-height: 44px;
+  }
+
   .bench-remove,
+  .holes-preset-button,
   .bench-spin-button,
   .bench-rotate-pill,
   .bench-rotate-delete,

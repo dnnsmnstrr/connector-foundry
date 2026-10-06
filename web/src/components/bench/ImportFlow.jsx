@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
   addAnchor,
@@ -11,6 +11,8 @@ import {
 import { validateAndRepair } from "../../lib/meshValidate.js";
 import { tessellateStep } from "../../lib/stepImport.js";
 import { MESH_FILE_ACCEPT, bodyLabels, geometryFromBodies, isStepFilename, looksLikeStep } from "../../lib/stepMesh.js";
+import { is3mfFilename, looksLikeZip, read3mf } from "../../lib/threeMfMesh.js";
+import FileDropzone from "../FileDropzone.jsx";
 import Modal from "../Modal.jsx";
 import StlViewer from "../StlViewer.jsx";
 
@@ -29,27 +31,31 @@ function formatMm(n) {
   return n >= 100 ? Math.round(n).toString() : (Math.round(n * 10) / 10).toString();
 }
 
-// Upload -> (STEP: tessellate, pick a body if there are several) ->
-// validate/repair -> place one or more slots by clicking the mesh ->
-// hand back a finished ImportedPart. An STL is parsed as-is; a STEP file
-// is tessellated in a worker first (src/lib/stepImport.js) and from
-// then on is the same triangle soup an STL would be, so everything from
-// validation onward — the slot placement, the part record, the bytes
-// that go to OpenSCAD, what a config embeds — is one path.
+// Upload -> (STEP: tessellate; 3MF: unpack; pick a body if there are
+// several) -> validate/repair -> place one or more slots by clicking the
+// mesh -> hand back a finished ImportedPart. An STL is parsed as-is; a
+// STEP file is tessellated in a worker first (src/lib/stepImport.js), a
+// 3MF is unpacked and scaled to millimetres (src/lib/threeMfMesh.js),
+// and from then on either is the same triangle soup an STL would be, so
+// everything from validation onward — the slot placement, the part
+// record, the bytes that go to OpenSCAD, what a config embeds — is one
+// path.
 //
-// `mode` only changes copy: a root can carry any number of slots (they
-// become its whole slot set, same as a catalogue part's grid); a child
-// only needs the one it'll attach through, but placing more and picking
-// one is allowed.
+// `mode` "root" and "child" only change copy: a root can carry any
+// number of slots (they become its whole slot set, same as a catalogue
+// part's grid); a child only needs the one it'll attach through, but
+// placing more and picking one is allowed. `mode` "mesh" (the Holes
+// tab) wants the validated mesh and nothing else: no slots are placed,
+// and the flow ends right after the gate with onConfirm(part).
 export default function ImportFlow({ mode, onCancel, onConfirm }) {
-  const [stage, setStage] = useState("pick"); // pick | reading | bodies | validating | rejected | placing
+  const [stage, setStage] = useState("pick"); // pick | reading | bodies | validating | rejected | placing | ready
+  const [readingWhat, setReadingWhat] = useState("STEP");
   const [fileName, setFileName] = useState(null);
   const [bodies, setBodies] = useState(null);
   const [bodyChoice, setBodyChoice] = useState(ALL_BODIES);
   const [validation, setValidation] = useState(null);
   const [part, setPart] = useState(null);
   const [selectedAnchor, setSelectedAnchor] = useState(null);
-  const fileInputRef = useRef(null);
 
   function reject(report) {
     setValidation({ ok: false, report });
@@ -63,33 +69,38 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     setValidation(result);
     if (result.ok) {
       setPart(createImportedPart(name, result));
-      setStage("placing");
+      setStage(mode === "mesh" ? "ready" : "placing");
     } else {
       setStage("rejected");
     }
   }
 
-  async function handleFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = ""; // allow re-picking the same filename after a reject
-    if (!file) return;
+  // Chosen or dropped (components/FileDropzone.jsx).
+  async function handleFile(file) {
     setFileName(file.name);
     setBodies(null);
     setBodyChoice(ALL_BODIES);
     try {
       const buffer = await file.arrayBuffer();
-      if (isStepFilename(file.name) || looksLikeStep(buffer)) {
-        setStage("reading");
-        const read = await tessellateStep(buffer);
-        if (read.length === 1) {
-          validate(geometryFromBodies(read), file.name);
-        } else {
-          // Several bodies: an assembly, or a part modelled as separate
-          // solids. The gate below refuses more than one disconnected
-          // solid, so let the user pick before it gets the chance to.
+      // Several bodies (an assembly, or a part modelled as separate
+      // solids): the gate below refuses more than one disconnected
+      // solid, so let the user pick before it gets the chance to.
+      const useBodies = (read) => {
+        if (read.length === 0) reject(["No mesh found in this file."]);
+        else if (read.length === 1) validate(geometryFromBodies(read), file.name);
+        else {
           setBodies(read);
           setStage("bodies");
         }
+      };
+      if (isStepFilename(file.name) || looksLikeStep(buffer)) {
+        setReadingWhat("STEP");
+        setStage("reading");
+        useBodies(await tessellateStep(buffer));
+      } else if (is3mfFilename(file.name) || looksLikeZip(buffer)) {
+        setReadingWhat("3MF");
+        setStage("reading");
+        useBodies(read3mf(buffer));
       } else {
         setStage("validating");
         validate(new STLLoader().parse(buffer), file.name);
@@ -141,29 +152,29 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     <Modal
       onClose={onCancel}
       className="bench-import-modal"
-      title={`Import STL or STEP ${mode === "root" ? "as base part" : "to attach here"}`}
+      title={mode === "mesh" ? "Import a mesh" : `Import a mesh ${mode === "root" ? "as base part" : "to attach here"}`}
     >
 
       {stage === "pick" && (
         <>
           <p className="muted">
-            STL or STEP (.step / .stp). An STL is used as it is; a STEP file is converted to a mesh here in your
-            browser first. Either way your file stays local to this session: it's never uploaded anywhere or saved
-            into this repo.
+            STL, STEP (.step / .stp) or 3MF. An STL is used as it is; a STEP file is converted to a mesh and a 3MF
+            unpacked (and scaled to millimetres) here in your browser. Either way your file stays local to this
+            session: it's never uploaded anywhere or saved into this repo.
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
+          <FileDropzone
             accept={MESH_FILE_ACCEPT}
-            onChange={handleFile}
-            className="bench-file-input"
+            onFile={handleFile}
+            label="Drop an STL, STEP or 3MF file here"
+            hint="or click to choose one"
+            className="bench-import-dropzone"
           />
         </>
       )}
 
       {stage === "reading" && (
         <p className="muted" role="status">
-          Reading STEP geometry… The first STEP import also loads the converter (about 8 MB).
+          Reading {readingWhat} geometry…{readingWhat === "STEP" && " The first STEP import also loads the converter (about 8 MB)."}
         </p>
       )}
 
@@ -234,6 +245,25 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
           <button className="render-button" onClick={() => setStage("pick")}>
             Try a different file
           </button>
+        </>
+      )}
+
+      {stage === "ready" && part && (
+        <>
+          <ul className="bench-report bench-report-ok">
+            {validation.report.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+          <p className="muted">
+            {part.name}: {part.extents.map(formatMm).join(" × ")} mm. The validated mesh is what gets drilled; your
+            file itself is never changed.
+          </p>
+          <div className="bench-import-actions">
+            <button className="render-button" onClick={() => onConfirm(part)}>
+              Use this mesh
+            </button>
+          </div>
         </>
       )}
 

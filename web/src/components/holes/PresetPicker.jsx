@@ -1,0 +1,53 @@
+import { presetGroups } from "../../lib/screwPresets.js";
+import ScrewIcon from "./ScrewIcon.jsx";
+
+// The screw presets as a grid of cross-section icons, grouped by kind
+// (socket cap, countersunk, heat-set insert, …). `value` is the preset
+// id currently in effect; picking one calls onPick(preset) and the
+// caller copies its spec into whatever it is editing (the next hole, or
+// the selected one).
+export default function PresetPicker({ value, onPick }) {
+  return (
+    <div className="holes-presets">
+      {presetGroups().map(({ group, presets }) => (
+        <section key={group} className="holes-preset-group" aria-label={group}>
+          <h4>{group}</h4>
+          <div className="holes-preset-grid" role="listbox" aria-label={group}>
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                role="option"
+                aria-selected={preset.id === value}
+                className={preset.id === value ? "holes-preset-button is-active" : "holes-preset-button"}
+                onClick={() => onPick(preset)}
+                aria-label={preset.name}
+                title={`${preset.name} — ${describe(preset.spec)}`}
+              >
+                <ScrewIcon spec={preset.spec} screw={preset.screw} />
+                <span className="holes-preset-name">{shortName(preset)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// "M3" under the icon when the group already says what kind it is.
+function shortName(preset) {
+  const m = preset.name.match(/^(M\d+(?:\.\d+)?)\b/);
+  if (m) return m[1];
+  const mm = preset.name.match(/(\d+(?:\.\d+)?) mm/);
+  if (mm) return `${mm[1]} mm`;
+  return preset.name;
+}
+
+function describe(spec) {
+  const bits = [`Ø${spec.diameter} mm`, spec.depth > 0 ? `${spec.depth} mm deep` : "through"];
+  if (spec.head === "counterbore") bits.push(`counterbore Ø${spec.headDiameter} × ${spec.headDepth}`);
+  if (spec.head === "countersink") bits.push(`countersink Ø${spec.headDiameter}, ${spec.sinkAngle}°`);
+  if (spec.head === "hex") bits.push(`hex pocket ${spec.headDiameter} × ${spec.headDepth}`);
+  return bits.join(", ");
+}

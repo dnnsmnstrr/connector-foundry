@@ -8,11 +8,13 @@
 // Node: deciding whether a file is STEP, the tessellation settings, and
 // turning the reader's result into bodies and a three.js geometry.
 import * as THREE from "three";
+import { THREE_MF_EXTENSIONS } from "./threeMfMesh.js";
 
 export const STEP_EXTENSIONS = [".step", ".stp"];
 
-// `accept=` for a file input that takes either kind of upload.
-export const MESH_FILE_ACCEPT = [".stl", ...STEP_EXTENSIONS].join(",");
+// `accept=` for a file input that takes any kind of mesh upload: STL as
+// it is, STEP tessellated here, 3MF unpacked here (threeMfMesh.js).
+export const MESH_FILE_ACCEPT = [".stl", ...STEP_EXTENSIONS, ...THREE_MF_EXTENSIONS].join(",");
 
 export function isStepFilename(name) {
   const lower = String(name ?? "").toLowerCase();

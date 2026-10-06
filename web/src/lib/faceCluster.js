@@ -57,8 +57,10 @@ function triCentroid(position, index, t, out) {
 
 // `geometry`: indexed BufferGeometry (validateAndRepair()'s output).
 // `faceIndex`: the triangle THREE's raycaster hit (Intersection.faceIndex).
-// Returns { point: [x,y,z], normal: [nx,ny,nz], triangleCount } — all in
-// the geometry's own local space (caller transforms to world if needed).
+// Returns { point: [x,y,z], normal: [nx,ny,nz], triangleCount, triangles }
+// — all in the geometry's own local space (caller transforms to world if
+// needed). `triangles` is every triangle index in the cluster, which
+// snapCandidates.js walks again for the face's outline.
 export function clusterFace(geometry, faceIndex, options = {}) {
   const angleTolDeg = options.angleTolDeg ?? DEFAULT_ANGLE_TOL_DEG;
   const planeTol = options.planeTol ?? DEFAULT_PLANE_TOL_MM;
@@ -122,5 +124,6 @@ export function clusterFace(geometry, faceIndex, options = {}) {
     point: [center.x, center.y, center.z],
     normal: [startNormal.x, startNormal.y, startNormal.z],
     triangleCount: visited.size,
+    triangles: [...visited],
   };
 }

@@ -281,9 +281,9 @@ test("a STEP file is tessellated in the browser and offered for slot placement",
   await catalogue(page);
   await page.goto("/");
   await page.getByTitle("Bench (2)").click();
-  await page.getByRole("button", { name: "Import STL / STEP…", exact: true }).click();
+  await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
-  await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
+  await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
   // occt-import-js ships a 10 x 10 x 10 mm rounded cube as a test fixture.
   const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/rounded-cube/rounded-cube.step", import.meta.url));
   await (await chooser).setFiles(fixture);
@@ -314,9 +314,9 @@ test("a multi-body STEP file asks which body to import", async ({ page }) => {
   await catalogue(page);
   await page.goto("/");
   await page.getByTitle("Bench (2)").click();
-  await page.getByRole("button", { name: "Import STL / STEP…", exact: true }).click();
+  await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
-  await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
+  await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
   const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/cax-if/as1_pe_203.stp", import.meta.url));
   await (await chooser).setFiles(fixture);
   const dialog = page.getByRole("dialog");
