@@ -4,7 +4,7 @@ import JointSelect from "./components/bench/JointSelect.jsx";
 import NameBenchModal from "./components/bench/NameBenchModal.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
 import PresetsPanel, { ConfigImportButton } from "./components/bench/PresetsPanel.jsx";
-import SpinButtons from "./components/bench/SpinButtons.jsx";
+import SpinButtons from "./components/SpinButtons.jsx";
 import Modal from "./components/Modal.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";

@@ -1049,18 +1049,30 @@ a.mode-tab {
   color: #ffd23f;
 }
 
-.bench-rotation-controls {
+.rotation-controls {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
 }
 
-.bench-spin-buttons {
+/* In the Holes editor the direction sits on its own row under its
+   label, like the other fields there, so the input takes the room the
+   buttons leave it. */
+.holes-direction-field .rotation-controls {
+  display: flex;
+}
+
+.holes-direction-field .rotation-controls input {
+  flex: 1;
+  min-width: 0;
+}
+
+.spin-buttons {
   display: inline-flex;
   gap: 0.2rem;
 }
 
-.bench-spin-button {
+.spin-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1076,7 +1088,7 @@ a.mode-tab {
   cursor: pointer;
 }
 
-.bench-spin-button:hover {
+.spin-button:hover {
   background: #34353a;
 }
 
@@ -1854,7 +1866,7 @@ a.mode-tab {
 
   .bench-remove,
   .holes-preset-button,
-  .bench-spin-button,
+  .spin-button,
   .bench-rotate-pill,
   .bench-rotate-delete,
   .bench-rotate-close,

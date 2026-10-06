@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
+import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
 // or blind (and how deep), the head pocket (none / counterbore /
@@ -34,10 +35,19 @@ export default function HoleSpecFields({ spec, onChange }) {
   // flat), turned counter-clockwise as
   // seen from outside the face. Quarter turns cover every orientation
   // a mount is likely to need; any angle is accepted.
+  // The same field and quarter-turn buttons as a Bench part's rotation
+  // (components/RotationInput.jsx).
   const spinField = (
-    <label className="field" htmlFor={`${id}-spin`} title="Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face.">
+    <label className="field holes-direction-field" htmlFor={`${id}-spin`} title="Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.">
       <span className="field-label">Direction (°)</span>
-      <input id={`${id}-spin`} type="number" step="90" value={spec.spin} onChange={(e) => number("spin", e.target.value)} />
+      <RotationInput
+        id={`${id}-spin`}
+        value={spec.spin}
+        onChange={(degrees) => set({ spin: degrees })}
+        onRotate={(delta) => set({ spin: spec.spin + delta })}
+        name="the slot"
+        viewedFrom="outside the face"
+      />
     </label>
   );
 

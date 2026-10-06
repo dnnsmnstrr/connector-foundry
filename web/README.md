@@ -235,7 +235,7 @@ a part actually has anchors left over. A few implementation notes that don't bel
   it as `rot(v=<parent anchor direction>, a=spin)` right after translating to the anchor, i.e. a
   turn in place about the mating axis, so the Bench can store a plain angle and hand it through.
   `updateChildSpin()` sets it, `rotateChild()` adds ±90 to it (the ↺/↻ buttons in
-  `components/bench/SpinButtons.jsx`, used both floating over the scene and inline in `NodeTree`).
+  `components/SpinButtons.jsx`, used floating over the scene and, inside `components/RotationInput.jsx`, beside the sidebar's angle field — the Bench's Rotation and the Holes tab's slot Direction alike).
 - The sideways shift is `shift` on a node (`[x, y]` mm, `normalizeShift()`/`updateChildShift()`),
   emitted as a `translate([x, y, 0])` between the child's `attach()` and its own module call
   (`shiftArg()`). `attach()` leaves its children in the slot's frame — translated to the anchor,

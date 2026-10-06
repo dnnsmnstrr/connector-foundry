@@ -154,6 +154,14 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   expect(slotted).toContain('oc_slot(lock = "left", side_clearance = 0.1, depth_clearance = 0.1, overshoot = 1);');
   expect(slotted).not.toContain("cylinder(");
 
+  // Its direction turns with the same quarter-turn buttons as a Bench
+  // part's rotation, wrapping round rather than going negative.
+  await page.getByRole("button", { name: "Turn the slot 90° clockwise" }).click();
+  await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("270");
+  await expect(page.locator(".holes-row").first()).toContainText("turned 270°");
+  await page.getByRole("button", { name: "Turn the slot 90° counter-clockwise" }).click();
+  await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("0");
+
   // Delete removes it (once focus has left the field — in a field the
   // key edits the value); the view goes back to the plain base.
   await page.evaluate(() => document.activeElement.blur());
