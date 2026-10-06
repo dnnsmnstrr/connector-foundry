@@ -54,7 +54,9 @@ one cause behind every Bench render failure the READMEs blame on bolted/snap/pin
 `attach()` / joint flange / rounded cuboid adds levels, and the deep parts (openGrid's snap, the
 openConnect and MultiConnect snaps) start near the limit — `lib/opengrid.scad`'s header says what
 was done so those two render here at all (65 levels), and why they will not survive being a
-Bench child. There is no knob for it: the stack size is fixed when the WASM is linked, and no
+Bench child. Their `body: screw` and the Holes tab's openGrid thread go through
+`lib/ogthread.scad`, which rewrites upstream's thread for the same reason (upstream's screw is 94
+levels deep; this one 52, the thread cutter alone 41). There is no knob for it: the stack size is fixed when the WASM is linked, and no
 newer `openscad-wasm` exists on npm.
 
 If the worker itself dies (a script error, a message that can't be deserialised), every render
@@ -453,8 +455,9 @@ the implementation notes:
   `"screw"` (diameter, depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`),
   head diameter (across corners for hex), head depth (how far the pocket sinks; a countersink's
   extra sink on top of its cone) and sink angle), `"openconnect"` (lock side, side and depth
-  clearance, spin) or `"multiconnect"` (channel length, on-ramp, an on-ramp every 28 mm as well (`rampEvery` — `mc_slot()`'s `ramp_spacing`, for an item on a column of heads), detent, clearance, spin) — the
-  slots carry only the choices upstream's geometry leaves open. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
+  clearance, spin), `"multiconnect"` (channel length, on-ramp, an on-ramp every 28 mm as well (`rampEvery` — `mc_slot()`'s `ramp_spacing`, for an item on a column of heads), detent, clearance, spin) or `"thread"` (openGrid's female snap thread for the screw connectors: depth (0 = through), clearance, spin) — the
+  slots and the thread carry only the choices upstream's geometry leaves open (`isConnector()` is
+  the three of them). `nextSpec` is what the next click drills — the sidebar's "New holes" editor
   edits it; with a hole selected the same editor edits that hole, and `nextSpec` follows along, so
   the screw picked or edited last is what the next holes get. It lives in
   `src/lib/holesSession.js` (module state, like `benchSession.js`) so a tab switch keeps it; it is
@@ -485,7 +488,10 @@ the implementation notes:
   repo's own library instead — `oc_slot(...)` from `lib/openconnect.scad` (a wrapper over
   openGrid-projects' `openconnect_slot()`), `mc_slot(...)` from `lib/multiconnect.scad` — reached
   by a `use <../lib/…>` line the generated file carries only when a slot is on it, with the slit at
-  z = 0 and the pocket below. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
+  z = 0 and the pocket below. The openGrid thread is `og_thread_hole(...)` from `lib/ogthread.scad`
+  in the same frame as a slot (its +Y is where a screwed-home head's +Y ends up); a through thread
+  stops at the base's width along its axis (`extents`, when the caller passes them) rather than the
+  diagonal, since a helix costs by the millimetre. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
   +Y (the way the head travels to seat, "up" on the wall) the face's own up — the world's +Z
   projected onto the face, so a slot on a vertical face points straight up; for a face within 30°
   of level, where that projection is too short, the world's +Y, so a slot on a plate lying flat
@@ -560,7 +566,8 @@ the implementation notes:
   proportions — and the two connector groups (openConnect: lock left / both / none; MultiConnect:
   with on-ramp / open-ended / quick release), drawn as the keyhole section with the head seated in
   it on its snap, depths four times over since a 2.8 mm slot at its width's scale would be a
-  hairline. A hole remembers the preset it was placed from and says "(edited)" once its spec
+  hairline — and the openGrid thread (full-size / lite screw, differing in depth), drawn as the
+  bore with a screw connector in it. A hole remembers the preset it was placed from and says "(edited)" once its spec
   differs (`specMatchesPreset()`). Picking a slot preset for a slot keeps what the two share
   (`presetSpecFor()`): a preset sets only the fields that tell its kind's presets apart
   (`presetKeys()`, read off the preset list — MultiConnect's on-ramp and detent, openConnect's

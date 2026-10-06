@@ -41,6 +41,21 @@
 //   clearance  mm added to every radius
 //   spin       as above
 //
+// "thread" — openGrid's female snap thread (lib/ogthread.scad's
+// og_thread_hole()): Ø16 at 3 mm pitch, what the openGrid threaded snaps
+// have, so the openConnect and MultiConnect screws (those parts' body
+// "screw") screw into the model. The point is the thread's axis.
+//   depth      how deep the thread runs; 0 = through
+//   clearance  mm added to the 16 mm diameter (upstream's 0.5 makes its
+//              official 16.5)
+//   spin       which way the screwed-in head's +Y points — up, for an
+//              openConnect head, the way it seats a slotted item — as for
+//              a slot; the thread's start is turned to match
+//
+// The slots and the thread are the openGrid connector cuts
+// (isConnector()): all three come from this repo's libraries and have a
+// direction on their face.
+//
 // `presetId` is screwPresets.js's label for where the spec came from.
 //
 // The generated .scad is `difference() { <base>; <one cutter per hole> }`,
@@ -49,7 +64,8 @@
 // in a local frame where the surface is z=0 and material is below it. A
 // screw hole's in-plane axes are arbitrary (planeBasis()); a slot's are
 // not — its +Y is the direction the head travels to seat, "up" on the
-// wall — so those come from slotFrame().
+// wall — so those come from slotFrame(), as a thread's do (its +Y is
+// where a screwed-in head's points).
 import { callArgs, scadLiteral } from "./scadLiteral.js";
 import { safeStem } from "./benchName.js";
 import { presetSpecFor } from "./screwPresets.js";
@@ -61,7 +77,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -97,6 +113,11 @@ export const MULTICONNECT_FOOTPRINT = Object.freeze({
   onRamp: 11.7, // the funnel's radius at the surface
 });
 
+// The thread's numbers (lib/constants.scad's OG_THREAD_*, OG_SNAP_H_*):
+// its diameter before clearance, and how long a screw's thread is — a
+// full-size screw's, and a lite one's — which a hole has to be at least.
+export const THREAD = Object.freeze({ diameter: 16, clearance: 0.5, fullLength: 6.8, liteLength: 3.4 });
+
 let nextHoleId = 1;
 
 // `source`: { kind: "catalogue", partId, params } or
@@ -112,6 +133,12 @@ export function isSlot(spec) {
   return spec?.kind === "openconnect" || spec?.kind === "multiconnect";
 }
 
+// A slot or the openGrid thread: cut by this repo's own libraries, and
+// pointing a way on its face (`spin`).
+export function isConnector(spec) {
+  return isSlot(spec) || spec?.kind === "thread";
+}
+
 export function normalizeSpec(spec) {
   const n = (v, fallback, min = 0) => {
     const num = Number(v);
@@ -124,6 +151,14 @@ export function normalizeSpec(spec) {
       lock: LOCK_SIDES.includes(spec?.lock) ? spec.lock : "left",
       sideClearance: n(spec?.sideClearance, 0.1),
       depthClearance: n(spec?.depthClearance, 0.1),
+      spin: normalizeSpin(spec?.spin),
+    };
+  }
+  if (kind === "thread") {
+    return {
+      kind,
+      depth: n(spec?.depth, 8),
+      clearance: n(spec?.clearance, THREAD.clearance),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -212,14 +247,14 @@ export function patchHoles(doc, ids, patch) {
   };
 }
 
-// Turn every slot in `ids` by `delta` degrees from its own direction,
-// so slots pointing different ways keep their difference. Screw holes
-// have no direction and are left alone.
+// Turn every slot (or thread) in `ids` by `delta` degrees from its own
+// direction, so ones pointing different ways keep their difference.
+// Screw holes have no direction and are left alone.
 export function rotateHoles(doc, ids, delta) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => (targets.has(h.id) && isSlot(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
+    holes: doc.holes.map((h) => (targets.has(h.id) && isConnector(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
   };
 }
 
@@ -275,7 +310,7 @@ export function flipHoles(doc, height) {
       ...h,
       point: [h.point[0], -h.point[1], height - h.point[2]],
       normal: [h.normal[0], -h.normal[1], -h.normal[2]],
-      spec: isSlot(h.spec) ? { ...h.spec, spin: normalizeSpin(h.spec.spin + 180) } : h.spec,
+      spec: isConnector(h.spec) ? { ...h.spec, spin: normalizeSpin(h.spec.spin + 180) } : h.spec,
     })),
   };
 }
@@ -296,6 +331,7 @@ export function findHoleNear(doc, point, toleranceMm) {
 export function holeFootprintRadius(spec) {
   if (spec.kind === "openconnect") return OPENCONNECT_FOOTPRINT.halfWidth;
   if (spec.kind === "multiconnect") return MULTICONNECT_FOOTPRINT.radius + spec.clearance;
+  if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
 
@@ -303,10 +339,13 @@ export function holeFootprintRadius(spec) {
 
 // `throughLength`: how deep a "through" hole reaches — anything past the
 // model's far side (the caller passes the base's bounding-box diagonal).
+// `extents`, when given (the base's bounding box), lets a through thread
+// stop at the box's width along its axis instead: a thread's cost grows
+// with its length, and the diagonal can be many times the material.
 // `importedFiles`, when given, receives the mesh bytes a mesh source
 // needs mounted beside the generated file (same contract as
 // assembly.js's compileToScad()).
-export function holesToScad(doc, partsById, { throughLength, importedFiles } = {}) {
+export function holesToScad(doc, partsById, { throughLength, extents, importedFiles } = {}) {
   const { source, holes } = doc;
   const through = Math.max(1, throughLength ?? 1000);
   const lines = ["// Generated by Connector Foundry — Holes tab.", `// ${holes.length} hole${holes.length === 1 ? "" : "s"} on ${sourceLabel(source, partsById)}.`];
@@ -332,10 +371,12 @@ export function holesToScad(doc, partsById, { throughLength, importedFiles } = {
   // `use` does not carry those into the call. A catalogue part's own
   // include usually brings it in; a mesh source has nothing, and a slot
   // failed there with "Assertion is_list($tags_shown)". So include it
-  // whenever a slot is on the model.
-  if (holes.some((h) => isSlot(h.spec))) lines.push("include <../vendor/BOSL2/std.scad>");
+  // whenever a slot is on the model — or a thread, which is BOSL2's
+  // thread_helix().
+  if (holes.some((h) => isConnector(h.spec))) lines.push("include <../vendor/BOSL2/std.scad>");
   if (holes.some((h) => h.spec.kind === "openconnect")) lines.push("use <../lib/openconnect.scad>");
   if (holes.some((h) => h.spec.kind === "multiconnect")) lines.push("use <../lib/multiconnect.scad>");
+  if (holes.some((h) => h.spec.kind === "thread")) lines.push("use <../lib/ogthread.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");
   if (holes.length === 0) {
@@ -345,7 +386,7 @@ export function holesToScad(doc, partsById, { throughLength, importedFiles } = {
   lines.push("difference() {", `    ${base}`);
   holes.forEach((hole, i) => {
     lines.push("", `    // hole ${i + 1}: ${holeLabel(hole)} at [${hole.point.map(fmt).join(", ")}]`);
-    lines.push(...cutterLines(hole, through).map((l) => `    ${l}`));
+    lines.push(...cutterLines(hole, through, extents).map((l) => `    ${l}`));
   });
   lines.push("}", "");
   return lines.join("\n");
@@ -388,6 +429,9 @@ export function holeLabel(hole, presetName = null) {
     if (s.spin) bits.push(`${fmt(s.spin)}°`);
     return bits.join(", ");
   }
+  if (s.kind === "thread") {
+    return `openGrid thread ${s.depth > 0 ? `${fmt(s.depth)} deep` : "through"}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  }
   const parts = [`Ø${fmt(s.diameter)}`];
   if (s.depth > 0) parts.push(`×${fmt(s.depth)} deep`);
   else parts.push("through");
@@ -398,16 +442,17 @@ export function holeLabel(hole, presetName = null) {
 }
 
 // The one-line summary under a hole's name in the list: how deep a
-// screw hole goes, which way a slot points.
+// screw hole goes, which way a slot points (a thread: both).
 export function holeMeta(hole) {
   const s = hole.spec;
+  if (s.kind === "thread") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s)) return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
 
 // The cutter for one hole in its own frame (+Z = outward normal, the
 // surface at z = 0), wrapped in the multmatrix that puts it on the model.
-export function cutterLines(hole, throughLength) {
+export function cutterLines(hole, throughLength, extents = null) {
   const s = hole.spec;
   const body = [];
   let m;
@@ -420,6 +465,12 @@ export function cutterLines(hole, throughLength) {
     // file only `use`s that library and can't see its constants).
     const ramps = s.onRamp && s.rampEvery ? `, ramp_spacing = ${RAMP_SPACING_MM}` : "";
     body.push(`mc_slot(length = ${fmt(s.length)}, on_ramp = ${s.onRamp}, detent = ${s.detent}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)}${ramps});`);
+    m = slotFrameMatrix(hole);
+  } else if (s.kind === "thread") {
+    // In the slot's frame, so the thread starts where a screwed-in
+    // head ends up pointing the slot's +Y.
+    const through = extents ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM) : throughLength;
+    body.push(`og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -440,6 +491,13 @@ export function cutterLines(hole, throughLength) {
     ...body.map((l) => `    ${l}`),
     "}",
   ];
+}
+
+// How wide a box of `extents` is along unit direction `n` — the most any
+// line in that direction can run inside it (each axis bounds the run to
+// extents[i] / |n[i]|, and this sum is at least the smallest of those).
+function widthAlong(n, extents) {
+  return Math.abs(n[0]) * extents[0] + Math.abs(n[1]) * extents[1] + Math.abs(n[2]) * extents[2];
 }
 
 // Height of a countersink's cone: from the shank diameter out to the
@@ -509,10 +567,12 @@ export function slotFrame(point, normal, spin = 0) {
 
 // A slot's outline on its face, as line segments in the model's
 // coordinates, for the viewer: the channel and pocket (or round end),
-// the entry (dashed), and an arrow the way the head travels to seat.
+// the entry (dashed), and an arrow the way the head travels to seat. A
+// thread's is its bore, with the arrow the way a screwed-in head's +Y
+// points.
 export function slotOutline(hole) {
   const s = hole.spec;
-  if (!isSlot(s)) return [];
+  if (!isConnector(s)) return [];
   const { ex, ey } = slotFrame(hole.point, hole.normal, s.spin);
   const to3 = ([x, y]) => [hole.point[0] + ex[0] * x + ey[0] * y, hole.point[1] + ex[1] * x + ey[1] * y, hole.point[2] + ex[2] * x + ey[2] * y];
   const segments = [];
@@ -532,7 +592,9 @@ export function slotOutline(hole) {
     }
     return out;
   };
-  if (s.kind === "openconnect") {
+  if (s.kind === "thread") {
+    loop(arc(0, 0, (THREAD.diameter + s.clearance) / 2, 0, 2 * Math.PI, 48).slice(0, -1));
+  } else if (s.kind === "openconnect") {
     const f = OPENCONNECT_FOOTPRINT;
     loop([
       [-f.halfWidth, f.bottom],

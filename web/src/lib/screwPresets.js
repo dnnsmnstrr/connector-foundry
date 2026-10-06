@@ -26,7 +26,9 @@
 // lib/openconnect.scad's oc_slot() and lib/multiconnect.scad's
 // mc_slot() with upstream's own numbers — the fields here are only the
 // choices those leave open (lock side, clearances, channel length, the
-// on-ramp and detent, and which way is up).
+// on-ramp and detent, and which way is up). The openGrid thread (kind
+// "thread", lib/ogthread.scad) is upstream's too; its presets differ
+// only in depth, for the full-size and the lite screw.
 
 export const HEAD_STYLES = [
   { value: "none", label: "None (plain hole)" },
@@ -184,6 +186,20 @@ function multiConnect(id, name, short, { onRamp, detent }) {
   };
 }
 
+// openGrid's female snap thread, for the openConnect / MultiConnect
+// screws: a little deeper than the screw's thread is long, so it seats
+// on its head rather than its tip.
+function thread(id, name, short, depth) {
+  return {
+    id,
+    name,
+    short,
+    group: "openGrid thread (screw connectors)",
+    spec: { kind: "thread", depth, clearance: 0.5, spin: 0 },
+    screw: { style: "thread" },
+  };
+}
+
 export const SCREW_PRESETS = [
   cap(2), cap(2.5), cap(3), cap(4), cap(5), cap(6),
   countersunk(3), countersunk(4), countersunk(5), countersunk(6),
@@ -213,6 +229,8 @@ export const SCREW_PRESETS = [
   multiConnect("mc-slot", "MultiConnect slot", "On-ramp", { onRamp: true, detent: true }),
   multiConnect("mc-slot-open", "MultiConnect slot, open-ended", "Open end", { onRamp: false, detent: true }),
   multiConnect("mc-slot-release", "MultiConnect slot, quick release", "No detent", { onRamp: true, detent: false }),
+  thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
+  thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
 ];
 
 export const DEFAULT_PRESET_ID = "m3-cap";
@@ -243,24 +261,25 @@ export function presetGroups() {
 // preset id as the label it was placed with; once a field is edited the
 // UI says "(edited)" rather than claiming it is still the preset.
 //
-// For a connector slot, only the fields that tell its presets apart
-// count (see presetKeys()): a MultiConnect slot with a longer channel, or
-// any slot turned to point another way, is still the preset it was
-// placed from — those are placement, not a different slot.
+// For a connector slot (or the thread), only the fields that tell its
+// presets apart count (see presetKeys()): a MultiConnect slot with a
+// longer channel, or any slot turned to point another way, is still the
+// preset it was placed from — those are placement, not a different slot.
 export function specMatchesPreset(spec, presetId) {
   const preset = getPreset(presetId);
   if (!preset) return false;
-  const keys = isSlotKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec);
+  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec);
   return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
 }
 
-function isSlotKind(kind) {
-  return kind === "openconnect" || kind === "multiconnect";
+// screwHoles.js's isConnector(), by kind (that module imports this one).
+function isConnectorKind(kind) {
+  return kind === "openconnect" || kind === "multiconnect" || kind === "thread";
 }
 
 // The fields that tell the presets of one kind apart — the ones they
 // don't all agree on (MultiConnect: on-ramp and detent; openConnect:
-// the lock side). Read off the preset list itself, so adding a preset
+// the lock side; the thread: its depth). Read off the preset list itself, so adding a preset
 // that differs in something new makes that field one of these.
 const keysByKind = new Map();
 export function presetKeys(kind) {
@@ -277,10 +296,10 @@ export function presetKeys(kind) {
 // fields that make it that preset (presetKeys()) and keeps the rest the
 // hole already has where the two share a field — switching a MultiConnect
 // slot from "on-ramp" to "open end" keeps its channel length, gap and
-// direction; an openConnect slot becoming a MultiConnect one keeps the
-// way it points.
+// direction; an openConnect slot becoming a MultiConnect one (or a
+// thread) keeps the way it points.
 export function presetSpecFor(currentSpec, presetSpec) {
-  if (!isSlotKind(presetSpec.kind) || !currentSpec) return { ...presetSpec };
+  if (!isConnectorKind(presetSpec.kind) || !currentSpec) return { ...presetSpec };
   const own = new Set(["kind", ...presetKeys(presetSpec.kind)]);
   const kept = Object.fromEntries(
     Object.keys(presetSpec)

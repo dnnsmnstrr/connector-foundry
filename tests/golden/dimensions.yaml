@@ -327,6 +327,12 @@ opengrid/multiconnect:
     - 25.99
     - 7.4
     volume_mm3: 2907.14
+  screw:
+    bbox:
+    - 20.0
+    - 20.0
+    - 10.8
+    volume_mm3: 2128.24
   symmetric:
     bbox:
     - 25.59
@@ -352,6 +358,12 @@ opengrid/openconnect:
     - 25.99
     - 6.0
     volume_mm3: 2268.11
+  screw:
+    bbox:
+    - 17.0
+    - 16.9
+    - 9.395
+    volume_mm3: 1481.17
   symmetric:
     bbox:
     - 25.59

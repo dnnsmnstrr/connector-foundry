@@ -12,7 +12,9 @@
 // renders. The directional body is recentred for its deeper back nub
 // exactly as in openconnect.scad, and body = "none" is the head alone
 // for fusing onto another part on the Bench (disc as BOTTOM, pointing
-// out; the neck's base as "mount"), as there.
+// out; the neck's base as "mount"), as there, and body = "screw" the
+// head on a male openGrid thread (lib/multiconnect.scad's mc_screw()),
+// for a threaded snap or the Holes tab's thread, also as there.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
@@ -23,10 +25,18 @@ module og_multiconnect(variant = "full", body = "directional",
                        anchor = BOTTOM, spin = 0, orient = UP) {
     assert(variant == "full" || variant == "lite",
            "variant must be \"full\" or \"lite\"");
-    assert(body == "directional" || body == "symmetric" || body == "none",
-           "body must be \"directional\", \"symmetric\" or \"none\"");
+    assert(body == "directional" || body == "symmetric" || body == "none" || body == "screw",
+           "body must be \"directional\", \"symmetric\", \"none\" or \"screw\"");
 
-    if (body == "none") {
+    if (body == "screw") {
+        t = variant == "lite" ? OG_SNAP_H_LITE : OG_SNAP_H_FULL;
+        size = [MC_HEAD_D, MC_HEAD_D, t + MC_HEAD_H];
+        attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
+            // Facets as the head-only body's, for the same reason.
+            translate([0, 0, -size.z / 2]) mc_screw(t, $fn = 128);
+            children();
+        }
+    } else if (body == "none") {
         size = [MC_HEAD_D, MC_HEAD_D, MC_HEAD_H];
         attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
             // A facet count divisible by four, so the disc's extent is

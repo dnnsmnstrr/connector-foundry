@@ -258,7 +258,12 @@ parts:
       body for a wall-mounted board — its deeper back nub takes the
       load — symmetric for a horizontal one. body none is the head
       alone, for fusing onto another part (the Bench's default when
-      attaching it).
+      attaching it). body screw is the head on openGrid's 16mm snap
+      thread instead of a snap (upstream's openConnect screw): print it
+      thread down, then screw it into a threaded openGrid snap or into
+      the openGrid thread the Holes tab cuts, turning it by the coin
+      slot in its face. Screwed home, the head points the way a snap's
+      does. variant picks the thread length (full 6.8mm, lite 3.4mm).
     attached_defaults:
       body: none
     # The head's +Y is the way it slides to seat: up, on a wall.
@@ -268,7 +273,7 @@ parts:
       body: directional
     options:
       variant: [full, lite]
-      body: [directional, symmetric, none]
+      body: [directional, symmetric, none, screw]
     variants:
       - name: lite
         params: { variant: lite }
@@ -276,6 +281,8 @@ parts:
         params: { body: symmetric }
       - name: head-only
         params: { body: none }
+      - name: screw
+        params: { body: screw }
 
   - id: opengrid/multiconnect
     system: openGrid
@@ -295,7 +302,8 @@ parts:
       accessory — or anything with a MultiConnect slot from the Holes
       tab — off an openGrid board. variant and body as for the
       openConnect snap, body none being the head alone for fusing onto
-      another part.
+      another part, body screw the head on openGrid's snap thread (a
+      coin slot across the disc instead of the dimple).
     attached_defaults:
       body: none
     defaults:
@@ -303,7 +311,7 @@ parts:
       body: directional
     options:
       variant: [full, lite]
-      body: [directional, symmetric, none]
+      body: [directional, symmetric, none, screw]
     variants:
       - name: lite
         params: { variant: lite }
@@ -311,6 +319,8 @@ parts:
         params: { body: symmetric }
       - name: head-only
         params: { body: none }
+      - name: screw
+        params: { body: screw }
 
   - id: gopro/male
     system: GoPro

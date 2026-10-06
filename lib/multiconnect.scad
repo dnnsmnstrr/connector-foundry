@@ -12,6 +12,7 @@
 // which is "down" on the wall, to the on-ramp the head enters through.
 include <../vendor/BOSL2/std.scad>
 include <constants.scad>
+use <ogthread.scad>
 
 // Disc on z = 0, neck on top at MC_HEAD_H, so putting it on a snap is
 // a half turn about Y at thickness + MC_HEAD_H. `dimple` sinks a Ø2 cone
@@ -32,6 +33,28 @@ module mc_head(dimple = true, excess = 0, anchor = BOTTOM, spin = 0, orient = UP
                 down(0.005) cylinder(d1 = 2, d2 = 0.005, h = 1, $fn = 128);
         }
         children();
+    }
+}
+
+// The head on a male snap thread instead of a snap, as openGrid-projects'
+// expanding-snap generator builds its multiconnect_screw(): the disc
+// face carries a coin slot instead of the dimple, the thread
+// (lib/ogthread.scad) starts where the neck ends. Posed as
+// oc_screw() in lib/openconnect.scad is: thread tip on z = 0, disc out
+// on top at thread_h + MC_HEAD_H (upstream prints it disc down; this
+// is that turned over about Y, the half turn the snap part gives its
+// head).
+module mc_screw(thread_h = OG_SNAP_H_FULL) {
+    coin_r = OG_COIN_SLOT_H / 2 + OG_COIN_SLOT_W ^ 2 / (8 * OG_COIN_SLOT_H);
+    translate([0, 0, thread_h + MC_HEAD_H]) rotate([0, 180, 0]) {
+        difference() {
+            mc_head(dimple = false, anchor = BOTTOM);
+            // A circular segment OG_COIN_SLOT_W wide across the disc
+            // face and OG_COIN_SLOT_H deep at its middle.
+            translate([0, 0, OG_COIN_SLOT_H - coin_r]) rotate([90, 0, 0])
+                cylinder(r = coin_r, h = OG_COIN_SLOT_T, center = true, $fn = 128);
+        }
+        translate([0, 0, MC_HEAD_H]) og_thread(thread_h);
     }
 }
 

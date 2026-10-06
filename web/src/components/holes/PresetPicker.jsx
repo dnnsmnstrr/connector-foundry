@@ -48,6 +48,7 @@ function shortName(preset) {
 
 function describe(spec) {
   if (spec.kind === "openconnect") return `openConnect slot, lock nub ${spec.lock}, ${spec.sideClearance} mm side / ${spec.depthClearance} mm depth clearance`;
+  if (spec.kind === "thread") return `openGrid snap thread, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance`;
   if (spec.kind === "multiconnect") return `MultiConnect slot, ${spec.length} mm channel${spec.onRamp ? (spec.rampEvery ? " with on-ramps every 28 mm" : " with on-ramp") : ", open-ended"}${spec.detent ? ", detent" : ", no detent"}`;
   const bits = [`Ø${spec.diameter} mm`, spec.depth > 0 ? `${spec.depth} mm deep` : "through"];
   if (spec.head === "counterbore") bits.push(`counterbore Ø${spec.headDiameter} × ${spec.headDepth}`);

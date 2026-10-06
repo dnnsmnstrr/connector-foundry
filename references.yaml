@@ -387,6 +387,59 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  # The screw bodies: the same heads on openGrid's snap thread, which
+  # lib/ogthread.scad writes out shallow enough for the browser — held
+  # to upstream's own openconnect_screw() and its expanding-snap
+  # generator's multiconnect_screw(), text off.
+  - id: opengrid/openconnect-screw
+    part: opengrid/openconnect
+    params: {body: screw}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      // Ours is centred on its own box; upstream has the thread's axis
+      // on the origin and its tip a hundredth up.
+      translate([0, 0.45, 0.005]) og_openconnect(body = "screw", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{opengrid-projects}/lib/openconnect_lib.scad>
+      $fa = 1;
+      $fs = 0.4;
+      openconnect_screw(threads_height = 6.8, text_cfg = [["text_depth", 0]]);
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.5, 8.5, 9.2]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: opengrid/multiconnect-screw
+    part: opengrid/multiconnect
+    params: {body: screw}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/multiconnect.scad>
+      // Upstream's stands disc down; turn ours over to match.
+      translate([0, 0, OG_SNAP_H_FULL + MC_HEAD_H]) rotate([0, 180, 0])
+          og_multiconnect(body = "screw", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{opengrid-projects}/lib/openconnect_lib.scad>
+      use <{opengrid-projects}/opengrid_expanding_snap.scad>
+      $fa = 1;
+      $fs = 0.4;
+      multiconnect_screw(connectorslot_cfg = connector_slot_cfg(), text_cfg = [["text_depth", 0]]);
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.5, 8.5, 10.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # Guards the wrapper (envelope, anchor, the unit/hole reassignment
   # from lib/constants.scad) against calling vendor/bitbeam-lib's
   # cube_arm() directly with the same numbers — same purpose as the
@@ -666,6 +719,55 @@ fit_checks:
       }}
     expect:
       max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.5]
+
+  # The screw body has to thread into the female thread the Holes tab
+  # cuts and into upstream's threaded snap — and do it at the turn that
+  # leaves its head pointing up (OG_THREAD_ANGLE's job): screwed home,
+  # head on the surface, a screw a quarter turn off collides by 30 mm³
+  # and more.
+  - id: opengrid/openconnect-screw-in-our-thread
+    part: opengrid/openconnect
+    why: >
+      lib/ogthread.scad's og_thread_hole() is what the web app cuts for
+      an openGrid thread; oc_screw() (the part's body = "screw") goes
+      into it with the thread's clearance and nothing more.
+    a: |
+      include <{repo}/lib/openconnect.scad>
+      // Screwed home: thread down into the block, head on its surface.
+      translate([0, 0, -OG_SNAP_H_FULL - 0.005]) oc_screw(OG_SNAP_H_FULL, $fa = 1, $fs = 0.4);
+    b: |
+      include <{repo}/lib/ogthread.scad>
+      difference() {{
+          translate([-15, -15, -10]) cube([30, 30, 10]);
+          og_thread_hole(8);
+      }}
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: opengrid/openconnect-screw-into-upstream-snap
+    part: opengrid/openconnect
+    reference_source: opengrid-projects
+    why: >
+      What the screw body is for: upstream's self-expanding snap, the
+      one its generator pairs the screw with. Screwed home, the only
+      overlap is the squeeze the snap's expanding thread is built to
+      take (about 2 mm³; the thread half a turn off is 75).
+    a: |
+      include <{repo}/lib/openconnect.scad>
+      translate([0, 0, -OG_SNAP_H_FULL - 0.005]) oc_screw(OG_SNAP_H_FULL, $fa = 1, $fs = 0.4);
+    b: |
+      include <BOSL2/std.scad>
+      use <{opengrid-projects}/lib/opengrid_snap_lib.scad>
+      $fa = 1;
+      $fs = 0.4;
+      // Upstream builds it front face down, the thread entering at
+      // z = 0; turned front up, it sits as the Holes tab's thread does.
+      rotate([0, 180, 0])
+          expanding_snap(snapbody_cfg = snap_body_cfg(snap_thickness = 6.8), text_cfg = [["text_depth", 0]]);
+    expect:
+      max_interference_mm3: 5.0
       clearance_mm: [0.0, 0.5]
 
   - id: extrusion2020/tab-in-slot

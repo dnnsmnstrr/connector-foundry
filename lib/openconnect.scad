@@ -20,6 +20,7 @@
 include <../vendor/BOSL2/std.scad>
 include <constants.scad>
 use <../vendor/opengrid-projects/lib/openconnect_lib.scad>
+use <ogthread.scad>
 
 // The head as it sits on a snap, before the snap turns it over: pocket
 // face (the wide 17 x 10.6 rectangle) on z = 0, neck on top at
@@ -31,6 +32,47 @@ module oc_head(excess = 0, anchor = BOTTOM, spin = 0, orient = UP) {
     openconnect_head(add_nubs = "Both", excess_thickness = excess,
                      anchor = anchor, spin = spin, orient = orient)
         children();
+}
+
+// The head on a male snap thread instead of a snap: upstream's
+// openconnect_screw() (unfolded, no text), which screws into a threaded
+// openGrid snap — or into the thread the Holes tab cuts (og_thread_hole()
+// in lib/ogthread.scad). In the pose it is used in, thread down: its
+// tip on z = 0, the head on top at `thread_h`, pocket face out at
+// thread_h + OC_HEAD_H — the snap part's pose, the thread standing in
+// for the snap. Screwed home, the head points the way the snap's
+// does, so the slot's +Y is still up.
+//
+// Upstream builds it head-down and turns it over (xrot(180) zrot(180),
+// the same half turn about Y the snap part gives its head); this is
+// that, written out:
+//  - the thread, sunk a hundredth into the neck;
+//  - the head trimmed by a cone, Ø15.6 at the neck widening at 45°
+//    (and 0.32 / 0.45 off centre, upstream's numbers), so it turns
+//    clear of the board as it is screwed in;
+//  - a coin slot across the pocket face, and a screwdriver slot down
+//    its middle.
+module oc_screw(thread_h = OG_SNAP_H_FULL) {
+    coin_r = OG_COIN_SLOT_H / 2 + OG_COIN_SLOT_W ^ 2 / (8 * OG_COIN_SLOT_H);
+    translate([0, 0, thread_h + OC_HEAD_H]) rotate([0, 180, 0]) difference() {
+        union() {
+            translate([0, 0, OC_HEAD_H - 0.005]) og_thread(thread_h);
+            intersection() {
+                oc_head(anchor = BOTTOM);
+                translate([0.32, 0.45, -0.005])
+                    cylinder(d1 = 15.6 + 2 * OC_HEAD_H, d2 = 15.6, h = OC_HEAD_H);
+            }
+        }
+        // Upstream's coin slot, call for call (connector_slot_cfg()'s
+        // flat-slot numbers inline).
+        translate([0, 0, OG_COIN_SLOT_H]) rotate([0, 0, 90]) rotate([90, 0, 0])
+            cyl(r = coin_r, h = OG_COIN_SLOT_T, $fn = 128, anchor = BACK) {
+                fwd(0.7) attach(BACK, BOTTOM)
+                    prismoid(size1 = [6.5, 1.8], size2 = [undef, 1.2], h = 5 - OG_COIN_SLOT_H + 0.7, xang = [90, 90]);
+                left(OG_COIN_SLOT_W / 2) attach(BACK, BACK, inside = true)
+                    cuboid([OG_COIN_SLOT_W, coin_r, OG_COIN_SLOT_T]);
+            }
+    }
 }
 
 // The slot, as a solid to subtract: slit on z = 0, pocket below it,

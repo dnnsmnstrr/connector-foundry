@@ -490,7 +490,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   function downloadScad() {
     const throughLength = baseExtents ? Math.hypot(...baseExtents) + 2 : undefined;
-    downloadBlob(holesToScad(doc, catalogueById, { throughLength }), exportFilename(exportName, "holes", ".scad"), "text/plain");
+    downloadBlob(holesToScad(doc, catalogueById, { throughLength, extents: baseExtents }), exportFilename(exportName, "holes", ".scad"), "text/plain");
   }
 
   // --- markers -------------------------------------------------------
@@ -1004,7 +1004,7 @@ function baseBuffer(source, catalogueById, globalOverrides, signal) {
 
 function holedRequest(doc, catalogueById, extents, globalOverrides) {
   const importedFiles = new Map();
-  const scadSource = holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, importedFiles });
+  const scadSource = holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, extents, importedFiles });
   return { scadSource, importedFiles, globalOverrides };
 }
 

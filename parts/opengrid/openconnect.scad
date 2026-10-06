@@ -13,6 +13,14 @@
 // centre); on its own it is centred on its own box, so a slot marker
 // lands on the head's middle.
 //
+// body = "screw" is the head on a male openGrid thread instead of a
+// snap (upstream's openconnect_screw()): it screws into a threaded
+// openGrid snap — or into the thread the Holes tab cuts — and, screwed
+// home, its head points the way a snap's would. Thread as BOTTOM, tip
+// on the bed, head up, as it prints; variant picks the thread length
+// (the snap thickness it is for). Centred on its own box, as the head
+// alone is, with "mount" on TOP at the pocket face.
+//
 // A thin wrapper: the snap body is openGrid-projects' base_snap() via
 // lib/opengrid.scad, the head its openconnect_head() via
 // lib/openconnect.scad (mitufy, CC-BY 4.0 — attribution required, no
@@ -34,10 +42,26 @@ module og_openconnect(variant = "full", body = "directional",
                       anchor = BOTTOM, spin = 0, orient = UP) {
     assert(variant == "full" || variant == "lite",
            "variant must be \"full\" or \"lite\"");
-    assert(body == "directional" || body == "symmetric" || body == "none",
-           "body must be \"directional\", \"symmetric\" or \"none\"");
+    assert(body == "directional" || body == "symmetric" || body == "none" || body == "screw",
+           "body must be \"directional\", \"symmetric\", \"none\" or \"screw\"");
 
-    if (body == "none") {
+    if (body == "screw") {
+        t = variant == "lite" ? OG_SNAP_H_LITE : OG_SNAP_H_FULL;
+        // Centred on its own box, as the head alone is: the thread's
+        // axis (the cell centre) is not its middle, since the head's
+        // pocket reaches OC_HEAD_SHIFT_Y + OC_HEAD_L / 2 up from it and
+        // the thread only OG_THREAD_D / 2 down. The thread's tip sits
+        // the hundredth upstream sinks it into the neck above z = 0.
+        y_min = -OG_THREAD_D / 2;
+        y_max = OC_HEAD_SHIFT_Y + OC_HEAD_L / 2;
+        sink = 0.005;
+        size = [OC_HEAD_W, y_max - y_min, t + OC_HEAD_H - sink];
+        attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
+            translate([0, -(y_min + y_max) / 2, -size.z / 2 - sink])
+                oc_screw(t, $fa = detail_fa(1), $fs = detail_fs(0.4));
+            children();
+        }
+    } else if (body == "none") {
         size = [OC_HEAD_W, OC_HEAD_L, OC_HEAD_H];
         attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
             translate([0, -OC_HEAD_SHIFT_Y, -size.z / 2]) oc_head(anchor = BOTTOM, $fa = detail_fa(1), $fs = detail_fs(0.4));

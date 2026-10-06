@@ -19,6 +19,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "openconnect" || spec.kind === "multiconnect") {
     return <SlotIcon spec={spec} title={title} className={className} />;
   }
+  if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -301,6 +302,57 @@ function SlotIcon({ spec, title, className }) {
         <rect x={CX - px(p.snap) / 2} y={SURFACE_Y - 8} width={px(p.snap)} height={5.5} rx="0.8" />
         {head}
         {spec.kind === "multiconnect" && <rect x={CX - 1} y={floorY - 1.8} width={2} height={1.2} className="screw-icon-socket" />}
+      </g>
+    </svg>
+  );
+}
+
+// The openGrid thread in cross-section: the Ø16.5 bore with the thread's
+// ridges standing into it from both walls, and a screw connector in it —
+// the threaded shank, and the head (an openConnect head's width) on the
+// surface, a coin slot in its face. To scale across, its depth as cut
+// (6.8 mm of screw, whatever the hole's own depth).
+function ThreadIcon({ spec, title, className }) {
+  const s = 30 / 17;
+  const px = (mm) => mm * s;
+  const boreW = px(16 + spec.clearance);
+  const through = !(spec.depth > 0);
+  const floorY = through ? BOTTOM_Y + 1 : SURFACE_Y + Math.min(px(spec.depth), MAX_SHOWN_DEPTH);
+  const shankW = px(16);
+  const shankEnd = Math.min(floorY - 1, SURFACE_Y + px(6.8));
+  const pitch = px(3);
+  // Ridges of material into the bore: one per pitch down each wall, the
+  // right wall half a pitch below the left (it is a helix).
+  const ridges = [];
+  for (const side of [-1, 1]) {
+    const wall = CX + (side * boreW) / 2;
+    const tip = wall - side * px(1);
+    for (let y = SURFACE_Y + (side > 0 ? pitch / 2 : 0) + 0.6; y + pitch * 0.6 < floorY; y += pitch) {
+      ridges.push(polygon([[wall, y], [tip, y + pitch * 0.25], [tip, y + pitch * 0.35], [wall, y + pitch * 0.6]]));
+    }
+  }
+  const headH = px(2.6);
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">{rect(CX - boreW / 2, SURFACE_Y - 1, boreW, floorY - SURFACE_Y + 1)}</g>
+      <g className="screw-icon-material">{ridges}</g>
+      <g className="screw-icon-fastener">
+        {rect(CX - shankW / 2 + px(1), SURFACE_Y, shankW - px(2), shankEnd - SURFACE_Y)}
+        {threads(CX - shankW / 2 + px(1), SURFACE_Y, shankEnd, shankW - px(2), pitch)}
+        {rect(CX - px(17) / 2, SURFACE_Y - headH, px(17), headH, { rx: 0.8 })}
+        {rect(CX - px(13) / 2, SURFACE_Y - headH, px(13), headH * 0.45, { className: "screw-icon-socket" })}
       </g>
     </svg>
   );

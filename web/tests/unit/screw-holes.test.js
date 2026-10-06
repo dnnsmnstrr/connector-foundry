@@ -10,15 +10,17 @@ import {
   frameMatrix,
   holeFootprintRadius,
   holeLabel,
+  holeMeta,
   holesToScad,
   normalizeSpec,
   planeBasis,
   removeHole,
+  rotateHoles,
   slotFrame,
   slotOutline,
   updateHole,
 } from "../../src/lib/screwHoles.js";
-import { SCREW_PRESETS, getPreset, specMatchesPreset } from "../../src/lib/screwPresets.js";
+import { SCREW_PRESETS, getPreset, presetSpecFor, specMatchesPreset } from "../../src/lib/screwPresets.js";
 
 const partsById = new Map([
   ["basics/plate", { id: "basics/plate", name: "Flat plate", file: "parts/basics/plate.scad", module: "basics_plate" }],
@@ -141,7 +143,7 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.ok(["openconnect", "multiconnect", "thread"].includes(preset.spec.kind), `${preset.id} kind`);
       assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
@@ -332,4 +334,55 @@ test("a MultiConnect slot can have an on-ramp every openGrid cell, for a column 
   // It is one of the fields that carry across MultiConnect presets.
   const { presetSpecFor } = await import("../../src/lib/screwPresets.js");
   assert.equal(presetSpecFor(spec, getPreset("mc-slot-release").spec).rampEvery, true);
+});
+
+test("an openGrid thread is cut by lib/ogthread.scad in the slots' frame, blind or through", () => {
+  let { doc } = addHole(createHolesDoc({ kind: "mesh", name: "box", stlBytes: new ArrayBuffer(84), extents: [40, 40, 20] }), {
+    point: [20, 0, 10],
+    normal: [0, -1, 0],
+    spec: getPreset("og-thread").spec,
+    presetId: "og-thread",
+  });
+  ({ doc } = addHole(doc, { point: [20, 20, 20], normal: [0, 0, 1], spec: { ...getPreset("og-thread-lite").spec, depth: 0 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 70, importedFiles: new Map() });
+  // BOSL2 at top level (thread_helix() is BOSL2's), then the library.
+  assert.match(scad, /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/ogthread\.scad>$/m);
+  assert.match(scad, /og_thread_hole\(depth = 8, clearance = 0\.5, overshoot = 1\);/);
+  // Through: as deep as the caller's through length — or, given the
+  // base's extents, the box's width along the axis (20 here) plus the
+  // overshoot.
+  assert.match(scad, /og_thread_hole\(depth = 70, clearance = 0\.5, overshoot = 1\);/);
+  assert.match(holesToScad(doc, partsById, { throughLength: 70, extents: [40, 40, 20], importedFiles: new Map() }), /og_thread_hole\(depth = 21, clearance = 0\.5, overshoot = 1\);/);
+  // On the front face its +Y is up, as a slot's: x along +X, y along +Z,
+  // z out of the face (-Y).
+  assert.match(scad, /multmatrix\(\[\[1, 0, 0, 20\], \[0, 0, -1, 0\], \[0, 1, 0, 10\], \[0, 0, 0, 1\]\]\)/);
+  assert.equal(holeLabel(doc.holes[0]), "openGrid thread 8 deep");
+  assert.equal(holeMeta(doc.holes[1]), "through, turned 0°");
+});
+
+test("an openGrid thread turns, flips and keeps its direction like a slot", () => {
+  let { doc } = addHole(createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }), {
+    point: [0, 0, 10],
+    normal: [0, 0, 1],
+    spec: getPreset("og-thread").spec,
+  });
+  doc = rotateHoles(doc, [doc.holes[0].id], 90);
+  assert.equal(doc.holes[0].spec.spin, 90);
+  assert.equal(flipHoles(doc, 10).holes[0].spec.spin, 270);
+  // Normalisation: depth 0 is through; a bad depth falls back to one a
+  // full-size screw fits, a bad clearance to upstream's.
+  assert.equal(normalizeSpec({ kind: "thread", depth: 0 }).depth, 0);
+  assert.deepEqual(normalizeSpec({ kind: "thread", depth: -1, clearance: "x", spin: 450 }), { kind: "thread", depth: 8, clearance: 0.5, spin: 90 });
+  // Its outline is the bore and the arrow; its footprint the bore.
+  const segments = slotOutline(doc.holes[0]);
+  const r = Math.max(...segments.map((seg) => Math.hypot(seg.a[0], seg.a[1])));
+  assert.ok(Math.abs(r - 8.25) < 1e-9, `bore radius ${r}`);
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 8.25);
+  // The two presets differ in depth only: a deeper full-size thread is
+  // edited, a turned one is still the preset; switching between them —
+  // or from a slot — keeps the direction.
+  assert.ok(specMatchesPreset({ ...getPreset("og-thread").spec, spin: 180 }, "og-thread"));
+  assert.ok(!specMatchesPreset({ ...getPreset("og-thread").spec, depth: 12 }, "og-thread"));
+  assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("og-thread-lite").spec), { kind: "thread", depth: 4.5, clearance: 0.5, spin: 90 });
+  assert.equal(presetSpecFor({ ...getPreset("oc-slot").spec, spin: 270 }, getPreset("og-thread").spec).spin, 270);
 });

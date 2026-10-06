@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
+import { THREAD } from "../../lib/screwHoles.js";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -8,7 +9,8 @@ import RotationInput from "../RotationInput.jsx";
 // countersink's angle. For a connector slot: the few choices the
 // system leaves open (an openConnect slot's lock side and clearances;
 // a MultiConnect slot's channel length, on-ramp, detent and
-// clearance) and which way on the face is up.
+// clearance) and which way on the face is up. For the openGrid thread:
+// how deep, its clearance, and which way a screwed-in head points.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -27,8 +29,10 @@ const NOTHING_MIXED = new Set();
 export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, onRotate, count = 1 }) {
   const id = useId();
   // The depth a blind hole had before "Through" was ticked, so unticking
-  // brings it back rather than starting from nothing.
-  const [lastDepth, setLastDepth] = useState(spec.depth > 0 ? spec.depth : 6);
+  // brings it back rather than starting from nothing. (A thread's
+  // fallback is one a full-size screw fits.)
+  const fallbackDepth = spec.kind === "thread" ? 8 : 6;
+  const [lastDepth, setLastDepth] = useState(spec.depth > 0 ? spec.depth : fallbackDepth);
   const through = !mixed.has("depth") && !(spec.depth > 0);
 
   const set = (patch) => onChange(patch);
@@ -50,7 +54,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
       if (spec.depth > 0) setLastDepth(spec.depth);
       set({ depth: 0 });
     } else {
-      set({ depth: lastDepth || 6 });
+      set({ depth: lastDepth || fallbackDepth });
     }
   }
 
@@ -61,8 +65,12 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // a mount is likely to need; any angle is accepted.
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
+  const spinTitle =
+    spec.kind === "thread"
+      ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
-    <label className="field holes-direction-field" htmlFor={`${id}-spin`} title="Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.">
+    <label className="field holes-direction-field" htmlFor={`${id}-spin`} title={spinTitle}>
       <span className="field-label">Direction (°)</span>
       <RotationInput
         id={`${id}-spin`}
@@ -70,7 +78,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         placeholder={isMixed("spin") ? "mixed" : undefined}
         onChange={(degrees) => set({ spin: degrees })}
         onRotate={onRotate}
-        name={count > 1 ? `the ${count} slots` : "the slot"}
+        name={spec.kind === "thread" ? (count > 1 ? `the ${count} threads` : "the thread") : count > 1 ? `the ${count} slots` : "the slot"}
         viewedFrom="outside the face"
       />
     </label>
@@ -97,6 +105,41 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <p className="muted holes-params-note">
           The point you click is the centre of the openGrid cell the snap sits in; the head seats 3.6 mm up from it. The slot
           needs about 3 mm of material under the surface.
+        </p>
+      </div>
+    );
+  }
+
+  if (spec.kind === "thread") {
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">
+          <label className="field" htmlFor={`${id}-depth`} title={`How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`}>
+            <span className="field-label">Depth (mm)</span>
+            <input
+              id={`${id}-depth`}
+              type="number"
+              min="0"
+              step="0.5"
+              {...numberProps("depth", { placeholder: "through" })}
+              value={isMixed("depth") || through ? "" : spec.depth}
+              disabled={through}
+            />
+          </label>
+          <label className="field" htmlFor={`${id}-clear`} title={`Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`}>
+            <span className="field-label">Clearance (mm)</span>
+            <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
+          </label>
+        </div>
+        <label className="field field-checkbox holes-through-field" htmlFor={`${id}-through`}>
+          <MixedCheckbox id={`${id}-through`} checked={through} mixed={isMixed("depth")} onChange={toggleThrough} />
+          <span className="field-label">Through</span>
+        </label>
+        {spinField}
+        <p className="muted holes-params-note">
+          The female thread of an openGrid threaded snap ({THREAD.diameter} mm, 3 mm pitch): the openConnect and MultiConnect
+          snaps' screw body screws into it, and ends up with its head pointing the direction above. The point you click is
+          the thread's axis; leave about 2 mm of material around its Ø{THREAD.diameter + THREAD.clearance}.
         </p>
       </div>
     );

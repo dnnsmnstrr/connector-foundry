@@ -61,6 +61,22 @@ OC_HEAD_SHIFT_Y = 3.6;         // the head's centre sits this far up (+Y) from t
                                // OCHEAD_LARGE_RECT_WIDTH / 2 + OCHEAD_BACK_POS_OFFSET
                                // - OCHEAD_LARGE_RECT_HEIGHT / 2
 
+// The snap thread (lib/ogthread.scad): opengrid_base.scad's
+// OG_SNAP_THREADS_* — profile (in pitches, along the axis and radially
+// in from the crest), diameter (male; a female thread is cut CLEARANCE
+// wider, 16.5 being upstream's "official negative diameter"), pitch, and
+// the turn that lines a thread's start up with its snap.
+OG_THREAD_D         = 16;
+OG_THREAD_PITCH     = 3;
+OG_THREAD_CLEARANCE = 0.5;
+OG_THREAD_ANGLE     = 53.5;
+OG_THREAD_PROFILE   = [[-1.25 / 3, -1 / 3], [-0.25 / 3, 0], [0.25 / 3, 0], [1.25 / 3, -1 / 3]];
+// The screws' coin slot (connector_slot_cfg()'s defaults): a circular
+// segment this wide and deep across the head's outer face, this thick.
+OG_COIN_SLOT_W = 13;
+OG_COIN_SLOT_H = 2.6;
+OG_COIN_SLOT_T = 2.4;
+
 // ============================================================
 // MultiConnect — exact, published numbers, geometry written here.
 //
