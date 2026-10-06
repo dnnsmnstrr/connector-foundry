@@ -115,9 +115,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // face the pointer rested on, kept after it leaves the model so the
   // inset and radius can be adjusted with the lines in view. Another
   // face takes over only after GUIDE_SWITCH_DELAY_MS under the pointer
-  // (`pendingGuide` is that timer), or at once on a click. Cleared with
-  // the mesh (a re-render renumbers the triangles).
-  const [guideFaceKey, setGuideFaceKey] = useState(null);
+  // (`pendingGuide` is that timer), or at once on a click.
+  //
+  // A face is a triangle index, which only means anything in the mesh it
+  // was taken from: a re-render (a hole drilled or deleted) renumbers the
+  // triangles. So the key is stored with that mesh's topology and only
+  // used while it is still the one on screen — checked here, in the same
+  // render, not in an effect afterwards. (Clearing it in an effect left
+  // one render with the new mesh and the old key; when the new mesh had
+  // fewer triangles, the face lookup ran off its end and took the whole
+  // tab down — deleting a hole that had been dropped inside another.)
+  const [guide, setGuide] = useState(null); // { key, topo } | null
   const pendingGuide = useRef(null); // { key, timer } | null
   // Option held: the point under the pointer (or the selected hole) gets
   // its distances to the face's edges and center drawn and labelled.
@@ -198,9 +206,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     },
     [geometries],
   );
+  const guideFaceKey = guide && geometries && guide.topo === geometries.topo ? guide.key : null;
+  function setGuideFaceKey(key) {
+    setGuide(key === null || !geometries ? null : { key, topo: geometries.topo });
+  }
   useEffect(() => {
     setHover(null);
-    setGuideFaceKey(null);
+    setGuide(null);
     cancelPendingGuide();
   }, [geometries]);
   useEffect(() => cancelPendingGuide, []);
@@ -350,6 +362,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   function resolveHit(hit) {
     if (!geometries) return null;
     const face = analyzeFace(geometries.topo, hit.faceIndex, { inset, radius });
+    if (!face) return null;
     const snapping = snapOn && !hit.shiftKey;
     const snap = snapping ? nearestCandidate(face, hit.point, snapRadius) : null;
     const line = snapping && !snap ? nearestGuide(face, hit.point, snapRadius) : null;

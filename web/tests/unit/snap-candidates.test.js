@@ -182,3 +182,15 @@ test("edge distances: from a point on the face to the outline each way, and to t
   for (const end of Object.values(d.ends)) assert.equal(Math.round(end[2] * 100) / 100, 2);
   assert.equal(edgeDistances(face, [30, 0, 2]), null);
 });
+
+test("a face index the mesh doesn't have is no face, not a crash", () => {
+  // The Holes tab keeps the guide face by triangle index; after a
+  // re-render with fewer triangles (a hole deleted), an old index can
+  // point past the end of the new mesh.
+  const geometry = welded(new BoxGeometry(20, 10, 4));
+  const triangles = geometry.index.count / 3;
+  assert.ok(analyzeFace(geometry, triangles - 1));
+  assert.equal(analyzeFace(geometry, triangles), null);
+  assert.equal(analyzeFace(geometry, triangles + 500), null);
+  assert.equal(analyzeFace(geometry, -1), null);
+});

@@ -80,7 +80,11 @@ function cacheFor(geometry) {
 // center circle's; candidates and guides are redone when either
 // changes — as a fresh record replacing the cached one, so a caller
 // comparing records by identity (a React memo) sees the change.
+// null for a triangle index this geometry doesn't have — a face kept
+// from a mesh since replaced — rather than reading past its end.
 export function analyzeFace(geometry, faceIndex, options = {}) {
+  const triangles = (geometry.index ? geometry.index.count : geometry.getAttribute("position").count) / 3;
+  if (!Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex >= triangles) return null;
   const inset = options.inset ?? DEFAULT_CORNER_INSET_MM;
   const radius = options.radius ?? DEFAULT_CENTER_RADIUS_MM;
   const cache = cacheFor(geometry);

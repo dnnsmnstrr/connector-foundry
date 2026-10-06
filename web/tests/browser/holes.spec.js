@@ -201,6 +201,65 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
 });
 
+// A holed render with many more triangles than the plain base, so a
+// guide face picked on it has an index the base doesn't have.
+const detailed = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4, 20, 20, 1)), { binary: true });
+const detailedBytes = [...new Uint8Array(detailed.buffer, detailed.byteOffset, detailed.byteLength)];
+
+test("deleting a hole while the guide lines are on the holed mesh doesn't crash the tab", async ({ page }) => {
+  await catalogue(page);
+  await page.addInitScript(({ plain, holed }) => {
+    window.__renders = { jobs: [] };
+    window.Worker = class {
+      postMessage(request) {
+        window.__renders.jobs.push({ request });
+        const bytes = request.scadSource?.includes("difference()") ? holed : plain;
+        queueMicrotask(() => this.onmessage({ data: { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer } }));
+      }
+      terminate() {}
+    };
+  }, { plain: cubeBytes, holed: detailedBytes });
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(err.message));
+  await page.goto("/#mode=holes");
+  await page.getByRole("button", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
+
+  const canvas = page.locator(".bench-viewer canvas");
+  const box = await canvas.boundingBox();
+  const hint = page.locator(".holes-snap-hint");
+  let target = null;
+  for (let dy = 0; dy <= 120 && !target; dy += 6) {
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2 - dy;
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(50);
+    if ((await hint.count()) && (await hint.textContent()).includes("face center")) target = { x, y };
+  }
+  expect(target, "a canvas point snapping to the face center").not.toBeNull();
+  await page.mouse.click(target.x, target.y);
+  await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
+  await expect.poll(async () => (await jobs(page)).length).toBe(2);
+
+  // Rest on the holed mesh's top face long enough for its guide lines to
+  // take over — a face whose triangles are numbered far past the plain
+  // base's twelve.
+  await page.mouse.move(target.x + 10, target.y + 10);
+  await page.mouse.move(target.x + 4, target.y + 4, { steps: 3 });
+  await expect(hint).toBeVisible();
+  await page.waitForTimeout(500);
+
+  // Delete it: the view goes back to the plain base, and the tab stays up.
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".holes-row")).toHaveCount(0);
+  await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+  await expect(page.getByRole("heading", { name: "Holes", exact: true })).toBeVisible();
+});
+
 test("an imported mesh is drilled through import() with its bytes mounted alongside", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
