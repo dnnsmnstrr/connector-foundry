@@ -44,7 +44,7 @@ import {
   sourceStem,
   updateHole,
 } from "./lib/screwHoles.js";
-import { getPreset, specMatchesPreset } from "./lib/screwPresets.js";
+import { getPreset, presetSpecFor, specMatchesPreset } from "./lib/screwPresets.js";
 import { DEFAULT_CENTER_RADIUS_MM, DEFAULT_CORNER_INSET_MM, analyzeFace, edgeDistances, gridPoint, nearestCandidate, nearestGuide, planePoint } from "./lib/snapCandidates.js";
 import { resolveParams } from "./lib/userOverrides.js";
 
@@ -456,12 +456,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   function applySpec(spec, presetId = editingPresetId) {
     setDoc((d) => setNextSpec(selected ? updateHole(d, selected.id, { spec, presetId }) : d, spec, presetId));
   }
+  // A slot preset keeps what the hole shares with it (presetSpecFor()):
+  // switching MultiConnect types keeps the channel length, gap and
+  // direction already set.
   function applyPreset(preset) {
     if (multi) {
-      setDoc((d) => setNextSpec(setHolesSpec(d, selectedIds, { ...preset.spec }, preset.id), { ...preset.spec }, preset.id));
+      setDoc((d) => setNextSpec(setHolesSpec(d, selectedIds, preset.spec, preset.id), presetSpecFor(d.nextSpec, preset.spec), preset.id));
       return;
     }
-    applySpec({ ...preset.spec }, preset.id);
+    applySpec(presetSpecFor(editingSpec, preset.spec), preset.id);
   }
   function patchSelection(patch) {
     if (multi) setDoc((d) => patchHoles(d, selectedIds, patch));

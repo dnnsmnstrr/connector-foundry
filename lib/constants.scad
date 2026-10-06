@@ -94,7 +94,6 @@ MC_ONRAMP_D      = 24;    // funnel mouth, MC_ONRAMP_LIFT outside the surface...
 MC_ONRAMP_LIFT   = 0.85;  // ...narrowing to MC_SLOT_D at the pocket floor
 MC_DETENT_DEPTH  = 0.4;   // v2 detent: the channel narrows this much at the pocket end...
 MC_DETENT_LEN    = 8;     // ...tapering back to full width over this far down the channel
-MC_SLOT_PITCH    = 25;    // Multiboard's slot spacing — the default channel length
 
 // ============================================================
 // GoPro — exact, interface geometry owned upstream.

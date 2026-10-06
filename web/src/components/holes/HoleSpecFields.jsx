@@ -106,7 +106,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
-          <label className="field" htmlFor={`${id}-length`} title="How far the channel runs down from the round end the head rests in. Multiboard spaces its slots 25 mm apart.">
+          <label className="field" htmlFor={`${id}-length`} title="How far the channel runs down from the round end the head rests in. 28 mm is one openGrid cell; Multiboard spaces its slots 25 mm apart.">
             <span className="field-label">Channel (mm)</span>
             <input id={`${id}-length`} type="number" min="1" step="1" {...numberProps("length")} />
           </label>
@@ -119,6 +119,20 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <label className="field field-checkbox holes-through-field" htmlFor={`${id}-ramp`} title="A funnel at the channel's far end to push the head in through. Without it the channel is open-ended, for an item that slides on from its edge.">
           <MixedCheckbox id={`${id}-ramp`} checked={spec.onRamp} mixed={isMixed("onRamp")} onChange={(onRamp) => set({ onRamp })} />
           <span className="field-label">On-ramp at the entry</span>
+        </label>
+        <label
+          className="field field-checkbox holes-through-field"
+          htmlFor={`${id}-ramp-every`}
+          title="For an item hung on several heads one above the other, 28 mm apart: an on-ramp every 28 mm down the channel, so the item is pushed onto all the heads at once and slid down one cell. Make the channel a multiple of 28 mm long."
+        >
+          <MixedCheckbox
+            id={`${id}-ramp-every`}
+            checked={spec.rampEvery}
+            mixed={isMixed("rampEvery")}
+            disabled={!isMixed("onRamp") && !spec.onRamp}
+            onChange={(rampEvery) => set({ rampEvery })}
+          />
+          <span className="field-label">On-ramp every 28 mm</span>
         </label>
         <label className="field field-checkbox holes-through-field" htmlFor={`${id}-detent`} title="The v2 detent: the channel narrows 0.4 mm just below the round end so a seated head clicks in. Off for a quick-release mount.">
           <MixedCheckbox id={`${id}-detent`} checked={spec.detent} mixed={isMixed("detent")} onChange={(detent) => set({ detent })} />
@@ -190,12 +204,12 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
 
 // A checkbox that can say "some are, some aren't" (indeterminate) for
 // several holes that disagree; ticking it sets them all.
-function MixedCheckbox({ id, checked, mixed, onChange }) {
+function MixedCheckbox({ id, checked, mixed, disabled = false, onChange }) {
   const ref = useRef(null);
   useEffect(() => {
     if (ref.current) ref.current.indeterminate = mixed;
   }, [mixed]);
-  return <input ref={ref} id={id} type="checkbox" checked={!mixed && Boolean(checked)} onChange={(e) => onChange(e.target.checked)} />;
+  return <input ref={ref} id={id} type="checkbox" checked={!mixed && Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />;
 }
 
 // A <select> with a "Mixed" entry while the holes disagree — shown, not

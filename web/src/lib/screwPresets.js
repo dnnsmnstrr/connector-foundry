@@ -169,7 +169,8 @@ function openConnect(id, name, short, lock) {
 }
 
 // A MultiConnect slot: the channel runs `length` mm down from the
-// round end the head rests in (Multiboard's 25 mm slot pitch), with an
+// round end the head rests in (one openGrid cell, 28 mm; Multiboard
+// spaces its slots 25 mm apart), with an
 // on-ramp funnel at its far end to push the head in through, and the
 // v2 detent that clicks a seated head in place.
 function multiConnect(id, name, short, { onRamp, detent }) {
@@ -178,7 +179,7 @@ function multiConnect(id, name, short, { onRamp, detent }) {
     name,
     short,
     group: "MultiConnect",
-    spec: { kind: "multiconnect", length: 25, onRamp, detent, clearance: 0, spin: 0 },
+    spec: { kind: "multiconnect", length: 28, onRamp, detent, rampEvery: false, clearance: 0, spin: 0 },
     screw: { style: "multiconnect" },
   };
 }
@@ -241,8 +242,50 @@ export function presetGroups() {
 // Does `spec` still match what `presetId` prescribes? A hole keeps its
 // preset id as the label it was placed with; once a field is edited the
 // UI says "(edited)" rather than claiming it is still the preset.
+//
+// For a connector slot, only the fields that tell its presets apart
+// count (see presetKeys()): a MultiConnect slot with a longer channel, or
+// any slot turned to point another way, is still the preset it was
+// placed from — those are placement, not a different slot.
 export function specMatchesPreset(spec, presetId) {
   const preset = getPreset(presetId);
   if (!preset) return false;
-  return Object.keys(preset.spec).every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
+  const keys = isSlotKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec);
+  return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
+}
+
+function isSlotKind(kind) {
+  return kind === "openconnect" || kind === "multiconnect";
+}
+
+// The fields that tell the presets of one kind apart — the ones they
+// don't all agree on (MultiConnect: on-ramp and detent; openConnect:
+// the lock side). Read off the preset list itself, so adding a preset
+// that differs in something new makes that field one of these.
+const keysByKind = new Map();
+export function presetKeys(kind) {
+  if (!keysByKind.has(kind)) {
+    const specs = SCREW_PRESETS.filter((p) => p.spec.kind === kind).map((p) => p.spec);
+    const keys = specs.length ? Object.keys(specs[0]).filter((key) => key !== "kind" && specs.some((s) => s[key] !== specs[0][key])) : [];
+    keysByKind.set(kind, keys);
+  }
+  return keysByKind.get(kind);
+}
+
+// The spec a hole gets when `presetSpec` is picked for it. A screw preset
+// is a whole fastener and replaces everything. A slot preset sets the
+// fields that make it that preset (presetKeys()) and keeps the rest the
+// hole already has where the two share a field — switching a MultiConnect
+// slot from "on-ramp" to "open end" keeps its channel length, gap and
+// direction; an openConnect slot becoming a MultiConnect one keeps the
+// way it points.
+export function presetSpecFor(currentSpec, presetSpec) {
+  if (!isSlotKind(presetSpec.kind) || !currentSpec) return { ...presetSpec };
+  const own = new Set(["kind", ...presetKeys(presetSpec.kind)]);
+  const kept = Object.fromEntries(
+    Object.keys(presetSpec)
+      .filter((key) => !own.has(key) && key in currentSpec && (currentSpec.kind === presetSpec.kind || key === "spin"))
+      .map((key) => [key, currentSpec[key]]),
+  );
+  return { ...presetSpec, ...kept };
 }

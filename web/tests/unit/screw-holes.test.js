@@ -157,7 +157,7 @@ test("a connector slot is cut by the repo's own library in a frame whose +Y is t
   assert.match(scad, /^use <\.\.\/lib\/openconnect\.scad>$/m);
   assert.match(scad, /^use <\.\.\/lib\/multiconnect\.scad>$/m);
   assert.match(scad, /oc_slot\(lock = "left", side_clearance = 0\.1, depth_clearance = 0\.1, overshoot = 1\);/);
-  assert.match(scad, /mc_slot\(length = 25, on_ramp = false, detent = true, clearance = 0, overshoot = 1\);/);
+  assert.match(scad, /mc_slot\(length = 28, on_ramp = false, detent = true, clearance = 0, overshoot = 1\);/);
   // On the top face of a plate lying flat, the slot's +Y is the part's +Y
   // and its +X the part's +X: an identity frame at the point.
   assert.match(scad, /multmatrix\(\[\[1, 0, 0, 5\], \[0, 1, 0, -3\], \[0, 0, 1, 4\], \[0, 0, 0, 1\]\]\)/);
@@ -192,7 +192,7 @@ test("a slot's frame: straight up on a vertical face, the part's Y on a level on
   assert.equal(normalizeSpec({ kind: "openconnect", spin: -90 }).spin, 270);
   assert.equal(normalizeSpec({ kind: "multiconnect", spin: 720 }).spin, 0);
   assert.equal(normalizeSpec({ kind: "openconnect", lock: "sideways" }).lock, "left");
-  assert.equal(normalizeSpec({ kind: "multiconnect", length: -4 }).length, 25);
+  assert.equal(normalizeSpec({ kind: "multiconnect", length: -4 }).length, 28);
 });
 
 test("a slot keeps pointing the same way along a flipped mesh", () => {
@@ -285,4 +285,51 @@ test("several holes: shared fields, patched together, turned each from its own d
   assert.deepEqual(doc.holes.slice(1, 3).map((h) => [h.spec.kind, h.spec.head, h.point[0]]), [["screw", "countersink", 10], ["screw", "countersink", 20]]);
 
   assert.deepEqual(removeHoles(doc, [a, d]).holes.map((h) => h.id), [b, c]);
+});
+
+test("switching slot presets keeps what the hole shares with the new one", async () => {
+  const { presetSpecFor } = await import("../../src/lib/screwPresets.js");
+  // A MultiConnect slot with its channel, gap and direction set...
+  const tuned = { ...getPreset("mc-slot").spec, length: 40, clearance: 0.2, spin: 90 };
+  // ...switched to open-ended: those stay, the preset's own fields change.
+  const open = presetSpecFor(tuned, getPreset("mc-slot-open").spec);
+  assert.deepEqual(open, { kind: "multiconnect", length: 40, onRamp: false, detent: true, rampEvery: false, clearance: 0.2, spin: 90 });
+  // Still that preset, not "(edited)": length and direction are placement.
+  assert.ok(specMatchesPreset(open, "mc-slot-open"));
+  assert.ok(!specMatchesPreset({ ...open, detent: false }, "mc-slot-open"));
+  // openConnect: the lock is the preset's, the gaps and direction carry.
+  const oc = presetSpecFor({ ...getPreset("oc-slot").spec, sideClearance: 0.2, spin: 180 }, getPreset("oc-slot-both").spec);
+  assert.deepEqual([oc.lock, oc.sideClearance, oc.depthClearance, oc.spin], ["both", 0.2, 0.1, 180]);
+  // Across slot kinds only the direction is shared.
+  const mc = presetSpecFor(oc, getPreset("mc-slot").spec);
+  assert.deepEqual(mc, { ...getPreset("mc-slot").spec, spin: 180 });
+  // A screw preset is a whole fastener: nothing carries, either way.
+  assert.deepEqual(presetSpecFor(tuned, getPreset("m3-cap").spec), getPreset("m3-cap").spec);
+  assert.deepEqual(presetSpecFor(getPreset("m3-cap").spec, getPreset("mc-slot").spec), getPreset("mc-slot").spec);
+  // A screw preset's match still compares every field.
+  assert.ok(!specMatchesPreset({ ...getPreset("m3-cap").spec, depth: 8 }, "m3-cap"));
+});
+
+test("a MultiConnect slot can have an on-ramp every openGrid cell, for a column of heads", async () => {
+  const { RAMP_SPACING_MM } = await import("../../src/lib/screwHoles.js");
+  const spec = normalizeSpec({ ...getPreset("mc-slot").spec, length: 84, rampEvery: true });
+  const { doc } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec });
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /mc_slot\(length = 84, on_ramp = true, detent = true, clearance = 0, overshoot = 1, ramp_spacing = 28\);/);
+  // Off, or with no on-ramp at all, there is no spacing to cut.
+  for (const off of [{ rampEvery: false }, { onRamp: false }]) {
+    const plain = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: { ...spec, ...off } }).doc;
+    assert.doesNotMatch(holesToScad(plain, partsById, { throughLength: 50 }), /ramp_spacing/);
+  }
+  // The outline draws a ramp circle at 28, 56 and the end (84): three
+  // dashed loops of 37 segments each.
+  const dashed = slotOutline({ point: [0, 0, 4], normal: [0, 0, 1], spec }).filter((seg) => seg.dashed);
+  assert.equal(dashed.length, 3 * 37);
+  const ys = [...new Set(dashed.map((seg) => Math.round((seg.a[1] + seg.b[1]) / 2 / 14) * 14))];
+  assert.ok(ys.includes(-28) && ys.includes(-56) && ys.includes(-84), `ramp centres near ${ys}`);
+  assert.equal(RAMP_SPACING_MM, 28);
+  assert.equal(holeLabel({ spec }), "MultiConnect slot 84 long, on-ramps every 28");
+  // It is one of the fields that carry across MultiConnect presets.
+  const { presetSpecFor } = await import("../../src/lib/screwPresets.js");
+  assert.equal(presetSpecFor(spec, getPreset("mc-slot-release").spec).rampEvery, true);
 });

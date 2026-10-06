@@ -33,6 +33,10 @@
 // The point is the round end the head rests in.
 //   length     mm of channel from the round end to the entry
 //   onRamp     a funnel at the entry end to push the head in through
+//   rampEvery  with onRamp, a funnel every RAMP_SPACING_MM down the
+//              channel too — for an item on a column of heads one
+//              openGrid cell apart, pushed on all at once and slid down
+//              one cell (lib/multiconnect.scad's mc_slot() ramp_spacing)
 //   detent     the v2 detent that clicks a seated head in
 //   clearance  mm added to every radius
 //   spin       as above
@@ -48,6 +52,7 @@
 // wall — so those come from slotFrame().
 import { callArgs, scadLiteral } from "./scadLiteral.js";
 import { safeStem } from "./benchName.js";
+import { presetSpecFor } from "./screwPresets.js";
 
 // How far a cutter reaches past the surface it enters through, so the
 // cut's top face never coincides with the model's (Manifold handles
@@ -82,6 +87,11 @@ export const OPENCONNECT_FOOTPRINT = Object.freeze({
   // and off to the left (the head comes in on its taper).
   entry: { left: -13.0, right: 5.8, top: -0.8, bottom: -13.2 },
 });
+// The spacing of a MultiConnect slot's extra on-ramps (`rampEvery`): one
+// openGrid cell, lib/constants.scad's OG_PITCH — the spacing of the heads
+// on the board that the item hangs on.
+export const RAMP_SPACING_MM = 28;
+
 export const MULTICONNECT_FOOTPRINT = Object.freeze({
   radius: 10.15, // the round end and the channel's half width
   onRamp: 11.7, // the funnel's radius at the surface
@@ -120,8 +130,9 @@ export function normalizeSpec(spec) {
   if (kind === "multiconnect") {
     return {
       kind,
-      length: Math.max(1, n(spec?.length, 25)),
+      length: Math.max(1, n(spec?.length, 28)),
       onRamp: spec?.onRamp !== false,
+      rampEvery: spec?.rampEvery === true,
       detent: spec?.detent !== false,
       clearance: n(spec?.clearance, 0),
       spin: normalizeSpin(spec?.spin),
@@ -212,18 +223,15 @@ export function rotateHoles(doc, ids, delta) {
   };
 }
 
-// Make every hole in `ids` the given spec (a preset picked with several
-// selected) — each keeps its place, and a slot staying a slot keeps
-// the way it points.
-export function setHolesSpec(doc, ids, spec, presetId) {
+// Give every hole in `ids` a preset's spec (picked with several
+// selected): each keeps its place, and — through screwPresets.js's
+// presetSpecFor() — what it shares with the preset that isn't what
+// makes the preset itself (a slot's channel length, gaps, direction).
+export function setHolesSpec(doc, ids, presetSpec, presetId) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => {
-      if (!targets.has(h.id)) return h;
-      const keepSpin = isSlot(h.spec) && isSlot(spec) ? { spin: h.spec.spin } : {};
-      return { ...h, spec: normalizeSpec({ ...spec, ...keepSpin }), presetId };
-    }),
+    holes: doc.holes.map((h) => (targets.has(h.id) ? { ...h, spec: normalizeSpec(presetSpecFor(h.spec, presetSpec)), presetId } : h)),
   };
 }
 
@@ -375,6 +383,7 @@ export function holeLabel(hole, presetName = null) {
   if (s.kind === "multiconnect") {
     const bits = [`MultiConnect slot ${fmt(s.length)} long`];
     if (!s.onRamp) bits.push("open-ended");
+    else if (s.rampEvery) bits.push(`on-ramps every ${RAMP_SPACING_MM}`);
     if (!s.detent) bits.push("no detent");
     if (s.spin) bits.push(`${fmt(s.spin)}°`);
     return bits.join(", ");
@@ -406,7 +415,11 @@ export function cutterLines(hole, throughLength) {
     body.push(`oc_slot(lock = ${JSON.stringify(s.lock)}, side_clearance = ${fmt(s.sideClearance)}, depth_clearance = ${fmt(s.depthClearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "multiconnect") {
-    body.push(`mc_slot(length = ${fmt(s.length)}, on_ramp = ${s.onRamp}, detent = ${s.detent}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    // An on-ramp every openGrid cell is lib/multiconnect.scad's
+    // ramp_spacing (OG_PITCH there; restated here, since the generated
+    // file only `use`s that library and can't see its constants).
+    const ramps = s.onRamp && s.rampEvery ? `, ramp_spacing = ${RAMP_SPACING_MM}` : "";
+    body.push(`mc_slot(length = ${fmt(s.length)}, on_ramp = ${s.onRamp}, detent = ${s.detent}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)}${ramps});`);
     m = slotFrameMatrix(hole);
   } else {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -536,8 +549,11 @@ export function slotOutline(hole) {
     const r = f.radius + s.clearance;
     // Round end over the top, straight down both sides, round the entry.
     polyline([[r, -s.length], [r, 0], ...arc(0, 0, r, 0, Math.PI), [-r, 0], [-r, -s.length]]);
-    if (s.onRamp) loop(arc(0, -s.length, f.onRamp + s.clearance, 0, 2 * Math.PI, 36), true);
-    else polyline([[-r, -s.length], [r, -s.length]]);
+    if (s.onRamp) {
+      // Every RAMP_SPACING_MM down the channel too, as mc_slot() cuts them.
+      const ys = s.rampEvery ? Array.from({ length: Math.ceil(s.length / RAMP_SPACING_MM - 1e-6) - 1 }, (_, i) => (i + 1) * RAMP_SPACING_MM) : [];
+      for (const y of [...ys, s.length]) loop(arc(0, -y, f.onRamp + s.clearance, 0, 2 * Math.PI, 36), true);
+    } else polyline([[-r, -s.length], [r, -s.length]]);
   }
   // The arrow: from the slot's origin toward +Y.
   polyline([[0, -3], [0, 5]]);

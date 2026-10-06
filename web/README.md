@@ -453,7 +453,7 @@ the implementation notes:
   `"screw"` (diameter, depth (0 = through), head (`none` / `counterbore` / `countersink` / `hex`),
   head diameter (across corners for hex), head depth (how far the pocket sinks; a countersink's
   extra sink on top of its cone) and sink angle), `"openconnect"` (lock side, side and depth
-  clearance, spin) or `"multiconnect"` (channel length, on-ramp, detent, clearance, spin) — the
+  clearance, spin) or `"multiconnect"` (channel length, on-ramp, an on-ramp every 28 mm as well (`rampEvery` — `mc_slot()`'s `ramp_spacing`, for an item on a column of heads), detent, clearance, spin) — the
   slots carry only the choices upstream's geometry leaves open. `nextSpec` is what the next click drills — the sidebar's "New holes" editor
   edits it; with a hole selected the same editor edits that hole, and `nextSpec` follows along, so
   the screw picked or edited last is what the next holes get. It lives in
@@ -467,8 +467,8 @@ the implementation notes:
   `HoleSpecFields` emits patches (`onChange(patch)`), and `patchHoles()` sets just those fields on
   every selected hole. A field they disagree on shows empty with "mixed", a checkbox indeterminate,
   a menu a disabled "Mixed" entry; holes of different kinds share no fields, so only the presets
-  are offered. `setHolesSpec()` applies a preset to all (a slot staying a slot keeps its direction,
-  and the preset becomes `nextSpec`, as with one hole); `rotateHoles()` turns each slot by the same
+  are offered. `setHolesSpec()` applies a preset to all (each slot keeps what it shares with the
+  preset — see `presetSpecFor()` below — and the preset becomes `nextSpec`, as with one hole); `rotateHoles()` turns each slot by the same
   step from its own direction; `removeHoles()` deletes them. The pill over the scene sits over
   their middle. The Delete button is always there (disabled with nothing selected) and the note
   above it is a fixed three lines, so selecting doesn't move the list under the pointer mid
@@ -561,7 +561,13 @@ the implementation notes:
   with on-ramp / open-ended / quick release), drawn as the keyhole section with the head seated in
   it on its snap, depths four times over since a 2.8 mm slot at its width's scale would be a
   hairline. A hole remembers the preset it was placed from and says "(edited)" once its spec
-  differs (`specMatchesPreset()`).
+  differs (`specMatchesPreset()`). Picking a slot preset for a slot keeps what the two share
+  (`presetSpecFor()`): a preset sets only the fields that tell its kind's presets apart
+  (`presetKeys()`, read off the preset list — MultiConnect's on-ramp and detent, openConnect's
+  lock), so switching MultiConnect types keeps the channel length, gap and direction, and an
+  openConnect slot turned into a MultiConnect one keeps its direction. For the same reason a slot
+  only counts as "(edited)" when one of those fields differs; a screw preset is a whole fastener,
+  replaces everything and compares every field.
 - Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected holes
   and `Escape` deselects (or closes the import), same local-listener arrangement as the Bench.
   Exports are `<name>_holes.stl` / `<name>_holes.scad` via `benchName.js`'s `exportFilename()`,

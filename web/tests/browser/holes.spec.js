@@ -190,6 +190,13 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await page.getByRole("button", { name: "Turn the slot 90° clockwise" }).click();
   await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("270");
   await expect(page.locator(".holes-row").first()).toContainText("turned 270°");
+  // Another openConnect preset sets its own lock and keeps the rest: the
+  // direction stays, and turning it isn't an edit of the preset.
+  await page.getByRole("option", { name: "openConnect slot, lock both sides" }).click();
+  await expect(page.getByRole("combobox", { name: "Lock nub" })).toHaveValue("both");
+  await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("270");
+  await expect(page.locator(".holes-row").first()).toContainText("1. openConnect slot, lock both sides");
+  await expect(page.locator(".holes-row").first()).not.toContainText("(edited)");
   await page.getByRole("button", { name: "Turn the slot 90° counter-clockwise" }).click();
   await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("0");
 

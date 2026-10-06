@@ -646,6 +646,28 @@ fit_checks:
       max_interference_mm3: 1.0
       clearance_mm: [0.0, 0.5]
 
+  - id: opengrid/multiconnect-column-in-our-slot
+    part: opengrid/multiconnect
+    why: >
+      An item hung on a column of MultiConnect heads, one openGrid cell
+      apart, uses one long channel with an on-ramp every cell
+      (mc_slot()'s ramp_spacing; the Holes tab's "On-ramp every 28 mm").
+      Every head has to seat at the round end and one, two cells below
+      it, through the ramps between, without fouling the channel.
+    a: |
+      include <{repo}/lib/multiconnect.scad>
+      for (k = [0 : 2])
+          translate([0, -OG_PITCH * k, -MC_SLOT_DEPTH]) mc_head(anchor = BOTTOM, $fa = 1, $fs = 0.4);
+    b: |
+      include <{repo}/lib/multiconnect.scad>
+      difference() {{
+          translate([-20, -100, -6]) cube([40, 115, 6]);
+          mc_slot(length = 3 * OG_PITCH, ramp_spacing = OG_PITCH);
+      }}
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.5]
+
   - id: extrusion2020/tab-in-slot
     part: extrusion2020/tab
     reference_source: nopscadlib

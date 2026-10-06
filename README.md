@@ -190,8 +190,11 @@ Two more preset groups cut **connector slots** rather than screw holes, so any p
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
 snap's head slides into — upstream's own geometry, with its lock nub on the left, right, both
 sides or neither, and its two clearances) and a **MultiConnect** slot (for an `opengrid/multiconnect`
-snap or any Multiboard connector: a channel of the length you choose running down from the round
-end the head rests in, with an on-ramp funnel at the entry and the v2 detent, each optional). A slot
+snap or any Multiboard connector: a channel of the length you choose — one openGrid cell, 28 mm, by
+default — running down from the round end the head rests in, with an on-ramp funnel at the entry
+and the v2 detent, each optional). For an item that hangs on several heads one above the other, tick
+"On-ramp every 28 mm" and make the channel a multiple of 28 mm: there is then a ramp one cell below
+every seat, so the item goes onto all its heads at once and slides down one cell. A slot
 has a direction on its face — the way the head travels to seat, "up" on the wall — which starts
 pointing straight up on a vertical face (the part's own Y on one lying flat) and turns in the sidebar; the viewer draws each slot's outline, entry and an arrow
 for it. The point you click is the openGrid cell centre for an openConnect slot (the head seats

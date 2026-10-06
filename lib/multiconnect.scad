@@ -37,9 +37,11 @@ module mc_head(dimple = true, excess = 0, anchor = BOTTOM, spin = 0, orient = UP
 
 // The slot, as a solid to subtract: slit on z = 0, pocket at
 // MC_SLOT_DEPTH below it.
-//   length     how far the channel runs from the round end to the entry
-//              (Multiboard spaces slots MC_SLOT_PITCH apart; the item
-//              needs to slide at least the disc's diameter)
+//   length     how far the channel runs from the round end to the entry:
+//              one openGrid cell (OG_PITCH, 28) by default, since these
+//              slots hang on an openGrid board (Multiboard spaces its
+//              slots 25 apart); the item needs to slide at least the
+//              disc's diameter
 //   on_ramp    a funnel at the entry end (Ø24 at the mouth, Ø20.3 at
 //              the pocket floor) so the head can be pushed straight in
 //              there; without it the channel is open-ended and the item
@@ -48,7 +50,18 @@ module mc_head(dimple = true, excess = 0, anchor = BOTTOM, spin = 0, orient = UP
 //              round end so a seated head clicks in
 //   clearance  added to every radius (mm)
 //   overshoot  how far the slit continues above z = 0
-module mc_slot(length = MC_SLOT_PITCH, on_ramp = true, detent = true, clearance = 0, overshoot = 1) {
+//   ramp_spacing  0, or an on-ramp every this many mm down the channel
+//              as well as the one at its end (with on_ramp) — for an
+//              item that hangs on several heads in a column, ramp_spacing
+//              apart on the board (OG_PITCH on openGrid): the heads seat
+//              at the round end and every ramp_spacing below it, each
+//              enters through the ramp one spacing below its seat, and
+//              the whole item is pushed on at once and slid down one
+//              spacing, instead of fed onto the heads from the top. The
+//              channel wants to be a whole number of spacings long, so
+//              the last head's ramp is the one at the end. QuackWorks'
+//              multiconnectBack() does the same with its onRampEveryXSlots.
+module mc_slot(length = OG_PITCH, on_ramp = true, detent = true, clearance = 0, overshoot = 1, ramp_spacing = 0) {
     r_pocket = MC_SLOT_D / 2 + clearance;
     r_slit   = MC_SLOT_NECK_D / 2 + clearance;
     z_floor  = -MC_SLOT_DEPTH;
@@ -73,9 +86,14 @@ module mc_slot(length = MC_SLOT_PITCH, on_ramp = true, detent = true, clearance 
                         linear_extrude(MC_SLOT_DEPTH + overshoot + 0.01)
                             polygon([[r_pocket, 0], [r_pocket - MC_DETENT_DEPTH, 0], [r_pocket, -MC_DETENT_LEN]]);
     }
-    // The entry funnel, centred on the channel's far end.
+    // The entry funnel, centred on the channel's far end — and with a
+    // ramp spacing, at every multiple of it down the channel too.
+    ramp_ys = concat(
+        ramp_spacing > 0 ? [for (y = [ramp_spacing : ramp_spacing : length - 0.01]) y] : [],
+        [length]);
     if (on_ramp)
-        translate([0, -length, z_floor])
-            cylinder(r1 = r_pocket, r2 = MC_ONRAMP_D / 2 + clearance,
-                     h = MC_SLOT_DEPTH + MC_ONRAMP_LIFT, $fn = 96);
+        for (y = ramp_ys)
+            translate([0, -y, z_floor])
+                cylinder(r1 = r_pocket, r2 = MC_ONRAMP_D / 2 + clearance,
+                         h = MC_SLOT_DEPTH + MC_ONRAMP_LIFT, $fn = 96);
 }
