@@ -180,7 +180,7 @@ test("selection changes and failed renders cannot download a previous part", asy
   expect((await saved).suggestedFilename()).toBe("basics_post.stl");
 });
 
-test("parameter edits cancel obsolete previews and require a matching render", async ({ page }) => {
+test("parameter edits re-render on their own and cancel obsolete previews", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
   await page.goto("/");
@@ -188,18 +188,32 @@ test("parameter edits cancel obsolete previews and require a matching render", a
   await finish(page, 0);
   const download = page.getByRole("button", { name: "Download STL", exact: true });
   await expect(download).toBeEnabled();
+  // An edit starts a render by itself (once the edits pause), with no
+  // Render click and no "out of date" note; until it lands, no download.
   await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
   await expect(download).toBeDisabled();
-  await page.getByRole("button", { name: "Render", exact: true }).click();
+  await expect(page.getByText(/out of date/)).toHaveCount(0);
   await expect.poll(() => jobCount(page)).toBe(2);
+  // Another edit while it runs cancels it and queues the new values.
   await page.getByRole("spinbutton", { name: /w/ }).first().fill("60");
   expect(await page.evaluate(() => window.__renders.jobs[1].worker.terminated)).toBe(true);
   await finish(page, 1); // a late message from the terminated worker
   await expect(download).toBeDisabled();
-  await page.getByRole("button", { name: "Render", exact: true }).click();
   await expect.poll(() => jobCount(page)).toBe(3);
   await finish(page, 2);
   await expect(download).toBeEnabled();
+  // Quick successive edits are one render, not one per keystroke.
+  const field = page.getByRole("spinbutton", { name: /w/ }).first();
+  await field.fill("6");
+  await field.fill("61");
+  await field.fill("612");
+  await expect.poll(() => jobCount(page)).toBe(4);
+  await page.waitForTimeout(800);
+  expect(await jobCount(page)).toBe(4);
+  // Going back to values already rendered shows the cached result at once.
+  await field.fill("60");
+  await expect(download).toBeEnabled();
+  expect(await jobCount(page)).toBe(4);
 });
 
 test("worker failure and user cancellation allow another render", async ({ page }) => {

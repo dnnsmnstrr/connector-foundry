@@ -13,7 +13,13 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 
-// Library mode: pick a part, edit its parameters, render, download the
+// How long after the last parameter edit the preview re-renders: long
+// enough that typing "120" into a number field is one render, not three.
+// A result already in the render cache shows at once instead.
+const PARAM_RENDER_DELAY_MS = 400;
+
+// Library mode: pick a part, edit its parameters (the preview re-renders
+// on its own, PARAM_RENDER_DELAY_MS after the last edit), download the
 // STL — or hand it to the Bench as a root with those same parameters.
 // `onSelectionChange({ part, params })` reports the current selection
 // as it changes, so the shell can seed the Bench with it on a plain
@@ -44,6 +50,8 @@ export default function Library({
   // a slower one is still compiling — so only the newest request may
   // touch the viewer.
   const renderSeq = useRef(0);
+  // The pending re-render after a parameter edit (changeParams()).
+  const paramRenderTimer = useRef(null);
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
 
@@ -56,6 +64,7 @@ export default function Library({
   }, [parts, hidden, selectedId]);
 
   const doRender = async (renderParams) => {
+    clearTimeout(paramRenderTimer.current);
     if (!selected) return;
     const request = {
       scadFile: selected.file,
@@ -106,6 +115,7 @@ export default function Library({
     doRender(initial);
     return () => {
       ++renderSeq.current;
+      clearTimeout(paramRenderTimer.current);
       previewController.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,12 +144,23 @@ export default function Library({
     [canDownload, stlBuffer],
   );
 
+  // An edit cancels the render for the old values and queues one for the
+  // new — straight away if it is cached, otherwise once the edits pause.
+  // Until it lands the download stays off (canDownload compares keys), and
+  // the button already says "Rendering…".
   function changeParams(next) {
     ++renderSeq.current;
     previewController.current?.abort();
-    setStatus("idle");
+    clearTimeout(paramRenderTimer.current);
     setRenderError(null);
     setParams(next);
+    const request = { scadFile: selected.file, module: selected.module, params: next, globalOverrides };
+    if (getCachedRender(request)) {
+      doRender(next);
+      return;
+    }
+    setStatus("rendering");
+    paramRenderTimer.current = setTimeout(() => doRender(next), PARAM_RENDER_DELAY_MS);
   }
 
   function downloadStl() {
@@ -218,9 +239,6 @@ export default function Library({
                   <StlViewer stlBuffer={stlBuffer} />
                 ) : (
                   <div className="viewer-placeholder">Render a part to preview it here.</div>
-                )}
-                {stlBuffer && !canDownload && (
-                  <p className="muted">Preview is out of date. Render the current settings before downloading.</p>
                 )}
                 {stlBuffer && (
                   <button className="download-button" onClick={downloadStl} disabled={!canDownload}>
