@@ -33,7 +33,9 @@ const CLICK_SLOP_PX = 5;
 // hover reports underneath it (the Holes tab's marker that follows the
 // pointer along a guide line would otherwise sit under the pointer and
 // freeze the hover).
-// onMarkerClick(id): called when a marker is clicked.
+// onMarkerClick(id, { shiftKey, altKey, metaKey, ctrlKey }): called when
+// a marker is clicked, with the click's modifier keys (the Holes tab's
+// Shift-click adds a hole to its selection).
 //
 // labels: optional [{ id, point: [x,y,z], text }] — short texts pinned
 // to points in the scene (the Holes tab's measurements), re-projected
@@ -249,7 +251,12 @@ export default function StlViewer({
       if (group && group.children.length) {
         const hits = raycaster.intersectObjects(group.children);
         if (hits.length) {
-          callbacksRef.current?.onMarkerClick?.(hits[0].object.userData.id);
+          callbacksRef.current?.onMarkerClick?.(hits[0].object.userData.id, {
+            shiftKey: Boolean(event?.shiftKey),
+            altKey: Boolean(event?.altKey),
+            metaKey: Boolean(event?.metaKey),
+            ctrlKey: Boolean(event?.ctrlKey),
+          });
           return;
         }
       }

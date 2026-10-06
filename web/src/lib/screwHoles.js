@@ -162,6 +162,71 @@ export function removeHole(doc, id) {
   return { ...doc, holes: doc.holes.filter((h) => h.id !== id) };
 }
 
+// Several at once — the Holes tab's multi-selection (Shift-click).
+export function removeHoles(doc, ids) {
+  const gone = new Set(ids);
+  return { ...doc, holes: doc.holes.filter((h) => !gone.has(h.id)) };
+}
+
+// What `holes` have in common, for editing them together: `kind` when
+// they are all one kind (else null — a screw hole and a slot share no
+// fields), `spec` with every field they agree on, `mixed` the fields
+// they don't (left out of `spec`), and `presetId` when they were all
+// placed from the same preset.
+export function sharedSpec(holes) {
+  if (!holes.length) return { kind: null, spec: {}, mixed: new Set(), presetId: null };
+  const kinds = new Set(holes.map((h) => h.spec.kind));
+  const presets = new Set(holes.map((h) => h.presetId));
+  const presetId = presets.size === 1 ? holes[0].presetId : null;
+  if (kinds.size !== 1) return { kind: null, spec: {}, mixed: new Set(), presetId };
+  const spec = {};
+  const mixed = new Set();
+  for (const key of Object.keys(holes[0].spec)) {
+    const first = holes[0].spec[key];
+    if (holes.every((h) => h.spec[key] === first)) spec[key] = first;
+    else mixed.add(key);
+  }
+  return { kind: holes[0].spec.kind, spec, mixed, presetId };
+}
+
+// Set the fields in `patch` on every hole in `ids`, leaving each
+// hole's other fields as they are. Only meaningful when the holes are
+// all one kind (sharedSpec()); a field another kind doesn't have is
+// dropped by normalizeSpec().
+export function patchHoles(doc, ids, patch) {
+  const targets = new Set(ids);
+  return {
+    ...doc,
+    holes: doc.holes.map((h) => (targets.has(h.id) ? { ...h, spec: normalizeSpec({ ...h.spec, ...patch }) } : h)),
+  };
+}
+
+// Turn every slot in `ids` by `delta` degrees from its own direction,
+// so slots pointing different ways keep their difference. Screw holes
+// have no direction and are left alone.
+export function rotateHoles(doc, ids, delta) {
+  const targets = new Set(ids);
+  return {
+    ...doc,
+    holes: doc.holes.map((h) => (targets.has(h.id) && isSlot(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
+  };
+}
+
+// Make every hole in `ids` the given spec (a preset picked with several
+// selected) — each keeps its place, and a slot staying a slot keeps
+// the way it points.
+export function setHolesSpec(doc, ids, spec, presetId) {
+  const targets = new Set(ids);
+  return {
+    ...doc,
+    holes: doc.holes.map((h) => {
+      if (!targets.has(h.id)) return h;
+      const keepSpin = isSlot(h.spec) && isSlot(spec) ? { spin: h.spec.spin } : {};
+      return { ...h, spec: normalizeSpec({ ...spec, ...keepSpin }), presetId };
+    }),
+  };
+}
+
 export function getHole(doc, id) {
   return doc.holes.find((h) => h.id === id) ?? null;
 }

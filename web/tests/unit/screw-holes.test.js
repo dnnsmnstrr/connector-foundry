@@ -244,3 +244,45 @@ test("flipping the mesh carries its holes to the same spots on the turned-over p
   // Flipping back restores the originals.
   assert.deepEqual(flipHoles(flipped, 4).holes.map((h) => h.point), doc.holes.map((h) => h.point));
 });
+
+test("several holes: shared fields, patched together, turned each from its own direction, removed at once", async () => {
+  const { patchHoles, removeHoles, rotateHoles, setHolesSpec, sharedSpec } = await import("../../src/lib/screwHoles.js");
+  let doc = plateDoc();
+  const add = (spec, presetId) => {
+    const r = addHole(doc, { point: [doc.holes.length * 10, 0, 4], normal: [0, 0, 1], spec, presetId });
+    doc = r.doc;
+    return r.hole.id;
+  };
+  const a = add(getPreset("m3-cap").spec, "m3-cap");
+  const b = add({ ...getPreset("m3-cap").spec, headDepth: 5 }, "m3-cap");
+  const c = add({ ...getPreset("oc-slot").spec, spin: 90 }, "oc-slot");
+  const d = add(getPreset("oc-slot").spec, "oc-slot");
+
+  // Two screw holes: everything but the edited head depth is shared.
+  let shared = sharedSpec(doc.holes.filter((h) => [a, b].includes(h.id)));
+  assert.equal(shared.kind, "screw");
+  assert.deepEqual([...shared.mixed], ["headDepth"]);
+  assert.equal(shared.spec.diameter, 3.4);
+  assert.equal(shared.presetId, "m3-cap");
+  // A screw hole and a slot share nothing.
+  assert.equal(sharedSpec(doc.holes.filter((h) => [a, c].includes(h.id))).kind, null);
+
+  // A patch sets one field on all of them and leaves the rest alone.
+  doc = patchHoles(doc, [a, b], { diameter: 4.5 });
+  assert.deepEqual(doc.holes.slice(0, 2).map((h) => [h.spec.diameter, h.spec.headDepth]), [[4.5, 3], [4.5, 5]]);
+
+  // Turning two slots keeps their difference; a screw hole in the
+  // selection has no direction and is left alone.
+  doc = rotateHoles(doc, [a, c, d], -90);
+  assert.deepEqual(doc.holes.slice(2).map((h) => h.spec.spin), [0, 270]);
+  assert.equal(doc.holes[0].spec.diameter, 4.5);
+
+  // A preset over several: each keeps its place, and a slot staying a
+  // slot keeps the way it points.
+  doc = setHolesSpec(doc, [c, d], getPreset("oc-slot-both").spec, "oc-slot-both");
+  assert.deepEqual(doc.holes.slice(2).map((h) => [h.spec.lock, h.spec.spin, h.presetId]), [["both", 0, "oc-slot-both"], ["both", 270, "oc-slot-both"]]);
+  doc = setHolesSpec(doc, [b, c], getPreset("m4-csk").spec, "m4-csk");
+  assert.deepEqual(doc.holes.slice(1, 3).map((h) => [h.spec.kind, h.spec.head, h.point[0]]), [["screw", "countersink", 10], ["screw", "countersink", 20]]);
+
+  assert.deepEqual(removeHoles(doc, [a, d]).holes.map((h) => h.id), [b, c]);
+});

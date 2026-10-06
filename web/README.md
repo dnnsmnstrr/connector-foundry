@@ -459,6 +459,20 @@ the implementation notes:
   the screw picked or edited last is what the next holes get. It lives in
   `src/lib/holesSession.js` (module state, like `benchSession.js`) so a tab switch keeps it; it is
   not in the URL.
+- **Selection** is a list of hole ids (`Holes.jsx`'s `selectedIds`): a plain click on a hole —
+  its list row, its ring (`StlViewer`'s `onMarkerClick` now passes the click's modifier keys), or a
+  face spot that already has one — selects just it; Shift toggles it in the selection. Shift on a
+  bare face is still free placement, so the two meanings don't collide. With several selected,
+  `screwHoles.js`'s `sharedSpec()` gives the editor the fields they agree on and the `mixed` ones;
+  `HoleSpecFields` emits patches (`onChange(patch)`), and `patchHoles()` sets just those fields on
+  every selected hole. A field they disagree on shows empty with "mixed", a checkbox indeterminate,
+  a menu a disabled "Mixed" entry; holes of different kinds share no fields, so only the presets
+  are offered. `setHolesSpec()` applies a preset to all (a slot staying a slot keeps its direction,
+  and the preset becomes `nextSpec`, as with one hole); `rotateHoles()` turns each slot by the same
+  step from its own direction; `removeHoles()` deletes them. The pill over the scene sits over
+  their middle. The Delete button is always there (disabled with nothing selected) and the note
+  above it is a fixed three lines, so selecting doesn't move the list under the pointer mid
+  Shift-click.
 - `holesToScad()` emits `difference() { <base>; <one cutter per hole> }` — for a catalogue part the
   same `include` + module call the Library renders, for a mesh an `import()` of bytes mounted beside
   the file (the `importedFiles` contract `compileToScad()` uses). Each cutter is wrapped in a
@@ -548,7 +562,7 @@ the implementation notes:
   it on its snap, depths four times over since a 2.8 mm slot at its width's scale would be a
   hairline. A hole remembers the preset it was placed from and says "(edited)" once its spec
   differs (`specMatchesPreset()`).
-- Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected hole
+- Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected holes
   and `Escape` deselects (or closes the import), same local-listener arrangement as the Bench.
   Exports are `<name>_holes.stl` / `<name>_holes.scad` via `benchName.js`'s `exportFilename()`,
   the name being the sidebar's field or the source's own stem (a mesh's file name minus its

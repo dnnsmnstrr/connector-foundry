@@ -137,8 +137,39 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await expect(page.locator(".holes-row")).toHaveCount(2);
   await expect.poll(async () => (await jobs(page)).length).toBe(4);
   expect((await jobs(page))[3].scadSource.match(/cylinder\(d = 5,/g)).toHaveLength(2);
-  await page.locator(".holes-row").nth(1).getByRole("button", { name: "Remove hole 2" }).click();
-  await page.locator(".holes-row-main").first().click();
+
+  // Several at once: Shift-click adds to the selection, the editor edits
+  // what they share, and one Delete removes them all.
+  const lastJob = async () => (await jobs(page)).at(-1);
+  await page.locator(".holes-row-main").nth(0).click();
+  await page.locator(".holes-row-main").nth(1).click({ modifiers: ["Shift"] });
+  await expect(page.getByRole("heading", { name: "2 holes" })).toBeVisible();
+  await expect(page.locator(".holes-row.is-selected")).toHaveCount(2);
+  await expect(page.getByText("2 holes selected")).toBeVisible();
+  const jobsBefore = (await jobs(page)).length;
+  await page.getByRole("spinbutton", { name: "Diameter (mm)" }).fill("6");
+  await expect.poll(async () => (await jobs(page)).length).toBeGreaterThan(jobsBefore);
+  expect((await lastJob()).scadSource.match(/cylinder\(d = 6,/g)).toHaveLength(2);
+  // Shift-click takes one back out; Select all puts it back, and has
+  // nothing left to do once everything is selected.
+  await page.locator(".holes-row-main").nth(1).click({ modifiers: ["Shift"] });
+  await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
+  const selectAll = page.getByRole("button", { name: "Select all" });
+  await expect(selectAll).toBeEnabled();
+  await selectAll.click();
+  await expect(page.getByRole("button", { name: "Delete 2 holes" })).toBeVisible();
+  await expect(selectAll).toBeDisabled();
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".holes-row")).toHaveCount(0);
+
+  // Drill one again at the face center for what follows. The render
+  // without holes replaced the mesh (and with it the hover), so come in
+  // from beside the spot, as a hand does.
+  await page.mouse.move(target.x + 12, target.y + 12);
+  await page.mouse.move(target.x, target.y, { steps: 4 });
+  await expect(page.locator(".holes-snap-hint")).toContainText("face center");
+  await page.mouse.click(target.x, target.y);
   await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
 
   // A connector slot is a kind of hole: picking the openConnect preset
@@ -148,8 +179,8 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await expect(page.getByRole("combobox", { name: "Lock nub" })).toHaveValue("left");
   await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("0");
   await expect(page.locator(".holes-row").first()).toContainText("1. openConnect slot");
-  await expect.poll(async () => (await jobs(page)).length).toBe(5);
-  const slotted = (await jobs(page))[4].scadSource;
+  await expect.poll(async () => (await lastJob()).scadSource).toContain("oc_slot(");
+  const slotted = (await lastJob()).scadSource;
   expect(slotted).toContain("use <../lib/openconnect.scad>");
   expect(slotted).toContain('oc_slot(lock = "left", side_clearance = 0.1, depth_clearance = 0.1, overshoot = 1);');
   expect(slotted).not.toContain("cylinder(");

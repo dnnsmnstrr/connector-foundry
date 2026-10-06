@@ -177,6 +177,11 @@ insert bores, thread-forming core holes for a machine screw straight into plasti
 (ISO 4032), wood screws and their pilots, a plain hole and a dowel. Clearances are ISO 273 medium;
 treat every one as a starting point for your printer and measure the first print. A selected hole
 can be edited on its own, and whatever screw was picked or edited last is what the next holes get.
+Shift-click holes — in the list, or their rings in the scene — to select several: the editor then
+shows the values they share (the rest say "mixed" until you set them) and a change applies to all
+of them, a preset picked makes them all that kind, the quarter-turn buttons turn each slot from
+its own direction, and Delete removes them all. Shift-click on a bare face still places a hole
+exactly where you click.
 
 Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`

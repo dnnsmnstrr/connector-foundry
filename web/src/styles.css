@@ -1644,6 +1644,13 @@ a.mode-tab {
   line-height: 1.4;
 }
 
+/* Three lines whatever is selected — none, one hole, several — so the
+   hole list below doesn't move under the pointer as the selection
+   changes (a Shift-click would land on the wrong row). */
+.holes-editor-note {
+  min-height: 4.2em; /* 3 x its line-height */
+}
+
 .holes-inset-field input {
   width: 4.5rem;
 }
@@ -1756,11 +1763,49 @@ a.mode-tab {
   margin-top: 0.25rem;
 }
 
+/* "Holes (N)" with its Select all button on the right, on one line;
+   the heading keeps its usual spacing above. */
+.holes-list-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.holes-list-heading h3 {
+  margin: 0;
+}
+
+.holes-select-all {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  color: #8fb0e8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.holes-select-all:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.holes-select-all:disabled {
+  color: #55565b;
+  cursor: default;
+}
+
 .holes-small-button {
   flex: 1;
   font-size: 0.75rem;
   padding: 0.4rem 0.5rem;
   background: #2a2b2e;
+}
+
+.holes-delete-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .holes-delete-button {

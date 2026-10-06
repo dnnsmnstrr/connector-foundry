@@ -28,14 +28,17 @@ import {
   createHolesDoc,
   distance,
   flipHoles,
-  getHole,
   holeFootprintRadius,
   holeLabel,
   holeMeta,
   holesToScad,
-  removeHole,
+  patchHoles,
+  removeHoles,
+  rotateHoles,
   setDocName,
+  setHolesSpec,
   setNextSpec,
+  sharedSpec,
   slotOutline,
   sourceLabel,
   sourceStem,
@@ -95,7 +98,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const bench = useBenchSession();
 
   const [importOpen, setImportOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  // The selected holes, by id, in the order they were picked: one by a
+  // plain click, more with Shift-click (in the list, on a hole's ring,
+  // or on a face spot that already has a hole).
+  const [selectedIds, setSelectedIds] = useState([]);
   const [snapOn, setSnapOn] = useState(true);
   const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
   const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
@@ -239,13 +245,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   keyHandlerRef.current = (e) => {
     if (e.key === "Escape") {
       if (importOpen) setImportOpen(false);
-      else if (selectedId) setSelectedId(null);
+      else if (selectedIds.length) setSelectedIds([]);
       return;
     }
-    if (importOpen || !doc || !selectedId || isEditableTarget(e.target)) return;
+    if (importOpen || !doc || !selectedIds.length || isEditableTarget(e.target)) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
-      deleteHole(selectedId);
+      deleteHoles(selectedIds);
     }
   };
   useEffect(() => {
@@ -281,7 +287,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // --- picking a base ------------------------------------------------
   function start(source, name = null) {
     setDoc(createHolesDoc(source, name));
-    setSelectedId(null);
+    setSelectedIds([]);
     setRenderError(null);
   }
 
@@ -331,7 +337,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   function changeBase() {
     if (doc.holes.length && !window.confirm(`Pick another model? The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped.`)) return;
     setDoc(null);
-    setSelectedId(null);
+    setSelectedIds([]);
   }
 
   // --- placing -------------------------------------------------------
@@ -378,25 +384,34 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const resolved = resolveHit(hit);
     if (!resolved) return;
     proposeGuideFace(resolved.face.key, true);
-    placeAt(resolved.point, resolved.face.normal);
+    placeAt(resolved.point, resolved.face.normal, hit.shiftKey);
   }
 
-  // A spot that already has a hole selects it; anywhere else drills a
-  // new one with the "new holes" spec and selects that.
-  function placeAt(point, normal) {
+  // A spot that already has a hole selects it — or, with Shift, adds it
+  // to the selection or takes it out; anywhere else drills a new one
+  // with the "new holes" spec and selects that. (Shift on a bare face
+  // is still free placement: resolveHit() didn't snap it.)
+  function placeAt(point, normal, shiftKey = false) {
     const existing = doc.holes.find((h) => distance(h.point, point) < Math.max(1, holeFootprintRadius(h.spec)));
     if (existing) {
-      setSelectedId(existing.id);
+      pickHole(existing.id, shiftKey);
       return;
     }
     const { doc: next, hole } = addHole(doc, { point, normal });
     setDoc(next);
-    setSelectedId(hole.id);
+    setSelectedIds([hole.id]);
   }
 
-  function onMarkerClick(id) {
+  // A click on a hole: just that one, or with Shift, toggle it in the
+  // selection.
+  function pickHole(id, shiftKey) {
+    if (shiftKey) setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+    else setSelectedIds([id]);
+  }
+
+  function onMarkerClick(id, modifiers = {}) {
     if (id.startsWith("hole:")) {
-      setSelectedId(id.slice("hole:".length));
+      pickHole(id.slice("hole:".length), modifiers.shiftKey);
       return;
     }
     if (id.startsWith("snap:")) {
@@ -406,23 +421,42 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     }
   }
 
-  function deleteHole(id) {
-    setDoc((d) => removeHole(d, id));
-    setSelectedId((s) => (s === id ? null : s));
+  function deleteHoles(ids) {
+    setDoc((d) => removeHoles(d, ids));
+    setSelectedIds((s) => s.filter((x) => !ids.includes(x)));
   }
 
-  // --- the editor's target: the selected hole, else the next one ------
+  // --- the editor's target: the selected holes, else the next one -----
   // Whatever screw was picked or typed last — for a selected hole or in
   // the "New holes" editor — is what the next click drills, so a run of
-  // holes of one kind doesn't need the type re-picked each time.
-  const selected = doc && selectedId ? getHole(doc, selectedId) : null;
+  // holes of one kind doesn't need the type re-picked each time. With
+  // several selected, the editor shows what they share and a change
+  // sets that field on all of them (screwHoles.js's sharedSpec() /
+  // patchHoles()); a preset picked then is also what the next holes
+  // get, a single field edit is not (it is only part of a spec).
+  const selectedHoles = doc ? doc.holes.filter((h) => selectedIds.includes(h.id)) : [];
+  const selected = selectedHoles.length === 1 ? selectedHoles[0] : null;
+  const multi = selectedHoles.length > 1;
+  const shared = useMemo(() => sharedSpec(selectedHoles), [doc?.holes, selectedIds]); // eslint-disable-line react-hooks/exhaustive-deps
   const editingSpec = selected ? selected.spec : doc?.nextSpec;
-  const editingPresetId = selected ? selected.presetId : doc?.nextPresetId;
+  const editingPresetId = multi ? shared.presetId : selected ? selected.presetId : doc?.nextPresetId;
   function applySpec(spec, presetId = editingPresetId) {
     setDoc((d) => setNextSpec(selected ? updateHole(d, selected.id, { spec, presetId }) : d, spec, presetId));
   }
   function applyPreset(preset) {
+    if (multi) {
+      setDoc((d) => setNextSpec(setHolesSpec(d, selectedIds, { ...preset.spec }, preset.id), { ...preset.spec }, preset.id));
+      return;
+    }
     applySpec({ ...preset.spec }, preset.id);
+  }
+  function patchSelection(patch) {
+    if (multi) setDoc((d) => patchHoles(d, selectedIds, patch));
+    else applySpec({ ...editingSpec, ...patch });
+  }
+  function rotateSelection(delta) {
+    if (multi) setDoc((d) => rotateHoles(d, selectedIds, delta));
+    else applySpec({ ...editingSpec, spin: editingSpec.spin + delta });
   }
 
   // --- export --------------------------------------------------------
@@ -462,7 +496,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       z: h.point[2],
       normal: h.normal,
       radius: holeFootprintRadius(h.spec) + 0.5,
-      color: h.id === selectedId ? SELECTED_COLOR : HOLE_COLOR,
+      color: selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR,
     }));
     // The spot on a guide line the click would take: a marker that
     // follows the pointer along the line.
@@ -492,7 +526,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       });
     }
     return out;
-  }, [doc, selectedId, hover, guideFace, snapOn, snapDot]);
+  }, [doc, selectedIds, hover, guideFace, snapOn, snapDot]);
 
   // The lines across the hovered face (nothing while a hole is being
   // dragged across it in the viewer — there is no such thing yet, so:
@@ -505,7 +539,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const segments = [];
     const lifted = (p, normal) => [p[0] + normal[0] * GUIDE_LIFT_MM, p[1] + normal[1] * GUIDE_LIFT_MM, p[2] + normal[2] * GUIDE_LIFT_MM];
     for (const h of doc?.holes ?? []) {
-      const color = h.id === selectedId ? SELECTED_COLOR : HOLE_COLOR;
+      const color = selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR;
       for (const seg of slotOutline(h)) segments.push({ a: lifted(seg.a, h.normal), b: lifted(seg.b, h.normal), color, dashed: seg.dashed });
     }
     const face = snapOn ? guideFace : null;
@@ -523,7 +557,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       segments.push({ a: lift(g.a), b: lift(g.b), color, dashed: g.kind !== "center" });
     }
     return segments;
-  }, [guideFace, snapOn, doc?.holes, selectedId]);
+  }, [guideFace, snapOn, doc?.holes, selectedIds]);
 
   const hoveredSnap = hover?.snapId ? { label: hover.snapLabel } : hover?.linePoint ? { label: hover.lineLabel, point: hover.linePoint } : null;
 
@@ -617,6 +651,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
 
   const label = sourceLabel(doc.source, catalogueById);
+  // Where the floating pill sits: on the selected hole, or over the
+  // middle of several.
+  const selectionAnchor = selectedHoles.length
+    ? [0, 1, 2].map((i) => selectedHoles.reduce((sum, h) => sum + h.point[i], 0) / selectedHoles.length)
+    : null;
   const cataloguePart = doc.source.kind === "catalogue" ? catalogueById.get(doc.source.partId) : null;
   const selectedPreset = selected ? getPreset(selected.presetId) : null;
 
@@ -697,8 +736,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               <input type="number" min="0" step="0.5" value={radius} onChange={(e) => setRadius(Math.max(0, Number(e.target.value) || 0))} />
             </label>
 
-            <h3>{selected ? `Hole ${doc.holes.indexOf(selected) + 1}` : "New holes"}</h3>
-            {selected ? (
+            <h3>{multi ? `${selectedHoles.length} holes` : selected ? `Hole ${doc.holes.indexOf(selected) + 1}` : "New holes"}</h3>
+            {multi ? (
+              <p className="muted holes-editor-note">
+                {shared.kind
+                  ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
+                  : "Screw holes and slots share no fields: pick a preset to make them one kind, or select one kind."}
+              </p>
+            ) : selected ? (
               <p className="muted holes-editor-note">
                 {selectedPreset ? selectedPreset.name : "Custom"}
                 {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at [
@@ -711,28 +756,65 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               </p>
             )}
             <PresetPicker value={editingPresetId} onPick={applyPreset} />
-            <HoleSpecFields spec={editingSpec} onChange={(spec) => applySpec(spec)} />
-            {selected && (
-              <div className="holes-selected-actions">
-                <button type="button" className="render-button holes-small-button holes-delete-button" onClick={() => deleteHole(selected.id)}>
-                  Delete hole
-                </button>
-              </div>
+            {multi ? (
+              shared.kind && (
+                <HoleSpecFields
+                  // A new set of holes is a new form: the "last blind depth"
+                  // memory belongs to the holes it was typed for.
+                  key={selectedIds.join(",")}
+                  spec={shared.spec}
+                  mixed={shared.mixed}
+                  onChange={patchSelection}
+                  onRotate={rotateSelection}
+                  count={selectedHoles.length}
+                />
+              )
+            ) : (
+              <HoleSpecFields spec={editingSpec} onChange={patchSelection} onRotate={rotateSelection} />
             )}
+            {/* Always there (disabled with nothing selected), so selecting a
+                hole doesn't push the list below it down under the pointer
+                mid Shift-click. */}
+            <div className="holes-selected-actions">
+              <button
+                type="button"
+                className="render-button holes-small-button holes-delete-button"
+                onClick={() => deleteHoles(selectedIds)}
+                disabled={selectedHoles.length === 0}
+              >
+                {multi ? `Delete ${selectedHoles.length} holes` : "Delete hole"}
+              </button>
+            </div>
 
-            <h3>Holes ({doc.holes.length})</h3>
+            <div className="holes-list-heading">
+              <h3>Holes ({doc.holes.length})</h3>
+              <button
+                type="button"
+                className="holes-select-all"
+                onClick={() => setSelectedIds(doc.holes.map((h) => h.id))}
+                disabled={doc.holes.length === 0 || selectedHoles.length === doc.holes.length}
+                title="Select every hole, to edit or delete them together"
+              >
+                Select all
+              </button>
+            </div>
             {doc.holes.length === 0 && <p className="muted">None yet — click a face in the scene.</p>}
             <ul className="holes-list">
               {doc.holes.map((h, i) => {
                 const preset = getPreset(h.presetId);
                 return (
-                  <li key={h.id} className={h.id === selectedId ? "holes-row is-selected" : "holes-row"}>
+                  <li key={h.id} className={selectedIds.includes(h.id) ? "holes-row is-selected" : "holes-row"}>
                     <button
                       type="button"
                       className="holes-row-main"
-                      aria-pressed={h.id === selectedId}
-                      onClick={() => setSelectedId(h.id === selectedId ? null : h.id)}
-                      title={holeLabel(h)}
+                      aria-pressed={selectedIds.includes(h.id)}
+                      // Plain click: just this one (again: none). Shift: add
+                      // it to the selection or take it out.
+                      onClick={(e) => {
+                        if (e.shiftKey) pickHole(h.id, true);
+                        else setSelectedIds(selectedIds.length === 1 && selectedIds[0] === h.id ? [] : [h.id]);
+                      }}
+                      title={`${holeLabel(h)} — Shift-click to select several`}
                     >
                       <ScrewIcon spec={h.spec} screw={preset?.screw ?? null} className="screw-icon-small" />
                       <span className="holes-row-text">
@@ -745,7 +827,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                         </span>
                       </span>
                     </button>
-                    <button type="button" className="bench-remove" aria-label={`Remove hole ${i + 1}`} title="Remove this hole" onClick={() => deleteHole(h.id)}>
+                    <button type="button" className="bench-remove" aria-label={`Remove hole ${i + 1}`} title="Remove this hole" onClick={() => deleteHoles([h.id])}>
                       ✕
                     </button>
                   </li>
@@ -781,14 +863,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 pointer and make the model jump. The snap-point hint is a
                 chip over the viewer for the same reason. */}
             <p className="print-note holes-note" aria-live="polite">
-              {selected ? (
+              {multi ? (
                 <>
-                  Hole {doc.holes.indexOf(selected) + 1} selected — edit it in the sidebar; Delete removes it, Esc deselects.
+                  {selectedHoles.length} holes selected — edit them together in the sidebar; Delete removes them, Esc deselects;
+                  Shift-click a hole to add or remove it.
+                </>
+              ) : selected ? (
+                <>
+                  Hole {doc.holes.indexOf(selected) + 1} selected — edit it in the sidebar; Delete removes it, Esc deselects;
+                  Shift-click another to select several.
                 </>
               ) : (
                 <>
                   {doc.holes.length === 0 ? `Click a face of ${label} to drill a hole there.` : `${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on ${label}.`}{" "}
-                  Hover a face for snap points and guides; hold Option for distances; Shift-click places freely.
+                  Hover a face for snap points and guides; hold Option for distances; Shift-click places freely, or on a hole selects several.
                 </>
               )}
               {status === "rendering" && " Rendering…"}
@@ -811,19 +899,25 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               placingMode
               onSurfaceHit={onSurfaceHit}
               onSurfaceHover={onSurfaceHover}
-              overlayAnchor={selected ? selected.point : null}
+              overlayAnchor={selectionAnchor}
             >
-              {selected && (
+              {selectedHoles.length > 0 && (
                 <div className="bench-rotate-panel holes-pill">
                   <span className="bench-rotate-name">
-                    Hole {doc.holes.indexOf(selected) + 1}
-                    <span className="muted"> · {selectedPreset ? selectedPreset.name : holeLabel(selected)}</span>
+                    {multi ? (
+                      `${selectedHoles.length} holes`
+                    ) : (
+                      <>
+                        Hole {doc.holes.indexOf(selected) + 1}
+                        <span className="muted"> · {selectedPreset ? selectedPreset.name : holeLabel(selected)}</span>
+                      </>
+                    )}
                   </span>
                   <button
                     type="button"
                     className="bench-rotate-delete"
-                    onClick={() => deleteHole(selected.id)}
-                    aria-label={`Remove hole ${doc.holes.indexOf(selected) + 1}`}
+                    onClick={() => deleteHoles(selectedIds)}
+                    aria-label={multi ? `Remove the ${selectedHoles.length} selected holes` : `Remove hole ${doc.holes.indexOf(selected) + 1}`}
                     title="Remove (Delete)"
                   >
                     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -833,7 +927,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                       />
                     </svg>
                   </button>
-                  <button type="button" className="bench-rotate-close" onClick={() => setSelectedId(null)} aria-label="Deselect" title="Deselect (Esc)">
+                  <button type="button" className="bench-rotate-close" onClick={() => setSelectedIds([])} aria-label="Deselect" title="Deselect (Esc)">
                     ✕
                   </button>
                 </div>

@@ -13,7 +13,10 @@ import SpinButtons from "./SpinButtons.jsx";
 //   name       what is being turned, for the buttons' accessible names
 //   viewedFrom where "counter-clockwise" is seen from (SpinButtons)
 //   id         for the caller's <label htmlFor>
-export default function RotationInput({ value, onChange, onRotate, name, viewedFrom, id }) {
+//   placeholder shown when `value` is "" — "mixed", for several things
+//              that point different ways (the buttons still turn each
+//              from its own angle)
+export default function RotationInput({ value, onChange, onRotate, name, viewedFrom, id, placeholder }) {
   return (
     <span className="rotation-controls">
       <input
@@ -23,6 +26,7 @@ export default function RotationInput({ value, onChange, onRotate, name, viewedF
         min="-360"
         max="360"
         value={value}
+        placeholder={placeholder}
         onChange={(e) => {
           if (e.target.value !== "") onChange(Number(e.target.value));
         }}
