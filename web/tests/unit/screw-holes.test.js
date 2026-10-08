@@ -554,6 +554,19 @@ test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slot
   assert.ok(isPill(spec) && spec.depth === 0);
 });
 
+test("repeat: a circle filled with Skådis spacing is the board's pattern round the hole, which stays put", () => {
+  let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("skadis-slot").spec, presetId: "skadis-slot" });
+  // Within 30 mm: the four diagonal neighbours (28.3 mm), round from up.
+  const near = repeatHole(doc, hole.id, { pattern: "circle", skadisFill: true, radius: 30 });
+  assert.deepEqual(near.doc.holes.map((h) => h.point), [[0, 0, 4], [20, 20, 4], [20, -20, 4], [-20, -20, 4], [-20, 20, 4]]);
+  assert.equal(near.doc.holes[0].id, hole.id);
+  // Out to 40 mm the next ones along the row and up the column join them:
+  // the row's neighbours 40 mm off, never 20.
+  const far = repeatHole(doc, hole.id, { pattern: "circle", skadisFill: true, radius: 40, circleCount: 3, keepCenter: false });
+  assert.deepEqual(far.doc.holes.slice(5).map((h) => h.point), [[0, 40, 4], [40, 0, 4], [0, -40, 4], [-40, 0, 4]]);
+  assert.ok(far.doc.holes.every((h) => h.presetId === "skadis-slot"));
+});
+
 test("repeat: a row, a grid and a circle on the hole's face, in the face's own axes", () => {
   // On the top face: across is +X, up is +Y.
   let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("m3-cap").spec, presetId: "m3-cap" });

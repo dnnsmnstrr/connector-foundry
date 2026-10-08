@@ -506,6 +506,9 @@ export function flipHoles(doc, height) {
 //                 hole straight up from it
 //   keepCenter    circle: keep the selected hole in the middle (else it
 //                 moves onto the circle as its first hole)
+//   skadisFill    circle: instead of a ring, every point of a Skådis
+//                 board's pattern (SKADIS_SPACING) within the radius,
+//                 centred on the selected hole, which stays put
 export const REPEAT_DEFAULTS = Object.freeze({
   pattern: "row",
   count: 4,
@@ -519,7 +522,13 @@ export const REPEAT_DEFAULTS = Object.freeze({
   circleCount: 6,
   radius: 15,
   keepCenter: false,
+  skadisFill: false,
 });
+// A Skådis board's slot pattern: 40 mm along a row, rows 20 mm apart,
+// every other row shifted 20 mm — a checkerboard on a 20 mm grid. What
+// the Repeat form's "Skådis spacing" sets a grid to, and what a circle's
+// skadisFill lays out.
+export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.
 export const REPEAT_MAX_HOLES = 100;
@@ -540,6 +549,17 @@ export function repeatPoints(hole, options) {
     const rows = int(o.rows, 1);
     const shift = (j) => (o.stagger && j % 2 ? num(o.spacingAcross) / 2 : 0);
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
+  } else if (o.pattern === "circle" && o.skadisFill) {
+    // The checkerboard's points within the radius, nearest first, then
+    // round from straight up (as a ring starts), the hole itself on one.
+    const r = Math.max(0, num(o.radius));
+    const cell = SKADIS_SPACING.up;
+    const n = Math.floor(r / cell);
+    const angle = ([a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
+    for (let j = -n; j <= n; j++)
+      for (let i = -n; i <= n; i++)
+        if ((i + j) % 2 === 0 && (i || j) && Math.hypot(i, j) * cell <= r + 1e-9) offsets.push([i * cell, j * cell]);
+    offsets.sort((p, q) => Math.hypot(...p) - Math.hypot(...q) || angle(p) - angle(q));
   } else if (o.pattern === "circle") {
     const n = int(o.circleCount, 2);
     const r = Math.max(0, num(o.radius));

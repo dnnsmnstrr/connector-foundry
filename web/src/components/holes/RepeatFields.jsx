@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { SKADIS_SPACING } from "../../lib/screwHoles.js";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
 // copies (screwHoles.js's repeatHole(), whose option names these fields
@@ -70,7 +71,7 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
             type="button"
             className="render-button holes-small-button"
             title="Skådis spacing: 40 mm across, 20 mm up, every other row shifted 20 mm. With a Skådis slot, the part takes Skådis hooks."
-            onClick={() => onChange({ spacingAcross: 40, spacingUp: 20, stagger: true })}
+            onClick={() => onChange({ spacingAcross: SKADIS_SPACING.across, spacingUp: SKADIS_SPACING.up, stagger: true })}
           >
             Skådis spacing
           </button>
@@ -79,13 +80,29 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
       {options.pattern === "circle" && (
         <>
           <div className="holes-spec-grid">
-            {number("circleCount", "Holes", { min: 2, title: "How many round the circle." })}
-            {number("radius", "Radius (mm)", { min: 0, step: 0.5, title: "Round this hole's spot; the first hole goes straight up from it." })}
+            {!options.skadisFill && number("circleCount", "Holes", { min: 2, title: "How many round the circle." })}
+            {number("radius", "Radius (mm)", {
+              min: 0,
+              step: 0.5,
+              title: options.skadisFill
+                ? "How far out from this hole the pattern reaches."
+                : "Round this hole's spot; the first hole goes straight up from it.",
+            })}
           </div>
-          <label className="field field-checkbox holes-through-field" htmlFor={`${id}-center`} title="Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole.">
-            <input id={`${id}-center`} type="checkbox" checked={options.keepCenter} onChange={(e) => onChange({ keepCenter: e.target.checked })} />
-            <span className="field-label">Keep this hole in the centre</span>
+          <label
+            className="field field-checkbox holes-through-field"
+            htmlFor={`${id}-skadis`}
+            title={`Fill the circle with a Skådis board's pattern instead of a ring: ${SKADIS_SPACING.across} mm across, ${SKADIS_SPACING.up} mm up, every other row shifted ${SKADIS_SPACING.across / 2} mm, centred on this hole.`}
+          >
+            <input id={`${id}-skadis`} type="checkbox" checked={options.skadisFill} onChange={(e) => onChange({ skadisFill: e.target.checked })} />
+            <span className="field-label">Skådis spacing, filling the circle</span>
           </label>
+          {!options.skadisFill && (
+            <label className="field field-checkbox holes-through-field" htmlFor={`${id}-center`} title="Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole.">
+              <input id={`${id}-center`} type="checkbox" checked={options.keepCenter} onChange={(e) => onChange({ keepCenter: e.target.checked })} />
+              <span className="field-label">Keep this hole in the centre</span>
+            </label>
+          )}
         </>
       )}
       <p className="muted holes-params-note">

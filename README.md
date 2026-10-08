@@ -205,7 +205,8 @@ pattern is selected to edit or delete together.
 
 A **Skådis slot** preset (a 5 × 15 mm pill, 0.2 mm wider so a printed one takes moulded hooks)
 with the grid's **Skådis spacing** (40 mm across, 20 mm up, staggered) turns any face into a Skådis
-board, for Skådis hooks or `skadis/peg`.
+board, for Skådis hooks or `skadis/peg`. A circle can be filled with the same spacing instead of a
+ring: every point of the pattern within its radius, centred on the selected slot.
 
 Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
