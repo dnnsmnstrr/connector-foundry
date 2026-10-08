@@ -20,6 +20,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
     return <SlotIcon spec={spec} title={title} className={className} />;
   }
   if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
+  if (spec.kind === "cylinder" || spec.kind === "rectangle") return <ShapeIcon spec={spec} title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -353,6 +354,46 @@ function ThreadIcon({ spec, title, className }) {
         {threads(CX - shankW / 2 + px(1), SURFACE_Y, shankEnd, shankW - px(2), pitch)}
         {rect(CX - px(17) / 2, SURFACE_Y - headH, px(17), headH, { rx: 0.8 })}
         {rect(CX - px(13) / 2, SURFACE_Y - headH, px(13), headH * 0.45, { className: "screw-icon-socket" })}
+      </g>
+    </svg>
+  );
+}
+
+// A generic cutout seen from above, not in section — a section through a
+// rectangle and a round hole would look the same: the material as a
+// square with the shape cut out of it, to scale (a rectangle as it is
+// turned, so a 10 × 20 stands up), the widest side ~30px.
+function ShapeIcon({ spec, title, className }) {
+  const plan =
+    spec.kind === "cylinder"
+      ? { w: spec.diameter, h: spec.diameter, r: spec.diameter / 2, spin: 0 }
+      : { w: spec.width, h: spec.height, r: Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2), spin: spec.spin };
+  const s = 30 / Math.max(plan.w, plan.h, 1);
+  const cy = SIZE / 2;
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="4" y="4" width={SIZE - 8} height={SIZE - 8} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">
+        <rect
+          x={CX - (plan.w * s) / 2}
+          y={cy - (plan.h * s) / 2}
+          width={plan.w * s}
+          height={plan.h * s}
+          rx={plan.r * s}
+          // Counter-clockwise as seen from outside the face, as the spin is.
+          transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
+        />
       </g>
     </svg>
   );

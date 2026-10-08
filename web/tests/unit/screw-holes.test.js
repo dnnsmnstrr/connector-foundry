@@ -15,6 +15,7 @@ import {
   normalizeSpec,
   planeBasis,
   removeHole,
+  isPill,
   rotateHoles,
   slotFrame,
   slotOutline,
@@ -143,8 +144,8 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect", "thread"].includes(preset.spec.kind), `${preset.id} kind`);
-      assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
+      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle"].includes(preset.spec.kind), `${preset.id} kind`);
+      if ("spin" in preset.spec) assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
     // The spec round-trips through normalisation unchanged.
@@ -385,4 +386,64 @@ test("an openGrid thread turns, flips and keeps its direction like a slot", () =
   assert.ok(!specMatchesPreset({ ...getPreset("og-thread").spec, depth: 12 }, "og-thread"));
   assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("og-thread-lite").spec), { kind: "thread", depth: 4.5, clearance: 0.5, spin: 90 });
   assert.equal(presetSpecFor({ ...getPreset("oc-slot").spec, spin: 270 }, getPreset("og-thread").spec).spin, 270);
+});
+
+test("a round cutout is a plain cylinder, blind or through, with no direction", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("shape-cylinder").spec, presetId: "shape-cylinder" });
+  ({ doc } = addHole(doc, { point: [30, 10, 4], normal: [0, 0, 1], spec: { kind: "cylinder", diameter: 12, depth: 2.5 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  // Plain OpenSCAD: no library pulled in for it.
+  assert.doesNotMatch(scad, /BOSL2|use </);
+  assert.match(scad, /translate\(\[0, 0, -50\]\) cylinder\(d = 10, h = 51\);/);
+  assert.match(scad, /translate\(\[0, 0, -2\.5\]\) cylinder\(d = 12, h = 3\.5\);/);
+  assert.equal(holeLabel(doc.holes[1]), "Round Ø12 2.5 deep");
+  assert.equal(holeFootprintRadius(doc.holes[1].spec), 6);
+  assert.deepEqual(slotOutline(doc.holes[0]), []);
+  const turned = rotateHoles(doc, [doc.holes[0].id], 90);
+  assert.deepEqual(turned.holes[0].spec, doc.holes[0].spec);
+  assert.deepEqual(normalizeSpec({ kind: "cylinder", diameter: -1, depth: "x" }), { kind: "cylinder", diameter: 10, depth: 0 });
+});
+
+test("a rectangle is extruded from its outline in the slots' frame, corners rounded up to a pill", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("shape-rect").spec, presetId: "shape-rect" });
+  ({ doc } = addHole(doc, { point: [20, 20, 4], normal: [0, 0, 1], spec: { ...getPreset("shape-rounded").spec, depth: 3 } }));
+  ({ doc } = addHole(doc, { point: [30, 30, 4], normal: [0, 0, 1], spec: { ...getPreset("shape-pill").spec, cornerRadius: 99 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.doesNotMatch(scad, /BOSL2|use </);
+  assert.match(scad, /translate\(\[0, 0, -50\]\) linear_extrude\(height = 51\) square\(\[20, 10\], center = true\);/);
+  assert.match(scad, /translate\(\[0, 0, -3\]\) linear_extrude\(height = 4\) hull\(\) for \(x = \[-8, 8\], y = \[-3, 3\]\) translate\(\[x, y\]\) circle\(r = 2\);/);
+  // A radius past half the narrower side is cut as the pill: the two
+  // circles along the width coincide.
+  assert.match(scad, /hull\(\) for \(x = \[-6, 6\], y = \[0, 0\]\) translate\(\[x, y\]\) circle\(r = 4\);/);
+  // Its frame is a slot's: unturned on a level face, +Y is the part's Y.
+  assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
+  assert.equal(holeLabel(doc.holes[0]), "Rectangle 20×10, through");
+  assert.equal(holeLabel(doc.holes[1]), "Rectangle 20×10, r2, 3 deep");
+  assert.equal(holeLabel(doc.holes[2]), "Pill 20×8, through");
+  assert.ok(isPill(doc.holes[2].spec) && !isPill(doc.holes[1].spec));
+  // Its outline is drawn, and closes.
+  const outline = slotOutline(doc.holes[1]);
+  assert.ok(outline.length > 4);
+  assert.deepEqual(outline.at(-1).b, outline[0].a);
+});
+
+test("a rectangle turns and flips like a slot, and keeps its direction across shape presets", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("shape-rect").spec, presetId: "shape-rect" });
+  doc = rotateHoles(doc, [doc.holes[0].id], 90);
+  assert.equal(doc.holes[0].spec.spin, 90);
+  assert.equal(holeMeta(doc.holes[0]), "through, turned 90°");
+  assert.equal(flipHoles(doc, 4).holes[0].spec.spin, 270);
+  // Turned, it is still the preset; resized, it isn't.
+  assert.ok(specMatchesPreset(doc.holes[0].spec, "shape-rect"));
+  assert.ok(!specMatchesPreset({ ...doc.holes[0].spec, width: 30 }, "shape-rect"));
+  assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("shape-pill").spec), { ...getPreset("shape-pill").spec, spin: 90 });
+  assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("shape-cylinder").spec), getPreset("shape-cylinder").spec);
+  assert.deepEqual(normalizeSpec({ kind: "rectangle", width: 0, height: "x", cornerRadius: -2, spin: -90 }), {
+    kind: "rectangle",
+    width: 0.1,
+    height: 10,
+    cornerRadius: 0,
+    depth: 0,
+    spin: 270,
+  });
 });

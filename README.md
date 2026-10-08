@@ -207,7 +207,14 @@ The **openGrid thread** presets cut the other half of openGrid's screw connector
 It has a direction too: the thread starts where it has to for a screwed-home head to point that
 way, so an openConnect head ends up with its slide direction up. "Full" is 8 mm deep for a
 full-size screw (6.8 mm of thread), "Lite" 4.5 mm for a lite one; depth, through and the
-clearance (upstream's 0.5 mm) are editable. Export the result as an
+clearance (upstream's 0.5 mm) are editable.
+
+The **Generic shapes** cut a plain cutout of any size instead of a fastener's hole: a **round** one
+(a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius
+— half the narrower side, or the "Pill" tick, makes it a pill with round ends). A rectangle has a
+direction like a slot: its height runs up the face unturned, and it turns in the sidebar.
+
+Export the result as an
 STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working
 with a native OpenSCAD.
 

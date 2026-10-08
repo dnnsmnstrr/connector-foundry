@@ -52,9 +52,23 @@
 //              openConnect head, the way it seats a slotted item — as for
 //              a slot; the thread's start is turned to match
 //
+// "cylinder" — a plain round cutout:
+//   diameter   mm
+//   depth      0 = through, else a pocket this deep
+//
+// "rectangle" — a rectangular cutout, its corners rounded (a corner
+// radius of half the narrower side makes it a pill, a slot with round
+// ends; anything more is cut as that):
+//   width         mm across, along the face's sideways
+//   height        mm along its direction (`spin`)
+//   cornerRadius  mm; 0 = sharp corners
+//   depth         0 = through, else a pocket this deep
+//   spin          degrees it is turned on its face, as for a slot
+//
 // The slots and the thread are the openGrid connector cuts
 // (isConnector()): all three come from this repo's libraries and have a
-// direction on their face.
+// direction on their face. A rectangle has a direction too
+// (hasDirection()), but is plain OpenSCAD.
 //
 // `presetId` is screwPresets.js's label for where the spec came from.
 //
@@ -77,7 +91,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -139,6 +153,22 @@ export function isConnector(spec) {
   return isSlot(spec) || spec?.kind === "thread";
 }
 
+// Anything turned on its face by `spin`: the connectors, and a rectangle.
+// What the quarter-turn buttons turn and a flip turns over with the part.
+export function hasDirection(spec) {
+  return isConnector(spec) || spec?.kind === "rectangle";
+}
+
+// A rectangle's corner radius as cut: never more than half its narrower
+// side, which is the pill.
+export function effectiveCornerRadius(spec) {
+  return Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2);
+}
+
+export function isPill(spec) {
+  return spec.kind === "rectangle" && spec.cornerRadius > 0 && spec.cornerRadius >= Math.min(spec.width, spec.height) / 2 - 1e-9;
+}
+
 export function normalizeSpec(spec) {
   const n = (v, fallback, min = 0) => {
     const num = Number(v);
@@ -159,6 +189,23 @@ export function normalizeSpec(spec) {
       kind,
       depth: n(spec?.depth, 8),
       clearance: n(spec?.clearance, THREAD.clearance),
+      spin: normalizeSpin(spec?.spin),
+    };
+  }
+  if (kind === "cylinder") {
+    return {
+      kind,
+      diameter: Math.max(0.1, n(spec?.diameter, 10)),
+      depth: n(spec?.depth, 0),
+    };
+  }
+  if (kind === "rectangle") {
+    return {
+      kind,
+      width: Math.max(0.1, n(spec?.width, 20)),
+      height: Math.max(0.1, n(spec?.height, 10)),
+      cornerRadius: n(spec?.cornerRadius, 0),
+      depth: n(spec?.depth, 0),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -247,14 +294,14 @@ export function patchHoles(doc, ids, patch) {
   };
 }
 
-// Turn every slot (or thread) in `ids` by `delta` degrees from its own
-// direction, so ones pointing different ways keep their difference.
-// Screw holes have no direction and are left alone.
+// Turn every slot (or thread, or rectangle) in `ids` by `delta` degrees
+// from its own direction, so ones pointing different ways keep their
+// difference. Round holes have no direction and are left alone.
 export function rotateHoles(doc, ids, delta) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => (targets.has(h.id) && isConnector(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
+    holes: doc.holes.map((h) => (targets.has(h.id) && hasDirection(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
   };
 }
 
@@ -310,7 +357,7 @@ export function flipHoles(doc, height) {
       ...h,
       point: [h.point[0], -h.point[1], height - h.point[2]],
       normal: [h.normal[0], -h.normal[1], -h.normal[2]],
-      spec: isConnector(h.spec) ? { ...h.spec, spin: normalizeSpin(h.spec.spin + 180) } : h.spec,
+      spec: hasDirection(h.spec) ? { ...h.spec, spin: normalizeSpin(h.spec.spin + 180) } : h.spec,
     })),
   };
 }
@@ -332,6 +379,8 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "openconnect") return OPENCONNECT_FOOTPRINT.halfWidth;
   if (spec.kind === "multiconnect") return MULTICONNECT_FOOTPRINT.radius + spec.clearance;
   if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
+  if (spec.kind === "cylinder") return spec.diameter / 2;
+  if (spec.kind === "rectangle") return Math.hypot(spec.width, spec.height) / 2;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
 
@@ -432,6 +481,15 @@ export function holeLabel(hole, presetName = null) {
   if (s.kind === "thread") {
     return `openGrid thread ${s.depth > 0 ? `${fmt(s.depth)} deep` : "through"}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   }
+  const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
+  if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
+  if (s.kind === "rectangle") {
+    const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
+    if (s.cornerRadius > 0 && !isPill(s)) bits.push(`r${fmt(s.cornerRadius)}`);
+    bits.push(depth);
+    if (s.spin) bits.push(`${fmt(s.spin)}°`);
+    return bits.join(", ");
+  }
   const parts = [`Ø${fmt(s.diameter)}`];
   if (s.depth > 0) parts.push(`×${fmt(s.depth)} deep`);
   else parts.push("through");
@@ -442,10 +500,10 @@ export function holeLabel(hole, presetName = null) {
 }
 
 // The one-line summary under a hole's name in the list: how deep a
-// screw hole goes, which way a slot points (a thread: both).
+// screw hole goes, which way a slot points (a thread, a rectangle: both).
 export function holeMeta(hole) {
   const s = hole.spec;
-  if (s.kind === "thread") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
+  if (s.kind === "thread" || s.kind === "rectangle") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s)) return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
@@ -471,6 +529,23 @@ export function cutterLines(hole, throughLength, extents = null) {
     // head ends up pointing the slot's +Y.
     const through = extents ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM) : throughLength;
     body.push(`og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    m = slotFrameMatrix(hole);
+  } else if (s.kind === "cylinder") {
+    const depth = s.depth > 0 ? s.depth : throughLength;
+    body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
+    m = frameMatrix(hole.point, hole.normal);
+  } else if (s.kind === "rectangle") {
+    // Extruded from its outline: sharp corners a square, rounded ones the
+    // hull of a circle in each corner — which a pill's radius (half the
+    // narrower side) collapses to two, with no zero-width square for
+    // offset() to choke on.
+    const depth = s.depth > 0 ? s.depth : throughLength;
+    const r = effectiveCornerRadius(s);
+    const outline =
+      r > 0
+        ? `hull() for (x = [${fmt(-(s.width / 2 - r))}, ${fmt(s.width / 2 - r)}], y = [${fmt(-(s.height / 2 - r))}, ${fmt(s.height / 2 - r)}]) translate([x, y]) circle(r = ${fmt(r)});`
+        : `square([${fmt(s.width)}, ${fmt(s.height)}], center = true);`;
+    body.push(`translate([0, 0, ${fmt(-depth)}]) linear_extrude(height = ${fmt(depth + OVERSHOOT_MM)}) ${outline}`);
     m = slotFrameMatrix(hole);
   } else {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -569,10 +644,11 @@ export function slotFrame(point, normal, spin = 0) {
 // coordinates, for the viewer: the channel and pocket (or round end),
 // the entry (dashed), and an arrow the way the head travels to seat. A
 // thread's is its bore, with the arrow the way a screwed-in head's +Y
-// points.
+// points. A rectangle's is just its outline — its shape already shows
+// which way it is turned.
 export function slotOutline(hole) {
   const s = hole.spec;
-  if (!isConnector(s)) return [];
+  if (!hasDirection(s)) return [];
   const { ex, ey } = slotFrame(hole.point, hole.normal, s.spin);
   const to3 = ([x, y]) => [hole.point[0] + ex[0] * x + ey[0] * y, hole.point[1] + ex[1] * x + ey[1] * y, hole.point[2] + ex[2] * x + ey[2] * y];
   const segments = [];
@@ -592,6 +668,20 @@ export function slotOutline(hole) {
     }
     return out;
   };
+  if (s.kind === "rectangle") {
+    const r = effectiveCornerRadius(s);
+    const a = s.width / 2 - r;
+    const b = s.height / 2 - r;
+    if (r > 0) {
+      loop([
+        ...arc(a, b, r, 0, Math.PI / 2, 8),
+        ...arc(-a, b, r, Math.PI / 2, Math.PI, 8),
+        ...arc(-a, -b, r, Math.PI, (3 * Math.PI) / 2, 8),
+        ...arc(a, -b, r, (3 * Math.PI) / 2, 2 * Math.PI, 8),
+      ]);
+    } else loop([[-a, -b], [a, -b], [a, b], [-a, b]]);
+    return segments;
+  }
   if (s.kind === "thread") {
     loop(arc(0, 0, (THREAD.diameter + s.clearance) / 2, 0, 2 * Math.PI, 48).slice(0, -1));
   } else if (s.kind === "openconnect") {

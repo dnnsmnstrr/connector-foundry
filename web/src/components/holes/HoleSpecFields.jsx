@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
-import { THREAD } from "../../lib/screwHoles.js";
+import { THREAD, isPill } from "../../lib/screwHoles.js";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -10,7 +10,9 @@ import RotationInput from "../RotationInput.jsx";
 // system leaves open (an openConnect slot's lock side and clearances;
 // a MultiConnect slot's channel length, on-ramp, detent and
 // clearance) and which way on the face is up. For the openGrid thread:
-// how deep, its clearance, and which way a screwed-in head points.
+// how deep, its clearance, and which way a screwed-in head points. For a
+// generic shape: its size and depth, and a rectangle's corner radius
+// (up to a pill) and which way it is turned.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -66,7 +68,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
-    spec.kind === "thread"
+    spec.kind === "rectangle"
+      ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : spec.kind === "thread"
       ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
       : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
@@ -78,7 +82,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         placeholder={isMixed("spin") ? "mixed" : undefined}
         onChange={(degrees) => set({ spin: degrees })}
         onRotate={onRotate}
-        name={spec.kind === "thread" ? (count > 1 ? `the ${count} threads` : "the thread") : count > 1 ? `the ${count} slots` : "the slot"}
+        name={directionName(spec.kind, count)}
         viewedFrom="outside the face"
       />
     </label>
@@ -189,6 +193,80 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     );
   }
 
+  const depthField = (
+    <label className="field" htmlFor={`${id}-depth`}>
+      <span className="field-label">Depth (mm)</span>
+      <input
+        id={`${id}-depth`}
+        type="number"
+        min="0"
+        step="0.5"
+        {...numberProps("depth", { placeholder: "through" })}
+        value={isMixed("depth") || through ? "" : spec.depth}
+        disabled={through}
+      />
+    </label>
+  );
+  const throughField = (
+    <label className="field field-checkbox holes-through-field" htmlFor={`${id}-through`}>
+      <MixedCheckbox id={`${id}-through`} checked={through} mixed={isMixed("depth")} onChange={toggleThrough} />
+      <span className="field-label">Through</span>
+    </label>
+  );
+
+  if (spec.kind === "cylinder") {
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">
+          <label className="field" htmlFor={`${id}-d`}>
+            <span className="field-label">Diameter (mm)</span>
+            <input id={`${id}-d`} type="number" min="0.1" step="0.5" {...numberProps("diameter")} />
+          </label>
+          {depthField}
+        </div>
+        {throughField}
+      </div>
+    );
+  }
+
+  if (spec.kind === "rectangle") {
+    // A pill: the corner radius at half the narrower side. Only offered
+    // when the holes agree on their size, since that sets the radius.
+    const sizeMixed = isMixed("width") || isMixed("height");
+    const pill = !sizeMixed && !isMixed("cornerRadius") && isPill(spec);
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">
+          <label className="field" htmlFor={`${id}-w`} title="Across, square to its direction.">
+            <span className="field-label">Width (mm)</span>
+            <input id={`${id}-w`} type="number" min="0.1" step="0.5" {...numberProps("width")} />
+          </label>
+          <label className="field" htmlFor={`${id}-h`} title="Along its direction — up, unturned.">
+            <span className="field-label">Height (mm)</span>
+            <input id={`${id}-h`} type="number" min="0.1" step="0.5" {...numberProps("height")} />
+          </label>
+          <label className="field" htmlFor={`${id}-r`} title="Rounds the corners. Half the narrower side makes a pill; more is cut as that.">
+            <span className="field-label">Corner radius (mm)</span>
+            <input id={`${id}-r`} type="number" min="0" step="0.5" {...numberProps("cornerRadius")} />
+          </label>
+          {depthField}
+        </div>
+        {throughField}
+        <label className="field field-checkbox holes-through-field" htmlFor={`${id}-pill`} title="Round ends: the corner radius at half the narrower side.">
+          <MixedCheckbox
+            id={`${id}-pill`}
+            checked={pill}
+            mixed={!sizeMixed && isMixed("cornerRadius")}
+            disabled={sizeMixed}
+            onChange={(on) => set({ cornerRadius: on ? Math.min(spec.width, spec.height) / 2 : 0 })}
+          />
+          <span className="field-label">Pill (round ends)</span>
+        </label>
+        {spinField}
+      </div>
+    );
+  }
+
   const headLabel = { counterbore: "Pocket Ø", countersink: "Head Ø", hex: "Across corners" }[spec.head];
   const depthLabel = { counterbore: "Pocket depth", countersink: "Extra sink", hex: "Pocket depth" }[spec.head];
   // Head fields only when the holes agree on a head that has a pocket:
@@ -243,6 +321,12 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
       )}
     </div>
   );
+}
+
+// What the direction field's turn buttons say they turn.
+function directionName(kind, count) {
+  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"] }[kind] ?? ["slot", "slots"];
+  return count > 1 ? `the ${count} ${many}` : `the ${one}`;
 }
 
 // A checkbox that can say "some are, some aren't" (indeterminate) for

@@ -757,7 +757,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               <p className="muted holes-editor-note">
                 {shared.kind
                   ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
-                  : "Screw holes and slots share no fields: pick a preset to make them one kind, or select one kind."}
+                  : "Holes of different kinds share no fields: pick a preset to make them one kind, or select one kind."}
               </p>
             ) : selected ? (
               <p className="muted holes-editor-note">

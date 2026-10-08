@@ -29,6 +29,10 @@
 // on-ramp and detent, and which way is up). The openGrid thread (kind
 // "thread", lib/ogthread.scad) is upstream's too; its presets differ
 // only in depth, for the full-size and the lite screw.
+//
+// The generic shapes (kind "cylinder" / "rectangle") are no fastener at
+// all: a round or rectangular cutout of any size, the rectangle's
+// corners rounded as far as a pill. Their presets are starting sizes.
 
 export const HEAD_STYLES = [
   { value: "none", label: "None (plain hole)" },
@@ -200,6 +204,12 @@ function thread(id, name, short, depth) {
   };
 }
 
+// A plain round or rectangular cutout. A rectangle starts unturned: its
+// height runs along the face's up (see screwHoles.js's slotFrame()).
+function shape(id, name, short, spec) {
+  return { id, name, short, group: "Generic shapes", spec, screw: { style: "shape" } };
+}
+
 export const SCREW_PRESETS = [
   cap(2), cap(2.5), cap(3), cap(4), cap(5), cap(6),
   countersunk(3), countersunk(4), countersunk(5), countersunk(6),
@@ -231,6 +241,10 @@ export const SCREW_PRESETS = [
   multiConnect("mc-slot-release", "MultiConnect slot, quick release", "No detent", { onRamp: true, detent: false }),
   thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
   thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
+  shape("shape-cylinder", "Round cutout", "Round", { kind: "cylinder", diameter: 10, depth: 0 }),
+  shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, spin: 0 }),
+  shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, spin: 0 }),
+  shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, spin: 0 }),
 ];
 
 export const DEFAULT_PRESET_ID = "m3-cap";
@@ -265,10 +279,11 @@ export function presetGroups() {
 // presets apart count (see presetKeys()): a MultiConnect slot with a
 // longer channel, or any slot turned to point another way, is still the
 // preset it was placed from — those are placement, not a different slot.
+// A rectangle turned on its face is likewise still its preset.
 export function specMatchesPreset(spec, presetId) {
   const preset = getPreset(presetId);
   if (!preset) return false;
-  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec);
+  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec).filter((key) => key !== "spin");
   return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
 }
 
@@ -297,9 +312,13 @@ export function presetKeys(kind) {
 // hole already has where the two share a field — switching a MultiConnect
 // slot from "on-ramp" to "open end" keeps its channel length, gap and
 // direction; an openConnect slot becoming a MultiConnect one (or a
-// thread) keeps the way it points.
+// thread) keeps the way it points. A rectangle preset is a whole shape
+// like a screw's, but keeps the way the hole points, as a slot does.
 export function presetSpecFor(currentSpec, presetSpec) {
-  if (!isConnectorKind(presetSpec.kind) || !currentSpec) return { ...presetSpec };
+  if (!currentSpec) return { ...presetSpec };
+  if (!isConnectorKind(presetSpec.kind)) {
+    return "spin" in presetSpec && "spin" in currentSpec ? { ...presetSpec, spin: currentSpec.spin } : { ...presetSpec };
+  }
   const own = new Set(["kind", ...presetKeys(presetSpec.kind)]);
   const kept = Object.fromEntries(
     Object.keys(presetSpec)
