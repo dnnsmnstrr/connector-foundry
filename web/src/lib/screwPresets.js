@@ -221,7 +221,7 @@ function extrusion(id, name, short, keys) {
     name,
     short,
     group: "2020 extrusion",
-    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, spin: 0 },
+    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, bolt: false, spin: 0 },
     screw: { style: "extrusion" },
   };
 }

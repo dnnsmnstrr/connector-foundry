@@ -219,7 +219,10 @@ into along the hole, so a length of rail stands in the part: the 20 mm square pl
 (0.15 mm a side), 15 mm deep by default, and — "Keyed" — a key into each of the rail's four slot
 mouths so it can't turn ("Plain" leaves the square bare). The keys are the end cap's, and
 references.yaml's `extrusion2020/rail-in-holes-socket` checks NopSCADlib's E2020t into it with
-no interference. Click the rail's axis; depth, through, clearance and direction are editable.
+no interference. Tick "M5 bolt hole" to also cut an M5 clearance hole (Ø5.5) from the socket's
+floor out through the far side, for a bolt into the rail's centre bore (tapped M5 on most
+20-series profiles) that pulls it down onto the floor; a through socket has no floor, so it gets
+none. Click the rail's axis; depth, through, clearance and direction are editable.
 
 Export the result as an
 STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working

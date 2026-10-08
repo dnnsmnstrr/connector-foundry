@@ -72,6 +72,9 @@
 //   depth      how far the rail goes in; 0 = through
 //   clearance  mm added per side (and taken off each key)
 //   keys       the keys into the four slot mouths
+//   bolt       an M5 clearance hole on from the floor through the rest of
+//              the part, for a bolt into the rail's centre bore (a blind
+//              socket only — a through one has no floor)
 //   spin       which way the square is turned on its face, as for a slot
 //
 // The slots and the thread are the openGrid connector cuts
@@ -139,7 +142,8 @@ export const MULTICONNECT_FOOTPRINT = Object.freeze({
 // A 2020 socket's numbers (lib/constants.scad's EX_PROFILE, EX_SLOT_OPEN,
 // and EX_LIP_T + EX_CHANNEL_D, the keys' reach in from the face), for the
 // viewer's outline. Drawing only; the cut is lib/exsocket.scad's.
-export const EXTRUSION = Object.freeze({ profile: 20, slotOpen: 6.2, keyReach: 3.8, clearance: 0.15 });
+// `boltDiameter` is ex_socket()'s M5 clearance hole (ISO 273 medium).
+export const EXTRUSION = Object.freeze({ profile: 20, slotOpen: 6.2, keyReach: 3.8, clearance: 0.15, boltDiameter: 5.5 });
 
 // The thread's numbers (lib/constants.scad's OG_THREAD_*, OG_SNAP_H_*):
 // its diameter before clearance, and how long a screw's thread is — a
@@ -178,6 +182,12 @@ export function hasDirection(spec) {
 // side, which is the pill.
 export function effectiveCornerRadius(spec) {
   return Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2);
+}
+
+// A 2020 socket's bolt hole is cut only below a floor: a through
+// socket has none, and the bolt would have nothing to pull against.
+export function hasBolt(spec) {
+  return spec.kind === "extrusion" && spec.bolt && spec.depth > 0;
 }
 
 export function isPill(spec) {
@@ -220,6 +230,7 @@ export function normalizeSpec(spec) {
       depth: n(spec?.depth, 15),
       clearance: n(spec?.clearance, EXTRUSION.clearance),
       keys: spec?.keys !== false,
+      bolt: spec?.bolt === true,
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -509,7 +520,7 @@ export function holeLabel(hole, presetName = null) {
   }
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
-  if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
     if (s.cornerRadius > 0 && !isPill(s)) bits.push(`r${fmt(s.cornerRadius)}`);
@@ -559,7 +570,10 @@ export function cutterLines(hole, throughLength, extents = null) {
     m = slotFrameMatrix(hole);
   } else if (s.kind === "extrusion") {
     const depth = s.depth > 0 ? s.depth : throughLength;
-    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    // The bolt hole runs on from the floor past the far side, as a
+    // through hole does.
+    const bolt = hasBolt(s) ? `, bolt = ${fmt(throughLength)}` : "";
+    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "cylinder") {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -726,6 +740,7 @@ export function slotOutline(hole) {
       side.push(...points.map(turn));
     }
     loop(side);
+    if (hasBolt(s)) loop(arc(0, 0, EXTRUSION.boltDiameter / 2, 0, 2 * Math.PI, 24).slice(0, -1), true);
     return segments;
   }
   if (s.kind === "thread") {

@@ -12,6 +12,11 @@
 // which a slot open at the rail's cut end takes; a rail cut square
 // slides straight in.
 //
+// `bolt`, when more than 0, also cuts an M5 clearance hole (ISO 273
+// medium, Ø5.5) that long down from the socket's floor, on the axis: a
+// bolt from the part's far side into the rail's centre bore, tapped M5
+// on most 20-series profiles, pulls the rail down onto the floor.
+//
 // Plain OpenSCAD, no BOSL2: the Holes tab `use`s this file, and the
 // EX_* numbers come with it (a used file's modules see its includes).
 //
@@ -20,7 +25,7 @@
 // cut's top face never meets the part's.
 include <constants.scad>
 
-module ex_socket(depth, clearance = FIT_CLEARANCE, keys = true, overshoot = 1) {
+module ex_socket(depth, clearance = FIT_CLEARANCE, keys = true, bolt = 0, bolt_d = 5.5, overshoot = 1) {
     side    = EX_PROFILE + 2 * clearance;
     key_w   = EX_SLOT_OPEN - 2 * clearance;
     key_in  = EX_PROFILE / 2 - (EX_LIP_T + EX_CHANNEL_D); // the key's inner end
@@ -36,4 +41,8 @@ module ex_socket(depth, clearance = FIT_CLEARANCE, keys = true, overshoot = 1) {
                             translate([key_in, -key_w / 2])
                                 square([side / 2 + 1 - key_in, key_w]);
             }
+    // Up into the socket a little, so it opens cleanly through the floor.
+    if (bolt > 0)
+        translate([0, 0, -depth - bolt])
+            cylinder(d = bolt_d, h = bolt + 1, $fn = 32);
 }

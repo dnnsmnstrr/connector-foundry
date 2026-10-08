@@ -252,10 +252,25 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           <MixedCheckbox id={`${id}-keys`} checked={spec.keys} mixed={isMixed("keys")} onChange={(keys) => set({ keys })} />
           <span className="field-label">Keys into the slots</span>
         </label>
+        <label
+          className="field field-checkbox holes-through-field"
+          htmlFor={`${id}-bolt`}
+          title={`An M5 clearance hole (Ø${EXTRUSION.boltDiameter}) from the socket's floor out through the far side of the part, for a bolt into the rail's centre bore — tapped M5 on most 20-series profiles. Needs a blind socket: a through one has no floor to pull the rail onto.`}
+        >
+          <MixedCheckbox
+            id={`${id}-bolt`}
+            checked={spec.bolt}
+            mixed={isMixed("bolt")}
+            disabled={through}
+            onChange={(bolt) => set({ bolt })}
+          />
+          <span className="field-label">M5 bolt hole through the floor</span>
+        </label>
         {spinField}
         <p className="muted holes-params-note">
           The end of a 2020 aluminium extrusion pushes into it, along the hole. The point you click is the rail's axis;
-          leave a few mm of wall around the {EXTRUSION.profile} mm square.
+          leave a few mm of wall around the {EXTRUSION.profile} mm square. With the bolt hole, an M5 bolt from the far side
+          into the rail's centre bore holds it down — choose its length for the floor's thickness plus about 10 mm.
         </p>
       </div>
     );

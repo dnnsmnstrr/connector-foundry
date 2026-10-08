@@ -475,6 +475,20 @@ test("a 2020 socket turns and flips like a slot; its presets differ in the keys 
   // depth, clearance and direction.
   assert.ok(specMatchesPreset({ ...doc.holes[0].spec, depth: 25, clearance: 0.3 }, "ex-socket"));
   assert.ok(!specMatchesPreset(doc.holes[0].spec, "ex-socket-plain"));
-  assert.deepEqual(presetSpecFor({ ...doc.holes[0].spec, depth: 25 }, getPreset("ex-socket-plain").spec), { kind: "extrusion", depth: 25, clearance: 0.15, keys: false, spin: 90 });
-  assert.deepEqual(normalizeSpec({ kind: "extrusion", depth: -1, clearance: "x", keys: 0, spin: 450 }), { kind: "extrusion", depth: 15, clearance: 0.15, keys: true, spin: 90 });
+  assert.deepEqual(presetSpecFor({ ...doc.holes[0].spec, depth: 25, bolt: true }, getPreset("ex-socket-plain").spec), { kind: "extrusion", depth: 25, clearance: 0.15, keys: false, bolt: true, spin: 90 });
+  assert.deepEqual(normalizeSpec({ kind: "extrusion", depth: -1, clearance: "x", keys: 0, bolt: "yes", spin: 450 }), { kind: "extrusion", depth: 15, clearance: 0.15, keys: true, bolt: false, spin: 90 });
+});
+
+test("a 2020 socket's M5 bolt hole runs on from its floor, only when it has one", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("ex-socket").spec, bolt: true } });
+  ({ doc } = addHole(doc, { point: [30, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("ex-socket").spec, bolt: true, depth: 0 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, bolt = 50, overshoot = 1\);/);
+  // Through, there is no floor: the option is kept but not cut.
+  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.15, keys = true, overshoot = 1\);/);
+  assert.equal(holeLabel(doc.holes[0]), "2020 socket 15 deep, keyed, M5 bolt");
+  assert.equal(holeLabel(doc.holes[1]), "2020 socket through, keyed");
+  // The bolt's circle (dashed) joins the socket's outline.
+  assert.equal(slotOutline(doc.holes[0]).length, 20 + 24);
+  assert.equal(slotOutline(doc.holes[1]).length, 20);
 });
