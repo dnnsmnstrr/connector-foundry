@@ -318,8 +318,15 @@ function normalizeSpin(v) {
 }
 
 export function addHole(doc, { point, normal, spec, presetId }) {
+  // The counter is module state; a document can outlive it (a dev-server
+  // hot reload of this module resets it under an open document), and two
+  // holes with one id are deleted together. So never reuse an id the
+  // document already has.
+  let id;
+  do id = `h${nextHoleId++}`;
+  while (doc.holes.some((h) => h.id === id));
   const hole = {
-    id: `h${nextHoleId++}`,
+    id,
     point: point.map(Number),
     normal: unit(normal),
     spec: normalizeSpec(spec ?? doc.nextSpec),

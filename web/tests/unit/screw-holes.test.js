@@ -590,3 +590,14 @@ test("a BitBeam pin hole is cut by lib/pinhole.scad: grooves at both ends when b
   assert.equal(holeFootprintRadius(doc.holes[0].spec), 2.5);
   assert.deepEqual(normalizeSpec({ kind: "pinhole", depth: -2 }), { kind: "pinhole", depth: 8, teardrop: false });
 });
+
+test("a new hole never takes an id the document already has", () => {
+  // A document whose ids the module's counter doesn't know about (as
+  // after a hot reload of this module): every id here is taken.
+  // The ids the counter hands out next are all taken.
+  const next = Number(addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1] }).hole.id.slice(1)) + 1;
+  const taken = Array.from({ length: 5 }, (_, i) => ({ id: `h${next + i}`, point: [i, 0, 0], normal: [0, 0, 1], spec: normalizeSpec({}), presetId: null }));
+  const { doc, hole } = addHole({ ...plateDoc(), holes: taken }, { point: [0, 9, 4], normal: [0, 0, 1] });
+  assert.ok(!taken.some((h) => h.id === hole.id));
+  assert.equal(new Set(doc.holes.map((h) => h.id)).size, doc.holes.length);
+});
