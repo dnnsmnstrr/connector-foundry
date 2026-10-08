@@ -30,6 +30,10 @@
 // past its entry, at the entry end's profile, so a channel placed by an
 // edge can run out of it.
 //
+// `clearance` moves each side of the channel out by that much (see
+// klippt_negative()): 0, the default here, is the clip exactly; the web
+// app cuts 0.3, for a rigid part.
+//
 // Frame: the surface at z = 0, the material below it; +Y the way the
 // base travels to seat; the origin where the seated base's centre is.
 // The cut reaches `overshoot` above the surface.
@@ -64,16 +68,13 @@ KLIPPT_RUNOUT_GAP  = 18 + 2 * 0.3;
 // pocket with this much room all round.
 KLIPPT_POCKET      = 20 + 2 * 0.3;
 
-module klippt_channel(pocket = true, runout = 0, overshoot = 1) {
+module klippt_channel(pocket = true, runout = 0, clearance = 0, overshoot = 1) {
     depth = KLIPPT_FLOOR_Y - KLIPPT_SURFACE_Y;
     union() {
         // The clip's negative, over its length — stopped 0.01mm inside
         // the clip's end faces, which a box face exactly on them meets
         // edge-on (non-manifold); the pieces below each reach past.
-        difference() {
-            klippt_channel_box(0.01, KLIPPT_LENGTH - 0.01, overshoot);
-            klippt_clip_in_hole_frame();
-        }
+        klippt_negative(clearance, overshoot, 0.01, KLIPPT_LENGTH - 0.01);
         // Room past the far end for the seated base's tip: the base is
         // 20mm long, the clip 15, and on a clip that last 2.5mm stands
         // out into the air.
@@ -97,7 +98,7 @@ module klippt_channel(pocket = true, runout = 0, overshoot = 1) {
                 rotate([90, 0, 0])
                     linear_extrude(height = runout + KLIPPT_ENTRY_Z - KLIPPT_LENGTH / 2)
                         offset(delta = -0.01) union() {
-                            klippt_entry_profile(overshoot);
+                            klippt_entry_profile(clearance, overshoot);
                             // The lips held apart: the runout is a lead-in,
                             // and the neck should slide down it freely
                             // rather than spread the lips the whole way.
@@ -128,18 +129,61 @@ module klippt_channel_box(y0, y1, overshoot) {
         cube([KLIPPT_BOX_X[1] - KLIPPT_BOX_X[0], y1 - y0, depth + overshoot]);
 }
 
+// The clip's negative within the channel's box, from y0 to y1 along it —
+// and, with `clearance`, widened: each side of it (the lips, the flange
+// gap's ends, the lock) moved out by that much, the gap left between the
+// two halves filled with the negative's own section along the middle.
+// The clip grips the base's neck with its lips spread 0.27mm a side
+// (0.42 at its entry end), which a clip's thin body bends to take; cut
+// into a rigid part, nothing bends, so the slot is opened instead. Every
+// width grows by 2 x clearance, every depth stays the clip's.
+module klippt_negative(clearance, overshoot, y0 = 0, y1 = KLIPPT_LENGTH) {
+    module half(side) {
+        translate([side * clearance, 0, 0])
+            intersection() {
+                difference() {
+                    klippt_channel_box(y0, y1, overshoot);
+                    klippt_clip_in_hole_frame();
+                }
+                translate([side > 0 ? 0 : -40, -40, -40]) cube([40, 80, 80]);
+            }
+    }
+    if (clearance <= 0)
+        difference() {
+            klippt_channel_box(y0, y1, overshoot);
+            klippt_clip_in_hole_frame();
+        }
+    else
+        union() {
+            half(-1);
+            half(1);
+            // The middle: the negative's section at x = 0, carried across
+            // the 2 x clearance between the halves (and 0.01mm into each,
+            // 0.01mm smaller all round, so no face of it is one of
+            // theirs). rotate([0, 90, 0]) takes (x, y, z) to (z, y, -x),
+            // putting x = 0 on the cutting plane with 2D (z, y);
+            // rotate([0, -90, 0]) takes the extrusion back.
+            rotate([0, -90, 0])
+                linear_extrude(height = 2 * clearance + 0.02, center = true)
+                    offset(delta = -0.01)
+                        projection(cut = true)
+                            rotate([0, 90, 0])
+                                difference() {
+                                    klippt_channel_box(y0, y1, overshoot);
+                                    klippt_clip_in_hole_frame();
+                                }
+        }
+}
+
 // The entry end's cross-section, 2D in (x, z): the channel's negative
 // sliced at the entry stretch (clip Z = KLIPPT_ENTRY_Z, hole-frame
 // y = mid_z - that). rotate([-90, 0, 0]) takes (x, y, z) to (x, z, -y),
 // so the slice's plane lands on z = 0 for projection(cut = true) with
 // its depth as 2D y.
-module klippt_entry_profile(overshoot) {
+module klippt_entry_profile(clearance, overshoot) {
     y = KLIPPT_MID_Z - KLIPPT_ENTRY_Z;
     projection(cut = true)
         translate([0, 0, y])
             rotate([-90, 0, 0])
-                difference() {
-                    klippt_channel_box(0, KLIPPT_LENGTH, overshoot);
-                    klippt_clip_in_hole_frame();
-                }
+                klippt_negative(clearance, overshoot);
 }

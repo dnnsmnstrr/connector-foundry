@@ -608,8 +608,8 @@ test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a poc
   const scad = holesToScad(doc, partsById, { throughLength: 50 });
   assert.match(scad, /^use <\.\.\/lib\/klippt\.scad>$/m);
   assert.doesNotMatch(scad, /BOSL2/);
-  assert.match(scad, /klippt_channel\(pocket = true, runout = 0, overshoot = 1\);/);
-  assert.match(scad, /klippt_channel\(pocket = false, runout = 12, overshoot = 1\);/);
+  assert.match(scad, /klippt_channel\(pocket = true, runout = 0, clearance = 0\.3, overshoot = 1\);/);
+  assert.match(scad, /klippt_channel\(pocket = false, runout = 12, clearance = 0\.3, overshoot = 1\);/);
   // The slots' frame: unturned on a level face, the base slides along +Y.
   assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
   assert.equal(holeLabel(doc.holes[0]), "KLIPPT channel, drop-in pocket");
@@ -618,9 +618,13 @@ test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a poc
   // It turns and flips like a slot; the presets differ in the entry alone.
   assert.equal(rotateHoles(doc, [doc.holes[0].id], 90).holes[0].spec.spin, 90);
   assert.ok(specMatchesPreset({ ...getPreset("klippt-pocket").spec, spin: 180 }, "klippt-pocket"));
-  assert.deepEqual(presetSpecFor(doc.holes[1].spec, getPreset("klippt-pocket").spec), { kind: "klippt", pocket: true, runout: 12, spin: 90 });
+  assert.deepEqual(presetSpecFor(doc.holes[1].spec, getPreset("klippt-pocket").spec), { kind: "klippt", pocket: true, runout: 12, clearance: 0.3, spin: 90 });
   // A run-out shorter than a base's tail is lengthened.
   assert.equal(normalizeSpec({ kind: "klippt", pocket: false, runout: 1 }).runout, 3);
+  // The clearance defaults to what seats a base free in a rigid part;
+  // 0 (the clip exactly) stays 0.
+  assert.equal(normalizeSpec({ kind: "klippt" }).clearance, 0.3);
+  assert.equal(normalizeSpec({ kind: "klippt", clearance: 0 }).clearance, 0);
   // Its outline closes, with the arrow.
   assert.ok(slotOutline(doc.holes[0]).length > 12);
 });

@@ -84,10 +84,14 @@
 // centre goes.
 //   pocket   a drop-in pocket at the entry, for a channel in the middle of
 //            a face: the base goes in there and slides along to seat
-//   runout   without the pocket, mm of lead-in past the entry (its lips
-//            held clear of the base's neck), for a channel run out of an
-//            edge
-//   spin     the way the base travels to seat, as a slot's
+//   runout     without the pocket, mm of lead-in past the entry (its
+//              lips held clear of the base's neck), for a channel run out
+//              of an edge
+//   clearance  mm each side of the channel moves out: the clip's lips
+//              grip the neck by bending, which a rigid part can't (0 is
+//              the clip exactly; 0.3 seats the base free, with a small
+//              bump at the entry to hold it; 0.45 slides freely)
+//   spin       the way the base travels to seat, as a slot's
 //
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
 // into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
@@ -176,6 +180,7 @@ export const KLIPPT = Object.freeze({
   pocket: 20.6, // the drop-in pocket's square, and the far end's room
   gap: 18.6, // the run-out's lips apart
   minRunout: 3, // a base's tail (2.5mm past the clip) needs this much
+  clearance: 0.3,
 });
 
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
@@ -283,6 +288,7 @@ export function normalizeSpec(spec) {
       kind,
       pocket: spec?.pocket !== false,
       runout: Math.max(KLIPPT.minRunout, n(spec?.runout, 20)),
+      clearance: Math.min(1, n(spec?.clearance, KLIPPT.clearance)),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -770,7 +776,7 @@ export function cutterLines(hole, throughLength, extents = null) {
     body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "klippt") {
-    body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "pinhole") {
     // Blind: a groove at the bottom as well as the entry, as a beam's
@@ -979,7 +985,10 @@ export function slotOutline(hole) {
     // run-out (dashed: where the base comes from), then the arrow.
     const k = KLIPPT;
     const p = k.pocket / 2;
-    loop([[k.left, -k.half], [k.right, -k.half], [k.right, k.half], [p, k.half], [p, p], [-p, p], [-p, k.half], [k.left, k.half]]);
+    // The clearance moves each side out.
+    const left = k.left - s.clearance;
+    const right = k.right + s.clearance;
+    loop([[left, -k.half], [right, -k.half], [right, k.half], [p, k.half], [p, p], [-p, p], [-p, k.half], [left, k.half]]);
     if (s.pocket) loop([[-p, -k.half - k.pocket], [p, -k.half - k.pocket], [p, -k.half], [-p, -k.half]], true);
     else loop([[-k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half], [-k.gap / 2, -k.half]], true);
     polyline([[0, -3], [0, 5]]);

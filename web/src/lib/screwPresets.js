@@ -251,7 +251,7 @@ function klippt(id, name, short, pocket) {
     name,
     short,
     group: "KLIPPT",
-    spec: { kind: "klippt", pocket, runout: 20, spin: 0 },
+    spec: { kind: "klippt", pocket, runout: 20, clearance: 0.3, spin: 0 },
     screw: { style: "klippt" },
   };
 }

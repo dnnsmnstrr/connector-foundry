@@ -1042,14 +1042,16 @@ fit_checks:
       clearance_mm: [0.0, 0.5]
 
   # The Holes tab's KLIPPT channel (lib/klippt.scad) is no catalogue part,
-  # so no `part:`. It is the clip's own negative, so a base seated in it
-  # grips as in the clip (7.1mm3 here — the host's flat surface trims the
-  # lips' sloped faces a touch — against the clip's 7.7) and nothing
-  # more; and dropped into its pocket the base must be free.
+  # so no `part:`. With no clearance it is the clip's own negative, so a
+  # base seated in it grips as in the clip (7.1mm3 here — the host's flat
+  # surface trims the lips' sloped faces a touch — against the clip's 7.7)
+  # and nothing more. With the web app's default clearance (0.3mm a side,
+  # for a rigid part that cannot bend its lips the way a clip does) the
+  # seated base is free; and dropped into the pocket it is free either way.
   - id: klippt/base-seated-in-holes-channel
     why: >
-      A part cut with the KLIPPT channel has to take a KLIPPT base the way
-      the clip does: seated, gripped by the lips, nothing else touching.
+      With no clearance the channel is the clip's: a base seated in it is
+      gripped by the lips as by a clip, nothing else touching.
     a: |
       include <{repo}/parts/klippt/base.scad>
       // Seated: centred at the hole's origin, the flange in the gap
@@ -1059,10 +1061,27 @@ fit_checks:
       use <{repo}/lib/klippt.scad>
       difference() {{
           translate([-20, -35, -10]) cube([40, 47, 10]);
-          klippt_channel();
+          klippt_channel(clearance = 0);
       }}
     expect:
       max_interference_mm3: 10.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: klippt/base-seated-in-holes-channel-clearance
+    why: >
+      Cut into a rigid part with the default 0.3mm clearance, the base
+      seats free — the lips no longer have to bend over its neck.
+    a: |
+      include <{repo}/parts/klippt/base.scad>
+      translate([0, 0, -2.65]) klippt_base(anchor = BOTTOM);
+    b: |
+      use <{repo}/lib/klippt.scad>
+      difference() {{
+          translate([-20, -35, -10]) cube([40, 47, 10]);
+          klippt_channel(clearance = 0.3);
+      }}
+    expect:
+      max_interference_mm3: 0.1
       clearance_mm: [0.0, 0.5]
 
   - id: klippt/base-in-holes-channel-pocket
@@ -1076,7 +1095,7 @@ fit_checks:
       use <{repo}/lib/klippt.scad>
       difference() {{
           translate([-20, -35, -10]) cube([40, 47, 10]);
-          klippt_channel();
+          klippt_channel(clearance = 0.3);
       }}
     expect:
       max_interference_mm3: 0.01

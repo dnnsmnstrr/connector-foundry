@@ -268,14 +268,22 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           <MixedCheckbox id={`${id}-pocket`} checked={spec.pocket} mixed={isMixed("pocket")} onChange={(pocket) => set({ pocket })} />
           <span className="field-label">Drop-in pocket</span>
         </label>
-        {!isMixed("pocket") && !spec.pocket && (
-          <div className="holes-spec-grid">
+        <div className="holes-spec-grid">
+          <label
+            className="field"
+            htmlFor={`${id}-klippt-clear`}
+            title="Added to each side of the channel. A KLIPPT clip grips the base's neck by bending its lips, which a rigid part can't: 0 is the clip exactly; 0.3 seats the base free, with a small bump at the entry that holds it in; 0.45 and more slides freely, held only one way by the lock."
+          >
+            <span className="field-label">Clearance (mm)</span>
+            <input id={`${id}-klippt-clear`} type="number" min="0" max="1" step="0.05" {...numberProps("clearance")} />
+          </label>
+          {!isMixed("pocket") && !spec.pocket && (
             <label className="field" htmlFor={`${id}-runout`} title={`How far the channel runs on past its entry, its lips held clear of the base's neck — far enough to leave the part's edge. At least ${KLIPPT.minRunout} mm.`}>
               <span className="field-label">Run-out (mm)</span>
               <input id={`${id}-runout`} type="number" min={KLIPPT.minRunout} step="1" {...numberProps("runout")} />
             </label>
-          </div>
-        )}
+          )}
+        </div>
         {spinField}
         <p className="muted holes-params-note">
           A KLIPPT clip's own channel, cut from FH's clip (CC BY-SA 4.0): the part slides onto a KLIPPT base like a clip. The

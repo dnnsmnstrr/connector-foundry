@@ -228,8 +228,11 @@ The **KLIPPT** presets cut a KLIPPT clip's own channel (`lib/klippt.scad`, from 
 base's flange slides into and its lock are the clip's. Click where the seated base's centre goes;
 the arrow is the way it slides in. "Pocket" adds a drop-in pocket at the entry, for a channel in
 the middle of a face; "Run-out" leaves the entry open instead, with a lead-in of the length you
-choose, for one cut at an edge. references.yaml checks a base in both: free in the pocket, gripped
-seated just as by the clip.
+choose, for one cut at an edge. A KLIPPT clip grips the base's neck by bending its lips, which a
+rigid part can't, so the channel is cut with a **clearance** (0.3mm a side by default) that moves
+each side out: the base then seats free, with a small bump at the entry to hold it in, and the lock
+still stops it. 0 cuts the clip exactly; 0.45 and up slides freely. references.yaml checks a base
+in it: free in the pocket, free seated at 0.3, gripped just as by the clip at 0.
 
 The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets and a
 608 bearing, each 0.2 mm over in diameter and depth.
