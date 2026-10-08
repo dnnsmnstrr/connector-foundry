@@ -177,6 +177,19 @@ sources:
       Vendored. parts/hsw/insert.scad calls its hsw_clip() directly; the
       fit check below seats it in a cell of the other upstream's wall.
 
+  skadis-tower:
+    kind: git
+    url: https://github.com/breckenedge/parametric-skadis-tower.git
+    commit: 94364261fae12d1e60b82dff0d604c62adf4fb82
+    license: CC-BY-SA-4.0
+    note: >
+      NOT vendored, and nothing here calls it: fetched into refs/ as an
+      independent model of the Skådis slot and pattern (its own
+      slot_profile(), col_x() and row_z()) to hold lib/skadis.scad to.
+      franpoli's Skådis library (GPL-3.0) agrees on the numbers but
+      models a peg, not a board, and hooks in by turning, so it is not
+      used.
+
 # ---------------------------------------------------------------------
 # Shape checks: is our part the same solid as the reference?
 # ---------------------------------------------------------------------
@@ -824,6 +837,36 @@ shape_checks:
       max_volume_pct: 0.1
       min_section_iou: 0.999
 
+  # A Skådis board against the tower's wall with the same slots: its
+  # slot_profile() (the 5.2mm cut, its slot_fit included), col_x() and
+  # row_z() at a 4 x 4 grid, in a 5mm wall, without the fillet. The
+  # checkerboard rule ((i + j) even, from the bottom left) is upstream's
+  # face_pattern()'s, restated: that module reads the tower's wall and
+  # height, which `use` cannot change. Our board stands as the wall does,
+  # front face out at y = 5.
+  - id: skadis/board-vs-tower-wall
+    part: skadis/board
+    reference_source: skadis-tower
+    ours: |
+      include <{repo}/parts/skadis/board.scad>
+      translate([0, 5, 40]) rotate([90, 0, 0]) skadis_board(cols = 2, rows = 4, anchor = BOTTOM);
+    reference: |
+      use <{skadis-tower}/skadis_tower.scad>
+      $fn = 48;  // the tower's own, which `use` does not bring
+      difference() {{
+          translate([-40, 0, 0]) cube([80, 5, 80]);
+          for (i = [0 : 3], j = [0 : 3]) if ((i + j) % 2 == 0)
+              translate([col_x(i, 4), -1, row_z(j)]) rotate([-90, 0, 0]) linear_extrude(7) slot_profile();
+      }}
+    align: none
+    sections_z: [10, 20, 30, 50]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
 # ---------------------------------------------------------------------
 # Fit checks: do two solids actually go together?
 #
@@ -1311,3 +1354,44 @@ fit_checks:
     expect:
       max_interference_mm3: 2.0
       clearance_mm: [0.0, 0.5]
+
+  # A two-tab Skådis peg hung on a board (front face at z = 0, the board
+  # behind it), its tabs in the two slots of the second row (centres
+  # x = -10 and 30, y = -10). Seated, each arm rests in its slot's round
+  # bottom end (at y = -17.5) and the hook hangs behind the board below
+  # it: touching, nothing more.
+  - id: skadis/peg-on-board
+    part: skadis/peg
+    why: >
+      A peg has to hang on the board: arms in the slots, resting on their
+      round ends, hooks flat behind the board.
+    a: |
+      include <{repo}/parts/skadis/peg.scad>
+      // The tabs' arm bottom is 2.5mm above the part's centre in y, their
+      // front face its plate's back, SKADIS_ARM_REACH + SKADIS_HOOK_T up.
+      translate([10, -17.5 + 2.5, -8.5]) skadis_peg(pegs = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/skadis/board.scad>
+      mirror([0, 0, 1]) skadis_board(anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.5]
+
+  # The same peg on its way in: lifted 8mm and pushed 4mm out, so arm
+  # and hook are both inside the board's thickness, in the slots. They
+  # pass, with room. (Lifted only 3mm they collide, 89mm3: a hook has to
+  # go in high and drop.)
+  - id: skadis/peg-through-slots
+    part: skadis/peg
+    why: >
+      The tab has to go through a slot face on before it can drop: arm
+      and hook together within the slot's outline.
+    a: |
+      include <{repo}/parts/skadis/peg.scad>
+      translate([10, -17.5 + 2.5 + 8, -8.5 + 4]) skadis_peg(pegs = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/skadis/board.scad>
+      mirror([0, 0, 1]) skadis_board(anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.1, 1.0]

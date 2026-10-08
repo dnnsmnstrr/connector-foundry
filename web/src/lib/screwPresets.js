@@ -38,6 +38,10 @@
 // by thumb on most printers) and 0.2 mm deeper, so it sits flush or a
 // hair below.
 //
+// The Skådis slot is a pill (kind "rectangle"): the board's 5 × 15 mm slot,
+// 0.2 mm wider so a printed one still takes a moulded hook. The Repeat
+// form's "Skådis spacing" lays a board's pattern out from it.
+//
 // The KLIPPT channel (kind "klippt", lib/klippt.scad) is cut from
 // KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
 // base gets in.
@@ -231,6 +235,12 @@ function pocket(id, name, short, d, h) {
   return { id, name, short, group: "Magnets & bearings", spec: round({ diameter: round1(d + 0.2), depth: round1(h + 0.2) }), screw: { style: "shape" } };
 }
 
+// A Skådis slot, upright: a 5 × 15 mm pill, 0.2 mm over across.
+function skadis(id, name, short) {
+  const width = 5.2;
+  return { id, name, short, group: "Skådis", spec: { kind: "rectangle", width, height: 15, cornerRadius: width / 2, depth: 0, chamfer: 0, spin: 0 }, screw: { style: "shape" } };
+}
+
 // A socket for a 2020 rail's end, 15 mm deep — enough for it to stand.
 function extrusion(id, name, short, keys) {
   return {
@@ -299,6 +309,7 @@ export const SCREW_PRESETS = [
   shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, chamfer: 0, spin: 0 }),
   shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, chamfer: 0, spin: 0 }),
   shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, chamfer: 0, spin: 0 }),
+  skadis("skadis-slot", "Skådis slot (5 × 15 mm)", "Slot"),
   pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
   pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),

@@ -591,6 +591,58 @@ parts:
       - name: rect
         params: { base: rect }
 
+  - id: skadis/board
+    system: Skådis
+    name: Board
+    file: parts/skadis/board.scad
+    module: skadis_board
+    confidence: exact
+    source: >-
+      lib/skadis.scad: Skådis's 5 x 15mm slots in a checkerboard on a 20mm
+      grid, checked against breckenedge's parametric-skadis-tower (CC-BY-SA
+      4.0, measured against, not vendored).
+    source_url: https://github.com/breckenedge/parametric-skadis-tower
+    print_note: >-
+      Flat on the bed, no supports. 5mm thick, slots 40mm apart along a row
+      and rows 20mm apart, every other row shifted 20mm, as on a Skådis
+      board; cols counts the slots in a row. The slots are cut 5.2mm wide,
+      so moulded Skådis hooks go in. A board is exactly 2 x cols x rows
+      20mm cells, so boards butt together. "mount" is the back, against the
+      wall.
+    anchors: [bot]
+    defaults:
+      cols: 2
+      rows: 4
+    variants:
+      - name: 3x6
+        params: { cols: 3, rows: 6 }
+
+  - id: skadis/peg
+    system: Skådis
+    name: Peg
+    file: parts/skadis/peg.scad
+    module: skadis_peg
+    confidence: exact
+    source: >-
+      lib/skadis.scad's hook tab, checked against this repo's Skådis board
+      (itself checked against parametric-skadis-tower).
+    source_url: https://github.com/breckenedge/parametric-skadis-tower
+    print_note: >-
+      Print it on its side, a tab flat on the bed, so the layers run along
+      the arm. Each tab goes straight through a slot, drops 6mm and hangs
+      behind the board; lift it to take it off. pegs 2 puts two tabs 40mm
+      apart, for two slots in a row, so the part cannot turn. The plate's
+      front is "mount", for fusing a holder or shelf onto.
+    anchors: [bot]
+    defaults:
+      pegs: 1
+      plate: 2
+    options:
+      pegs: [1, 2]
+    variants:
+      - name: two-pegs
+        params: { pegs: 2 }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

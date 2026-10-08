@@ -540,6 +540,20 @@ test("a chamfer is a 45° hull from the outline down at its depth to the outline
   assert.ok(specMatchesPreset(chamfered, "shape-cylinder"));
 });
 
+test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slots", () => {
+  let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("skadis-slot").spec, presetId: "skadis-slot" });
+  // A Skådis board: 40 mm along a row, rows 20 mm apart, every other one
+  // shifted half a step.
+  const grid = repeatHole(doc, hole.id, { pattern: "grid", columns: 2, rows: 3, spacingAcross: 40, spacingUp: 20, stagger: true });
+  assert.deepEqual(grid.doc.holes.map((h) => h.point), [[0, 0, 4], [40, 0, 4], [20, 20, 4], [60, 20, 4], [0, 40, 4], [40, 40, 4]]);
+  // The slot itself: an upright pill, 5 mm and a printing allowance wide.
+  const { spec } = getPreset("skadis-slot");
+  assert.equal(spec.kind, "rectangle");
+  assert.equal(spec.height, 15);
+  assert.equal(spec.cornerRadius, spec.width / 2);
+  assert.ok(isPill(spec) && spec.depth === 0);
+});
+
 test("repeat: a row, a grid and a circle on the hole's face, in the face's own axes", () => {
   // On the top face: across is +X, up is +Y.
   let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("m3-cap").spec, presetId: "m3-cap" });

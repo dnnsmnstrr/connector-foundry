@@ -499,6 +499,8 @@ export function flipHoles(doc, height) {
 //   columns, rows grid: holes across and up, the selected one in its
 //                 first corner
 //   spacingAcross, spacingUp   grid: mm between them
+//   stagger       grid: every other row shifted half a spacing across, as
+//                 a Skådis board has its slots (40 across, 20 up)
 //   circleCount   circle: holes on it
 //   radius        circle: mm, round the selected hole's spot; the first
 //                 hole straight up from it
@@ -513,6 +515,7 @@ export const REPEAT_DEFAULTS = Object.freeze({
   rows: 2,
   spacingAcross: 20,
   spacingUp: 20,
+  stagger: false,
   circleCount: 6,
   radius: 15,
   keepCenter: false,
@@ -535,7 +538,8 @@ export function repeatPoints(hole, options) {
   if (o.pattern === "grid") {
     const cols = int(o.columns, 1);
     const rows = int(o.rows, 1);
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (i || j) offsets.push([i * num(o.spacingAcross), j * num(o.spacingUp)]);
+    const shift = (j) => (o.stagger && j % 2 ? num(o.spacingAcross) / 2 : 0);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
   } else if (o.pattern === "circle") {
     const n = int(o.circleCount, 2);
     const r = Math.max(0, num(o.radius));

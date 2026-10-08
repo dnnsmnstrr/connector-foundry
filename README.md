@@ -1,9 +1,9 @@
 # Connector Foundry
 
-Printable mounting interfaces — Gridfinity, openGrid, Honeycomb Storage Wall, GoPro, DeckMate,
-BitBeam, 2020 extrusion — as parametric OpenSCAD parts that share one slot convention, so any of
-them can be combined with any other. Export a single part as STL, or compose several in the browser
-and export the result.
+Printable mounting interfaces — Gridfinity, openGrid, Honeycomb Storage Wall, Skådis, GoPro,
+DeckMate, BitBeam, 2020 extrusion — as parametric OpenSCAD parts that share one slot convention, so
+any of them can be combined with any other. Export a single part as STL, or compose several in the
+browser and export the result.
 
 Three ways to get a part from the same `.scad` sources:
 
@@ -38,7 +38,10 @@ vendored). Specifications consulted: [gridfinity.xyz](https://gridfinity.xyz/spe
 [opengrid.world](https://www.opengrid.world/guides/board/), [bitbeam.cc](https://bitbeam.cc/). The
 MultiConnect head and slot (`lib/multiconnect.scad`) are modelled here from the published numbers —
 openGrid-projects' head, QuackWorks' slot profile — since no permissively licensed implementation
-exists to vendor.
+exists to vendor. The Skådis slot, pattern and hook tab (`lib/skadis.scad`) are this repo's
+too, for the same reason: the community's Skådis libraries are GPL or unlicensed, and
+[parametric-skadis-tower](https://github.com/breckenedge/parametric-skadis-tower) (CC-BY-SA) is
+measured against, not vendored.
 Each catalogue entry links its own source; see "Licensing" for what the non-MIT ones mean for you.
 
 ## Quick start
@@ -194,10 +197,15 @@ its own direction, and Delete removes them all. Shift-click on a bare face still
 exactly where you click.
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
-spacing, across or up the face), a grid (holes and spacing both ways) or a circle (count and
-radius round the hole's spot, the hole itself moving onto the circle or staying in the middle). The
-copies are previewed in green; any that would miss the face — past its edge, into another hole —
-are left out and counted, and afterwards the whole pattern is selected to edit or delete together.
+spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
+staggered half a step) or a circle (count and radius round the hole's spot, the hole itself moving
+onto the circle or staying in the middle). The copies are previewed in green; any that would miss
+the face — past its edge, into another hole — are left out and counted, and afterwards the whole
+pattern is selected to edit or delete together.
+
+A **Skådis slot** preset (a 5 × 15 mm pill, 0.2 mm wider so a printed one takes moulded hooks)
+with the grid's **Skådis spacing** (40 mm across, 20 mm up, staggered) turns any face into a Skådis
+board, for Skådis hooks or `skadis/peg`.
 
 Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
@@ -294,6 +302,8 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Clip mount](docs/img/klippt_clip_mount.png)<br>Clip mount | KLIPPT | exact | CC-BY-SA-4.0 | [KLIPPT by FH (printables.com/@bequ3) — cut at render time from the designer's own "cable clip small smooth" STL (unmodified): its lips, flange gap and lock as they are, the top filled flat. CC BY-SA 4.0 — see README "Licensing".](https://www.printables.com/model/424351-klippt-locking-cable-clip) | The counterpart of the KLIPPT base: fuse its flat top ("mount") onto a part, and the part slides onto a base like a clip. Lips down as "bot". plate is the solid above the clip's floor. On its own, print it on its end (slide direction up), the way KLIPPT prints its clips: the floor's arch then needs no bridge. |
 | ![Wall panel](docs/img/hsw_wall.png)<br>Wall panel | Honeycomb Storage Wall | exact | CC-BY-4.0 | [Honeycomb Storage Wall by RostaP; each cell is halfhex() from geru's 3d-scad-hsw-customizable (after Xander and EdwinEesting, CC-BY 4.0), vendored, laid out to match its own grid().](https://github.com/geru/3d-scad-hsw-customizable) | Front face on the bed (the 20mm openings), no supports. Columns are rows cells tall, every other one half a cell lower. flat_edges trims the panel to a rectangle with a flat wall all round, so panels butt together; the end columns are then half cells. "mount" is the back, against the wall. |
 | ![Insert](docs/img/hsw_insert.png)<br>Insert | Honeycomb Storage Wall | exact | MIT | [geru's 3d-scad-hsw-clip (Hugh Kern, MIT, after KYZ's V2 clips), vendored](https://github.com/geru/3d-scad-hsw-clip) | Base on the bed, clip up, no supports. A one-way clip: push it into any HSW cell and its spring snaps it behind the lip; press the spring to take it out. The base's top is "mount", for fusing a hook or holder onto. base hex covers the cell, a millimetre short of its neighbours; rect is a bar across it. |
+| ![Board](docs/img/skadis_board.png)<br>Board | Skådis | exact | MIT | [lib/skadis.scad: Skådis's 5 x 15mm slots in a checkerboard on a 20mm grid, checked against breckenedge's parametric-skadis-tower (CC-BY-SA 4.0, measured against, not vendored).](https://github.com/breckenedge/parametric-skadis-tower) | Flat on the bed, no supports. 5mm thick, slots 40mm apart along a row and rows 20mm apart, every other row shifted 20mm, as on a Skådis board; cols counts the slots in a row. The slots are cut 5.2mm wide, so moulded Skådis hooks go in. A board is exactly 2 x cols x rows 20mm cells, so boards butt together. "mount" is the back, against the wall. |
+| ![Peg](docs/img/skadis_peg.png)<br>Peg | Skådis | exact | MIT | [lib/skadis.scad's hook tab, checked against this repo's Skådis board (itself checked against parametric-skadis-tower).](https://github.com/breckenedge/parametric-skadis-tower) | Print it on its side, a tab flat on the bed, so the layers run along the arm. Each tab goes straight through a slot, drops 6mm and hangs behind the board; lift it to take it off. pegs 2 puts two tabs 40mm apart, for two slots in a row, so the part cannot turn. The plate's front is "mount", for fusing a holder or shelf onto. |
 | ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc](https://github.com/ondratu/bitbeam-lib) | Print flat, no supports. 4.8mm holes on an 8mm pitch through top and bottom, and through the sides with side_holes on. LEGO Technic-compatible. |
 | ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc. Nobody publishes a model of a plate like this, so there is no reference geometry to check against.](https://github.com/ondratu/bitbeam-lib) | Flat on the bed, no supports. Every hole is a real BitBeam hole, top and side. Side holes need height 1 (8mm); go thinner and turn side_holes off. Sizes are in 8mm units. |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Generic geometry, not tied to an external spec | Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm with 4mm corners by default — one Gridfinity unit, so it lines up with a Gridfinity base or baseplate. |

@@ -472,3 +472,29 @@ opengrid/snap:
     - 25.58
     - 3.4
     volume_mm3: 1918.27
+skadis/board:
+  3x6:
+    bbox:
+    - 120.0
+    - 120.0
+    - 5.0
+    volume_mm3: 65507.71
+  default:
+    bbox:
+    - 80.0
+    - 80.0
+    - 5.0
+    volume_mm3: 29114.54
+skadis/peg:
+  default:
+    bbox:
+    - 12.0
+    - 17.0
+    - 10.5
+    volume_mm3: 662.94
+  two-pegs:
+    bbox:
+    - 52.0
+    - 17.0
+    - 10.5
+    volume_mm3: 2277.88

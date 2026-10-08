@@ -60,6 +60,22 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
           {number("spacingUp", "Spacing up (mm)", { step: 0.5, title: "Centre to centre. Negative runs the other way." })}
         </div>
       )}
+      {options.pattern === "grid" && (
+        <div className="holes-repeat-actions">
+          <label className="field field-checkbox holes-through-field" htmlFor={`${id}-stagger`} title="Every other row shifted half a spacing across, the way a Skådis board has its slots.">
+            <input id={`${id}-stagger`} type="checkbox" checked={options.stagger} onChange={(e) => onChange({ stagger: e.target.checked })} />
+            <span className="field-label">Stagger rows</span>
+          </label>
+          <button
+            type="button"
+            className="render-button holes-small-button"
+            title="Skådis spacing: 40 mm across, 20 mm up, every other row shifted 20 mm. With a Skådis slot, the part takes Skådis hooks."
+            onClick={() => onChange({ spacingAcross: 40, spacingUp: 20, stagger: true })}
+          >
+            Skådis spacing
+          </button>
+        </div>
+      )}
       {options.pattern === "circle" && (
         <>
           <div className="holes-spec-grid">
