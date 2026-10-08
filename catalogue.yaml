@@ -488,6 +488,31 @@ parts:
     screw_pattern: deckmate
     mount_offset: [0, 4.896]
 
+  - id: klippt/base
+    system: KLIPPT
+    name: Base
+    file: parts/klippt/base.scad
+    module: klippt_base
+    confidence: exact
+    license: CC-BY-SA-4.0
+    source: >-
+      KLIPPT by FH (printables.com/@bequ3) — the designer's own base
+      models (the base STEP, tessellated; the screw base STL), imported
+      unmodified. CC BY-SA 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/424351-klippt-locking-cable-clip
+    print_note: >-
+      Flange on the bed, no supports. A KLIPPT clip slides on from the
+      side, its lips under the 20mm flange, gripping the 18mm neck. The
+      neck's flat face is "mount": stick or fuse it onto a part, or with
+      screw use the countersunk hole (head on the flange side, under the
+      clip).
+    anchors: [bot]
+    defaults:
+      screw: false
+    variants:
+      - name: screw
+        params: { screw: true }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

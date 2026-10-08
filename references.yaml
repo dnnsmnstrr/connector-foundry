@@ -122,6 +122,16 @@ sources:
   #   path: refs/manual/HFS5-2020.step
   #   license: proprietary — not redistributable, supply your own copy
 
+  # A KLIPPT clip, to check the base's fit against. KLIPPT (FH,
+  # printables.com/model/424351) is CC BY-SA 4.0; its download sits
+  # behind Printables' login and bot check, so it is supplied by hand like
+  # any manufacturer file: download "KLIPPT cable clip small smooth" and
+  # save it as the path below. Without it the KLIPPT fit checks skip.
+  klippt-clip:
+    kind: file
+    path: refs/manual/klippt-cable-clip-small-smooth.stl
+    license: CC-BY-SA-4.0 (KLIPPT by FH) — not committed, supply your own copy
+
   nopscadlib:
     kind: git
     url: https://github.com/nophead/NopSCADlib.git
@@ -965,6 +975,50 @@ fit_checks:
           expanding_snap(snapbody_cfg = snap_body_cfg(snap_thickness = 6.8), text_cfg = [["text_depth", 0]]);
     expect:
       max_interference_mm3: 5.0
+      clearance_mm: [0.0, 0.5]
+
+  # A real KLIPPT clip slid onto the base. The clip is modelled on its
+  # side (its profile in XY, 15mm along Z, the way it slides); the base
+  # is posed in it with its flange in the 1mm gap between the clip's floor
+  # and its two lips, its neck's face flush with the clip's back, centred
+  # between the lips and along the clip. The lips are 17.46mm apart where
+  # the neck is 18mm across its flats, so they grip it 0.27mm a side —
+  # the clip's hold, taken by its springy lips — and narrow to 15.46mm
+  # near one end, which lands on the neck's chamfered corners: the lock.
+  # That grip is the only overlap there should be (~8mm3); anything more
+  # is a base that will not go on.
+  - id: klippt/clip-on-base
+    part: klippt/base
+    reference_source: klippt-clip
+    why: >
+      KLIPPT's own base and clip have to go together the way they do in
+      print: clip slid on, flange under its lips, neck gripped.
+    a: |
+      include <{repo}/parts/klippt/base.scad>
+      // base (x, y, z) -> clip (x + 154.62, 115 - z, 7.5 + y)
+      multmatrix([[1, 0, 0, 154.62], [0, 0, -1, 115], [0, 1, 0, 7.5], [0, 0, 0, 1]])
+          klippt_base(anchor = BOTTOM);
+    b: |
+      import("{klippt-clip}");
+    expect:
+      max_interference_mm3: 10.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: klippt/clip-on-screw-base
+    part: klippt/base
+    params: {screw: true}
+    reference_source: klippt-clip
+    why: >
+      The screw base is the same octagon with a countersunk hole: the clip
+      goes on it exactly as on the plain one.
+    a: |
+      include <{repo}/parts/klippt/base.scad>
+      multmatrix([[1, 0, 0, 154.62], [0, 0, -1, 115], [0, 1, 0, 7.5], [0, 0, 0, 1]])
+          klippt_base(screw = true, anchor = BOTTOM);
+    b: |
+      import("{klippt-clip}");
+    expect:
+      max_interference_mm3: 10.0
       clearance_mm: [0.0, 0.5]
 
   - id: extrusion2020/tab-in-slot

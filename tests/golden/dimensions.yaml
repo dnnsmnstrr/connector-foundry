@@ -314,6 +314,19 @@ gridfinity/bin:
     - 41.5
     - 21.0
     volume_mm3: 18263.72
+klippt/base:
+  default:
+    bbox:
+    - 20.0
+    - 20.0
+    - 3.0
+    volume_mm3: 867.86
+  screw:
+    bbox:
+    - 20.0
+    - 20.0
+    - 3.0
+    volume_mm3: 775.74
 opengrid/board:
   default:
     bbox:
