@@ -23,6 +23,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "cylinder" || spec.kind === "rectangle") return <ShapeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
+  if (spec.kind === "klippt") return <KlipptIcon title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -501,6 +502,58 @@ function PinholeIcon({ spec, title, className }) {
         {rect(CX - (6.2 * s) / 2, SURFACE_Y - 2.4, 6.2 * s, 2.4, { rx: 0.6 })}
         {rect(CX - pinW / 2, SURFACE_Y - 9, pinW, 6.6, { rx: 1 })}
         {rect(CX - 0.8, SURFACE_Y + (pinBottom - SURFACE_Y) / 2, 1.6, (pinBottom - SURFACE_Y) / 2, { className: "screw-icon-socket" })}
+      </g>
+    </svg>
+  );
+}
+
+// A KLIPPT channel in section, across it: the slab with the clip's
+// T-slot cut in — the lips' opening at the surface, the wider flange gap
+// under them — and a base in it, its flange under the lips, its neck up
+// through them to the wall it is screwed to (above the surface). To
+// scale across (25mm channel, 17.5mm between the lips); the depths drawn
+// three times over, as the slots' are.
+function KlipptIcon({ title, className }) {
+  const s = 30 / 25;
+  const pz = (mm) => mm * s * 3;
+  const lipsY = SURFACE_Y + pz(1.65);
+  const floorY = lipsY + pz(1.15);
+  const cut = (
+    <polygon
+      points={[
+        [CX - 8.75 * s, SURFACE_Y - 1],
+        [CX + 8.75 * s, SURFACE_Y - 1],
+        [CX + 8.75 * s, lipsY],
+        [CX + 12.5 * s, lipsY],
+        [CX + 12.5 * s, floorY],
+        [CX - 12.5 * s, floorY],
+        [CX - 12.5 * s, lipsY],
+        [CX - 8.75 * s, lipsY],
+      ]
+        .map((pt) => pt.join(","))
+        .join(" ")}
+    />
+  );
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">{cut}</g>
+      <g className="screw-icon-fastener">
+        {/* The wall the base is on, then the base: neck, flange. */}
+        <rect x={CX - 14 * s} y={SURFACE_Y - 7} width={28 * s} height={4} rx="0.8" />
+        <rect x={CX - 9 * s} y={SURFACE_Y - 3.2} width={18 * s} height={lipsY - SURFACE_Y + 3.2} />
+        <rect x={CX - 10 * s} y={lipsY} width={20 * s} height={pz(1) - 0.4} />
       </g>
     </svg>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
-import { EXTRUSION, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
+import { EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -71,7 +71,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
-    spec.kind === "extrusion"
+    spec.kind === "klippt"
+      ? "Which way the base slides in to seat. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : spec.kind === "extrusion"
       ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
       : spec.kind === "rectangle"
       ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
@@ -255,6 +257,35 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     );
   }
 
+  if (spec.kind === "klippt") {
+    return (
+      <div className="holes-spec">
+        <label
+          className="field field-checkbox holes-through-field"
+          htmlFor={`${id}-pocket`}
+          title="A pocket at the channel's entry that the base drops into before sliding along to seat — for a channel in the middle of a face. Off, the channel runs out past its entry instead, for one cut at an edge."
+        >
+          <MixedCheckbox id={`${id}-pocket`} checked={spec.pocket} mixed={isMixed("pocket")} onChange={(pocket) => set({ pocket })} />
+          <span className="field-label">Drop-in pocket</span>
+        </label>
+        {!isMixed("pocket") && !spec.pocket && (
+          <div className="holes-spec-grid">
+            <label className="field" htmlFor={`${id}-runout`} title={`How far the channel runs on past its entry, its lips held clear of the base's neck — far enough to leave the part's edge. At least ${KLIPPT.minRunout} mm.`}>
+              <span className="field-label">Run-out (mm)</span>
+              <input id={`${id}-runout`} type="number" min={KLIPPT.minRunout} step="1" {...numberProps("runout")} />
+            </label>
+          </div>
+        )}
+        {spinField}
+        <p className="muted holes-params-note">
+          A KLIPPT clip's own channel, cut from FH's clip (CC BY-SA 4.0): the part slides onto a KLIPPT base like a clip. The
+          point you click is where the seated base's centre goes; the arrow is the way it slides in. It needs about 4 mm of
+          material under the surface.
+        </p>
+      </div>
+    );
+  }
+
   if (spec.kind === "pinhole") {
     return (
       <div className="holes-spec">
@@ -413,7 +444,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
 
 // What the direction field's turn buttons say they turn.
 function directionName(kind, count) {
-  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"], extrusion: ["socket", "sockets"] }[kind] ?? ["slot", "slots"];
+  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"], extrusion: ["socket", "sockets"], klippt: ["channel", "channels"] }[kind] ?? ["slot", "slots"];
   return count > 1 ? `the ${count} ${many}` : `the ${one}`;
 }
 

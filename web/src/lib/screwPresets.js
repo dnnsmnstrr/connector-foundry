@@ -38,6 +38,10 @@
 // by thumb on most printers) and 0.2 mm deeper, so it sits flush or a
 // hair below.
 //
+// The KLIPPT channel (kind "klippt", lib/klippt.scad) is cut from
+// KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
+// base gets in.
+//
 // The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
 // a 20-series aluminium extrusion; its presets differ only in the keys
 // into the rail's slots.
@@ -239,6 +243,19 @@ function extrusion(id, name, short, keys) {
   };
 }
 
+// A KLIPPT channel: a drop-in pocket for the middle of a face, or an
+// open end with a lead-in, for one run out of an edge.
+function klippt(id, name, short, pocket) {
+  return {
+    id,
+    name,
+    short,
+    group: "KLIPPT",
+    spec: { kind: "klippt", pocket, runout: 20, spin: 0 },
+    screw: { style: "klippt" },
+  };
+}
+
 export const SCREW_PRESETS = [
   cap(2), cap(2.5), cap(3), cap(4), cap(5), cap(6),
   countersunk(3), countersunk(4), countersunk(5), countersunk(6),
@@ -286,6 +303,8 @@ export const SCREW_PRESETS = [
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
   pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),
   pocket("bearing-608", "608 bearing (22 × 7 mm)", "608", 22, 7),
+  klippt("klippt-pocket", "KLIPPT channel, drop-in pocket", "Pocket", true),
+  klippt("klippt-open", "KLIPPT channel, open end", "Run-out", false),
   extrusion("ex-socket", "2020 socket, keyed into the slots", "Keyed", true),
   extrusion("ex-socket-plain", "2020 socket, plain square", "Plain", false),
 ];
@@ -340,7 +359,7 @@ const PRINT_KEYS = ["spin", "teardrop", "chamfer"];
 // screwHoles.js's isConnector(), by kind (that module imports this one),
 // and the 2020 socket, whose two presets differ only in their keys.
 function isConnectorKind(kind) {
-  return kind === "openconnect" || kind === "multiconnect" || kind === "thread" || kind === "extrusion";
+  return ["openconnect", "multiconnect", "thread", "extrusion", "klippt"].includes(kind);
 }
 
 // The fields that tell the presets of one kind apart — the ones they

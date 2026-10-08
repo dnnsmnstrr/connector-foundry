@@ -1041,6 +1041,47 @@ fit_checks:
       max_interference_mm3: 10.0
       clearance_mm: [0.0, 0.5]
 
+  # The Holes tab's KLIPPT channel (lib/klippt.scad) is no catalogue part,
+  # so no `part:`. It is the clip's own negative, so a base seated in it
+  # grips as in the clip (7.1mm3 here — the host's flat surface trims the
+  # lips' sloped faces a touch — against the clip's 7.7) and nothing
+  # more; and dropped into its pocket the base must be free.
+  - id: klippt/base-seated-in-holes-channel
+    why: >
+      A part cut with the KLIPPT channel has to take a KLIPPT base the way
+      the clip does: seated, gripped by the lips, nothing else touching.
+    a: |
+      include <{repo}/parts/klippt/base.scad>
+      // Seated: centred at the hole's origin, the flange in the gap
+      // (2.65mm down), the neck up through the lips.
+      translate([0, 0, -2.65]) klippt_base(anchor = BOTTOM);
+    b: |
+      use <{repo}/lib/klippt.scad>
+      difference() {{
+          translate([-20, -35, -10]) cube([40, 47, 10]);
+          klippt_channel();
+      }}
+    expect:
+      max_interference_mm3: 10.0
+      clearance_mm: [0.0, 0.5]
+
+  - id: klippt/base-in-holes-channel-pocket
+    why: >
+      The drop-in pocket is where the base goes in: it has to drop in
+      without touching anything.
+    a: |
+      include <{repo}/parts/klippt/base.scad>
+      translate([0, -17.8, -2.65]) klippt_base(anchor = BOTTOM);
+    b: |
+      use <{repo}/lib/klippt.scad>
+      difference() {{
+          translate([-20, -35, -10]) cube([40, 47, 10]);
+          klippt_channel();
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.5]
+
   - id: extrusion2020/tab-in-slot
     part: extrusion2020/tab
     reference_source: nopscadlib

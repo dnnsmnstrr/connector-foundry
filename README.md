@@ -223,6 +223,14 @@ The **Generic shapes** cut a plain cutout of any size instead of a fastener's ho
 (a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius
 — half the narrower side, or the "Pill" tick, makes it a pill with round ends). A rectangle has a
 direction like a slot: its height runs up the face unturned, and it turns in the sidebar.
+The **KLIPPT** presets cut a KLIPPT clip's own channel (`lib/klippt.scad`, from FH's clip, CC BY-SA
+4.0), so the part slides onto a `klippt/base` the way a KLIPPT clip does: its lips, the gap the
+base's flange slides into and its lock are the clip's. Click where the seated base's centre goes;
+the arrow is the way it slides in. "Pocket" adds a drop-in pocket at the entry, for a channel in
+the middle of a face; "Run-out" leaves the entry open instead, with a lead-in of the length you
+choose, for one cut at an edge. references.yaml checks a base in both: free in the pocket, gripped
+seated just as by the clip.
+
 The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets and a
 608 bearing, each 0.2 mm over in diameter and depth.
 
@@ -346,7 +354,7 @@ This repository's own files are MIT. Twelve parts are not, and each catalogue en
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They run `vendor/QuackWorks` code. NonCommercial applies to that use, ShareAlike to adaptations. Upstream licenses *generated tiles* CC-BY, so what you print is unrestricted. |
 | `opengrid/openconnect`, `opengrid/multiconnect` | **CC-BY 4.0** | They run `vendor/opengrid-projects` code (the snap body; the openConnect head; the screw body's thread, `lib/ogthread.scad`, rewritten from it). Attribution to mitufy, nothing else. The Holes tab's openConnect slot and openGrid thread come from the same library; its MultiConnect slot and the MultiConnect head are this repo's MIT code. |
 | `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC BY-NC 4.0** | Mechanism's own STLs (the slim Outie is cut, at render time, from their Adhesive Puck STL), redistributed unmodified under the terms they publish their files under. NonCommercial applies to the files, to prints of them, and to anything fused onto them. The screw pattern's dimensions in `lib/constants.scad` are facts; the generated flange is this repo's MIT code. |
-| `klippt/base`, `klippt/clip_mount` | **CC BY-SA 4.0** | KLIPPT by FH ([printables.com/@bequ3](https://www.printables.com/@bequ3), [model 424351](https://www.printables.com/model/424351-klippt-locking-cable-clip)): the designer's own files (the base STEP tessellated, the screw base and "cable clip small smooth" STLs as published), redistributed unmodified with that credit; the clip mount is cut from the clip at render time. ShareAlike applies to adaptations — a part with a base or a clip mount fused onto it is one, so share it under BY-SA. |
+| `klippt/base`, `klippt/clip_mount`, the Holes tab's KLIPPT channel | **CC BY-SA 4.0** | KLIPPT by FH ([printables.com/@bequ3](https://www.printables.com/@bequ3), [model 424351](https://www.printables.com/model/424351-klippt-locking-cable-clip)): the designer's own files (the base STEP tessellated, the screw base and "cable clip small smooth" STLs as published), redistributed unmodified with that credit; the clip mount and the Holes tab's KLIPPT channel (`lib/klippt.scad`) are cut from the clip at render time. ShareAlike applies to adaptations — a part with a base or a clip mount fused onto it, or a KLIPPT channel cut into it, is one, so share it under BY-SA. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
 | `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile`. Permissive, just not MIT. |
 | everything else | MIT | — |

@@ -78,6 +78,17 @@
 //              what a pin half is made for
 //   teardrop   on a wall, cut as a teardrop pointing up
 //
+// "klippt" — a KLIPPT clip's channel (lib/klippt.scad's klippt_channel(),
+// cut from the designer's own clip, CC BY-SA 4.0): the part slides onto a
+// KLIPPT base like a clip does. The point is where the seated base's
+// centre goes.
+//   pocket   a drop-in pocket at the entry, for a channel in the middle of
+//            a face: the base goes in there and slides along to seat
+//   runout   without the pocket, mm of lead-in past the entry (its lips
+//            held clear of the base's neck), for a channel run out of an
+//            edge
+//   spin     the way the base travels to seat, as a slot's
+//
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
 // into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
 // 20 mm square, and optionally a key into each of its slots so the rail
@@ -118,7 +129,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -153,6 +164,18 @@ export const RAMP_SPACING_MM = 28;
 export const MULTICONNECT_FOOTPRINT = Object.freeze({
   radius: 10.15, // the round end and the channel's half width
   onRamp: 11.7, // the funnel's radius at the surface
+});
+
+// A KLIPPT channel's footprint (lib/klippt.scad's numbers, in its frame:
+// the seated base's centre at the origin, +Y the way it slides in), for
+// the viewer's outline. Drawing only; the cut is the library's.
+export const KLIPPT = Object.freeze({
+  left: -13.98, // the channel's sides (the clip's, turned)
+  right: 11.02,
+  half: 7.5, // half the clip's 15mm length
+  pocket: 20.6, // the drop-in pocket's square, and the far end's room
+  gap: 18.6, // the run-out's lips apart
+  minRunout: 3, // a base's tail (2.5mm past the clip) needs this much
 });
 
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
@@ -195,7 +218,7 @@ export function isConnector(spec) {
 // a 2020 socket. What the quarter-turn buttons turn and a flip turns
 // over with the part.
 export function hasDirection(spec) {
-  return isConnector(spec) || spec?.kind === "rectangle" || spec?.kind === "extrusion";
+  return isConnector(spec) || ["rectangle", "extrusion", "klippt"].includes(spec?.kind);
 }
 
 // A rectangle's corner radius as cut: never more than half its narrower
@@ -253,6 +276,14 @@ export function normalizeSpec(spec) {
       depth: n(spec?.depth, 0),
       chamfer: n(spec?.chamfer, 0),
       teardrop: spec?.teardrop === true,
+    };
+  }
+  if (kind === "klippt") {
+    return {
+      kind,
+      pocket: spec?.pocket !== false,
+      runout: Math.max(KLIPPT.minRunout, n(spec?.runout, 20)),
+      spin: normalizeSpin(spec?.spin),
     };
   }
   if (kind === "pinhole") {
@@ -570,6 +601,8 @@ export function holeFootprintRadius(spec) {
   // cavity rather than anywhere within its half-diagonal.
   if (spec.kind === "rectangle") return Math.min(spec.width, spec.height) / 2;
   if (spec.kind === "pinhole") return PINHOLE.grooveDiameter / 2;
+  // The seated base's neck: the outline shows the rest.
+  if (spec.kind === "klippt") return 9;
   if (spec.kind === "extrusion") return EXTRUSION.profile / 2 + spec.clearance;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
@@ -618,6 +651,7 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   if (holes.some((h) => h.spec.kind === "thread")) lines.push("use <../lib/ogthread.scad>");
   if (holes.some((h) => h.spec.kind === "extrusion")) lines.push("use <../lib/exsocket.scad>");
   if (holes.some((h) => h.spec.kind === "pinhole")) lines.push("use <../lib/pinhole.scad>");
+  if (holes.some((h) => h.spec.kind === "klippt")) lines.push("use <../lib/klippt.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");
   if (holes.length === 0) {
@@ -676,6 +710,7 @@ export function holeLabel(hole, presetName = null) {
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
   if (s.kind === "pinhole") return `BitBeam pin hole ${depth}`;
+  if (s.kind === "klippt") return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
@@ -698,7 +733,7 @@ export function holeLabel(hole, presetName = null) {
 export function holeMeta(hole) {
   const s = hole.spec;
   if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
-  if (isSlot(s)) return `turned ${fmt(s.spin)}°`;
+  if (isSlot(s) || s.kind === "klippt") return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
 
@@ -733,6 +768,9 @@ export function cutterLines(hole, throughLength, extents = null) {
     const bolt = hasBolt(s) ? `, bolt = ${fmt(throughLength)}${s.teardrop && teardropUp(hole.normal) ? `, teardrop = ${fmt(-s.spin)}` : ""}` : "";
     const chamfer = s.chamfer > 0 ? `, chamfer = ${fmt(s.chamfer)}` : "";
     body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    m = slotFrameMatrix(hole);
+  } else if (s.kind === "klippt") {
+    body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "pinhole") {
     // Blind: a groove at the bottom as well as the entry, as a beam's
@@ -934,6 +972,18 @@ export function slotOutline(hole) {
         ...arc(a, -b, r, (3 * Math.PI) / 2, 2 * Math.PI, 8),
       ]);
     } else loop([[-a, -b], [a, -b], [a, b], [-a, b]]);
+    return segments;
+  }
+  if (s.kind === "klippt") {
+    // The channel, the room past its far end, and the pocket or the
+    // run-out (dashed: where the base comes from), then the arrow.
+    const k = KLIPPT;
+    const p = k.pocket / 2;
+    loop([[k.left, -k.half], [k.right, -k.half], [k.right, k.half], [p, k.half], [p, p], [-p, p], [-p, k.half], [k.left, k.half]]);
+    if (s.pocket) loop([[-p, -k.half - k.pocket], [p, -k.half - k.pocket], [p, -k.half], [-p, -k.half]], true);
+    else loop([[-k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half], [-k.gap / 2, -k.half]], true);
+    polyline([[0, -3], [0, 5]]);
+    polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
     return segments;
   }
   if (s.kind === "extrusion") {

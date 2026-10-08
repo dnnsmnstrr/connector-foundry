@@ -146,7 +146,7 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt"].includes(preset.spec.kind), `${preset.id} kind`);
       if ("spin" in preset.spec) assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
@@ -600,4 +600,27 @@ test("a new hole never takes an id the document already has", () => {
   const { doc, hole } = addHole({ ...plateDoc(), holes: taken }, { point: [0, 9, 4], normal: [0, 0, 1] });
   assert.ok(!taken.some((h) => h.id === hole.id));
   assert.equal(new Set(doc.holes.map((h) => h.id)).size, doc.holes.length);
+});
+
+test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a pocket or a run-out", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("klippt-pocket").spec, presetId: "klippt-pocket" });
+  ({ doc } = addHole(doc, { point: [0, -20, 2], normal: [0, -1, 0], spec: { ...getPreset("klippt-open").spec, runout: 12, spin: 90 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /^use <\.\.\/lib\/klippt\.scad>$/m);
+  assert.doesNotMatch(scad, /BOSL2/);
+  assert.match(scad, /klippt_channel\(pocket = true, runout = 0, overshoot = 1\);/);
+  assert.match(scad, /klippt_channel\(pocket = false, runout = 12, overshoot = 1\);/);
+  // The slots' frame: unturned on a level face, the base slides along +Y.
+  assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
+  assert.equal(holeLabel(doc.holes[0]), "KLIPPT channel, drop-in pocket");
+  assert.equal(holeLabel(doc.holes[1]), "KLIPPT channel, 12 mm run-out, 90°");
+  assert.equal(holeMeta(doc.holes[1]), "turned 90°");
+  // It turns and flips like a slot; the presets differ in the entry alone.
+  assert.equal(rotateHoles(doc, [doc.holes[0].id], 90).holes[0].spec.spin, 90);
+  assert.ok(specMatchesPreset({ ...getPreset("klippt-pocket").spec, spin: 180 }, "klippt-pocket"));
+  assert.deepEqual(presetSpecFor(doc.holes[1].spec, getPreset("klippt-pocket").spec), { kind: "klippt", pocket: true, runout: 12, spin: 90 });
+  // A run-out shorter than a base's tail is lengthened.
+  assert.equal(normalizeSpec({ kind: "klippt", pocket: false, runout: 1 }).runout, 3);
+  // Its outline closes, with the arrow.
+  assert.ok(slotOutline(doc.holes[0]).length > 12);
 });
