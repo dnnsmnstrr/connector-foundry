@@ -22,7 +22,13 @@ module basics_plate(w = 42, d = 42, t = 4, r = 4, bolts = false, bolt_r = 1.7, b
 
     attachable(anchor, spin, orient, size = size, anchors = anchors) {
         difference() {
-            cuboid(size, rounding = r, edges = "Z");
+            // Same solid as cuboid(size, rounding = r, edges = "Z"), built
+            // without its 3D hull(): the browser's openscad-wasm hulls with
+            // CGAL, which asserts on cuboid's near-coplanar corner pieces
+            // at some sizes (160x100 among them). Same arc segments as
+            // cuboid's (a multiple of 4), so the outline is identical.
+            linear_extrude(height = t, center = true)
+                rect([w, d], rounding = r, $fn = quantup(segs(r), 4));
             if (bolts)
                 corner_pattern([w, d], bolt_inset)
                     through_hole(bolt_r + FIT_CLEARANCE, t);
