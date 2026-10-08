@@ -170,7 +170,7 @@ export const MULTICONNECT_FOOTPRINT = Object.freeze({
 // the seated base's centre at the origin, +Y the way it slides in), for
 // the viewer's outline. Drawing only; the cut is the library's.
 export const KLIPPT = Object.freeze({
-  left: -13.98, // the channel's sides (the clip's, turned)
+  left: -10.68, // the channel's sides (the clip's, turned)
   right: 11.02,
   half: 7.5, // half the clip's 15mm length
   pocket: 20.6, // the drop-in pocket's square, and the far end's room

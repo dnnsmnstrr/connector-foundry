@@ -13,7 +13,7 @@
 // its full 15mm length — everything that is not clip. So the lips, the
 // 1mm gap the base's flange slides into, the lock (the lips close to
 // 15.46mm near one end, onto the base neck's corners) and the springy
-// arm on one side are all the clip's.
+// arm's face on one side are all the clip's.
 //
 // The surface the cutter goes into sits at the highest point of the
 // lips' faces (they slope up ~0.6mm toward their tips), so the cut
@@ -42,10 +42,15 @@ KLIPPT_LENGTH      = 15;
 KLIPPT_SURFACE_Y   = 112.35;   // just above the lips' faces (112.32 at most)
 KLIPPT_FLOOR_Y     = 115.9;    // just above the floor's underside (115.81 at most)
 // The channel's box across: inside the hollow in the clip's left wall
-// (out to 143.4), and on the right out to 0.1mm short of the wall's
-// outside (168.7), so the room behind the springy arm is the clip's too
-// — exactly at the wall's face, the cut leaves a zero-thickness edge.
-KLIPPT_BOX_X       = [143.6, 168.6];
+// (out to 143.4), and on the right inside the springy arm (its outside
+// comes in to 165.50 mid-length, where its lower edge rounds off at the
+// surface). The room behind that arm is open air on a clip, for it to
+// flex into; cut into a part it was only a groove in the surface beside
+// the channel, so the part keeps it — the arm's channel face is still
+// the clip's. At the clip's ends, where the wall stands further out
+// (167.02), that leaves a sliver of the flange gap uncut, 0.68mm
+// outside the base's flange.
+KLIPPT_BOX_X       = [143.6, 165.3];
 // The entry end's lip profile, for the runout: a section through the
 // entry end's constant stretch (z 11.5 to 15).
 KLIPPT_ENTRY_Z     = 13.5;
