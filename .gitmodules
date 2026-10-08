@@ -19,3 +19,9 @@
 [submodule "vendor/opengrid-projects"]
 	path = vendor/opengrid-projects
 	url = https://github.com/mitufy/opengrid-projects.git
+[submodule "vendor/hsw-customizable"]
+	path = vendor/hsw-customizable
+	url = https://github.com/geru/3d-scad-hsw-customizable.git
+[submodule "vendor/hsw-clip"]
+	path = vendor/hsw-clip
+	url = https://github.com/geru/3d-scad-hsw-clip.git

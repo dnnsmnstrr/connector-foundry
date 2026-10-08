@@ -1,8 +1,9 @@
 # Connector Foundry
 
-Printable mounting interfaces — Gridfinity, openGrid, GoPro, DeckMate, BitBeam, 2020 extrusion —
-as parametric OpenSCAD parts that share one slot convention, so any of them can be combined with
-any other. Export a single part as STL, or compose several in the browser and export the result.
+Printable mounting interfaces — Gridfinity, openGrid, Honeycomb Storage Wall, GoPro, DeckMate,
+BitBeam, 2020 extrusion — as parametric OpenSCAD parts that share one slot convention, so any of
+them can be combined with any other. Export a single part as STL, or compose several in the browser
+and export the result.
 
 Three ways to get a part from the same `.scad` sources:
 
@@ -24,6 +25,8 @@ only the slot convention:
 | [GoProScad](https://github.com/ridercz/GoProScad) | MIT | `gopro/*` |
 | [QuackWorks](https://github.com/AndyLevesque/QuackWorks) | CC-BY-NC-SA 4.0 | `opengrid/board`, `opengrid/snap` |
 | [openGrid-projects](https://github.com/mitufy/opengrid-projects) | CC-BY 4.0 | `opengrid/openconnect`, `opengrid/multiconnect`, the Holes tab's openConnect slot and openGrid thread |
+| [3d-scad-hsw-customizable](https://github.com/geru/3d-scad-hsw-customizable) | CC-BY 4.0 | `hsw/wall` |
+| [3d-scad-hsw-clip](https://github.com/geru/3d-scad-hsw-clip) | MIT | `hsw/insert` |
 | [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | BSD-3-Clause | `bitbeam/beam`, `bitbeam/plate` |
 | [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/pin`, `bitbeam/axle` |
 | [AluminumExtrusionProfile](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) | Apache-2.0 | `extrusion2020/rail` |
@@ -289,6 +292,8 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Universal base](docs/img/deckmate_universal.png)<br>Universal base | DeckMate / Mechanism | exact | CC-BY-NC-4.0 | [Mechanism's Deck Mate Universal STL — the manufacturer's own model, imported unmodified. CC BY-NC 4.0 — see README "Licensing".](https://getmechanism.com/pages/digital-files) | Mechanism's 56.7 x 28.4 x 3mm base plate: hole pattern down as "bot", adhesive face up as "mount". Stack an Outie on "bot" with the screwed joint (no flange needed). Prints flat either way up. |
 | ![Base](docs/img/klippt_base.png)<br>Base | KLIPPT | exact | CC-BY-SA-4.0 | [KLIPPT by FH (printables.com/@bequ3) — the designer's own base models (the base STEP, tessellated; the screw base STL), imported unmodified. CC BY-SA 4.0 — see README "Licensing".](https://www.printables.com/model/424351-klippt-locking-cable-clip) | Flange on the bed, no supports. A KLIPPT clip slides on from the side, its lips under the 20mm flange, gripping the 18mm neck. The neck's flat face is "mount": stick or fuse it onto a part, or with screw use the countersunk hole (head on the flange side, under the clip). |
 | ![Clip mount](docs/img/klippt_clip_mount.png)<br>Clip mount | KLIPPT | exact | CC-BY-SA-4.0 | [KLIPPT by FH (printables.com/@bequ3) — cut at render time from the designer's own "cable clip small smooth" STL (unmodified): its lips, flange gap and lock as they are, the top filled flat. CC BY-SA 4.0 — see README "Licensing".](https://www.printables.com/model/424351-klippt-locking-cable-clip) | The counterpart of the KLIPPT base: fuse its flat top ("mount") onto a part, and the part slides onto a base like a clip. Lips down as "bot". plate is the solid above the clip's floor. On its own, print it on its end (slide direction up), the way KLIPPT prints its clips: the floor's arch then needs no bridge. |
+| ![Wall panel](docs/img/hsw_wall.png)<br>Wall panel | Honeycomb Storage Wall | exact | CC-BY-4.0 | [Honeycomb Storage Wall by RostaP; each cell is halfhex() from geru's 3d-scad-hsw-customizable (after Xander and EdwinEesting, CC-BY 4.0), vendored, laid out to match its own grid().](https://github.com/geru/3d-scad-hsw-customizable) | Front face on the bed (the 20mm openings), no supports. Columns are rows cells tall, every other one half a cell lower. flat_edges trims the panel to a rectangle with a flat wall all round, so panels butt together; the end columns are then half cells. "mount" is the back, against the wall. |
+| ![Insert](docs/img/hsw_insert.png)<br>Insert | Honeycomb Storage Wall | exact | MIT | [geru's 3d-scad-hsw-clip (Hugh Kern, MIT, after KYZ's V2 clips), vendored](https://github.com/geru/3d-scad-hsw-clip) | Base on the bed, clip up, no supports. A one-way clip: push it into any HSW cell and its spring snaps it behind the lip; press the spring to take it out. The base's top is "mount", for fusing a hook or holder onto. base hex covers the cell, a millimetre short of its neighbours; rect is a bar across it. |
 | ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc](https://github.com/ondratu/bitbeam-lib) | Print flat, no supports. 4.8mm holes on an 8mm pitch through top and bottom, and through the sides with side_holes on. LEGO Technic-compatible. |
 | ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc. Nobody publishes a model of a plate like this, so there is no reference geometry to check against.](https://github.com/ondratu/bitbeam-lib) | Flat on the bed, no supports. Every hole is a real BitBeam hole, top and side. Side holes need height 1 (8mm); go thinner and turn side_holes off. Sizes are in 8mm units. |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Generic geometry, not tied to an external spec | Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm with 4mm corners by default — one Gridfinity unit, so it lines up with a Gridfinity base or baseplate. |
@@ -350,7 +355,7 @@ it in `refs/manual/` and uncomment the example in `references.yaml`.
 
 ## Licensing
 
-This repository's own files are MIT. Twelve parts are not, and each catalogue entry says so:
+This repository's own files are MIT. Thirteen parts are not, and each catalogue entry says so:
 
 | Parts | Licence | Why |
 | --- | --- | --- |
@@ -358,6 +363,7 @@ This repository's own files are MIT. Twelve parts are not, and each catalogue en
 | `opengrid/openconnect`, `opengrid/multiconnect` | **CC-BY 4.0** | They run `vendor/opengrid-projects` code (the snap body; the openConnect head; the screw body's thread, `lib/ogthread.scad`, rewritten from it). Attribution to mitufy, nothing else. The Holes tab's openConnect slot and openGrid thread come from the same library; its MultiConnect slot and the MultiConnect head are this repo's MIT code. |
 | `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC BY-NC 4.0** | Mechanism's own STLs (the slim Outie is cut, at render time, from their Adhesive Puck STL), redistributed unmodified under the terms they publish their files under. NonCommercial applies to the files, to prints of them, and to anything fused onto them. The screw pattern's dimensions in `lib/constants.scad` are facts; the generated flange is this repo's MIT code. |
 | `klippt/base`, `klippt/clip_mount`, the Holes tab's KLIPPT channel | **CC BY-SA 4.0** | KLIPPT by FH ([printables.com/@bequ3](https://www.printables.com/@bequ3), [model 424351](https://www.printables.com/model/424351-klippt-locking-cable-clip)): the designer's own files (the base STEP tessellated, the screw base and "cable clip small smooth" STLs as published), redistributed unmodified with that credit; the clip mount and the Holes tab's KLIPPT channel (`lib/klippt.scad`) are cut from the clip at render time. ShareAlike applies to adaptations — a part with a base or a clip mount fused onto it, or a KLIPPT channel cut into it, is one, so share it under BY-SA. |
+| `hsw/wall` | **CC-BY 4.0** | It runs `vendor/hsw-customizable` code (Xander, EdwinEesting, geru). Attribution, nothing else. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
 | `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile`. Permissive, just not MIT. |
 | everything else | MIT | — |
@@ -365,7 +371,9 @@ This repository's own files are MIT. Twelve parts are not, and each catalogue en
 BitBeam's own site (bitbeam.cc) is CC-BY-NC-SA and its STL pack is not used; the geometry comes
 from `bitbeam-lib`, a separately and permissively licensed implementation by the same author, and
 from `technic.scad` for the pin and axle (a BitBeam pin *is* a LEGO Technic pin). NopSCADlib (GPL)
-is measured, never called or vendored. `openscad-wasm` bundles OpenSCAD itself (GPL-2.0) as an
+is measured, never called or vendored. The Honeycomb Storage Wall is RostaP's design, whose own
+models are CC BY-NC; neither is used here. The wall and the insert run two OpenSCAD
+implementations their authors publish under CC-BY 4.0 and MIT. `openscad-wasm` bundles OpenSCAD itself (GPL-2.0) as an
 external tool the browser runs, the same way the CLI shells out to `openscad`. The web app's STEP
 reader, `occt-import-js`, is Open CASCADE Technology (LGPL-2.1 with the OCCT exception) compiled
 to WebAssembly and loaded as a separate file only when a STEP file is imported.

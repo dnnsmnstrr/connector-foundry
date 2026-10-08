@@ -314,6 +314,32 @@ gridfinity/bin:
     - 41.5
     - 21.0
     volume_mm3: 18263.72
+hsw/insert:
+  default:
+    bbox:
+    - 26.251
+    - 22.734
+    - 11.0
+    volume_mm3: 1918.9
+  rect:
+    bbox:
+    - 10.0
+    - 23.6
+    - 11.0
+    volume_mm3: 1312.13
+hsw/wall:
+  default:
+    bbox:
+    - 88.583
+    - 82.62
+    - 8.0
+    volume_mm3: 10861.0
+  flat-edges:
+    bbox:
+    - 81.753
+    - 82.62
+    - 8.0
+    volume_mm3: 15366.55
 klippt/base:
   default:
     bbox:

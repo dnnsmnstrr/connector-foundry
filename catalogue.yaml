@@ -540,6 +540,57 @@ parts:
       - name: thick-plate
         params: { plate: 3 }
 
+  - id: hsw/wall
+    system: Honeycomb Storage Wall
+    name: Wall panel
+    file: parts/hsw/wall.scad
+    module: hsw_wall
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      Honeycomb Storage Wall by RostaP; each cell is halfhex() from geru's
+      3d-scad-hsw-customizable (after Xander and EdwinEesting, CC-BY 4.0),
+      vendored, laid out to match its own grid().
+    source_url: https://github.com/geru/3d-scad-hsw-customizable
+    print_note: >-
+      Front face on the bed (the 20mm openings), no supports. Columns are
+      rows cells tall, every other one half a cell lower. flat_edges trims
+      the panel to a rectangle with a flat wall all round, so panels butt
+      together; the end columns are then half cells. "mount" is the back,
+      against the wall.
+    anchors: [bot]
+    defaults:
+      cols: 4
+      rows: 3
+      flat_edges: false
+    variants:
+      - name: flat-edges
+        params: { cols: 5, rows: 4, flat_edges: true }
+
+  - id: hsw/insert
+    system: Honeycomb Storage Wall
+    name: Insert
+    file: parts/hsw/insert.scad
+    module: hsw_insert
+    confidence: exact
+    source: geru's 3d-scad-hsw-clip (Hugh Kern, MIT, after KYZ's V2 clips), vendored
+    source_url: https://github.com/geru/3d-scad-hsw-clip
+    print_note: >-
+      Base on the bed, clip up, no supports. A one-way clip: push it into
+      any HSW cell and its spring snaps it behind the lip; press the spring
+      to take it out. The base's top is "mount", for fusing a hook or
+      holder onto. base hex covers the cell, a millimetre short of its
+      neighbours; rect is a bar across it.
+    anchors: [bot]
+    defaults:
+      base: hex
+      base_h: 3
+    options:
+      base: [hex, rect]
+    variants:
+      - name: rect
+        params: { base: rect }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

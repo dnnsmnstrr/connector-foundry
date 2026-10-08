@@ -43,6 +43,11 @@ export const SOURCE_DIRS = [
   "vendor/bitbeam-lib",
   "vendor/technic.scad/Technic.scad",
   "vendor/AluminumExtrusionProfile/AluminumExtrusionProfile.scad",
+  // The HSW wall's one file (a customizer with a live top-level call,
+  // which `use` skips) and the clip library, whose .obj exports are not
+  // bundled.
+  "vendor/hsw-customizable/custom-honeycomb-wall-v2.3.scad",
+  "vendor/hsw-clip",
   "lib",
   "parts",
   "assemblies",

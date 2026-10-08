@@ -154,6 +154,29 @@ sources:
       rail is checked against nopscadlib's E2020t below, as a record of
       how far this printable profile is from real extrusion.
 
+  hsw-customizable:
+    kind: submodule
+    path: vendor/hsw-customizable
+    license: CC-BY-4.0
+    url: https://github.com/geru/3d-scad-hsw-customizable
+    note: >
+      Vendored. parts/hsw/wall.scad calls its halfhex() for every cell
+      and lays the panel out itself, since upstream's grid() sizes the
+      panel from customizer variables `use` cannot reach. The checks
+      below render upstream's own grid() (its file included, those
+      variables overridden) to hold the layout to it. Honeycomb Storage
+      Wall by RostaP; this OpenSCAD version by Xander, EdwinEesting and
+      geru (Hugh Kern).
+
+  hsw-clip:
+    kind: submodule
+    path: vendor/hsw-clip
+    license: MIT
+    url: https://github.com/geru/3d-scad-hsw-clip
+    note: >
+      Vendored. parts/hsw/insert.scad calls its hsw_clip() directly; the
+      fit check below seats it in a cell of the other upstream's wall.
+
 # ---------------------------------------------------------------------
 # Shape checks: is our part the same solid as the reference?
 # ---------------------------------------------------------------------
@@ -746,6 +769,61 @@ shape_checks:
       max_surface_max_mm: 1.5
       min_section_iou: 0.90
 
+  # Upstream's grid() at the size our 4 x 3 default is: its top-level
+  # call, its print-bed numbers set so it fills exactly four columns of
+  # three, column 0 the high one as ours. Upstream puts column 0's top
+  # cell at [side, -outside / 2]; ours is moved there.
+  - id: hsw/wall-4x3
+    part: hsw/wall
+    reference_source: hsw-customizable
+    ours: |
+      include <{repo}/parts/hsw/wall.scad>
+      ext = hsw_wall_extent(4, 3, false);
+      translate([HSWX_SIDE + (ext[0][0] + ext[0][1]) / 2,
+                 -HSWX_OUTSIDE / 2 + (ext[1][0] + ext[1][1]) / 2, 0])
+          hsw_wall(4, 3, anchor = BOTTOM);
+    reference: |
+      include <{hsw-customizable}/custom-honeycomb-wall-v2.3.scad>
+      flip_staggering = false;
+      max_grid_width = 4.3 * 1.5 * 23.6 / sqrt(3);
+      max_grid_height = 3.7 * 23.6;
+    align: none
+    sections_z: [0.25, 3.0, 5.5, 7.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # The same with all four of upstream's flat edges, 5 x 4 (the half
+  # columns at either end count). Upstream leaves a 0.01mm sliver at each
+  # trimmed cell's outer point (parts/hsw/wall.scad clips them off), so
+  # its bounding box and surface are not ours: volume and sections only.
+  - id: hsw/wall-5x4-flat-edges
+    part: hsw/wall
+    params: {cols: 5, rows: 4, flat_edges: true}
+    reference_source: hsw-customizable
+    ours: |
+      include <{repo}/parts/hsw/wall.scad>
+      ext = hsw_wall_extent(5, 4, true);
+      translate([(ext[0][0] + ext[0][1]) / 2, (ext[1][0] + ext[1][1]) / 2, 0])
+          hsw_wall(5, 4, flat_edges = true, anchor = BOTTOM);
+    reference: |
+      include <{hsw-customizable}/custom-honeycomb-wall-v2.3.scad>
+      flip_staggering = false;
+      max_grid_width = 4.3 * 1.5 * 23.6 / sqrt(3);
+      max_grid_height = 3.7 * 23.6;
+      edge_left = true;
+      edge_top = true;
+      edge_right = true;
+      edge_bottom = true;
+    align: none
+    sections_z: [0.25, 3.0, 5.5, 7.0]
+    tolerances:
+      max_volume_pct: 0.1
+      min_section_iou: 0.999
+
 # ---------------------------------------------------------------------
 # Fit checks: do two solids actually go together?
 #
@@ -1209,3 +1287,27 @@ fit_checks:
     expect:
       max_interference_mm3: 1.0
       clearance_mm: [0.0, 1.0]
+
+  # An insert pushed home in a cell of a wall: clip up into the cell from
+  # the front face (the wall's BOTTOM), its base flat on that face. Both
+  # are this repo's parts, but each is an upstream's geometry: geru's
+  # clip in the other upstream's cell. The clip is a snap fit, its body
+  # the 20mm the cell's front is and its locks the 22mm the recess
+  # behind is. They overlap only where each lock's ramp starts (5mm in)
+  # against the cell's ledge (5.1 to 6mm in), about 0.5mm3 a side: the
+  # grip. Turned a quarter, the wrong way for this cell, it is 41mm3.
+  - id: hsw/insert-in-wall
+    part: hsw/insert
+    reference_source: hsw-customizable
+    why: >
+      The clip has to go into the wall's cell and lock behind its lip:
+      flush on the front face, no more overlap than the snap's touch.
+    a: |
+      include <{repo}/parts/hsw/insert.scad>
+      translate([0, 0, HSWX_DEPTH]) rotate([180, 0, 0]) hsw_insert(anchor = "bot");
+    b: |
+      include <{repo}/parts/hsw/wall.scad>
+      hsw_wall(1, 1, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 2.0
+      clearance_mm: [0.0, 0.5]
