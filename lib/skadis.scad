@@ -46,9 +46,9 @@ module skadis_slot_outline(fit = SKADIS_SLOT_FIT) {
     hull() for (s = [-1, 1]) translate([0, s * (SKADIS_SLOT_H - w) / 2]) circle(d = w, $fn = 48);
 }
 
-// Slot centres for a board `cols` slots across (in a full row) and
-// `rows` rows up: one per cell of a 2cols x rows grid where (i + j) is
-// even, the board centred on the origin.
+// Slot centres for a board `cols` slots across (in a full row; a half
+// is one more cell) and `rows` rows up: one per cell of a 2cols x rows
+// grid where (i + j) is even, the board centred on the origin.
 function skadis_slot_centres(cols, rows) =
     let (w = 2 * cols * SKADIS_PITCH, h = rows * SKADIS_PITCH)
     [for (j = [0 : rows - 1], i = [0 : 2 * cols - 1]) if ((i + j) % 2 == 0)

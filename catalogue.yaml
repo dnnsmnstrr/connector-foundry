@@ -605,7 +605,9 @@ parts:
     print_note: >-
       Flat on the bed, no supports. 5mm thick, slots 40mm apart along a row
       and rows 20mm apart, every other row shifted 20mm, as on a Skådis
-      board; cols counts the slots in a row. The slots are cut 5.2mm wide,
+      board; cols counts the slots in a row, in halves: 2.5 is five 20mm
+      cells across, which makes the board symmetric left to right (a whole
+      number leaves one side starting on a gap). The slots are cut 5.2mm wide,
       so moulded Skådis hooks go in. A board is exactly 2 x cols x rows
       20mm cells, so boards butt together. "mount" is the back, against the
       wall.
@@ -616,6 +618,8 @@ parts:
     variants:
       - name: 3x6
         params: { cols: 3, rows: 6 }
+      - name: symmetric
+        params: { cols: 2.5, rows: 5 }
 
   - id: skadis/peg
     system: Skådis
