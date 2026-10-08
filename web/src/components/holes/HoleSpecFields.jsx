@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
-import { EXTRUSION, THREAD, isPill } from "../../lib/screwHoles.js";
+import { EXTRUSION, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -35,7 +35,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // brings it back rather than starting from nothing. (A thread's
   // fallback is one a full-size screw fits; a 2020 socket's, its
   // presets' depth.)
-  const fallbackDepth = { thread: 8, extrusion: 15 }[spec.kind] ?? 6;
+  const fallbackDepth = { thread: 8, extrusion: 15, pinhole: PINHOLE.unit }[spec.kind] ?? 6;
   const [lastDepth, setLastDepth] = useState(spec.depth > 0 ? spec.depth : fallbackDepth);
   const through = !mixed.has("depth") && !(spec.depth > 0);
 
@@ -251,6 +251,21 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         </div>
         {throughField}
         {teardropField("cut it")}
+      </div>
+    );
+  }
+
+  if (spec.kind === "pinhole") {
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">{depthField}</div>
+        {throughField}
+        {teardropField("cut it")}
+        <p className="muted holes-params-note">
+          A BitBeam beam's hole: Ø{PINHOLE.diameter}, with the groove a BitBeam / LEGO Technic pin's tip clicks into. {PINHOLE.unit} mm
+          deep is one beam, what a pin half is made for; a blind hole gets a groove at the bottom too, a through one only at
+          the entry (make the wall {PINHOLE.unit} mm for the pin to click at the far side).
+        </p>
       </div>
     );
   }

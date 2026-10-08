@@ -146,7 +146,7 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole"].includes(preset.spec.kind), `${preset.id} kind`);
       if ("spin" in preset.spec) assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
@@ -571,4 +571,20 @@ test("repeat: copies off the model, or on a hole already there, are skipped", ()
   assert.equal(r.skipped, 2);
   // A pattern is capped: no thousand cutters from a typo.
   assert.equal(repeatPoints(hole, { pattern: "grid", columns: 50, rows: 50 }).copies.length, 99);
+});
+
+test("a BitBeam pin hole is cut by lib/pinhole.scad: grooves at both ends when blind, the entry only when through", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("bitbeam-pin").spec, presetId: "bitbeam-pin" });
+  ({ doc } = addHole(doc, { point: [-10, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("bitbeam-pin").spec, depth: 0 } }));
+  ({ doc } = addHole(doc, { point: [0, -20, 2], normal: [0, -1, 0], spec: { ...getPreset("bitbeam-pin").spec, teardrop: true } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /^use <\.\.\/lib\/pinhole\.scad>$/m);
+  assert.doesNotMatch(scad, /BOSL2/);
+  assert.match(scad, /bb_pinhole\(depth = 8, far_groove = true, overshoot = 1\);/);
+  assert.match(scad, /bb_pinhole\(depth = 50, far_groove = false, overshoot = 1\);/);
+  // On a wall, a teardrop in the upright frame.
+  assert.match(scad, /bb_pinhole\(depth = 8, far_groove = true, teardrop = 0, overshoot = 1\);/);
+  assert.equal(holeLabel(doc.holes[0]), "BitBeam pin hole 8 deep");
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 2.5);
+  assert.deepEqual(normalizeSpec({ kind: "pinhole", depth: -2 }), { kind: "pinhole", depth: 8, teardrop: false });
 });

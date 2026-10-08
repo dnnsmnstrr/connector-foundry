@@ -22,6 +22,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "cylinder" || spec.kind === "rectangle") return <ShapeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
+  if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -458,6 +459,48 @@ function ExtrusionIcon({ spec, title, className }) {
           <polygon points={at(rail)} />
           <circle cx={CX} cy={cy} r={2.5 * s} className="screw-icon-socket" />
         </g>
+      </g>
+    </svg>
+  );
+}
+
+// A BitBeam pin hole in section: the Ø4.8 bore with its grooves (a
+// notch either side, 0.8 mm in from the entry and, blind, from the
+// bottom), and a Technic pin in it — its collar on the surface, its
+// slit half down the bore. To scale, one beam (8 mm) deep.
+function PinholeIcon({ spec, title, className }) {
+  const s = 3;
+  const boreW = 4.8 * s;
+  const grooveW = 5.6 * s; // drawn a little wider than 5.0, or it would not show
+  const through = !(spec.depth > 0);
+  const depth = through ? BOTTOM_Y + 1 - SURFACE_Y : Math.min(spec.depth * s, MAX_SHOWN_DEPTH);
+  const groove = (y) => rect(CX - grooveW / 2, y - 1.1, grooveW, 2.2);
+  const pinW = 4.6 * s;
+  const pinBottom = SURFACE_Y + Math.min(7.8 * s, depth) - 1;
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">
+        {rect(CX - boreW / 2, SURFACE_Y - 1, boreW, depth + 1)}
+        {groove(SURFACE_Y + 0.8 * s)}
+        {!through && groove(SURFACE_Y + depth - 0.8 * s)}
+      </g>
+      <g className="screw-icon-fastener">
+        {rect(CX - pinW / 2, SURFACE_Y, pinW, pinBottom - SURFACE_Y, { rx: 1 })}
+        {rect(CX - (6.2 * s) / 2, SURFACE_Y - 2.4, 6.2 * s, 2.4, { rx: 0.6 })}
+        {rect(CX - pinW / 2, SURFACE_Y - 9, pinW, 6.6, { rx: 1 })}
+        {rect(CX - 0.8, SURFACE_Y + (pinBottom - SURFACE_Y) / 2, 1.6, (pinBottom - SURFACE_Y) / 2, { className: "screw-icon-socket" })}
       </g>
     </svg>
   );

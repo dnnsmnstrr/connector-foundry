@@ -256,6 +256,14 @@ export const SCREW_PRESETS = [
     screw: { style: "none", nominal: 3, headDiameter: 0, headHeight: 0 },
   },
   {
+    id: "bitbeam-pin",
+    name: "BitBeam / Technic pin hole",
+    short: "BitBeam",
+    group: "Plain",
+    spec: { kind: "pinhole", depth: 8, teardrop: false },
+    screw: { style: "bitbeam-pin" },
+  },
+  {
     id: "dowel-6",
     name: "6 mm dowel / pin",
     group: "Plain",

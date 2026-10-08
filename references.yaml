@@ -581,6 +581,34 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  # The Holes tab's BitBeam pin hole (lib/pinhole.scad) is no catalogue
+  # part, so no `part:`. Cut one beam deep into an 8 mm cube it has to be
+  # the hole bitbeam-lib's holes() puts in a beam — bore and both grooves
+  # — or a pin will not click into it the way it does into a beam.
+  - id: bitbeam/pinhole-vs-beam-hole
+    reference_source: bitbeam-lib
+    ours: |
+      include <{repo}/lib/pinhole.scad>
+      $fn = 25;
+      difference() {{
+          translate([-4, -4, -8]) cube(8);
+          bb_pinhole(depth = 8);
+      }}
+    reference: |
+      include <{bitbeam-lib}/bitbeam-lib.scad>
+      difference() {{
+          translate([-4, -4, -8]) cube(8);
+          translate([0, 0, -4]) holes(1, 1);
+      }}
+    align: none
+    sections_z: [-7.2, -4.0, -0.8]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # Same purpose for the two technic.scad wrappers: the wrapper only
   # centres the library's part and declares its envelope, so it must be
   # the library's part, at the $fn the wrapper pins down. Both sit on

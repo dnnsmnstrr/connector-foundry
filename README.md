@@ -177,7 +177,9 @@ countersink (with its angle), or a hex pocket for a nut trap — from a preset o
 presets cover the usual suspects, each drawn as a cross-section so you can see what it cuts:
 M2–M6 socket caps (ISO 4762), M3–M6 countersunk (ISO 10642), button heads (ISO 7380), heat-set
 insert bores, thread-forming core holes for a machine screw straight into plastic, nut traps
-(ISO 4032), wood screws and their pilots, a plain hole and a dowel. Clearances are ISO 273 medium;
+(ISO 4032), wood screws and their pilots, a plain hole, a dowel, and a **BitBeam / LEGO Technic
+pin hole** — a beam's own hole (Ø4.8 with the groove a pin's tip clicks into, `lib/pinhole.scad`,
+checked against bitbeam-lib's beam), one beam (8 mm) deep with a groove at its bottom too, or through. Clearances are ISO 273 medium;
 treat every one as a starting point for your printer and measure the first print. A selected hole
 can be edited on its own, and whatever screw was picked or edited last is what the next holes get.
 Shift-click holes — in the list, or their rings in the scene — to select several: the editor then

@@ -70,6 +70,14 @@
 //   chamfer       mm of 45° lead-in round the opening; 0 = none
 //   spin          degrees it is turned on its face, as for a slot
 //
+// "pinhole" — a BitBeam / LEGO Technic pin hole (lib/pinhole.scad's
+// bb_pinhole()): Ø4.8 with the groove a pin's tip lip clicks into, as a
+// BitBeam beam's holes have.
+//   depth      0 = through (entry groove only), else a blind hole this
+//              deep with a groove near its bottom too — 8, one beam, is
+//              what a pin half is made for
+//   teardrop   on a wall, cut as a teardrop pointing up
+//
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
 // into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
 // 20 mm square, and optionally a key into each of its slots so the rail
@@ -110,7 +118,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -146,6 +154,10 @@ export const MULTICONNECT_FOOTPRINT = Object.freeze({
   radius: 10.15, // the round end and the channel's half width
   onRamp: 11.7, // the funnel's radius at the surface
 });
+
+// A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
+// BITBEAM_UNIT, lib/pinhole.scad's groove), for the viewer and the icon.
+export const PINHOLE = Object.freeze({ diameter: 4.8, grooveDiameter: 5, unit: 8 });
 
 // A 2020 socket's numbers (lib/constants.scad's EX_PROFILE, EX_SLOT_OPEN,
 // and EX_LIP_T + EX_CHANNEL_D, the keys' reach in from the face), for the
@@ -240,6 +252,13 @@ export function normalizeSpec(spec) {
       diameter: Math.max(0.1, n(spec?.diameter, 10)),
       depth: n(spec?.depth, 0),
       chamfer: n(spec?.chamfer, 0),
+      teardrop: spec?.teardrop === true,
+    };
+  }
+  if (kind === "pinhole") {
+    return {
+      kind,
+      depth: n(spec?.depth, PINHOLE.unit),
       teardrop: spec?.teardrop === true,
     };
   }
@@ -539,6 +558,7 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
   if (spec.kind === "cylinder") return spec.diameter / 2;
   if (spec.kind === "rectangle") return Math.hypot(spec.width, spec.height) / 2;
+  if (spec.kind === "pinhole") return PINHOLE.grooveDiameter / 2;
   if (spec.kind === "extrusion") return ((EXTRUSION.profile + 2 * spec.clearance) / 2) * Math.SQRT2;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
@@ -586,6 +606,7 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   if (holes.some((h) => h.spec.kind === "multiconnect")) lines.push("use <../lib/multiconnect.scad>");
   if (holes.some((h) => h.spec.kind === "thread")) lines.push("use <../lib/ogthread.scad>");
   if (holes.some((h) => h.spec.kind === "extrusion")) lines.push("use <../lib/exsocket.scad>");
+  if (holes.some((h) => h.spec.kind === "pinhole")) lines.push("use <../lib/pinhole.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");
   if (holes.length === 0) {
@@ -643,6 +664,7 @@ export function holeLabel(hole, presetName = null) {
   }
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
+  if (s.kind === "pinhole") return `BitBeam pin hole ${depth}`;
   if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
@@ -701,6 +723,13 @@ export function cutterLines(hole, throughLength, extents = null) {
     const chamfer = s.chamfer > 0 ? `, chamfer = ${fmt(s.chamfer)}` : "";
     body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
+  } else if (s.kind === "pinhole") {
+    // Blind: a groove at the bottom as well as the entry, as a beam's
+    // far face has. A teardrop points along the upright frame's +Y.
+    const teardrop = s.teardrop && teardropUp(hole.normal);
+    const blind = s.depth > 0;
+    body.push(`bb_pinhole(depth = ${fmt(blind ? s.depth : throughLength)}, far_groove = ${blind}${teardrop ? ", teardrop = 0" : ""}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   } else if (s.kind === "cylinder") {
     const depth = s.depth > 0 ? s.depth : throughLength;
     const teardrop = s.teardrop && teardropUp(hole.normal);
