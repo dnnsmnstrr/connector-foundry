@@ -327,6 +327,19 @@ klippt/base:
     - 20.0
     - 3.0
     volume_mm3: 775.74
+klippt/clip_mount:
+  default:
+    bbox:
+    - 31.2
+    - 15.0
+    - 6.752
+    volume_mm3: 1708.42
+  thick-plate:
+    bbox:
+    - 31.2
+    - 15.0
+    - 8.752
+    volume_mm3: 2644.42
 opengrid/board:
   default:
     bbox:

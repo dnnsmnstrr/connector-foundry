@@ -513,6 +513,33 @@ parts:
       - name: screw
         params: { screw: true }
 
+  - id: klippt/clip_mount
+    system: KLIPPT
+    name: Clip mount
+    file: parts/klippt/clip_mount.scad
+    module: klippt_clip_mount
+    confidence: exact
+    license: CC-BY-SA-4.0
+    source: >-
+      KLIPPT by FH (printables.com/@bequ3) — cut at render time from the
+      designer's own "cable clip small smooth" STL (unmodified): its lips,
+      flange gap and lock as they are, the top filled flat. CC BY-SA 4.0 —
+      see README "Licensing".
+    source_url: https://www.printables.com/model/424351-klippt-locking-cable-clip
+    print_note: >-
+      The counterpart of the KLIPPT base: fuse its flat top ("mount") onto
+      a part, and the part slides onto a base like a clip. Lips down as
+      "bot". plate is the solid above the clip's floor. On its own, print
+      it on its end (slide direction up), the way KLIPPT prints its clips:
+      the floor's arch then needs no bridge.
+    anchors: [bot]
+    mount_offset: [1.42, 0]
+    defaults:
+      plate: 1
+    variants:
+      - name: thick-plate
+        params: { plate: 3 }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

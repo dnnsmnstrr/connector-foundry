@@ -10,7 +10,7 @@
 // under the flange from the side, past the neck, and grip it; the neck's
 // flat face sits flush with the clip's own back, against whatever the
 // base is on. references.yaml's klippt/clip-on-base checks a real clip
-// on it.
+// on it; klippt/clip_mount is that clip's bottom, for fusing onto parts.
 //
 // Two of KLIPPT's files: the plain base (their klippt-base STEP,
 // tessellated at 0.01mm chord / 0.05rad, finer than any printer

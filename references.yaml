@@ -122,15 +122,14 @@ sources:
   #   path: refs/manual/HFS5-2020.step
   #   license: proprietary — not redistributable, supply your own copy
 
-  # A KLIPPT clip, to check the base's fit against. KLIPPT (FH,
-  # printables.com/model/424351) is CC BY-SA 4.0; its download sits
-  # behind Printables' login and bot check, so it is supplied by hand like
-  # any manufacturer file: download "KLIPPT cable clip small smooth" and
-  # save it as the path below. Without it the KLIPPT fit checks skip.
+  # A KLIPPT clip, to check the base's fit against: the designer's own
+  # "cable clip small smooth" STL (KLIPPT by FH, printables.com/model/
+  # 424351, CC BY-SA 4.0). It ships in parts/klippt/ anyway — klippt/
+  # clip_mount is cut from it — so the checks always run.
   klippt-clip:
     kind: file
-    path: refs/manual/klippt-cable-clip-small-smooth.stl
-    license: CC-BY-SA-4.0 (KLIPPT by FH) — not committed, supply your own copy
+    path: parts/klippt/cable_clip_small_smooth.stl
+    license: CC-BY-SA-4.0 (KLIPPT by FH)
 
   nopscadlib:
     kind: git
@@ -1017,6 +1016,27 @@ fit_checks:
           klippt_base(screw = true, anchor = BOTTOM);
     b: |
       import("{klippt-clip}");
+    expect:
+      max_interference_mm3: 10.0
+      clearance_mm: [0.0, 0.5]
+
+  # The clip mount is the clip's own bottom, so a base has to go into it
+  # exactly as into the clip above: same pose (the base's neck face 0.27mm
+  # above the lips' faces, as in the clip), same grip, nothing more. Both
+  # are this repo's files — the cut is what is being checked.
+  - id: klippt/clip-mount-on-base
+    part: klippt/clip_mount
+    why: >
+      Slicing the clip must not touch anything the base engages: the lips,
+      the flange gap under the floor, the lock.
+    a: |
+      include <{repo}/parts/klippt/clip_mount.scad>
+      klippt_clip_mount(anchor = "bot");
+    b: |
+      include <{repo}/parts/klippt/base.scad>
+      // Neck face down at the clip's 112 (0.2724 over its lips' faces),
+      // flange up, centred between the lips and along the slide.
+      translate([0, 0, 3.2724]) rotate([180, 0, 0]) klippt_base(anchor = BOTTOM);
     expect:
       max_interference_mm3: 10.0
       clearance_mm: [0.0, 0.5]
