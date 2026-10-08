@@ -33,6 +33,10 @@
 // The generic shapes (kind "cylinder" / "rectangle") are no fastener at
 // all: a round or rectangular cutout of any size, the rectangle's
 // corners rounded as far as a pill. Their presets are starting sizes.
+//
+// The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
+// a 20-series aluminium extrusion; its presets differ only in the keys
+// into the rail's slots.
 
 export const HEAD_STYLES = [
   { value: "none", label: "None (plain hole)" },
@@ -210,6 +214,18 @@ function shape(id, name, short, spec) {
   return { id, name, short, group: "Generic shapes", spec, screw: { style: "shape" } };
 }
 
+// A socket for a 2020 rail's end, 15 mm deep — enough for it to stand.
+function extrusion(id, name, short, keys) {
+  return {
+    id,
+    name,
+    short,
+    group: "2020 extrusion",
+    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, spin: 0 },
+    screw: { style: "extrusion" },
+  };
+}
+
 export const SCREW_PRESETS = [
   cap(2), cap(2.5), cap(3), cap(4), cap(5), cap(6),
   countersunk(3), countersunk(4), countersunk(5), countersunk(6),
@@ -245,6 +261,8 @@ export const SCREW_PRESETS = [
   shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, spin: 0 }),
   shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, spin: 0 }),
   shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, spin: 0 }),
+  extrusion("ex-socket", "2020 socket, keyed into the slots", "Keyed", true),
+  extrusion("ex-socket-plain", "2020 socket, plain square", "Plain", false),
 ];
 
 export const DEFAULT_PRESET_ID = "m3-cap";
@@ -287,9 +305,11 @@ export function specMatchesPreset(spec, presetId) {
   return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
 }
 
-// screwHoles.js's isConnector(), by kind (that module imports this one).
+// The kinds whose presets only set what tells them apart (presetKeys()):
+// screwHoles.js's isConnector(), by kind (that module imports this one),
+// and the 2020 socket, whose two presets differ only in their keys.
 function isConnectorKind(kind) {
-  return kind === "openconnect" || kind === "multiconnect" || kind === "thread";
+  return kind === "openconnect" || kind === "multiconnect" || kind === "thread" || kind === "extrusion";
 }
 
 // The fields that tell the presets of one kind apart — the ones they

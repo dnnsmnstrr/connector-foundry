@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
-import { THREAD, isPill } from "../../lib/screwHoles.js";
+import { EXTRUSION, THREAD, isPill } from "../../lib/screwHoles.js";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -12,7 +12,8 @@ import RotationInput from "../RotationInput.jsx";
 // clearance) and which way on the face is up. For the openGrid thread:
 // how deep, its clearance, and which way a screwed-in head points. For a
 // generic shape: its size and depth, and a rectangle's corner radius
-// (up to a pill) and which way it is turned.
+// (up to a pill) and which way it is turned. For a 2020 socket: how far
+// the rail goes in, the clearance, the keys and which way it is turned.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -32,8 +33,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   const id = useId();
   // The depth a blind hole had before "Through" was ticked, so unticking
   // brings it back rather than starting from nothing. (A thread's
-  // fallback is one a full-size screw fits.)
-  const fallbackDepth = spec.kind === "thread" ? 8 : 6;
+  // fallback is one a full-size screw fits; a 2020 socket's, its
+  // presets' depth.)
+  const fallbackDepth = { thread: 8, extrusion: 15 }[spec.kind] ?? 6;
   const [lastDepth, setLastDepth] = useState(spec.depth > 0 ? spec.depth : fallbackDepth);
   const through = !mixed.has("depth") && !(spec.depth > 0);
 
@@ -68,7 +70,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
-    spec.kind === "rectangle"
+    spec.kind === "extrusion"
+      ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : spec.kind === "rectangle"
       ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
       : spec.kind === "thread"
       ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
@@ -229,6 +233,34 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     );
   }
 
+  if (spec.kind === "extrusion") {
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">
+          {depthField}
+          <label className="field" htmlFor={`${id}-clear`} title={`Added to each side of the ${EXTRUSION.profile} mm square, and taken off each side of the keys. More if the rail is hard to push in.`}>
+            <span className="field-label">Clearance (mm)</span>
+            <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
+          </label>
+        </div>
+        {throughField}
+        <label
+          className="field field-checkbox holes-through-field"
+          htmlFor={`${id}-keys`}
+          title={`A key into each of the rail's four slots — ${EXTRUSION.slotOpen} mm mouths, ${EXTRUSION.keyReach} mm in — so it can't turn in the socket. Off for a plain square.`}
+        >
+          <MixedCheckbox id={`${id}-keys`} checked={spec.keys} mixed={isMixed("keys")} onChange={(keys) => set({ keys })} />
+          <span className="field-label">Keys into the slots</span>
+        </label>
+        {spinField}
+        <p className="muted holes-params-note">
+          The end of a 2020 aluminium extrusion pushes into it, along the hole. The point you click is the rail's axis;
+          leave a few mm of wall around the {EXTRUSION.profile} mm square.
+        </p>
+      </div>
+    );
+  }
+
   if (spec.kind === "rectangle") {
     // A pill: the corner radius at half the narrower side. Only offered
     // when the holes agree on their size, since that sets the radius.
@@ -325,7 +357,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
 
 // What the direction field's turn buttons say they turn.
 function directionName(kind, count) {
-  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"] }[kind] ?? ["slot", "slots"];
+  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"], extrusion: ["socket", "sockets"] }[kind] ?? ["slot", "slots"];
   return count > 1 ? `the ${count} ${many}` : `the ${one}`;
 }
 

@@ -214,6 +214,13 @@ The **Generic shapes** cut a plain cutout of any size instead of a fastener's ho
 — half the narrower side, or the "Pill" tick, makes it a pill with round ends). A rectangle has a
 direction like a slot: its height runs up the face unturned, and it turns in the sidebar.
 
+The **2020 extrusion** presets cut a socket that the end of a 20-series aluminium extrusion pushes
+into along the hole, so a length of rail stands in the part: the 20 mm square plus a clearance
+(0.15 mm a side), 15 mm deep by default, and — "Keyed" — a key into each of the rail's four slot
+mouths so it can't turn ("Plain" leaves the square bare). The keys are the end cap's, and
+references.yaml's `extrusion2020/rail-in-holes-socket` checks NopSCADlib's E2020t into it with
+no interference. Click the rail's axis; depth, through, clearance and direction are editable.
+
 Export the result as an
 STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working
 with a native OpenSCAD.

@@ -953,6 +953,30 @@ fit_checks:
       max_interference_mm3: 1.0
       clearance_mm: [0.0, 0.8]
 
+  # The Holes tab's 2020 socket (lib/exsocket.scad's ex_socket()) is no
+  # catalogue part, so no `part:` — it is checked all the same: the end
+  # of a real rail has to push into it, keys in its slots, without
+  # fouling anything, and sit no looser than the clearance.
+  - id: extrusion2020/rail-in-holes-socket
+    reference_source: nopscadlib
+    why: >
+      The socket the web app's Holes tab cuts for a 2020 rail's end, keyed
+      into all four slots: E2020t pushed in (held 0.5 mm off the floor, so
+      the walls and keys are what's nearest) clears them by the socket's
+      clearance and no more.
+    a: |
+      include <{repo}/lib/exsocket.scad>
+      difference() {{
+          translate([-16, -16, -20]) cube([32, 32, 20]);
+          ex_socket(depth = 15);
+      }}
+    b: |
+      include <{nopscadlib}/lib.scad>
+      translate([0, 0, 5.5]) extrusion(E2020t, 40, center = true);
+    expect:
+      max_interference_mm3: 1.0
+      clearance_mm: [0.0, 0.3]
+
   - id: extrusion2020/c-clip-over-profile
     part: extrusion2020/c-clip
     reference_source: nopscadlib

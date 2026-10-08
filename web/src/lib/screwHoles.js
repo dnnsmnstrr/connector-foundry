@@ -65,10 +65,19 @@
 //   depth         0 = through, else a pocket this deep
 //   spin          degrees it is turned on its face, as for a slot
 //
+// "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
+// into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
+// 20 mm square, and optionally a key into each of its slots so the rail
+// can't turn. The point is the rail's axis.
+//   depth      how far the rail goes in; 0 = through
+//   clearance  mm added per side (and taken off each key)
+//   keys       the keys into the four slot mouths
+//   spin       which way the square is turned on its face, as for a slot
+//
 // The slots and the thread are the openGrid connector cuts
 // (isConnector()): all three come from this repo's libraries and have a
-// direction on their face. A rectangle has a direction too
-// (hasDirection()), but is plain OpenSCAD.
+// direction on their face. A rectangle and a 2020 socket have a
+// direction too (hasDirection()), but need no BOSL2.
 //
 // `presetId` is screwPresets.js's label for where the spec came from.
 //
@@ -91,7 +100,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -127,6 +136,11 @@ export const MULTICONNECT_FOOTPRINT = Object.freeze({
   onRamp: 11.7, // the funnel's radius at the surface
 });
 
+// A 2020 socket's numbers (lib/constants.scad's EX_PROFILE, EX_SLOT_OPEN,
+// and EX_LIP_T + EX_CHANNEL_D, the keys' reach in from the face), for the
+// viewer's outline. Drawing only; the cut is lib/exsocket.scad's.
+export const EXTRUSION = Object.freeze({ profile: 20, slotOpen: 6.2, keyReach: 3.8, clearance: 0.15 });
+
 // The thread's numbers (lib/constants.scad's OG_THREAD_*, OG_SNAP_H_*):
 // its diameter before clearance, and how long a screw's thread is — a
 // full-size screw's, and a lite one's — which a hole has to be at least.
@@ -153,10 +167,11 @@ export function isConnector(spec) {
   return isSlot(spec) || spec?.kind === "thread";
 }
 
-// Anything turned on its face by `spin`: the connectors, and a rectangle.
-// What the quarter-turn buttons turn and a flip turns over with the part.
+// Anything turned on its face by `spin`: the connectors, a rectangle and
+// a 2020 socket. What the quarter-turn buttons turn and a flip turns
+// over with the part.
 export function hasDirection(spec) {
-  return isConnector(spec) || spec?.kind === "rectangle";
+  return isConnector(spec) || spec?.kind === "rectangle" || spec?.kind === "extrusion";
 }
 
 // A rectangle's corner radius as cut: never more than half its narrower
@@ -197,6 +212,15 @@ export function normalizeSpec(spec) {
       kind,
       diameter: Math.max(0.1, n(spec?.diameter, 10)),
       depth: n(spec?.depth, 0),
+    };
+  }
+  if (kind === "extrusion") {
+    return {
+      kind,
+      depth: n(spec?.depth, 15),
+      clearance: n(spec?.clearance, EXTRUSION.clearance),
+      keys: spec?.keys !== false,
+      spin: normalizeSpin(spec?.spin),
     };
   }
   if (kind === "rectangle") {
@@ -381,6 +405,7 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
   if (spec.kind === "cylinder") return spec.diameter / 2;
   if (spec.kind === "rectangle") return Math.hypot(spec.width, spec.height) / 2;
+  if (spec.kind === "extrusion") return ((EXTRUSION.profile + 2 * spec.clearance) / 2) * Math.SQRT2;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
 
@@ -426,6 +451,7 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   if (holes.some((h) => h.spec.kind === "openconnect")) lines.push("use <../lib/openconnect.scad>");
   if (holes.some((h) => h.spec.kind === "multiconnect")) lines.push("use <../lib/multiconnect.scad>");
   if (holes.some((h) => h.spec.kind === "thread")) lines.push("use <../lib/ogthread.scad>");
+  if (holes.some((h) => h.spec.kind === "extrusion")) lines.push("use <../lib/exsocket.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");
   if (holes.length === 0) {
@@ -483,6 +509,7 @@ export function holeLabel(hole, presetName = null) {
   }
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
+  if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
     if (s.cornerRadius > 0 && !isPill(s)) bits.push(`r${fmt(s.cornerRadius)}`);
@@ -503,7 +530,7 @@ export function holeLabel(hole, presetName = null) {
 // screw hole goes, which way a slot points (a thread, a rectangle: both).
 export function holeMeta(hole) {
   const s = hole.spec;
-  if (s.kind === "thread" || s.kind === "rectangle") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
+  if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s)) return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
@@ -529,6 +556,10 @@ export function cutterLines(hole, throughLength, extents = null) {
     // head ends up pointing the slot's +Y.
     const through = extents ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM) : throughLength;
     body.push(`og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    m = slotFrameMatrix(hole);
+  } else if (s.kind === "extrusion") {
+    const depth = s.depth > 0 ? s.depth : throughLength;
+    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "cylinder") {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -644,8 +675,8 @@ export function slotFrame(point, normal, spin = 0) {
 // coordinates, for the viewer: the channel and pocket (or round end),
 // the entry (dashed), and an arrow the way the head travels to seat. A
 // thread's is its bore, with the arrow the way a screwed-in head's +Y
-// points. A rectangle's is just its outline — its shape already shows
-// which way it is turned.
+// points. A rectangle's, and a 2020 socket's, is just its outline — the
+// shape already shows which way it is turned.
 export function slotOutline(hole) {
   const s = hole.spec;
   if (!hasDirection(s)) return [];
@@ -680,6 +711,21 @@ export function slotOutline(hole) {
         ...arc(a, -b, r, (3 * Math.PI) / 2, 2 * Math.PI, 8),
       ]);
     } else loop([[-a, -b], [a, -b], [a, b], [-a, b]]);
+    return segments;
+  }
+  if (s.kind === "extrusion") {
+    // The square, notched by each key: round the four sides, a notch
+    // in the middle of each.
+    const h = EXTRUSION.profile / 2 + s.clearance;
+    const k = s.keys ? EXTRUSION.slotOpen / 2 - s.clearance : 0;
+    const inner = EXTRUSION.profile / 2 - EXTRUSION.keyReach;
+    const side = [];
+    for (let q = 0; q < 4; q++) {
+      const turn = ([x, y]) => [[x, y], [-y, x], [-x, -y], [y, -x]][q];
+      const points = s.keys ? [[h, -h], [h, -k], [inner, -k], [inner, k], [h, k]] : [[h, -h]];
+      side.push(...points.map(turn));
+    }
+    loop(side);
     return segments;
   }
   if (s.kind === "thread") {

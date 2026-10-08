@@ -144,7 +144,7 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion"].includes(preset.spec.kind), `${preset.id} kind`);
       if ("spin" in preset.spec) assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
@@ -446,4 +446,35 @@ test("a rectangle turns and flips like a slot, and keeps its direction across sh
     depth: 0,
     spin: 270,
   });
+});
+
+test("a 2020 socket is cut by lib/exsocket.scad in the slots' frame, keyed or plain", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("ex-socket").spec, presetId: "ex-socket" });
+  ({ doc } = addHole(doc, { point: [0, 20, 2], normal: [0, 1, 0], spec: { ...getPreset("ex-socket-plain").spec, depth: 0, clearance: 0.3 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  // Its own library, which needs no BOSL2.
+  assert.match(scad, /^use <\.\.\/lib\/exsocket\.scad>$/m);
+  assert.doesNotMatch(scad, /BOSL2/);
+  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, overshoot = 1\);/);
+  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.3, keys = false, overshoot = 1\);/);
+  assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
+  assert.equal(holeLabel(doc.holes[0]), "2020 socket 15 deep, keyed");
+  assert.equal(holeLabel(doc.holes[1]), "2020 socket through");
+  assert.ok(Math.abs(holeFootprintRadius(doc.holes[0].spec) - 10.15 * Math.SQRT2) < 1e-9);
+  // Outline: four corners, plus a notch of four points per key.
+  assert.equal(slotOutline(doc.holes[0]).length, 20);
+  assert.equal(slotOutline(doc.holes[1]).length, 4);
+});
+
+test("a 2020 socket turns and flips like a slot; its presets differ in the keys alone", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("ex-socket").spec, presetId: "ex-socket" });
+  doc = rotateHoles(doc, [doc.holes[0].id], 90);
+  assert.equal(doc.holes[0].spec.spin, 90);
+  assert.equal(flipHoles(doc, 4).holes[0].spec.spin, 270);
+  // Deeper or looser, it is still the preset; switching presets keeps
+  // depth, clearance and direction.
+  assert.ok(specMatchesPreset({ ...doc.holes[0].spec, depth: 25, clearance: 0.3 }, "ex-socket"));
+  assert.ok(!specMatchesPreset(doc.holes[0].spec, "ex-socket-plain"));
+  assert.deepEqual(presetSpecFor({ ...doc.holes[0].spec, depth: 25 }, getPreset("ex-socket-plain").spec), { kind: "extrusion", depth: 25, clearance: 0.15, keys: false, spin: 90 });
+  assert.deepEqual(normalizeSpec({ kind: "extrusion", depth: -1, clearance: "x", keys: 0, spin: 450 }), { kind: "extrusion", depth: 15, clearance: 0.15, keys: true, spin: 90 });
 });

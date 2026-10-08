@@ -21,6 +21,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   }
   if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "cylinder" || spec.kind === "rectangle") return <ShapeIcon spec={spec} title={title} className={className} />;
+  if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -394,6 +395,69 @@ function ShapeIcon({ spec, title, className }) {
           // Counter-clockwise as seen from outside the face, as the spin is.
           transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
         />
+      </g>
+    </svg>
+  );
+}
+
+// A 2020 socket from above: the rail's profile standing in it — the
+// square with its four slot mouths and centre bore — and, when keyed,
+// the material keys reaching into those mouths. To scale, ~30px across.
+function ExtrusionIcon({ spec, title, className }) {
+  const s = 30 / 20;
+  const cy = SIZE / 2;
+  const half = 10 * s;
+  const mouth = 3.1 * s;
+  const lip = 1.8 * s;
+  const channel = 5.5 * s;
+  const reach = 3.8 * s;
+  // The rail's outline: each side notched by its slot mouth, the T of
+  // the channel behind it.
+  const quarter = [
+    [half, -half],
+    [half, -mouth],
+    [half - lip, -mouth],
+    [half - lip, -channel],
+    [half - lip - 2.2 * s, -channel],
+    [half - lip - 2.2 * s, channel],
+    [half - lip, channel],
+    [half - lip, mouth],
+    [half, mouth],
+  ];
+  const rail = [];
+  for (let q = 0; q < 4; q++) {
+    for (const [x, y] of quarter) rail.push([[x, y], [-y, x], [-x, -y], [y, -x]][q]);
+  }
+  const at = (points) => points.map(([x, y]) => `${CX + x},${cy - y}`).join(" ");
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g transform={spec.spin ? `rotate(${-spec.spin} ${CX} ${cy})` : undefined}>
+        <g className="screw-icon-material">
+          <rect x="3" y="3" width={SIZE - 6} height={SIZE - 6} rx="1.5" />
+        </g>
+        <g className="screw-icon-cut">
+          <rect x={CX - half - 1} y={cy - half - 1} width={2 * half + 2} height={2 * half + 2} />
+        </g>
+        {spec.keys && (
+          <g className="screw-icon-material">
+            {[0, 90, 180, 270].map((a) => (
+              <rect key={a} x={CX + half - reach} y={cy - mouth + 0.5} width={reach + 1.2} height={2 * mouth - 1} transform={`rotate(${a} ${CX} ${cy})`} />
+            ))}
+          </g>
+        )}
+        <g className="screw-icon-fastener">
+          <polygon points={at(rail)} />
+          <circle cx={CX} cy={cy} r={2.5 * s} className="screw-icon-socket" />
+        </g>
       </g>
     </svg>
   );

@@ -79,7 +79,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction) |
-| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts); the fastener, slot and shape presets; the face-feature snap points; the live document as module state |
+| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`); the fastener, slot, shape and socket presets; the face-feature snap points; the live document as module state |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
@@ -491,7 +491,9 @@ the implementation notes:
   z = 0 and the pocket below. The openGrid thread is `og_thread_hole(...)` from `lib/ogthread.scad`
   in the same frame as a slot (its +Y is where a screwed-home head's +Y ends up); a through thread
   stops at the base's width along its axis (`extents`, when the caller passes them) rather than the
-  diagonal, since a helix costs by the millimetre. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
+  diagonal, since a helix costs by the millimetre. A 2020 socket is `ex_socket(...)` from
+  `lib/exsocket.scad`, and a rectangle a `linear_extrude()` of its outline, both in that frame
+  too. Its in-plane axes are not arbitrary: `slotFrame()` makes the slot's
   +Y (the way the head travels to seat, "up" on the wall) the face's own up — the world's +Z
   projected onto the face, so a slot on a vertical face points straight up; for a face within 30°
   of level, where that projection is too short, the world's +Y, so a slot on a plate lying flat
