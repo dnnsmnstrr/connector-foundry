@@ -186,6 +186,12 @@ of them, a preset picked makes them all that kind, the quarter-turn buttons turn
 its own direction, and Delete removes them all. Shift-click on a bare face still places a hole
 exactly where you click.
 
+**Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
+spacing, across or up the face), a grid (holes and spacing both ways) or a circle (count and
+radius round the hole's spot, the hole itself moving onto the circle or staying in the middle). The
+copies are previewed in green; any that would miss the face — past its edge, into another hole —
+are left out and counted, and afterwards the whole pattern is selected to edit or delete together.
+
 Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
 snap's head slides into — upstream's own geometry, with its lock nub on the left, right, both

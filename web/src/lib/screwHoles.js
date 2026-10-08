@@ -420,6 +420,106 @@ export function flipHoles(doc, height) {
   };
 }
 
+// --- repeat ------------------------------------------------------------
+// Copies of one hole in a row, a grid or round a circle, on the face it
+// sits on. The pattern's axes are the face's own (slotFrame() at spin 0):
+// "across" its sideways, "up" its up — straight up a wall, the part's Y
+// on a face lying flat — whichever way the hole itself is turned; every
+// copy has the hole's spec, preset and normal. A face is flat as far as
+// this goes: whether a copy actually lands on the model is the caller's
+// to say (repeatHole()'s `accept`), since only the mesh knows.
+//
+//   pattern       "row" | "grid" | "circle"
+//   count         row: holes in it, the selected one first
+//   spacing       row: mm between them (negative runs the other way)
+//   along         row: "across" | "up"
+//   columns, rows grid: holes across and up, the selected one in its
+//                 first corner
+//   spacingAcross, spacingUp   grid: mm between them
+//   circleCount   circle: holes on it
+//   radius        circle: mm, round the selected hole's spot; the first
+//                 hole straight up from it
+//   keepCenter    circle: keep the selected hole in the middle (else it
+//                 moves onto the circle as its first hole)
+export const REPEAT_DEFAULTS = Object.freeze({
+  pattern: "row",
+  count: 4,
+  spacing: 20,
+  along: "across",
+  columns: 3,
+  rows: 2,
+  spacingAcross: 20,
+  spacingUp: 20,
+  circleCount: 6,
+  radius: 15,
+  keepCenter: false,
+});
+// Copies beyond this are a slip of the keyboard, not a pattern: each is
+// a cutter in the render.
+export const REPEAT_MAX_HOLES = 100;
+
+// Where a pattern puts holes: `copies`, the new spots, and `move`, where
+// the selected hole itself goes (null: it stays). Points in the model's
+// coordinates, on the hole's face plane.
+export function repeatPoints(hole, options) {
+  const o = { ...REPEAT_DEFAULTS, ...options };
+  const int = (v, min) => Math.max(min, Math.min(REPEAT_MAX_HOLES, Math.round(Number(v) || 0)));
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const { ex, ey } = slotFrame(hole.point, hole.normal, 0);
+  const at = ([a, b]) => hole.point.map((p, i) => p + ex[i] * a + ey[i] * b);
+  let offsets = [];
+  let move = null;
+  if (o.pattern === "grid") {
+    const cols = int(o.columns, 1);
+    const rows = int(o.rows, 1);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (i || j) offsets.push([i * num(o.spacingAcross), j * num(o.spacingUp)]);
+  } else if (o.pattern === "circle") {
+    const n = int(o.circleCount, 2);
+    const r = Math.max(0, num(o.radius));
+    const ring = Array.from({ length: n }, (_, k) => {
+      const t = Math.PI / 2 + (2 * Math.PI * k) / n;
+      return [r * Math.cos(t), r * Math.sin(t)];
+    });
+    if (o.keepCenter) offsets = ring;
+    else {
+      move = at(ring[0]);
+      offsets = ring.slice(1);
+    }
+  } else {
+    const n = int(o.count, 1);
+    const step = num(o.spacing);
+    for (let i = 1; i < n; i++) offsets.push(o.along === "up" ? [0, i * step] : [i * step, 0]);
+  }
+  return { copies: offsets.slice(0, REPEAT_MAX_HOLES - 1).map(at), move };
+}
+
+// Apply a pattern to hole `id`. `accept(point, normal)` says whether a
+// spot is on the model (the caller raycasts its mesh); a copy it turns
+// down, or one on top of a hole already there, is left out — counted in
+// `skipped`. A selected hole that would move somewhere unacceptable
+// stays put. Returns the document, the ids of the whole pattern (the
+// selected hole first) and how many copies were skipped.
+export function repeatHole(doc, id, options, accept = () => true) {
+  const hole = getHole(doc, id);
+  if (!hole) return { doc, ids: [], skipped: 0 };
+  const { copies, move } = repeatPoints(hole, options);
+  let next = doc;
+  if (move && accept(move, hole.normal)) next = updateHole(next, id, { point: move });
+  const ids = [id];
+  let skipped = 0;
+  for (const point of copies) {
+    const taken = next.holes.some((h) => distance(h.point, point) < 0.5);
+    if (taken || !accept(point, hole.normal)) {
+      skipped++;
+      continue;
+    }
+    const added = addHole(next, { point, normal: hole.normal, spec: hole.spec, presetId: hole.presetId });
+    next = added.doc;
+    ids.push(added.hole.id);
+  }
+  return { doc: next, ids, skipped };
+}
+
 export function setDocName(doc, name) {
   return { ...doc, name };
 }

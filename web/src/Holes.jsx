@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BufferGeometry } from "three";
+import { BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import HoleSpecFields from "./components/holes/HoleSpecFields.jsx";
 import PresetPicker from "./components/holes/PresetPicker.jsx";
+import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
@@ -33,7 +34,9 @@ import {
   holeMeta,
   holesToScad,
   patchHoles,
+  REPEAT_DEFAULTS,
   removeHoles,
+  repeatHole,
   rotateHoles,
   setDocName,
   setHolesSpec,
@@ -56,6 +59,15 @@ const RENDER_DEBOUNCE_MS = 250;
 // a face's snap points by kind.
 const HOLE_COLOR = 0x7fa8e0;
 const SELECTED_COLOR = 0xffd23f;
+// The Repeat form's copies, before they are added.
+const REPEAT_PREVIEW_COLOR = 0x2ecc71;
+// A copy counts as on the model when a ray from this far above its spot,
+// straight down the hole's axis, meets a face turned the same way within
+// REPEAT_SURFACE_TOLERANCE_MM of the spot.
+const REPEAT_PROBE_MM = 0.5;
+const REPEAT_SURFACE_TOLERANCE_MM = 0.05;
+// The probe's mesh is never drawn; one material does for every model.
+const PROBE_MATERIAL = new MeshBasicMaterial({ side: DoubleSide });
 const SNAP_COLORS = { hole: 0x7fa8e0, center: 0x2ecc71, quarter: 0xd8d9db, corner: 0xd8d9db, intersection: 0x9a9ba0, circle: 0xe0c07f };
 // Guide lines on the hovered face: center lines solid, quarter lines
 // dashed, radials dashed and dim, the center circle in the circle
@@ -102,6 +114,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // plain click, more with Shift-click (in the list, on a hole's ring,
   // or on a face spot that already has a hole).
   const [selectedIds, setSelectedIds] = useState([]);
+  // The Repeat form: open or not, and its fields — kept while it is
+  // closed, so a second pattern starts from the first one's numbers.
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [repeatOptions, setRepeatOptions] = useState(REPEAT_DEFAULTS);
   const [snapOn, setSnapOn] = useState(true);
   const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
   const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
@@ -206,6 +222,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     },
     [geometries],
   );
+  // Is a spot on the rendered model, on a face turned like the hole's?
+  // For the Repeat form: a pattern runs on the hole's face plane, which
+  // the model may end, step, or have another hole in.
+  const repeatProbe = useMemo(() => {
+    if (!geometries) return null;
+    const mesh = new Mesh(geometries.display, PROBE_MATERIAL);
+    const raycaster = new Raycaster();
+    raycaster.far = REPEAT_PROBE_MM + 1;
+    return (point, normal) => {
+      const n = new Vector3(...normal).normalize();
+      raycaster.set(new Vector3(...point).addScaledVector(n, REPEAT_PROBE_MM), n.clone().negate());
+      const hit = raycaster.intersectObject(mesh, false)[0];
+      return Boolean(hit && Math.abs(hit.distance - REPEAT_PROBE_MM) < REPEAT_SURFACE_TOLERANCE_MM && hit.face && hit.face.normal.dot(n) > 0.99);
+    };
+  }, [geometries]);
   const guideFaceKey = guide && geometries && guide.topo === geometries.topo ? guide.key : null;
   function setGuideFaceKey(key) {
     setGuide(key === null || !geometries ? null : { key, topo: geometries.topo });
@@ -257,6 +288,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   keyHandlerRef.current = (e) => {
     if (e.key === "Escape") {
       if (importOpen) setImportOpen(false);
+      else if (repeatOpen) setRepeatOpen(false);
       else if (selectedIds.length) setSelectedIds([]);
       return;
     }
@@ -470,6 +502,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     if (multi) setDoc((d) => patchHoles(d, selectedIds, patch));
     else applySpec({ ...editingSpec, ...patch });
   }
+  // The Repeat form's result on the current document, for its preview,
+  // its counts and its button: worked out afresh on each change.
+  const repeatTarget = repeatOpen && selectedIds.length === 1 ? selectedIds[0] : null;
+  const repeatResult = useMemo(
+    () => (repeatTarget && doc && repeatProbe ? repeatHole(doc, repeatTarget, repeatOptions, repeatProbe) : null),
+    [repeatTarget, doc, repeatProbe, repeatOptions],
+  );
+  function applyRepeat() {
+    if (!repeatResult) return;
+    setDoc(repeatResult.doc);
+    // The whole pattern selected, to edit or delete it in one go.
+    setSelectedIds(repeatResult.ids);
+    setRepeatOpen(false);
+  }
+
   function rotateSelection(delta) {
     if (multi) setDoc((d) => rotateHoles(d, selectedIds, delta));
     else applySpec({ ...editingSpec, spin: editingSpec.spin + delta });
@@ -514,6 +561,24 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       radius: holeFootprintRadius(h.spec) + 0.5,
       color: selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR,
     }));
+    // The Repeat form's copies (and where the hole itself would move).
+    if (repeatResult) {
+      for (const h of repeatResult.doc.holes) {
+        const before = doc.holes.find((x) => x.id === h.id);
+        if (before && before.point.every((v, i) => v === h.point[i])) continue;
+        out.push({
+          id: `repeat:${h.id}`,
+          shape: "ring",
+          x: h.point[0],
+          y: h.point[1],
+          z: h.point[2],
+          normal: h.normal,
+          radius: holeFootprintRadius(h.spec) + 0.5,
+          color: REPEAT_PREVIEW_COLOR,
+          hitTest: false,
+        });
+      }
+    }
     // The spot on a guide line the click would take: a marker that
     // follows the pointer along the line.
     if (hover?.linePoint) {
@@ -542,7 +607,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       });
     }
     return out;
-  }, [doc, selectedIds, hover, guideFace, snapOn, snapDot]);
+  }, [doc, selectedIds, hover, guideFace, snapOn, snapDot, repeatResult]);
 
   // The lines across the hovered face (nothing while a hole is being
   // dragged across it in the viewer — there is no such thing yet, so:
@@ -794,6 +859,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <div className="holes-selected-actions">
               <button
                 type="button"
+                className="render-button holes-small-button"
+                onClick={() => setRepeatOpen((open) => !open)}
+                disabled={!selected}
+                aria-expanded={Boolean(selected) && repeatOpen}
+                title="Copies of this hole in a row, a grid or round a circle on its face"
+              >
+                Repeat…
+              </button>
+              <button
+                type="button"
                 className="render-button holes-small-button holes-delete-button"
                 onClick={() => deleteHoles(selectedIds)}
                 disabled={selectedHoles.length === 0}
@@ -801,6 +876,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 {multi ? `Delete ${selectedHoles.length} holes` : "Delete hole"}
               </button>
             </div>
+            {repeatResult && (
+              <RepeatFields
+                options={repeatOptions}
+                onChange={(patch) => setRepeatOptions((o) => ({ ...o, ...patch }))}
+                placed={repeatResult.ids.length - 1}
+                skipped={repeatResult.skipped}
+                onApply={applyRepeat}
+                onCancel={() => setRepeatOpen(false)}
+              />
+            )}
 
             <div className="holes-list-heading">
               <h3>Holes ({doc.holes.length})</h3>

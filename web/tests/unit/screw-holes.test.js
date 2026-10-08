@@ -15,6 +15,8 @@ import {
   normalizeSpec,
   planeBasis,
   removeHole,
+  repeatHole,
+  repeatPoints,
   isPill,
   rotateHoles,
   slotFrame,
@@ -534,4 +536,39 @@ test("a chamfer is a 45° hull from the outline down at its depth to the outline
   const chamfered = { ...getPreset("shape-cylinder").spec, chamfer: 1, teardrop: true };
   assert.deepEqual(presetSpecFor(chamfered, getPreset("magnet-6x2").spec), { kind: "cylinder", diameter: 6.2, depth: 2.2, chamfer: 1, teardrop: true });
   assert.ok(specMatchesPreset(chamfered, "shape-cylinder"));
+});
+
+test("repeat: a row, a grid and a circle on the hole's face, in the face's own axes", () => {
+  // On the top face: across is +X, up is +Y.
+  let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("m3-cap").spec, presetId: "m3-cap" });
+  const row = repeatHole(doc, hole.id, { pattern: "row", count: 3, spacing: 10 });
+  assert.deepEqual(row.doc.holes.map((h) => h.point), [[0, 0, 4], [10, 0, 4], [20, 0, 4]]);
+  assert.equal(row.ids.length, 3);
+  assert.ok(row.doc.holes.every((h) => h.presetId === "m3-cap" && h.spec.diameter === 3.4));
+  assert.deepEqual(repeatHole(doc, hole.id, { pattern: "row", count: 2, spacing: -5, along: "up" }).doc.holes[1].point, [0, -5, 4]);
+  const grid = repeatHole(doc, hole.id, { pattern: "grid", columns: 2, rows: 2, spacingAcross: 10, spacingUp: 5 });
+  assert.deepEqual(grid.doc.holes.map((h) => h.point), [[0, 0, 4], [10, 0, 4], [0, 5, 4], [10, 5, 4]]);
+  // A circle round the hole's spot: it moves to the top of the circle.
+  const circle = repeatHole(doc, hole.id, { pattern: "circle", circleCount: 4, radius: 10 });
+  const round2 = (p) => p.map((v) => Math.round(v * 1e6) / 1e6 + 0);
+  assert.deepEqual(circle.doc.holes.map((h) => round2(h.point)), [[0, 10, 4], [-10, 0, 4], [0, -10, 4], [10, 0, 4]]);
+  assert.equal(circle.doc.holes[0].id, hole.id);
+  const kept = repeatHole(doc, hole.id, { pattern: "circle", circleCount: 4, radius: 10, keepCenter: true });
+  assert.equal(kept.doc.holes.length, 5);
+  assert.deepEqual(kept.doc.holes[0].point, [0, 0, 4]);
+  // On a wall the axes are the wall's: up is world +Z.
+  ({ doc, hole } = addHole(plateDoc(), { point: [0, -20, 2], normal: [0, -1, 0] }));
+  assert.deepEqual(repeatHole(doc, hole.id, { pattern: "row", count: 2, spacing: 3, along: "up" }).doc.holes[1].point, [0, -20, 5]);
+});
+
+test("repeat: copies off the model, or on a hole already there, are skipped", () => {
+  let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1] });
+  ({ doc } = addHole(doc, { point: [20, 0, 4], normal: [0, 0, 1] }));
+  // Pretend the face ends at x = 25.
+  const accept = (p) => p[0] <= 25;
+  const r = repeatHole(doc, hole.id, { pattern: "row", count: 4, spacing: 10 }, accept);
+  assert.deepEqual(r.doc.holes.map((h) => h.point[0]), [0, 20, 10]);
+  assert.equal(r.skipped, 2);
+  // A pattern is capped: no thousand cutters from a typo.
+  assert.equal(repeatPoints(hole, { pattern: "grid", columns: 50, rows: 50 }).copies.length, 99);
 });

@@ -2177,3 +2177,16 @@ a.mode-tab {
     width: 4.2rem;
   }
 }
+
+/* The selected hole's Repeat form, under its action buttons. */
+.holes-repeat {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid #2f3034;
+  border-radius: 6px;
+}
+
+.holes-repeat-actions {
+  display: flex;
+  gap: 0.4rem;
+}
