@@ -66,14 +66,15 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // (straight up on a wall-like face; the part's Y on a face lying
   // flat), turned counter-clockwise as
   // seen from outside the face. Quarter turns cover every orientation
-  // a mount is likely to need; any angle is accepted.
+  // a mount is likely to need; any angle is accepted. A rectangle or a
+  // 2020 socket steps by 45° instead, for a cutout set at an angle.
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
     spec.kind === "extrusion"
-      ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
       : spec.kind === "rectangle"
-      ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
       : spec.kind === "thread"
       ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
       : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
@@ -88,6 +89,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         onRotate={onRotate}
         name={directionName(spec.kind, count)}
         viewedFrom="outside the face"
+        step={spec.kind === "rectangle" || spec.kind === "extrusion" ? 45 : 90}
       />
     </label>
   );
