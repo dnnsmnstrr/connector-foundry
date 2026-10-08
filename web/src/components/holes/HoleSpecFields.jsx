@@ -211,6 +211,24 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
       />
     </label>
   );
+  // Print options. A chamfer on any cutout with an open mouth; a
+  // teardrop on a round hole, which matters only on a wall.
+  const chamferField = (
+    <label className="field" htmlFor={`${id}-chamfer`} title="A 45° bevel this deep round the opening: a lead-in for whatever goes in, and room for the slightly flared first layers of a hole printed opening-down. 0 for none.">
+      <span className="field-label">Chamfer (mm)</span>
+      <input id={`${id}-chamfer`} type="number" min="0" step="0.25" {...numberProps("chamfer")} />
+    </label>
+  );
+  const teardropField = (what, disabled = false) => (
+    <label
+      className="field field-checkbox holes-through-field"
+      htmlFor={`${id}-teardrop`}
+      title={`On a wall, ${what} as a teardrop with a 45° point at the top, so it prints without its top sagging. A hole in a face lying flat is vertical and stays round. Up is the model's +Z, the way it prints.`}
+    >
+      <MixedCheckbox id={`${id}-teardrop`} checked={spec.teardrop} mixed={isMixed("teardrop")} disabled={disabled} onChange={(teardrop) => set({ teardrop })} />
+      <span className="field-label">Teardrop on walls</span>
+    </label>
+  );
   const throughField = (
     <label className="field field-checkbox holes-through-field" htmlFor={`${id}-through`}>
       <MixedCheckbox id={`${id}-through`} checked={through} mixed={isMixed("depth")} onChange={toggleThrough} />
@@ -227,8 +245,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             <input id={`${id}-d`} type="number" min="0.1" step="0.5" {...numberProps("diameter")} />
           </label>
           {depthField}
+          {chamferField}
         </div>
         {throughField}
+        {teardropField("cut it")}
       </div>
     );
   }
@@ -242,6 +262,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             <span className="field-label">Clearance (mm)</span>
             <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
           </label>
+          {chamferField}
         </div>
         {throughField}
         <label
@@ -266,6 +287,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           />
           <span className="field-label">M5 bolt hole through the floor</span>
         </label>
+        {teardropField("cut the bolt hole", through || (!isMixed("bolt") && !spec.bolt))}
         {spinField}
         <p className="muted holes-params-note">
           The end of a 2020 aluminium extrusion pushes into it, along the hole. The point you click is the rail's axis;
@@ -297,6 +319,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             <input id={`${id}-r`} type="number" min="0" step="0.5" {...numberProps("cornerRadius")} />
           </label>
           {depthField}
+          {chamferField}
         </div>
         {throughField}
         <label className="field field-checkbox holes-through-field" htmlFor={`${id}-pill`} title="Round ends: the corner radius at half the narrower side.">
@@ -344,6 +367,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <MixedCheckbox id={`${id}-through`} checked={through} mixed={isMixed("depth")} onChange={toggleThrough} />
         <span className="field-label">Through hole</span>
       </label>
+      {teardropField("cut the shank and a counterbore (a hex pocket stands on a corner)")}
       <label className="field" htmlFor={`${id}-head`}>
         <span className="field-label">Head</span>
         <MixedSelect id={`${id}-head`} value={spec.head} mixed={isMixed("head")} options={HEAD_STYLES} onChange={(head) => set({ head })} />

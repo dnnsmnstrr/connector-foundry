@@ -32,7 +32,11 @@
 //
 // The generic shapes (kind "cylinder" / "rectangle") are no fastener at
 // all: a round or rectangular cutout of any size, the rectangle's
-// corners rounded as far as a pill. Their presets are starting sizes.
+// corners rounded as far as a pill. Their presets are starting sizes,
+// and pockets for the usual disc magnets and a 608 skate bearing: the
+// part's nominal size plus 0.2 mm across (a press fit that still goes in
+// by thumb on most printers) and 0.2 mm deeper, so it sits flush or a
+// hair below.
 //
 // The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
 // a 20-series aluminium extrusion; its presets differ only in the keys
@@ -71,7 +75,7 @@ const TAP = { 2: 1.6, 2.5: 2.05, 3: 2.5, 4: 3.3, 5: 4.2, 6: 5.0 };
 const NUT = { 3: [5.5, 2.4], 4: [7, 3.2], 5: [8, 4.7], 6: [10, 5.2] };
 
 function screw(spec) {
-  return { kind: "screw", ...spec };
+  return { kind: "screw", ...spec, teardrop: false };
 }
 
 function cap(nominal) {
@@ -214,6 +218,15 @@ function shape(id, name, short, spec) {
   return { id, name, short, group: "Generic shapes", spec, screw: { style: "shape" } };
 }
 
+function round(spec) {
+  return { kind: "cylinder", chamfer: 0, teardrop: false, ...spec };
+}
+
+// A pocket for a round part `d` × `h` mm: 0.2 over on both.
+function pocket(id, name, short, d, h) {
+  return { id, name, short, group: "Magnets & bearings", spec: round({ diameter: round1(d + 0.2), depth: round1(h + 0.2) }), screw: { style: "shape" } };
+}
+
 // A socket for a 2020 rail's end, 15 mm deep — enough for it to stand.
 function extrusion(id, name, short, keys) {
   return {
@@ -221,7 +234,7 @@ function extrusion(id, name, short, keys) {
     name,
     short,
     group: "2020 extrusion",
-    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, bolt: false, spin: 0 },
+    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, bolt: false, chamfer: 0.5, teardrop: false, spin: 0 },
     screw: { style: "extrusion" },
   };
 }
@@ -257,10 +270,14 @@ export const SCREW_PRESETS = [
   multiConnect("mc-slot-release", "MultiConnect slot, quick release", "No detent", { onRamp: true, detent: false }),
   thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
   thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
-  shape("shape-cylinder", "Round cutout", "Round", { kind: "cylinder", diameter: 10, depth: 0 }),
-  shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, spin: 0 }),
-  shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, spin: 0 }),
-  shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, spin: 0 }),
+  shape("shape-cylinder", "Round cutout", "Round", round({ diameter: 10, depth: 0 })),
+  shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, chamfer: 0, spin: 0 }),
+  shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, chamfer: 0, spin: 0 }),
+  shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, chamfer: 0, spin: 0 }),
+  pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
+  pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
+  pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),
+  pocket("bearing-608", "608 bearing (22 × 7 mm)", "608", 22, 7),
   extrusion("ex-socket", "2020 socket, keyed into the slots", "Keyed", true),
   extrusion("ex-socket-plain", "2020 socket, plain square", "Plain", false),
 ];
@@ -297,13 +314,19 @@ export function presetGroups() {
 // presets apart count (see presetKeys()): a MultiConnect slot with a
 // longer channel, or any slot turned to point another way, is still the
 // preset it was placed from — those are placement, not a different slot.
-// A rectangle turned on its face is likewise still its preset.
+// A rectangle turned on its face is likewise still its preset, and so is
+// any hole with a print option set (PRINT_KEYS).
 export function specMatchesPreset(spec, presetId) {
   const preset = getPreset(presetId);
   if (!preset) return false;
-  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec).filter((key) => key !== "spin");
+  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec).filter((key) => !PRINT_KEYS.includes(key));
   return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
 }
+
+// How a hole is turned and printed rather than what it is for: which
+// way it points, a teardrop, a chamfer. Picking another preset keeps
+// them, where the new kind has them too.
+const PRINT_KEYS = ["spin", "teardrop", "chamfer"];
 
 // The kinds whose presets only set what tells them apart (presetKeys()):
 // screwHoles.js's isConnector(), by kind (that module imports this one),
@@ -332,17 +355,19 @@ export function presetKeys(kind) {
 // hole already has where the two share a field — switching a MultiConnect
 // slot from "on-ramp" to "open end" keeps its channel length, gap and
 // direction; an openConnect slot becoming a MultiConnect one (or a
-// thread) keeps the way it points. A rectangle preset is a whole shape
-// like a screw's, but keeps the way the hole points, as a slot does.
+// thread) keeps the way it points. Any other preset is a whole thing
+// — a fastener, a shape — but keeps the hole's print options
+// (PRINT_KEYS) all the same.
 export function presetSpecFor(currentSpec, presetSpec) {
   if (!currentSpec) return { ...presetSpec };
   if (!isConnectorKind(presetSpec.kind)) {
-    return "spin" in presetSpec && "spin" in currentSpec ? { ...presetSpec, spin: currentSpec.spin } : { ...presetSpec };
+    const kept = PRINT_KEYS.filter((key) => key in presetSpec && key in currentSpec).map((key) => [key, currentSpec[key]]);
+    return { ...presetSpec, ...Object.fromEntries(kept) };
   }
   const own = new Set(["kind", ...presetKeys(presetSpec.kind)]);
   const kept = Object.fromEntries(
     Object.keys(presetSpec)
-      .filter((key) => !own.has(key) && key in currentSpec && (currentSpec.kind === presetSpec.kind || key === "spin"))
+      .filter((key) => !own.has(key) && key in currentSpec && (currentSpec.kind === presetSpec.kind || PRINT_KEYS.includes(key)))
       .map((key) => [key, currentSpec[key]]),
   );
   return { ...presetSpec, ...kept };

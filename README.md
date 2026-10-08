@@ -213,6 +213,15 @@ The **Generic shapes** cut a plain cutout of any size instead of a fastener's ho
 (a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius
 — half the narrower side, or the "Pill" tick, makes it a pill with round ends). A rectangle has a
 direction like a slot: its height runs up the face unturned, and it turns in the sidebar.
+The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets and a
+608 bearing, each 0.2 mm over in diameter and depth.
+
+Two print options go on the holes they make sense for. **Chamfer** (round, rectangle and 2020
+cutouts) bevels the opening at 45°, as a lead-in and to absorb the flared first layers of a hole
+printed opening-down. **Teardrop on walls** (round and screw holes, and the 2020 socket's bolt hole)
+cuts a hole in a wall with a 45° point at its top, so it prints without the top sagging; a screw
+hole's counterbore goes teardrop with it and a nut trap stands on a corner. "Up" is the model's +Z,
+the way it prints, and a hole in a face lying flat stays round. Picking another preset keeps both.
 
 The **2020 extrusion** presets cut a socket that the end of a 20-series aluminium extrusion pushes
 into along the hole, so a length of rail stands in the part: the 20 mm square plus a clearance

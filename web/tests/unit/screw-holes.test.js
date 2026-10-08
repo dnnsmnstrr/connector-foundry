@@ -401,7 +401,7 @@ test("a round cutout is a plain cylinder, blind or through, with no direction", 
   assert.deepEqual(slotOutline(doc.holes[0]), []);
   const turned = rotateHoles(doc, [doc.holes[0].id], 90);
   assert.deepEqual(turned.holes[0].spec, doc.holes[0].spec);
-  assert.deepEqual(normalizeSpec({ kind: "cylinder", diameter: -1, depth: "x" }), { kind: "cylinder", diameter: 10, depth: 0 });
+  assert.deepEqual(normalizeSpec({ kind: "cylinder", diameter: -1, depth: "x", chamfer: -1, teardrop: 1 }), { kind: "cylinder", diameter: 10, depth: 0, chamfer: 0, teardrop: false });
 });
 
 test("a rectangle is extruded from its outline in the slots' frame, corners rounded up to a pill", () => {
@@ -444,6 +444,7 @@ test("a rectangle turns and flips like a slot, and keeps its direction across sh
     height: 10,
     cornerRadius: 0,
     depth: 0,
+    chamfer: 0,
     spin: 270,
   });
 });
@@ -455,8 +456,8 @@ test("a 2020 socket is cut by lib/exsocket.scad in the slots' frame, keyed or pl
   // Its own library, which needs no BOSL2.
   assert.match(scad, /^use <\.\.\/lib\/exsocket\.scad>$/m);
   assert.doesNotMatch(scad, /BOSL2/);
-  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, overshoot = 1\);/);
-  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.3, keys = false, overshoot = 1\);/);
+  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, chamfer = 0\.5, overshoot = 1\);/);
+  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.3, keys = false, chamfer = 0\.5, overshoot = 1\);/);
   assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
   assert.equal(holeLabel(doc.holes[0]), "2020 socket 15 deep, keyed");
   assert.equal(holeLabel(doc.holes[1]), "2020 socket through");
@@ -475,20 +476,62 @@ test("a 2020 socket turns and flips like a slot; its presets differ in the keys 
   // depth, clearance and direction.
   assert.ok(specMatchesPreset({ ...doc.holes[0].spec, depth: 25, clearance: 0.3 }, "ex-socket"));
   assert.ok(!specMatchesPreset(doc.holes[0].spec, "ex-socket-plain"));
-  assert.deepEqual(presetSpecFor({ ...doc.holes[0].spec, depth: 25, bolt: true }, getPreset("ex-socket-plain").spec), { kind: "extrusion", depth: 25, clearance: 0.15, keys: false, bolt: true, spin: 90 });
-  assert.deepEqual(normalizeSpec({ kind: "extrusion", depth: -1, clearance: "x", keys: 0, bolt: "yes", spin: 450 }), { kind: "extrusion", depth: 15, clearance: 0.15, keys: true, bolt: false, spin: 90 });
+  assert.deepEqual(presetSpecFor({ ...doc.holes[0].spec, depth: 25, bolt: true }, getPreset("ex-socket-plain").spec), { kind: "extrusion", depth: 25, clearance: 0.15, keys: false, bolt: true, chamfer: 0.5, teardrop: false, spin: 90 });
+  assert.deepEqual(normalizeSpec({ kind: "extrusion", depth: -1, clearance: "x", keys: 0, bolt: "yes", spin: 450 }), { kind: "extrusion", depth: 15, clearance: 0.15, keys: true, bolt: false, chamfer: 0, teardrop: false, spin: 90 });
 });
 
 test("a 2020 socket's M5 bolt hole runs on from its floor, only when it has one", () => {
   let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("ex-socket").spec, bolt: true } });
   ({ doc } = addHole(doc, { point: [30, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("ex-socket").spec, bolt: true, depth: 0 } }));
   const scad = holesToScad(doc, partsById, { throughLength: 50 });
-  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, bolt = 50, overshoot = 1\);/);
+  assert.match(scad, /ex_socket\(depth = 15, clearance = 0\.15, keys = true, bolt = 50, chamfer = 0\.5, overshoot = 1\);/);
   // Through, there is no floor: the option is kept but not cut.
-  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.15, keys = true, overshoot = 1\);/);
+  assert.match(scad, /ex_socket\(depth = 50, clearance = 0\.15, keys = true, chamfer = 0\.5, overshoot = 1\);/);
   assert.equal(holeLabel(doc.holes[0]), "2020 socket 15 deep, keyed, M5 bolt");
   assert.equal(holeLabel(doc.holes[1]), "2020 socket through, keyed");
   // The bolt's circle (dashed) joins the socket's outline.
   assert.equal(slotOutline(doc.holes[0]).length, 20 + 24);
   assert.equal(slotOutline(doc.holes[1]).length, 20);
+});
+
+test("a teardrop is cut only on a wall, pointing up; elsewhere a hole stays round", () => {
+  const spec = { ...getPreset("shape-cylinder").spec, diameter: 8, depth: 5, teardrop: true };
+  let { doc } = addHole(plateDoc(), { point: [0, -20, 2], normal: [0, -1, 0], spec });
+  ({ doc } = addHole(doc, { point: [10, 10, 4], normal: [0, 0, 1], spec }));
+  const [wall, top] = doc.holes.map((h) => cutterLines(h, 50));
+  // On the wall: in the face's upright frame (its +Y is world +Z), a
+  // circle with a 45° point at r·√2 straight up.
+  assert.equal(wall[0], "multmatrix([[1, 0, 0, 0], [0, 0, -1, -20], [0, 1, 0, 2], [0, 0, 0, 1]]) {");
+  assert.match(wall[1], /linear_extrude\(height = 6\) hull\(\) \{ circle\(d = 8\); polygon\(\[\[0, 5\.6569\], \[-2\.8284, 2\.8284\], \[2\.8284, 2\.8284\]\]\); \}/);
+  // On a level face the hole is vertical: a plain cylinder, as before.
+  assert.match(top[1], /cylinder\(d = 8, h = 6\);/);
+  // A screw hole's shank and counterbore go teardrop too; a hex pocket
+  // stands on a corner.
+  const screwSpec = { ...getPreset("m3-cap").spec, teardrop: true };
+  const cap = cutterLines(addHole(plateDoc(), { point: [0, -20, 2], normal: [0, -1, 0], spec: screwSpec }).hole, 50).join("\n");
+  assert.equal((cap.match(/polygon/g) ?? []).length, 2);
+  const nut = cutterLines(addHole(plateDoc(), { point: [0, -20, 2], normal: [0, -1, 0], spec: { ...getPreset("m3-nut").spec, teardrop: true } }).hole, 50).join("\n");
+  assert.match(nut, /rotate\(\[0, 0, 90\]\) cylinder\(d = 6\.7, h = 3\.7, \$fn = 6\);/);
+});
+
+test("a 2020 socket's bolt teardrop points up whichever way the socket is turned", () => {
+  const spec = { ...getPreset("ex-socket").spec, bolt: true, teardrop: true, spin: 30 };
+  const onWall = cutterLines(addHole(plateDoc(), { point: [0, -20, 2], normal: [0, -1, 0], spec }).hole, 50).join("\n");
+  assert.match(onWall, /bolt = 50, teardrop = -30, chamfer = 0\.5/);
+  const onTop = cutterLines(addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec }).hole, 50).join("\n");
+  assert.doesNotMatch(onTop, /teardrop/);
+});
+
+test("a chamfer is a 45° hull from the outline down at its depth to the outline grown at the surface", () => {
+  const round = cutterLines(addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("shape-cylinder").spec, depth: 5, chamfer: 1 } }).hole, 50);
+  assert.match(round[1], /translate\(\[0, 0, -5\]\) linear_extrude\(height = 6\) circle\(d = 10\);/);
+  assert.equal(round[2].trim(), "hull() { translate([0, 0, -1]) linear_extrude(height = 0.01) circle(d = 10); linear_extrude(height = 1) offset(r = 1) circle(d = 10); }");
+  const rect = cutterLines(addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: { ...getPreset("shape-rect").spec, depth: 0.5, chamfer: 2 } }).hole, 50);
+  // Never deeper than the cutout.
+  assert.match(rect[2], /translate\(\[0, 0, -0\.5\]\) linear_extrude\(height = 0\.01\) square\(\[20, 10\], center = true\); linear_extrude\(height = 1\) offset\(r = 0\.5\)/);
+  // Picking another shape keeps the chamfer and teardrop; they don't
+  // make the hole "edited" either.
+  const chamfered = { ...getPreset("shape-cylinder").spec, chamfer: 1, teardrop: true };
+  assert.deepEqual(presetSpecFor(chamfered, getPreset("magnet-6x2").spec), { kind: "cylinder", diameter: 6.2, depth: 2.2, chamfer: 1, teardrop: true });
+  assert.ok(specMatchesPreset(chamfered, "shape-cylinder"));
 });

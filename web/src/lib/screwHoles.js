@@ -20,6 +20,8 @@
 //   headDepth     how far the pocket goes below the surface (a
 //                 countersink's extra sink on top of its cone)
 //   sinkAngle     a countersink's included angle (82 or 90, usually)
+//   teardrop      on a wall, the shank and counterbore cut as teardrops
+//                 pointing up (see teardropUp())
 //
 // "openconnect" — an openConnect slot (lib/openconnect.scad's oc_slot()),
 // the keyhole an openConnect snap's head slides into. The point is the
@@ -55,6 +57,8 @@
 // "cylinder" — a plain round cutout:
 //   diameter   mm
 //   depth      0 = through, else a pocket this deep
+//   chamfer    mm of 45° lead-in round the opening; 0 = none
+//   teardrop   on a wall, cut as a teardrop pointing up
 //
 // "rectangle" — a rectangular cutout, its corners rounded (a corner
 // radius of half the narrower side makes it a pill, a slot with round
@@ -63,6 +67,7 @@
 //   height        mm along its direction (`spin`)
 //   cornerRadius  mm; 0 = sharp corners
 //   depth         0 = through, else a pocket this deep
+//   chamfer       mm of 45° lead-in round the opening; 0 = none
 //   spin          degrees it is turned on its face, as for a slot
 //
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
@@ -75,6 +80,8 @@
 //   bolt       an M5 clearance hole on from the floor through the rest of
 //              the part, for a bolt into the rail's centre bore (a blind
 //              socket only — a through one has no floor)
+//   chamfer    mm of 45° lead-in round the mouth, keys included
+//   teardrop   on a wall, the bolt hole cut as a teardrop pointing up
 //   spin       which way the square is turned on its face, as for a slot
 //
 // The slots and the thread are the openGrid connector cuts
@@ -114,6 +121,7 @@ export const DEFAULT_SPEC = Object.freeze({
   headDiameter: 6.1,
   headDepth: 3,
   sinkAngle: 90,
+  teardrop: false,
 });
 
 // The slots' footprints, for the viewer's outline and the "is there a
@@ -190,6 +198,15 @@ export function hasBolt(spec) {
   return spec.kind === "extrusion" && spec.bolt && spec.depth > 0;
 }
 
+// Is the face a wall, as far as printing goes — its normal far enough
+// from ±Z that a hole into it runs sideways and its top would sag? The
+// same test slotFrame() makes for using world up as the face's up (the
+// part is printed the way its model stands: +Z up). A teardrop is only
+// cut there; on a face lying flat the hole is vertical and stays round.
+export function teardropUp(normal) {
+  return Math.hypot(normal[0], normal[1]) > 0.5 * Math.hypot(...normal);
+}
+
 export function isPill(spec) {
   return spec.kind === "rectangle" && spec.cornerRadius > 0 && spec.cornerRadius >= Math.min(spec.width, spec.height) / 2 - 1e-9;
 }
@@ -222,6 +239,8 @@ export function normalizeSpec(spec) {
       kind,
       diameter: Math.max(0.1, n(spec?.diameter, 10)),
       depth: n(spec?.depth, 0),
+      chamfer: n(spec?.chamfer, 0),
+      teardrop: spec?.teardrop === true,
     };
   }
   if (kind === "extrusion") {
@@ -231,6 +250,8 @@ export function normalizeSpec(spec) {
       clearance: n(spec?.clearance, EXTRUSION.clearance),
       keys: spec?.keys !== false,
       bolt: spec?.bolt === true,
+      chamfer: n(spec?.chamfer, 0),
+      teardrop: spec?.teardrop === true,
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -241,6 +262,7 @@ export function normalizeSpec(spec) {
       height: Math.max(0.1, n(spec?.height, 10)),
       cornerRadius: n(spec?.cornerRadius, 0),
       depth: n(spec?.depth, 0),
+      chamfer: n(spec?.chamfer, 0),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -264,6 +286,7 @@ export function normalizeSpec(spec) {
     headDiameter: n(spec?.headDiameter, 0),
     headDepth: n(spec?.headDepth, 0),
     sinkAngle: Math.min(179, Math.max(10, n(spec?.sinkAngle, 90))),
+    teardrop: spec?.teardrop === true,
   };
 }
 
@@ -572,13 +595,19 @@ export function cutterLines(hole, throughLength, extents = null) {
     const depth = s.depth > 0 ? s.depth : throughLength;
     // The bolt hole runs on from the floor past the far side, as a
     // through hole does.
-    const bolt = hasBolt(s) ? `, bolt = ${fmt(throughLength)}` : "";
-    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    // A teardrop points world up, which in the socket's own frame (turned
+    // by its spin) is the spin turned back.
+    const bolt = hasBolt(s) ? `, bolt = ${fmt(throughLength)}${s.teardrop && teardropUp(hole.normal) ? `, teardrop = ${fmt(-s.spin)}` : ""}` : "";
+    const chamfer = s.chamfer > 0 ? `, chamfer = ${fmt(s.chamfer)}` : "";
+    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "cylinder") {
     const depth = s.depth > 0 ? s.depth : throughLength;
-    body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
-    m = frameMatrix(hole.point, hole.normal);
+    const teardrop = s.teardrop && teardropUp(hole.normal);
+    if (teardrop || s.chamfer > 0) body.push(...prism(teardrop ? teardrop2d(s.diameter) : `circle(d = ${fmt(s.diameter)});`, depth, s.chamfer));
+    else body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
+    // A teardrop's point is the frame's +Y: the face's up (slotFrame()).
+    m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   } else if (s.kind === "rectangle") {
     // Extruded from its outline: sharp corners a square, rounded ones the
     // hull of a circle in each corner — which a pill's radius (half the
@@ -590,27 +619,60 @@ export function cutterLines(hole, throughLength, extents = null) {
       r > 0
         ? `hull() for (x = [${fmt(-(s.width / 2 - r))}, ${fmt(s.width / 2 - r)}], y = [${fmt(-(s.height / 2 - r))}, ${fmt(s.height / 2 - r)}]) translate([x, y]) circle(r = ${fmt(r)});`
         : `square([${fmt(s.width)}, ${fmt(s.height)}], center = true);`;
-    body.push(`translate([0, 0, ${fmt(-depth)}]) linear_extrude(height = ${fmt(depth + OVERSHOOT_MM)}) ${outline}`);
+    body.push(...prism(outline, depth, s.chamfer));
     m = slotFrameMatrix(hole);
   } else {
     const depth = s.depth > 0 ? s.depth : throughLength;
-    body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
+    // On a wall, the shank and a counterbore as teardrops pointing up,
+    // and a hex pocket turned to stand on a corner — a point at its top
+    // too, rather than a flat to bridge. (A countersink's cone already
+    // leans in at its angle.)
+    const teardrop = s.teardrop && teardropUp(hole.normal);
+    if (teardrop) body.push(...prism(teardrop2d(s.diameter), depth, 0));
+    else body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
     if (s.head === "counterbore" && s.headDiameter > 0 && s.headDepth > 0) {
-      body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`);
+      if (teardrop) body.push(...prism(teardrop2d(s.headDiameter), s.headDepth, 0));
+      else body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`);
     } else if (s.head === "hex" && s.headDiameter > 0 && s.headDepth > 0) {
-      body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)}, $fn = 6);`);
+      body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) ${teardrop ? "rotate([0, 0, 90]) " : ""}cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)}, $fn = 6);`);
     } else if (s.head === "countersink" && s.headDiameter > s.diameter) {
       const cone = countersinkConeHeight(s);
       body.push(`translate([0, 0, ${fmt(-s.headDepth - cone)}]) cylinder(d1 = ${fmt(s.diameter)}, d2 = ${fmt(s.headDiameter)}, h = ${fmt(cone)});`);
       body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`);
     }
-    m = frameMatrix(hole.point, hole.normal);
+    m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   }
   return [
     `multmatrix(${m}) {`,
     ...body.map((l) => `    ${l}`),
     "}",
   ];
+}
+
+// A 2D outline (an OpenSCAD statement) cut `depth` down from the
+// surface and OVERSHOOT_MM above it — and with `chamfer`, a 45° lead-in:
+// the hull of the outline at z = -chamfer and the outline grown by
+// chamfer at the surface. The outlines here are all convex, so the hull
+// is the bevel.
+function prism(outline, depth, chamfer) {
+  const lines = [`translate([0, 0, ${fmt(-depth)}]) linear_extrude(height = ${fmt(depth + OVERSHOOT_MM)}) ${outline}`];
+  if (chamfer > 0) {
+    const c = Math.min(chamfer, depth);
+    lines.push(
+      `hull() { translate([0, 0, ${fmt(-c)}]) linear_extrude(height = 0.01) ${outline} linear_extrude(height = ${fmt(OVERSHOOT_MM)}) offset(r = ${fmt(c)}) ${outline} }`,
+    );
+  }
+  return lines;
+}
+
+// A circle of diameter d with a 45° point on +Y (lib/exsocket.scad's
+// ex_teardrop(), restated: a generated file only `use`s that library
+// when a socket is on the model).
+function teardrop2d(d) {
+  const r = d / 2;
+  const a = fmt(r * Math.SQRT2);
+  const b = fmt(r / Math.SQRT2);
+  return `hull() { circle(d = ${fmt(d)}); polygon([[0, ${a}], [-${b}, ${b}], [${b}, ${b}]]); }`;
 }
 
 // How wide a box of `extents` is along unit direction `n` — the most any
@@ -636,6 +698,13 @@ export function frameMatrix(point, normal) {
 
 function slotFrameMatrix(hole) {
   const { ex, ey, n } = slotFrame(hole.point, hole.normal, hole.spec.spin);
+  return matrixLiteral(ex, ey, n, hole.point);
+}
+
+// The frame of a hole with no direction of its own whose +Y has to be
+// the face's up anyway: a teardrop's.
+function uprightFrameMatrix(hole) {
+  const { ex, ey, n } = slotFrame(hole.point, hole.normal, 0);
   return matrixLiteral(ex, ey, n, hole.point);
 }
 
