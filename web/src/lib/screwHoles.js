@@ -557,9 +557,13 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "multiconnect") return MULTICONNECT_FOOTPRINT.radius + spec.clearance;
   if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
   if (spec.kind === "cylinder") return spec.diameter / 2;
-  if (spec.kind === "rectangle") return Math.hypot(spec.width, spec.height) / 2;
+  // A rectangle and a 2020 socket draw their own outline (slotOutline());
+  // their ring — and the "a click here picks this hole" area — is the
+  // circle inside it, so a hole can still be drilled close beside a big
+  // cavity rather than anywhere within its half-diagonal.
+  if (spec.kind === "rectangle") return Math.min(spec.width, spec.height) / 2;
   if (spec.kind === "pinhole") return PINHOLE.grooveDiameter / 2;
-  if (spec.kind === "extrusion") return ((EXTRUSION.profile + 2 * spec.clearance) / 2) * Math.SQRT2;
+  if (spec.kind === "extrusion") return EXTRUSION.profile / 2 + spec.clearance;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
 

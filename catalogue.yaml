@@ -137,6 +137,41 @@ parts:
       - name: thumbscrew
         params: { thumbscrew: true }
 
+  - id: gridfinity/bin
+    system: Gridfinity
+    name: Bin
+    file: parts/gridfinity/bin.scad
+    module: gf_bin
+    confidence: exact
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored — its bin generator's new_bin()/bin_render()
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: >-
+      Feet down, no supports. gz is the height in 7mm units, the stacking
+      lip on top. filled makes it solid up to the lip, with a flat top to
+      cut your own cavities into in the Holes tab; divx/divy, scoop and
+      tabs apply to a bin with compartments.
+    slots:
+      pitch: 14  # same free subdivision as the bin base
+    defaults:
+      gx: 1
+      gy: 1
+      gz: 3
+      filled: false
+      divx: 1
+      divy: 1
+      scoop: true
+      tabs: true
+      lip: true
+      magnets: false
+      screws: false
+    variants:
+      - name: filled-2x1
+        params: { gx: 2, filled: true }
+      - name: 2x2-four-compartments-magnets
+        params: { gx: 2, gy: 2, gz: 6, divx: 2, divy: 2, magnets: true }
+      - name: no-lip
+        params: { lip: false }
+
   - id: gridfinity/baseplate
     system: Gridfinity
     name: Baseplate

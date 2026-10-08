@@ -289,6 +289,31 @@ gridfinity/baseplate:
     - 42.0
     - 11.4
     volume_mm3: 21036.75
+gridfinity/bin:
+  2x2-four-compartments-magnets:
+    bbox:
+    - 83.5
+    - 83.5
+    - 45.548
+    volume_mm3: 90510.4
+  default:
+    bbox:
+    - 41.5
+    - 41.5
+    - 24.548
+    volume_mm3: 19460.87
+  filled-2x1:
+    bbox:
+    - 83.5
+    - 41.5
+    - 24.548
+    volume_mm3: 67907.62
+  no-lip:
+    bbox:
+    - 41.5
+    - 41.5
+    - 21.0
+    volume_mm3: 18263.72
 opengrid/board:
   default:
     bbox:

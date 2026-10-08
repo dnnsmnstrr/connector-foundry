@@ -423,6 +423,8 @@ test("a rectangle is extruded from its outline in the slots' frame, corners roun
   assert.equal(holeLabel(doc.holes[1]), "Rectangle 20×10, r2, 3 deep");
   assert.equal(holeLabel(doc.holes[2]), "Pill 20×8, through");
   assert.ok(isPill(doc.holes[2].spec) && !isPill(doc.holes[1].spec));
+  // Its ring (and click area) is the circle inside it, not round it.
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 5);
   // Its outline is drawn, and closes.
   const outline = slotOutline(doc.holes[1]);
   assert.ok(outline.length > 4);
@@ -463,7 +465,7 @@ test("a 2020 socket is cut by lib/exsocket.scad in the slots' frame, keyed or pl
   assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
   assert.equal(holeLabel(doc.holes[0]), "2020 socket 15 deep, keyed");
   assert.equal(holeLabel(doc.holes[1]), "2020 socket through");
-  assert.ok(Math.abs(holeFootprintRadius(doc.holes[0].spec) - 10.15 * Math.SQRT2) < 1e-9);
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 10.15);
   // Outline: four corners, plus a notch of four points per key.
   assert.equal(slotOutline(doc.holes[0]).length, 20);
   assert.equal(slotOutline(doc.holes[1]).length, 4);

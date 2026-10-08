@@ -196,6 +196,60 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  # The bin wrapper against upstream's own bin generator file, its
+  # customizer variables overridden after the include (OpenSCAD takes a
+  # variable's last assignment in a file): a bin with one compartment,
+  # scoop and tab, and a solid ("set to zero to have solid bin") 2x1 —
+  # ours with filled = true. Upstream's generator defaults to refined
+  # holes, which the wrapper doesn't offer, so they are turned off.
+  - id: gridfinity/bin-1x1-compartment
+    part: gridfinity/bin
+    reference_source: gridfinity-rebuilt
+    ours: |
+      include <{repo}/parts/gridfinity/bin.scad>
+      gf_bin(anchor = BOTTOM);
+    reference: |
+      include <{gridfinity-rebuilt}/gridfinity-rebuilt-bins.scad>
+      gridx = 1;
+      gridy = 1;
+      gridz = 3;
+      refined_holes = false;
+    align: none
+    sections_z: [0.4, 4.0, 6.9, 7.5, 12.0, 20.0, 22.0, 24.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: gridfinity/bin-2x1-filled-magnets
+    part: gridfinity/bin
+    params: {gx: 2, filled: true, magnets: true}
+    reference_source: gridfinity-rebuilt
+    ours: |
+      include <{repo}/parts/gridfinity/bin.scad>
+      gf_bin(gx = 2, filled = true, magnets = true, anchor = BOTTOM);
+    reference: |
+      include <{gridfinity-rebuilt}/gridfinity-rebuilt-bins.scad>
+      gridx = 2;
+      gridy = 1;
+      gridz = 3;
+      divx = 0;
+      divy = 0;
+      refined_holes = false;
+      magnet_holes = true;
+      chamfer_holes = true;
+      printable_hole_top = false;
+    align: none
+    sections_z: [0.4, 2.0, 6.9, 12.0, 19.0, 22.0, 24.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # The baseplate wrapper flips upstream's plate pockets-down (the repo's
   # functional-face-BOTTOM convention), so pose ours back the way upstream
   # builds it — back on z=0, pockets up — before comparing.

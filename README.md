@@ -20,7 +20,7 @@ only the slot convention:
 | Upstream | Licence | Used by |
 | --- | --- | --- |
 | [BOSL2](https://github.com/BelfrySCAD/BOSL2) | MIT | everything (attachments) |
-| [gridfinity-rebuilt-openscad](https://github.com/kennetek/gridfinity-rebuilt-openscad) | MIT | `gridfinity/base`, `gridfinity/baseplate` |
+| [gridfinity-rebuilt-openscad](https://github.com/kennetek/gridfinity-rebuilt-openscad) | MIT | `gridfinity/base`, `gridfinity/bin`, `gridfinity/baseplate` |
 | [GoProScad](https://github.com/ridercz/GoProScad) | MIT | `gopro/*` |
 | [QuackWorks](https://github.com/AndyLevesque/QuackWorks) | CC-BY-NC-SA 4.0 | `opengrid/board`, `opengrid/snap` |
 | [openGrid-projects](https://github.com/mitufy/opengrid-projects) | CC-BY 4.0 | `opengrid/openconnect`, `opengrid/multiconnect`, the Holes tab's openConnect slot and openGrid thread |
@@ -159,7 +159,9 @@ them has; use a config file to move those.
 
 ## Holes
 
-The web app's Holes tab puts screw holes into a model. Start from a catalogue part (its
+The web app's Holes tab puts screw holes into a model. For custom Gridfinity storage, start from
+`gridfinity/bin` with `filled` on: a bin solid up to its stacking lip, whose flat top takes any
+cavity cut below — a tool's outline from rounded rectangles, magnet pockets, a 2020 socket. Start from a catalogue part (its
 parameters stay editable under a toggle in the sidebar while you work), a mesh of your own (STL, STEP or 3MF), or the
 bench as it stands, then click a face: the
 hole snaps to that face's significant points — its center, the center of each quadrant, the
@@ -263,6 +265,7 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | Part | System | Confidence | Licence | Source | Print note |
 | --- | --- | --- | --- | --- | --- |
 | ![Bin base](docs/img/gridfinity_base.png)<br>Bin base | Gridfinity | exact | MIT | [gridfinity-rebuilt-openscad (kennetek, MIT), vendored](https://github.com/kennetek/gridfinity-rebuilt-openscad) | Feet down, no supports. |
+| ![Bin](docs/img/gridfinity_bin.png)<br>Bin | Gridfinity | exact | MIT | [gridfinity-rebuilt-openscad (kennetek, MIT), vendored — its bin generator's new_bin()/bin_render()](https://github.com/kennetek/gridfinity-rebuilt-openscad) | Feet down, no supports. gz is the height in 7mm units, the stacking lip on top. filled makes it solid up to the lip, with a flat top to cut your own cavities into in the Holes tab; divx/divy, scoop and tabs apply to a bin with compartments. |
 | ![Baseplate](docs/img/gridfinity_baseplate.png)<br>Baseplate | Gridfinity | exact | MIT | [gridfinity-rebuilt-openscad (kennetek, MIT), vendored](https://github.com/kennetek/gridfinity-rebuilt-openscad) | Modelled pockets down so the flat back is the "mount" face; flip it in the slicer to print back-down. Magnets and screw holes only apply to the weighted, skeletonized and screw-together styles. |
 | ![Board](docs/img/opengrid_board.png)<br>Board | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks openGrid.scad (openGrid by David D, OpenSCAD by BlackjackDuck), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Grid face up, flat on the bed. A board is exactly cells x 28mm with no border, so boards butt together. lite is 4mm, full 6.8mm, heavy 13.8mm (two halves back to back, with a sealed cavity per cell). |
 | ![Snap](docs/img/opengrid_snap.png)<br>Snap | openGrid | exact | CC-BY-NC-SA-4.0 | [QuackWorks opengrid-snap.scad (openGrid by David D, snap by metasyntactic), vendored. CC-BY-NC-SA — see README "Licensing".](https://github.com/AndyLevesque/QuackWorks) | Print in PETG or another filament with some flex so the wings can compress; no supports. The lite snap is half height (3.4mm), which is not the same as a lite board. |
