@@ -249,8 +249,10 @@ each side out: the base then seats free, with a small bump at the entry to hold 
 still stops it. 0 cuts the clip exactly; 0.45 and up slides freely. references.yaml checks a base
 in it: free in the pocket, free seated at 0.3, gripped just as by the clip at 0.
 
-The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets and a
-608 bearing, each 0.2 mm over in diameter and depth.
+The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets, a
+25×4.5 mm pot magnet and a 608 bearing, each 0.2 mm over in diameter and depth. The pot magnet
+also comes with an M4 clearance hole through the pocket's floor, for the screw through its
+countersunk centre.
 
 Two print options go on the holes they make sense for. **Chamfer** (round, rectangle and 2020
 cutouts) bevels the opening at 45°, as a lead-in and to absorb the flared first layers of a hole

@@ -36,7 +36,9 @@
 // and pockets for the usual disc magnets and a 608 skate bearing: the
 // part's nominal size plus 0.2 mm across (a press fit that still goes in
 // by thumb on most printers) and 0.2 mm deeper, so it sits flush or a
-// hair below.
+// hair below. A pot magnet (a magnet in a steel cup, screwed down
+// through its countersunk centre) gets the same pocket, and a variant
+// with a clearance hole through the floor for its screw.
 //
 // The Skådis slot is a pill (kind "rectangle"): the board's 5 × 15 mm slot,
 // 0.2 mm wider so a printed one still takes a moulded hook. The Repeat
@@ -250,6 +252,19 @@ function pocket(id, name, short, d, h) {
   return { id, name, short, group: "Magnets & bearings", spec: round({ diameter: round1(d + 0.2), depth: round1(h + 0.2) }), screw: { style: "shape" } };
 }
 
+// A pot magnet's pocket over a through hole for the screw that holds it
+// down (ISO 273 clearance for M`nominal`): a counterbore the cup's size.
+function potMagnet(id, name, short, d, h, nominal) {
+  return {
+    id,
+    name,
+    short,
+    group: "Magnets & bearings",
+    spec: screw({ diameter: metric(nominal), depth: 0, head: "counterbore", headDiameter: round1(d + 0.2), headDepth: round1(h + 0.2), sinkAngle: 90 }),
+    screw: { style: "shape" },
+  };
+}
+
 // A Skådis slot, upright: a 5 × 15 mm pill, 0.2 mm over across.
 function skadis(id, name, short) {
   const width = 5.2;
@@ -330,6 +345,8 @@ export const SCREW_PRESETS = [
   pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
   pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),
+  pocket("magnet-pot-25x4-5", "25 × 4.5 mm pot magnet", "Pot 25", 25, 4.5),
+  potMagnet("magnet-pot-25x4-5-m4", "25 × 4.5 mm pot magnet, M4 screw through", "Pot 25 M4", 25, 4.5, 4),
   pocket("bearing-608", "608 bearing (22 × 7 mm)", "608", 22, 7),
   klippt("klippt-pocket", "KLIPPT channel, drop-in pocket", "Pocket", true),
   klippt("klippt-open", "KLIPPT channel, open end", "Run-out", false),
