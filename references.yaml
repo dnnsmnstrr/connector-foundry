@@ -190,6 +190,17 @@ sources:
       models a peg, not a board, and hooks in by turning, so it is not
       used.
 
+  bosl2:
+    kind: submodule
+    path: vendor/BOSL2
+    license: MIT
+    url: https://github.com/BelfrySCAD/BOSL2
+    note: >
+      Vendored; every part uses its attachments. Named here as a reference
+      for the camera parts: its threaded_rod() follows the UTS thread
+      profile and its screws.scad has the UTS hex nut table, the
+      standards tripod threads (ISO 1222) are.
+
 # ---------------------------------------------------------------------
 # Shape checks: is our part the same solid as the reference?
 # ---------------------------------------------------------------------
@@ -1395,3 +1406,48 @@ fit_checks:
     expect:
       max_interference_mm3: 0.1
       clearance_mm: [0.1, 1.0]
+
+  # A 1/4"-20 screw in the tripod socket's printed thread: BOSL2's
+  # threaded_rod() at its nominal size, four turns of it, in the socket.
+  # The socket's mask is BOSL2's threaded_rod() too, opened up by
+  # FIT_CLEARANCE; the two helices mesh with the rod's centre 0.35 of a
+  # pitch above the mask's (z = depth / 2 - 0.005), where the screw is
+  # free from 0.32 to 0.38 of a pitch: a turned-in screw, not one pushed
+  # straight in (at 0.6 of a pitch the threads overlap 9mm3).
+  - id: camera/tripod-screw-in-socket
+    part: camera/tripod_socket
+    reference_source: bosl2
+    why: >
+      A tripod's 1/4"-20 screw has to turn into the socket's thread:
+      thread in thread, nowhere solid in solid.
+    a: |
+      include <{repo}/parts/camera/tripod_socket.scad>
+      tripod_socket(anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/threading.scad>
+      translate([0, 0, 8 / 2 - 0.005 + 0.35 * 25.4 / 20])
+          threaded_rod(d = 25.4 / 4, pitch = 25.4 / 20, l = 4 * 25.4 / 20, $fn = 48);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.3]
+
+  # The nut style: BOSL2's own 1/4"-20 hex nut (its UTS table, normal
+  # thickness), pressed into the pocket at the mouth, flush.
+  - id: camera/tripod-nut-in-socket
+    part: camera/tripod_socket
+    params: {style: nut}
+    reference_source: bosl2
+    why: >
+      A real 1/4"-20 nut has to press into the nut pocket, turned the way
+      it is cut, with a print's worth of room round it.
+    a: |
+      include <{repo}/parts/camera/tripod_socket.scad>
+      tripod_socket(style = "nut", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/screws.scad>
+      nut("1/4-20", thickness = "normal", anchor = BOTTOM, $fn = 48);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.5]

@@ -151,6 +151,21 @@ function nutTrap(nominal) {
   };
 }
 
+// A trap for a tripod-thread (UNC, ISO 1222) hex nut, ASME B18.2.2 —
+// lib/camera.scad's numbers: the screw's diameter, the nut's across-flats
+// and thickness, all mm. Sized as the metric traps are: clearance for the
+// screw, the pocket 0.3 over.
+function tripodNut(id, name, short, d, af, thick) {
+  return {
+    id,
+    name,
+    short,
+    group: "Tripod thread (camera)",
+    spec: screw({ diameter: round1(d * 1.07), depth: 0, head: "hex", headDiameter: round1(af / Math.cos(Math.PI / 6) + 0.3), headDepth: round1(thick + 0.3), sinkAngle: 90 }),
+    screw: { style: "nut", nominal: d, headDiameter: af, headHeight: thick },
+  };
+}
+
 function wood(nominal, headDiameter) {
   return {
     id: `wood-${String(nominal).replace(".", "-")}`,
@@ -273,6 +288,8 @@ export const SCREW_PRESETS = [
   insert(2), insert(2.5), insert(3), insert(4), insert(5), insert(6),
   tap(2.5), tap(3), tap(4), tap(5),
   nutTrap(3), nutTrap(4), nutTrap(5), nutTrap(6),
+  tripodNut("tripod-1-4-nut", '1/4"-20 tripod nut trap', '1/4"', 6.35, 11.1125, 5.55625),
+  tripodNut("tripod-3-8-nut", '3/8"-16 tripod nut trap', '3/8"', 9.525, 14.2875, 8.334375),
   wood(3.5, 7.0), wood(4.0, 8.0), wood(5.0, 10.0),
   pilot(3.5, 2.0), pilot(4.0, 2.5),
   {

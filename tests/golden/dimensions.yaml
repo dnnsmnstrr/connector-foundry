@@ -102,6 +102,44 @@ bitbeam/plate:
     - 24.0
     - 8.0
     volume_mm3: 2432.64
+camera/arca_plate:
+  camera-screw:
+    bbox:
+    - 37.7
+    - 50.0
+    - 10.0
+    volume_mm3: 14839.84
+  default:
+    bbox:
+    - 37.7
+    - 50.0
+    - 10.0
+    volume_mm3: 16430.0
+  long:
+    bbox:
+    - 37.7
+    - 100.0
+    - 10.0
+    volume_mm3: 32860.0
+camera/tripod_socket:
+  default:
+    bbox:
+    - 20.0
+    - 20.0
+    - 10.0
+    volume_mm3: 2918.83
+  nut:
+    bbox:
+    - 20.0
+    - 20.0
+    - 10.0
+    volume_mm3: 2418.28
+  three-eighths:
+    bbox:
+    - 24.0
+    - 24.0
+    - 12.0
+    volume_mm3: 4798.17
 deckmate/innie:
   default:
     bbox:

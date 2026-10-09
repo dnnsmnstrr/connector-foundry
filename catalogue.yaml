@@ -647,6 +647,69 @@ parts:
       - name: two-pegs
         params: { pegs: 2 }
 
+  - id: camera/arca_plate
+    system: Camera
+    name: Arca-style plate
+    file: parts/camera/arca_plate.scad
+    module: arca_plate
+    confidence: parametric
+    source: >-
+      lib/camera.scad, from Wimberley's published figure of the Arca-Swiss
+      style dovetail (45° flanks, 38mm real and 41.9mm sharp width); flank
+      height and thickness are this repo's choice. No published standard
+      or open model to check against.
+    source_url: https://www.tripodhead.com/products/product-details2.cfm?product=arca-swiss-geometry
+    print_note: >-
+      Clamp face on the bed, flanks up, no supports. Makers differ by tenths
+      of a millimetre: print a short one first and try it in your clamp. It
+      is FIT_CLEARANCE a side narrower than nominal. screw cuts a slot for a
+      1/4"-20 camera screw, its head sunk from the clamp face; leave it off
+      for a plate fused onto a part. "mount" is the top, where the camera
+      or part sits.
+    anchors: [bot]
+    defaults:
+      length: 50
+      thickness: 10
+      screw: false
+    variants:
+      - name: camera-screw
+        params: { screw: true }
+      - name: long
+        params: { length: 100 }
+
+  - id: camera/tripod_socket
+    system: Camera
+    name: Tripod socket
+    file: parts/camera/tripod_socket.scad
+    module: tripod_socket
+    confidence: exact
+    source: >-
+      BOSL2's UTS threads (threaded_rod() as a mask) and its hex nut table,
+      vendored; checked with BOSL2's own screw and nut.
+    source_url: https://github.com/BelfrySCAD/BOSL2
+    print_note: >-
+      Mouth on the bed, no supports. A part fused onto its top ("mount")
+      screws onto a tripod, light stand or camera rig. size 1/4 is the
+      camera thread (1/4"-20), 3/8 the tripod-head one (3/8"-16). style
+      thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket
+      for a real hex nut, pressed in from the mouth, for weight a printed
+      thread will not hold.
+    anchors: [bot]
+    defaults:
+      size: "1/4"
+      style: thread
+      diameter: 20
+      depth: 8
+      top: 2
+    options:
+      size: ["1/4", "3/8"]
+      style: [thread, nut]
+    variants:
+      - name: nut
+        params: { style: nut }
+      - name: three-eighths
+        params: { size: "3/8", diameter: 24, depth: 10 }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

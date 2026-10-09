@@ -1,9 +1,9 @@
 # Connector Foundry
 
 Printable mounting interfaces — Gridfinity, openGrid, Honeycomb Storage Wall, Skådis, GoPro,
-DeckMate, BitBeam, 2020 extrusion — as parametric OpenSCAD parts that share one slot convention, so
-any of them can be combined with any other. Export a single part as STL, or compose several in the
-browser and export the result.
+Arca-style plates and tripod threads, DeckMate, BitBeam, 2020 extrusion — as parametric OpenSCAD
+parts that share one slot convention, so any of them can be combined with any other. Export a
+single part as STL, or compose several in the browser and export the result.
 
 Three ways to get a part from the same `.scad` sources:
 
@@ -208,6 +208,9 @@ with the grid's **Skådis spacing** (40 mm across, 20 mm up, staggered) turns an
 board, for Skådis hooks or `skadis/peg`. A circle can be filled with the same spacing instead of a
 ring: every point of the pattern within its radius, centred on the selected slot.
 
+Two **tripod nut trap** presets take a 1/4"-20 or 3/8"-16 hex nut (camera and tripod-head
+threads), so any part screws onto a tripod; `camera/tripod_socket` prints the thread instead.
+
 Two more preset groups cut **connector slots** rather than screw holes, so any part becomes a
 custom mount for an openGrid board: an **openConnect** slot (the keyhole an `opengrid/openconnect`
 snap's head slides into — upstream's own geometry, with its lock nub on the left, right, both
@@ -305,6 +308,8 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Insert](docs/img/hsw_insert.png)<br>Insert | Honeycomb Storage Wall | exact | MIT | [geru's 3d-scad-hsw-clip (Hugh Kern, MIT, after KYZ's V2 clips), vendored](https://github.com/geru/3d-scad-hsw-clip) | Base on the bed, clip up, no supports. A one-way clip: push it into any HSW cell and its spring snaps it behind the lip; press the spring to take it out. The base's top is "mount", for fusing a hook or holder onto. base hex covers the cell, a millimetre short of its neighbours; rect is a bar across it. |
 | ![Board](docs/img/skadis_board.png)<br>Board | Skådis | exact | MIT | [lib/skadis.scad: Skådis's 5 x 15mm slots in a checkerboard on a 20mm grid, checked against breckenedge's parametric-skadis-tower (CC-BY-SA 4.0, measured against, not vendored).](https://github.com/breckenedge/parametric-skadis-tower) | Flat on the bed, no supports. 5mm thick, slots 40mm apart along a row and rows 20mm apart, every other row shifted 20mm, as on a Skådis board; cols counts the slots in a row, in halves: 2.5 is five 20mm cells across, which makes the board symmetric left to right (a whole number leaves one side starting on a gap). The slots are cut 5.2mm wide, so moulded Skådis hooks go in. A board is exactly 2 x cols x rows 20mm cells, so boards butt together. "mount" is the back, against the wall. |
 | ![Peg](docs/img/skadis_peg.png)<br>Peg | Skådis | exact | MIT | [lib/skadis.scad's hook tab, checked against this repo's Skådis board (itself checked against parametric-skadis-tower).](https://github.com/breckenedge/parametric-skadis-tower) | Print it on its side, a tab flat on the bed, so the layers run along the arm. Each tab goes straight through a slot, drops 6mm and hangs behind the board; lift it to take it off. pegs 2 puts two tabs 40mm apart, for two slots in a row, so the part cannot turn. The plate's front is "mount", for fusing a holder or shelf onto. |
+| ![Arca-style plate](docs/img/camera_arca_plate.png)<br>Arca-style plate | Camera | parametric | MIT | [lib/camera.scad, from Wimberley's published figure of the Arca-Swiss style dovetail (45° flanks, 38mm real and 41.9mm sharp width); flank height and thickness are this repo's choice. No published standard or open model to check against.](https://www.tripodhead.com/products/product-details2.cfm?product=arca-swiss-geometry) | Clamp face on the bed, flanks up, no supports. Makers differ by tenths of a millimetre: print a short one first and try it in your clamp. It is FIT_CLEARANCE a side narrower than nominal. screw cuts a slot for a 1/4"-20 camera screw, its head sunk from the clamp face; leave it off for a plate fused onto a part. "mount" is the top, where the camera or part sits. |
+| ![Tripod socket](docs/img/camera_tripod_socket.png)<br>Tripod socket | Camera | exact | MIT | [BOSL2's UTS threads (threaded_rod() as a mask) and its hex nut table, vendored; checked with BOSL2's own screw and nut.](https://github.com/BelfrySCAD/BOSL2) | Mouth on the bed, no supports. A part fused onto its top ("mount") screws onto a tripod, light stand or camera rig. size 1/4 is the camera thread (1/4"-20), 3/8 the tripod-head one (3/8"-16). style thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket for a real hex nut, pressed in from the mouth, for weight a printed thread will not hold. |
 | ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc](https://github.com/ondratu/bitbeam-lib) | Print flat, no supports. 4.8mm holes on an 8mm pitch through top and bottom, and through the sides with side_holes on. LEGO Technic-compatible. |
 | ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc. Nobody publishes a model of a plate like this, so there is no reference geometry to check against.](https://github.com/ondratu/bitbeam-lib) | Flat on the bed, no supports. Every hole is a real BitBeam hole, top and side. Side holes need height 1 (8mm); go thinner and turn side_holes off. Sizes are in 8mm units. |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Generic geometry, not tied to an external spec | Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm with 4mm corners by default — one Gridfinity unit, so it lines up with a Gridfinity base or baseplate. |
