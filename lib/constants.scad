@@ -134,7 +134,8 @@ GP_LEG_DIA = 15;    // == GoProScad __gopro_outer_diameter (duplicate, checked)
 GP_BASE_T    = 3;     // mount plate thickness
 GP_BASE_W    = 20;    // mount plate width
 GP_LEG_H     = 17;    // leg height; upstream asserts >= 15
-GP_NUT_DEPTH = 3;     // captive nut pocket depth in the far leg (0 = none)
+GP_OUTER_W   = 6;     // far outer leg width: GP_LEG_T, plus a captive nut pocket
+                      // for the rest (GP_LEG_T = equal prongs, no pocket)
 // The pocket takes a standard M5 hex nut (DIN 934: 8mm across flats,
 // 9.24mm across corners) — cylinder(d=, $fn=6) is sized across corners,
 // so 9.5 leaves ~0.25mm on the flats. A square M5 nut (upstream's own

@@ -31,10 +31,10 @@ const FACE_ANCHOR_LOCAL = {
 };
 
 // The catalogue's `mount_offset` as [x, y] mm for this instance: a fixed
-// pair, or a per-axis `{param, scale, unless}` evaluated against the
-// node's params over the catalogue defaults — the GoPro female's "mount"
-// is half its nut pocket's depth off the plate's center, and back at the
-// center when the buckle is symmetric. The same rule as cli/foundry.py's
+// pair, or a per-axis `{param, offset, scale, unless}` evaluated against
+// the node's params over the catalogue defaults — the GoPro female's
+// "mount" is half of what its far leg has over a standard one off the
+// plate's center, and back at the center when the buckle is symmetric. The same rule as cli/foundry.py's
 // mount_offset(); catalogue.yaml's schema comment is the definition.
 export function mountOffset(part, params = {}) {
   const spec = part.mount_offset;
@@ -45,7 +45,7 @@ export function mountOffset(part, params = {}) {
     if (expr === undefined) return 0;
     if (typeof expr === "number") return expr;
     if (expr.unless !== undefined && merged[expr.unless]) return 0;
-    return Number(merged[expr.param] ?? 0) * (expr.scale ?? 1);
+    return (Number(merged[expr.param] ?? 0) + (expr.offset ?? 0)) * (expr.scale ?? 1);
   };
   return [axis(spec.x), axis(spec.y)];
 }

@@ -246,7 +246,7 @@ gopro/female:
     - 19.0
     - 20.0
     volume_mm3: 3832.1
-  no-nut-pocket:
+  equal-prongs:
     bbox:
     - 20.0
     - 16.0

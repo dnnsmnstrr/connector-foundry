@@ -82,8 +82,9 @@
 #   DeckMate screw pattern, the GoPro female's middle prong). Omitted
 #   means the face center. Either a fixed `[x, y]`, or, when the offset
 #   depends on the part's parameters, a map with an `x` and/or `y` entry
-#   that is a number or `{param, scale, unless}`: the named parameter's
-#   current value times `scale` (default 1), or 0 when the boolean
+#   that is a number or `{param, offset, scale, unless}`: the named
+#   parameter's current value plus `offset` (default 0), times `scale`
+#   (default 1), or 0 when the boolean
 #   parameter named by `unless` is true. cli/foundry.py's mount_offset()
 #   and web/src/lib/slots.js evaluate both forms the same way, and
 #   tests/test_anchors.py holds the result to the rendered geometry at
@@ -383,29 +384,30 @@ parts:
     source: GoProScad (ridercz, MIT), vendored
     source_url: https://github.com/ridercz/GoProScad
     print_note: >-
-      Legs down; use a brim. nut_depth sinks a captive pocket for an M5
-      hex nut in the far leg; 0 gives a plain through-hole. nut_sides 4
-      with nut_dia 11.5 takes a square nut instead. The pocket makes the
-      far outer leg thicker than the near one, so the plate runs
-      nut_depth further to that side; "mount" sits over the middle prong
-      regardless. symmetric pads the near leg to match, for a plate
-      centred on the prongs.
-    # The nut pocket thickens the far leg only, so the middle prong —
-    # where "mount" sits — is nut_depth/2 off the plate's center, until
+      Legs down; use a brim. outer_w is the far outer leg's width: the
+      standard 3mm leg plus a captive pocket for an M5 hex nut in the
+      rest. 3 makes all three prongs the same width, with a plain
+      through-hole and no pocket. nut_sides 4 with nut_dia 11.5 takes a
+      square nut instead. A far leg wider than the near one runs the
+      plate further to that side; "mount" sits over the middle prong
+      regardless. symmetric pads the near leg to outer_w too, for a
+      plate centred on the prongs.
+    # Only the far leg is outer_w wide, so the middle prong — where
+    # "mount" sits — is (outer_w - 3)/2 off the plate's center, until
     # `symmetric` pads the other leg to match.
     mount_offset:
-      y: { param: nut_depth, scale: 0.5, unless: symmetric }
+      y: { param: outer_w, offset: -3, scale: 0.5, unless: symmetric }
     defaults:
       base_h: 3
       base_w: 20
       leg_h: 17
-      nut_depth: 3
+      outer_w: 6
       nut_sides: 6
       nut_dia: 9.5
       symmetric: false
     variants:
-      - name: no-nut-pocket
-        params: { nut_depth: 0 }
+      - name: equal-prongs
+        params: { outer_w: 3 }
       - name: square-nut
         params: { nut_sides: 4, nut_dia: 11.5 }
       - name: symmetric

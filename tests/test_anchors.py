@@ -51,7 +51,7 @@ def test_named_anchors_sit_where_the_catalogue_says(part, params, tag, render_di
     puts both at its screw pattern's reference point, the GoPro female
     puts "mount" over its middle prong — declares that offset, and this
     is what holds the declaration to the geometry. An offset that
-    depends on the parameters (the female's moves with nut_depth and
+    depends on the parameters (the female's moves with outer_w and
     vanishes when symmetric) is checked at every catalogue variant, each
     evaluated through the same rule the editor uses.
 

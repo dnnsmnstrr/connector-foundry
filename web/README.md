@@ -208,9 +208,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   A patterned part's `mount`/`bot` anchors sit at the pattern's reference point, not the box
   center — catalogue `mount_offset`, which `slots.js` applies to those two markers. The field is
   either a fixed `[x, y]` or, for an offset that depends on the part's parameters, a per-axis
-  `{param, scale, unless}` that `slots.js`'s `mountOffset(part, params)` evaluates against the
-  node's params over the catalogue defaults — the GoPro female's `mount` sits over its middle
-  prong, `nut_depth / 2` off the plate's center, and back at the center when `symmetric` pads the
+  `{param, offset, scale, unless}` that `slots.js`'s `mountOffset(part, params)` evaluates against
+  the node's params over the catalogue defaults — the GoPro female's `mount` sits over its middle
+  prong, `(outer_w - 3) / 2` off the plate's center, and back at the center when `symmetric` pads the
   other leg to match. `cli/foundry.py`'s `mount_offset()` is the same rule, and
   `tests/test_anchors.py` renders every variant of such a part to hold both to the geometry.
 - `compileToScad()` generates one `.scad` source per assembly state, through the *same*

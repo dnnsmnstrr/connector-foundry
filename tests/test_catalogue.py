@@ -145,8 +145,8 @@ def _mount_offset_problems(part: dict) -> list[str]:
     for axis, expr in offset.items():
         if _is_mm(expr):
             continue
-        if not isinstance(expr, dict) or "param" not in expr or set(expr) - {"param", "scale", "unless"}:
-            problems.append(f"{part['id']}: mount_offset.{axis} must be a number or {{param, scale, unless}}, got {expr!r}")
+        if not isinstance(expr, dict) or "param" not in expr or set(expr) - {"param", "offset", "scale", "unless"}:
+            problems.append(f"{part['id']}: mount_offset.{axis} must be a number or {{param, offset, scale, unless}}, got {expr!r}")
             continue
         for field in ("param", "unless"):
             name = expr.get(field)
@@ -156,8 +156,9 @@ def _mount_offset_problems(part: dict) -> list[str]:
                 problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} is not a parameter of {part['module']}()")
             elif name not in defaults:
                 problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} has no catalogue default to evaluate from")
-        if "scale" in expr and not _is_mm(expr["scale"]):
-            problems.append(f"{part['id']}: mount_offset.{axis} scale must be a number, got {expr['scale']!r}")
+        for field in ("offset", "scale"):
+            if field in expr and not _is_mm(expr[field]):
+                problems.append(f"{part['id']}: mount_offset.{axis} {field} must be a number, got {expr[field]!r}")
     return problems
 
 
@@ -179,12 +180,13 @@ def test_screw_pattern_and_mount_offset_are_well_formed():
 
 def test_mount_offset_evaluates_as_documented():
     """The GoPro female's offset is the worked example of the parameter
-    form: half the nut pocket's depth, gone when the buckle is symmetric.
+    form: half of what the far leg has over a standard 3mm one, gone when
+    the buckle is symmetric.
     Pins cli/foundry.py's mount_offset() to the schema comment's meaning."""
     female = next(p for p in _parts() if p["id"] == "gopro/female")
     assert foundry.mount_offset(female) == (0.0, 1.5)
-    assert foundry.mount_offset(female, {"nut_depth": 0}) == (0.0, 0.0)
-    assert foundry.mount_offset(female, {"nut_depth": 4}) == (0.0, 2.0)
+    assert foundry.mount_offset(female, {"outer_w": 3}) == (0.0, 0.0)
+    assert foundry.mount_offset(female, {"outer_w": 7}) == (0.0, 2.0)
     assert foundry.mount_offset(female, {"symmetric": True}) == (0.0, 0.0)
     fixed = next(p for p in _parts() if isinstance(p.get("mount_offset"), list))
     assert foundry.mount_offset(fixed, {"anything": 1}) == tuple(float(v) for v in fixed["mount_offset"])

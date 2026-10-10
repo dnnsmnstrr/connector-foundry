@@ -87,7 +87,7 @@ def catalogue_cases(catalogue: dict) -> Iterator[tuple[dict, dict, str]]:
 def mount_offset(part: dict, params: dict[str, object] | None = None) -> tuple[float, float]:
     """Where the part's "mount"/"bot" anchors sit relative to the center
     of their face, per catalogue `mount_offset` — a fixed [x, y], or a
-    per-axis `{param, scale, unless}` evaluated against `params` on top
+    per-axis `{param, offset, scale, unless}` evaluated against `params` on top
     of the catalogue defaults (see the schema comment in catalogue.yaml).
     web/src/lib/slots.js's mountOffset() is the same evaluation."""
     spec = part.get("mount_offset")
@@ -102,7 +102,7 @@ def mount_offset(part: dict, params: dict[str, object] | None = None) -> tuple[f
             return float(expr)
         if expr.get("unless") is not None and merged.get(expr["unless"]):
             return 0.0
-        return float(merged[expr["param"]]) * float(expr.get("scale", 1))
+        return (float(merged[expr["param"]]) + float(expr.get("offset", 0))) * float(expr.get("scale", 1))
 
     return (axis(spec.get("x", 0)), axis(spec.get("y", 0)))
 
