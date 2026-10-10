@@ -64,7 +64,9 @@ for (const [platform, width] of [['mac', 1280], ['mac', 640], ['win', 1280], ['w
     await mockWorker(page, true);
     await page.goto('/');
     await expect(page.locator('html')).toHaveClass(new RegExp(`desktop-${platform}`));
-    await page.getByRole('button', { name: 'Board exact', exact: true }).click();
+    // openGrid's Board; Skådis has a Board too.
+    const openGrid = page.locator('.system-group').filter({ has: page.getByRole('heading', { name: 'openGrid', exact: true }) });
+    await openGrid.getByRole('button', { name: 'Board exact', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled();
     const sidebar = page.locator('.sidebar');
     const params = page.locator('.params-panel');
