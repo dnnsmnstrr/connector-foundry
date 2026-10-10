@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseDecimal, stepDecimal, stepSize } from "../../src/lib/decimalInput.js";
+import { atLimit, parseDecimal, stepDecimal, stepSize } from "../../src/lib/decimalInput.js";
 
 test("comma and period both read as the decimal separator", () => {
   assert.equal(parseDecimal("2.5"), 2.5);
@@ -37,4 +37,14 @@ test("Shift makes the keyboard coarser and the pointer finer", () => {
   assert.equal(stepSize(1, "wheel", true), 0.1);
   assert.equal(stepSize("15", "wheel", false), 15);
   assert.equal(stepSize("15", "button", true), 7.5);
+});
+
+test("an arrow is at its limit only at (or past) the bound it steps towards", () => {
+  assert.equal(atLimit(20, 1, 14, 20), true);
+  assert.equal(atLimit(20, -1, 14, 20), false);
+  assert.equal(atLimit(14, -1, "14", "20"), true);
+  assert.equal(atLimit(19.5, 1, 14, 20), false);
+  assert.equal(atLimit(25, 1, undefined, 20), true);
+  assert.equal(atLimit(5, -1, undefined, 20), false);
+  assert.equal(atLimit("", 1, 0, 1), false);
 });

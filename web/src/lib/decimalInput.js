@@ -21,6 +21,14 @@ export function stepDecimal(value, delta, min, max) {
   return next;
 }
 
+// Whether `value` already sits at the limit a step in `direction` (+1
+// up, -1 down) moves towards, so that arrow has nothing left to do.
+export function atLimit(value, direction, min, max) {
+  const limit = direction > 0 ? max : min;
+  if (typeof value !== "number" || limit === undefined || limit === "" || limit === null) return false;
+  return direction > 0 ? value >= Number(limit) : value <= Number(limit);
+}
+
 // How far one press, click or wheel tick moves a field: a whole `step`,
 // or with Shift ten steps from the keyboard (like the native field), half
 // a step from the arrow buttons and a tenth from the wheel — the pointer

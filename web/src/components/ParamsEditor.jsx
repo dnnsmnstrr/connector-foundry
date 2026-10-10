@@ -66,6 +66,7 @@ export default function ParamsEditor({
           value={value}
           options={part.options?.[key]}
           min={part.minimums?.[key]}
+          max={part.maximums?.[key]}
           catalogueDefault={catalogueDefaults[key]}
           onChange={(next) => setParam(key, next)}
           onReset={() => setParam(key, catalogueDefaults[key])}

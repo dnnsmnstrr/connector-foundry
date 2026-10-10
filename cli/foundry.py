@@ -253,12 +253,17 @@ def check_options(part: dict, params: dict[str, object]) -> None:
 
 
 def check_minimums(part: dict, params: dict[str, object]) -> None:
-    """Reject a number under a parameter's declared minimum, before
-    OpenSCAD's own assertion turns it into a failed render."""
+    """Reject a number under a parameter's declared minimum (or over its
+    maximum), before OpenSCAD's own assertion turns it into a failed
+    render."""
     for key, floor in part.get("minimums", {}).items():
         value = params.get(key)
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value < floor:
             raise typer.BadParameter(f"{part['id']}: {key}={value!r} is under its minimum of {floor}")
+    for key, ceiling in part.get("maximums", {}).items():
+        value = params.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value > ceiling:
+            raise typer.BadParameter(f"{part['id']}: {key}={value!r} is over its maximum of {ceiling}")
 
 
 def resolve_params(part: dict, overrides: dict[str, object], use_user_config: bool) -> dict:

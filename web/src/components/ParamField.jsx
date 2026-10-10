@@ -7,11 +7,12 @@ import DecimalInput from "./DecimalInput.jsx";
 // actually differs (deep-enough for the primitives every param is).
 // Shared by Library mode and the Bench's per-node param editor.
 //
-// `min` (catalogue.yaml's `minimums`): the number field's arrow keys stop
-// there, and a value typed under it is raised to it when the field loses
+// `min`/`max` (catalogue.yaml's `minimums`/`maximums`): the number
+// field's arrows stop there (the arrow buttons disable at the limit), and
+// a value typed past one is brought back to it when the field loses
 // focus — not on every keystroke, which would turn the "1" of a "10"
 // being typed into the minimum. Decimals take a comma or a period.
-export default function ParamField({ name, value, options, min, catalogueDefault, onChange, onReset }) {
+export default function ParamField({ name, value, options, min, max, catalogueDefault, onChange, onReset }) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.
   const inputId = useId();
@@ -67,7 +68,7 @@ export default function ParamField({ name, value, options, min, catalogueDefault
     return (
       <label htmlFor={inputId} className="field">
         {label}
-        <DecimalInput id={inputId} value={value} min={min} onChange={onChange} />
+        <DecimalInput id={inputId} value={value} min={min} max={max} onChange={onChange} />
       </label>
     );
   }

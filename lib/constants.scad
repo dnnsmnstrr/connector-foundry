@@ -112,24 +112,29 @@ MC_DETENT_DEPTH  = 0.4;   // v2 detent: the channel narrows this much at the poc
 MC_DETENT_LEN    = 8;     // ...tapering back to full width over this far down the channel
 
 // ============================================================
-// GoPro — exact, interface geometry owned upstream.
+// GoPro — exact, interface geometry from upstream.
 //
 // The buckle interface itself (Ø15 leg ends, 3mm legs, 3.5mm slits, M5
-// pivot) lives in vendor/GoProScad (ridercz/GoProScad, MIT), which
-// parts/gopro/*.scad call directly. Only two kinds of number live here:
+// pivot) is GoProScad's (ridercz/GoProScad, MIT, vendor/GoProScad);
+// parts/gopro/_body.scad carries its two mount modules with the leg-end
+// diameter as a parameter. Only two kinds of number live here:
 //
 //  1. Shape choices upstream leaves to the caller (plate size, leg
-//     height, nut pocket). Free to override.
-//  2. GP_LEG_T / GP_SLIT_W, which upstream keeps as file-private
-//     __gopro_* variables that `use <>` does not import, so they have to
-//     be restated to compute a bounding box. These two ARE a duplicate
-//     of upstream and can drift — references.yaml has a shape check that
-//     compares our render against upstream's and fails if they do.
+//     height, nut pocket), and the leg-end diameter. Free to override.
+//  2. GP_LEG_T / GP_SLIT_W / GP_LEG_DIA, which upstream keeps as
+//     file-private __gopro_* variables. These ARE a duplicate of
+//     upstream and can drift — references.yaml has shape checks that
+//     compare our render against upstream's and fail if they do.
 // ============================================================
 
 GP_LEG_T   = 3.0;   // == GoProScad __gopro_leg_width   (duplicate, checked)
 GP_SLIT_W  = 3.5;   // == GoProScad __gopro_slit_width  (duplicate, checked)
 GP_LEG_DIA = 15;    // == GoProScad __gopro_outer_diameter (duplicate, checked)
+// The leg-end diameter is the one standard number a buckle may override
+// (leg_dia), a little either way of GP_LEG_DIA; catalogue.yaml's
+// minimums/maximums say the same to the web field and the CLI.
+GP_LEG_DIA_MIN = 14;
+GP_LEG_DIA_MAX = 20;
 
 GP_BASE_T    = 3;     // mount plate thickness
 GP_BASE_W    = 20;    // mount plate width

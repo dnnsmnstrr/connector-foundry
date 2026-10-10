@@ -32,6 +32,9 @@
 #   instead of either finding out from an OpenSCAD assertion. A test
 #   keeps defaults and variants at or above it.
 #
+# maximums: the same for a ceiling — the web field stops at it and the
+#   CLI rejects anything over it.
+#
 # license: omitted means the repository's MIT licence. A part that calls
 #   into a vendored upstream carries that upstream's terms instead — see
 #   the README "Licensing" section. This field is not decoration: it is
@@ -372,11 +375,20 @@ parts:
     confidence: exact
     source: GoProScad (ridercz, MIT), vendored
     source_url: https://github.com/ridercz/GoProScad
-    print_note: Legs down; use a brim. Mates with any GoPro three-prong buckle.
+    print_note: >-
+      Legs down; use a brim. Mates with any GoPro three-prong buckle.
+      leg_dia is the round leg ends' diameter: the standard 15, from 14
+      to 20 for a little less or more material around the bolt; over 17,
+      raise leg_h to at least leg_dia so a mating buckle clears the plate.
+    minimums:
+      leg_dia: 14
+    maximums:
+      leg_dia: 20
     defaults:
       base_h: 3
       base_w: 20
       leg_h: 17
+      leg_dia: 15
     variants:
       - name: wide-plate
         params: { base_w: 30 }
@@ -397,7 +409,10 @@ parts:
       square nut instead. A far leg wider than the near one runs the
       plate further to that side; "mount" sits over the middle prong
       regardless. symmetric pads the near leg to outer_w too, for a
-      plate centred on the prongs.
+      plate centred on the prongs. leg_dia is the round leg ends'
+      diameter: the standard 15, from 14 to 20 for a little less or more
+      material around the bolt; over 17, raise leg_h to at least leg_dia
+      so a mating buckle clears the plate.
     # Only the far leg is outer_w wide, so the middle prong — where
     # "mount" sits — is (outer_w - 3)/2 off the plate's center, until
     # `symmetric` pads the other leg to match.
@@ -407,10 +422,14 @@ parts:
     # asserted in parts/gopro/female.scad): 3 is the equal-prongs buckle.
     minimums:
       outer_w: 3
+      leg_dia: 14
+    maximums:
+      leg_dia: 20
     defaults:
       base_h: 3
       base_w: 20
       leg_h: 17
+      leg_dia: 15
       outer_w: 6
       nut_sides: 6
       nut_dia: 9.5

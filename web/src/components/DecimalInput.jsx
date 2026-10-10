@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { parseDecimal, stepDecimal, stepSize } from "../lib/decimalInput.js";
+import { atLimit, parseDecimal, stepDecimal, stepSize } from "../lib/decimalInput.js";
 
 // A number field that takes a comma or a period as the decimal
 // separator. An <input type="number"> reports "" for "3," (the browser
@@ -16,7 +16,8 @@ import { parseDecimal, stepDecimal, stepSize } from "../lib/decimalInput.js";
 // (lib/decimalInput.js's stepSize() has the amounts):
 //   - ArrowUp/ArrowDown: ±step, ten steps with Shift.
 //   - The arrow buttons inside its right edge: ±step a click, half a step
-//     with Shift; held down, they repeat.
+//     with Shift; held down, they repeat. An arrow is disabled while the
+//     value sits at the `max` (up) or `min` (down) it would step towards.
 //   - The wheel, while the field has focus: ±step a tick, a tenth with
 //     Shift. Only while focused, so scrolling the sidebar past a field
 //     never changes it.
@@ -42,10 +43,14 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
   };
   // Steps from the last reported value rather than `value`, so a held
   // button or a fast wheel keeps counting before the parent re-renders.
+  // A held arrow stops repeating at the limit: its button turns
+  // disabled there, and a disabled button gets no pointerup to stop it.
   const stepBy = (delta) => {
     if (typeof reported.current !== "number") return;
     setDraft(null);
-    report(stepDecimal(reported.current, delta, min, max));
+    const next = stepDecimal(reported.current, delta, min, max);
+    report(next);
+    if (atLimit(next, Math.sign(delta), min, max)) stopRepeat();
   };
   const stepRef = useRef(stepBy);
   stepRef.current = stepBy;
@@ -142,7 +147,7 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
             type="button"
             tabIndex={-1}
             className="decimal-input-arrow"
-            disabled={disabled || !isNumber}
+            disabled={disabled || !isNumber || atLimit(value, direction, min, max)}
             title={direction > 0 ? "Increase (Shift: half a step)" : "Decrease (Shift: half a step)"}
             onPointerDown={press(direction)}
             onPointerUp={stopRepeat}
