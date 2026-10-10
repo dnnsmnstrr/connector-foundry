@@ -31,6 +31,13 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeVisible({ timeout: 90_000 });
     await page.screenshot({ path: path.join(screenshots, 'library.png') });
     assert.equal(new URL(page.url()).protocol, 'foundry:');
+    // "Copy for Layerling" reaches the system clipboard: the one permission
+    // main.cjs grants the app. Read back from the main process.
+    await page.getByRole('button', { name: 'Copy for Layerling' }).click();
+    await expect(page.getByRole('button', { name: 'Copied — paste in Layerling' })).toBeVisible();
+    const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+    assert.ok(copied.startsWith('LAYERLING/1\n'), copied.slice(0, 40));
+    assert.equal(JSON.parse(copied.slice('LAYERLING/1\n'.length)).shapes[0].kind, 'mesh');
     // The window is titled like the app, and the header row doubles as its
     // title bar on both desktops: the stylesheet picks the platform's class
     // and keeps the row clear of the native window controls Electron
@@ -111,9 +118,9 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     const scad = await exportFile(page.getByRole('button', { name: /Download .scad/ }));
     assert.match(scad.toString(), /basics_plate/);
     await page.getByRole('button', { name: 'Start over', exact: true }).click();
-    await page.getByRole('button', { name: 'Import STL / STEP…', exact: true }).click();
+    await page.getByRole('button', { name: 'Import STL / STEP / 3MF…', exact: true }).click();
     const meshChooser = page.waitForEvent('filechooser');
-    await page.locator('input[type=file][accept=".stl,.step,.stp"]').click();
+    await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
     await (await meshChooser).setFiles({ name: 'exported-plate.stl', mimeType: 'model/stl', buffer: body });
     const usePart = page.getByRole('button', { name: 'Use as base part', exact: true });
     await expect(usePart).toBeVisible();

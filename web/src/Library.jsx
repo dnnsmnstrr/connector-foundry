@@ -10,6 +10,7 @@ import { resolveParams } from "./lib/userOverrides.js";
 import { listedParts, slugify } from "./lib/catalogueUtils.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
+import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 
@@ -168,6 +169,12 @@ export default function Library({
     downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
+  const layerling = useLayerlingCopy(setRenderError);
+  function copyToLayerling() {
+    if (!canDownload) return;
+    layerling.copy([{ name: selected.name, stlBuffer }]);
+  }
+
   return (
     <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
       <aside className="sidebar">
@@ -241,9 +248,14 @@ export default function Library({
                   <div className="viewer-placeholder">Render a part to preview it here.</div>
                 )}
                 {stlBuffer && (
-                  <button className="download-button" onClick={downloadStl} disabled={!canDownload}>
-                    Download STL
-                  </button>
+                  <div className="viewer-actions">
+                    <button className="download-button layerling-button" onClick={copyToLayerling} disabled={!canDownload || layerling.copying} title={LAYERLING_COPY_TITLE}>
+                      {layerling.label}
+                    </button>
+                    <button className="download-button" onClick={downloadStl} disabled={!canDownload}>
+                      Download STL
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

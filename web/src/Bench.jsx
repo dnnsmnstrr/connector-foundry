@@ -39,6 +39,7 @@ import {
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
+import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { CONFIG_EXTENSION, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
 import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint, slotInDirection } from "./lib/benchLayout.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
@@ -525,6 +526,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     });
   }
 
+  // Every body in one copy, each its own mesh in Layerling, placed as on
+  // the bench. Needs no bench name: nothing lands in a downloads folder.
+  const layerling = useLayerlingCopy((message) => setRenderError(friendlyRenderError(message)));
+  function copyToLayerling() {
+    const nodesById = new Map(assembly.nodes.map((n) => [n.id, n]));
+    const bodyName = (tag) => {
+      if (tag === ROOT_ID) return benchName(assembly) ?? rootPart.name;
+      const node = nodesById.get(tag.replace(/_pin$/, ""));
+      const name = partsById.get(node?.partId)?.name ?? tag;
+      return tag.endsWith("_pin") ? `${name} pin` : name;
+    };
+    const tags = bodyTags(assembly);
+    layerling.copy(Promise.all(tags.map(async (tag) => ({ name: bodyName(tag), stlBuffer: await renderAssembly(tag) }))));
+  }
+
   function downloadScad() {
     withName((name) => downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain"));
   }
@@ -726,6 +742,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 title="The bench setup as a file — parts, parameters, joints, rotations, and any imported meshes — to import again later"
               >
                 Download config
+              </button>
+              <button className="download-button bench-export-button layerling-button" onClick={copyToLayerling} disabled={layerling.copying} title={LAYERLING_COPY_TITLE}>
+                {layerling.label}
               </button>
             </div>
 

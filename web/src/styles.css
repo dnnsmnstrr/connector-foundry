@@ -732,6 +732,29 @@ a.mode-tab {
   right: 1.25rem;
 }
 
+/* Library's viewer: "Copy for Layerling" beside "Download STL", the pair
+   pinned where the lone download button used to sit. */
+.viewer-actions {
+  position: absolute;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.viewer-actions .download-button {
+  position: static;
+}
+
+/* The secondary action: outlined, like the header's "Open in Bench". */
+.layerling-button {
+  background: transparent;
+  border: 1px solid #3a5aa0;
+  color: #9db4e8;
+}
+
 .bench-empty {
   padding: 2rem;
   max-width: 480px;
@@ -2138,7 +2161,8 @@ a.mode-tab {
     flex: none;
   }
 
-  :root:not(.desktop) .download-button {
+  :root:not(.desktop) .download-button,
+  :root:not(.desktop) .viewer-actions {
     bottom: 1rem;
     right: 1rem;
   }

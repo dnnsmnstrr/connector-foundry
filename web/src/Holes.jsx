@@ -18,6 +18,7 @@ import { useHolesSession } from "./hooks/useHolesSession.js";
 import { benchName, compileToScad } from "./lib/assembly.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
 import { downloadBlob } from "./lib/download.js";
+import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { groundedMesh } from "./lib/importedPart.js";
 import { setHolesDoc } from "./lib/holesSession.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
@@ -525,14 +526,22 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // --- export --------------------------------------------------------
   const exportName = doc ? doc.name?.trim() || sourceStem(doc.source, catalogueById) : "";
 
+  async function holedBuffer() {
+    const base = await baseBuffer(doc.source, catalogueById, globalOverrides);
+    return doc.holes.length ? renderPart(holedRequest(doc, catalogueById, meshExtents(base), globalOverrides)) : base;
+  }
+
   async function downloadStl() {
     try {
-      const base = await baseBuffer(doc.source, catalogueById, globalOverrides);
-      const buf = doc.holes.length ? await renderPart(holedRequest(doc, catalogueById, meshExtents(base), globalOverrides)) : base;
-      downloadBlob(buf, exportFilename(exportName, "holes", ".stl"), "model/stl");
+      downloadBlob(await holedBuffer(), exportFilename(exportName, "holes", ".stl"), "model/stl");
     } catch (err) {
       setRenderError(err.message);
     }
+  }
+
+  const layerling = useLayerlingCopy(setRenderError);
+  function copyToLayerling() {
+    layerling.copy(holedBuffer().then((stlBuffer) => [{ name: exportName || "Holes", stlBuffer }]));
   }
 
   function downloadScad() {
@@ -940,6 +949,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <div className="bench-export">
               <button className="download-button bench-export-button" onClick={downloadStl} disabled={status === "error"}>
                 Download STL
+              </button>
+              <button className="download-button bench-export-button layerling-button" onClick={copyToLayerling} disabled={status === "error" || layerling.copying} title={LAYERLING_COPY_TITLE}>
+                {layerling.label}
               </button>
               <button className="download-button bench-export-button" onClick={downloadScad} title="The base and the holes as OpenSCAD source">
                 Download .scad

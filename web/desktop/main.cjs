@@ -109,8 +109,11 @@ function start() {
       return response;
     } catch { return new Response('Not found', { status: 404 }); }
   });
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  // Everything denied, except writing the clipboard from the app itself:
+  // "Copy for Layerling" (src/lib/layerlingClipboard.js) needs it.
+  const allowed = (permission, url) => permission === 'clipboard-sanitized-write' && isAppURL(url);
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback, details) => callback(allowed(permission, details?.requestingUrl)));
+  session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) => allowed(permission, requestingOrigin));
   // Chromium streams the existing Blob exports to disk. No base64 conversion,
   // giant JSON IPC payload, or general-purpose filesystem bridge is needed.
   session.defaultSession.on('will-download', (event, item, contents) => {
