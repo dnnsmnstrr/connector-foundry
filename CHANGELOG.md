@@ -25,11 +25,6 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   tab.
 - **`/`** jumps to the Library's part search from any tab.
 
-### Fixes
-
-- Windows: the packaged-app test reads the clipboard's line endings as Windows writes them.
-- CI tests against current OpenSCAD snapshots again.
-
 ## 0.2.0 — 2026-10-10
 
 ### New systems and parts
