@@ -5,6 +5,31 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 
+## 0.2.1 — 2026-10-10
+
+### Holes
+
+- **USB ports**: openings for USB-C, USB-A, Micro-USB, Mini-USB and USB-B, sized for a port that
+  sits at the opening, and USB-C and USB-A with room for the plug, for a port set back behind a
+  wall.
+- **Memory cards**: through slots for SD and microSD in a case, and holder slots that stand an SD,
+  miniSD, microSD, CompactFlash or CFexpress Type A / Type B (XQD) card half in, for printing a
+  card holder.
+
+### Library and number fields
+
+- Number fields have their **arrow buttons** back: a step a click, half a step with Shift, and
+  holding one repeats. The **scroll wheel** steps a focused field too, a tenth of a step with
+  Shift.
+- **Add Holes** next to Open in Bench takes the selected part, with its parameters, to the Holes
+  tab.
+- **`/`** jumps to the Library's part search from any tab.
+
+### Fixes
+
+- Windows: the packaged-app test reads the clipboard's line endings as Windows writes them.
+- CI tests against current OpenSCAD snapshots again.
+
 ## 0.2.0 — 2026-10-10
 
 ### New systems and parts
