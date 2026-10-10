@@ -320,6 +320,9 @@ test("a 3MF is unpacked, scaled by its unit and grounded on the grid", async ({ 
   expect(Math.abs(x)).toBeLessThanOrEqual(5);
   expect(Math.abs(y)).toBeLessThanOrEqual(5);
   expect(z).toBe(4);
+  // The hole's render runs after a 250 ms debounce; flipping inside it
+  // would fold both edits into one render, so let it start first.
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
 
   // Flipping the mesh turns it over and takes the hole with it: it is now
   // on the underside, at z = 0, and the part is re-rendered.

@@ -35,8 +35,11 @@ test('bundled desktop renders offline and imports/exports files through Chromium
     // main.cjs grants the app. Read back from the main process.
     await page.getByRole('button', { name: 'Copy for Layerling' }).click();
     await expect(page.getByRole('button', { name: 'Copied — paste in Layerling' })).toBeVisible();
-    const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
-    assert.ok(copied.startsWith('LAYERLING/1\n'), copied.slice(0, 40));
+    // Windows' clipboard hands text back with CRLF line endings here, in
+    // the main process; Layerling reads it through the same Chromium
+    // clipboard API it writes with, which is what the app uses too.
+    const copied = (await app.evaluate(({ clipboard }) => clipboard.readText())).replace(/\r\n/g, '\n');
+    assert.ok(copied.startsWith('LAYERLING/1\n'), JSON.stringify(copied.slice(0, 40)));
     assert.equal(JSON.parse(copied.slice('LAYERLING/1\n'.length)).shapes[0].kind, 'mesh');
     // The window is titled like the app, and the header row doubles as its
     // title bar on both desktops: the stylesheet picks the platform's class
