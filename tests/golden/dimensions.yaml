@@ -404,6 +404,76 @@ klippt/clip_mount:
     - 15.0
     - 8.752
     volume_mm3: 2644.42
+molle/insert:
+  center-hole:
+    bbox:
+    - 50.1
+    - 37.4
+    - 4.8
+    volume_mm3: 6985.14
+  default:
+    bbox:
+    - 50.1
+    - 37.4
+    - 4.8
+    volume_mm3: 7098.85
+  printed-panel:
+    bbox:
+    - 50.1
+    - 37.4
+    - 6.8
+    volume_mm3: 8978.84
+molle/panel:
+  2x6:
+    bbox:
+    - 76.2
+    - 177.8
+    - 5.5
+    volume_mm3: 39096.97
+  default:
+    bbox:
+    - 114.3
+    - 127.0
+    - 5.5
+    volume_mm3: 43568.24
+  flat:
+    bbox:
+    - 114.3
+    - 127.0
+    - 2.5
+    volume_mm3: 30720.74
+molle/rigid_panel:
+  default:
+    bbox:
+    - 203.2
+    - 152.4
+    - 4.0
+    volume_mm3: 77864.52
+  tight-grid:
+    bbox:
+    - 203.2
+    - 133.35
+    - 4.0
+    volume_mm3: 50767.8
+molle/spine:
+  default:
+    bbox:
+    - 34.1
+    - 89.7
+    - 7.5
+    volume_mm3: 14022.99
+  one-row:
+    bbox:
+    - 34.1
+    - 38.9
+    - 7.5
+    volume_mm3: 5651.15
+  two-cols:
+    bbox:
+    - 72.2
+    - 89.7
+    - 7.5
+    volume_mm3: 29014.38
 opengrid/board:
   default:
     bbox:

@@ -659,6 +659,152 @@ parts:
       - name: two-pegs
         params: { pegs: 2 }
 
+  - id: molle/spine
+    system: MOLLE
+    name: Spine
+    file: parts/molle/spine.scad
+    module: molle_spine
+    confidence: parametric
+    source: >-
+      lib/molle.scad, from the PALS grid as the webbing defines it: 25.4mm
+      (1") rows with a 25.4mm gap, bar-tacked every 38.1mm (1.5"). No
+      published geometry drawing or open model to check against.
+    source_url: https://en.wikipedia.org/wiki/Pouch_Attachment_Ladder_System
+    print_note: >-
+      Print it on its side, the profile flat on the bed, so the layers run
+      along the tongue; PETG flexes better than PLA. Slide the tongue down
+      behind rows rows of webbing from above, until the barb clicks in under
+      the bottom row; press the tip back to take it off. cols 2 puts two
+      tongues 38.1mm apart, for two columns, so the part cannot swing.
+      webbing is the gap the webbing sits in: measure yours, and go tighter
+      for a firmer grip. The plate's front is "mount".
+    minimums:
+      rows: 1
+      cols: 1
+      webbing: 1
+      plate: 1.5
+    defaults:
+      rows: 2
+      cols: 1
+      webbing: 2
+      plate: 3
+    variants:
+      - name: two-cols
+        params: { cols: 2 }
+      - name: one-row
+        params: { rows: 1 }
+
+  - id: molle/panel
+    system: MOLLE
+    name: Panel
+    file: parts/molle/panel.scad
+    module: molle_panel
+    confidence: parametric
+    source: >-
+      lib/molle.scad: a laser-cut MOLLE panel's slits, every 25.4mm up and
+      38.1mm across, with a channel behind each column for the strap. No
+      published geometry drawing or open model to check against.
+    source_url: https://en.wikipedia.org/wiki/Pouch_Attachment_Ladder_System
+    print_note: >-
+      Front down, ribs up, no supports. A pouch strap goes in at one slit,
+      behind the strip, out at the next; the 30 x 5mm slits take a 1" strap,
+      and channel is the room behind the skin for it to run in (0 for a
+      bare slotted skin). rows counts strips, rows + 1 rows of slits. A
+      panel is exactly cols x 38.1 by (rows + 1) x 25.4mm, so panels butt
+      together. "mount" is the back.
+    anchors: [bot]
+    minimums:
+      cols: 1
+      rows: 1
+      channel: 0
+    defaults:
+      cols: 3
+      rows: 4
+      channel: 3
+    variants:
+      - name: flat
+        params: { channel: 0 }
+      - name: 2x6
+        params: { cols: 2, rows: 6 }
+
+  - id: molle/rigid_panel
+    system: MOLLE
+    name: Rigid panel
+    file: parts/molle/rigid_panel.scad
+    module: molle_rigid_panel
+    confidence: parametric
+    source: >-
+      lib/molle.scad: rigid panels have no standard; the default opening is
+      DV8 Offroad's published 1.5" x 1" (38.1 x 25.4mm), on PALS spacing up
+      and a 12.7mm bar across. No open model to check against.
+    source_url: https://nomadicsupply.com/dv8-offroad-universal-molle-panel-23x15-unmp-06/
+    print_note: >-
+      Flat on the bed, no supports. Open windows that pouch straps wrap
+      round and molle/insert plugs into. cols x rows openings, each open_w x
+      open_h with open_r corners, centred in pitch_x x pitch_y cells: a
+      panel is exactly cols x pitch_x by rows x pitch_y, so panels butt
+      together. To match a truck panel, measure its openings and the
+      distance between their centres. Mounting holes come from the Holes
+      tab. "mount" is the back.
+    anchors: [bot]
+    minimums:
+      cols: 1
+      rows: 1
+      open_r: 0
+      thickness: 1
+    defaults:
+      cols: 4
+      rows: 3
+      open_w: 38.1
+      open_h: 25.4
+      open_r: 3
+      pitch_x: 50.8
+      pitch_y: 50.8
+      thickness: 4
+    variants:
+      - name: tight-grid
+        params: { open_w: 38.1, open_h: 31.75, pitch_x: 50.8, pitch_y: 44.45 }
+
+  - id: molle/insert
+    system: MOLLE
+    name: Panel insert
+    file: parts/molle/insert.scad
+    module: molle_insert
+    confidence: parametric
+    source: >-
+      lib/molle.scad's rigid-panel opening: a base plate behind the panel
+      and a boss that fits the opening. Rigid panels have no standard, so
+      the opening and the panel's thickness are parameters.
+    source_url: https://nomadicsupply.com/dv8-offroad-universal-molle-panel-23x15-unmp-06/
+    print_note: >-
+      Base down, boss up, no supports. Set open_w, open_h and open_r to your
+      panel's opening and panel_t to its thickness (2mm for a typical steel
+      panel, 4 for molle/rigid_panel's default); the boss is FIT_CLEARANCE a
+      side smaller and 0.2mm short of the panel's front, so a bolted part
+      clamps the panel. The base goes in from behind the panel. hole drills
+      one centre through-hole; for heat-set inserts, nut traps or a grid of
+      holes, use the Holes tab on the boss face. "mount" is the boss face.
+    anchors: [bot]
+    minimums:
+      open_r: 0
+      panel_t: 0.5
+      margin: 1
+      base: 1
+      hole: 0
+    defaults:
+      open_w: 38.1
+      open_h: 25.4
+      open_r: 3
+      panel_t: 2
+      margin: 6
+      base: 3
+      hole: 0
+    variants:
+      - name: center-hole
+        params: { hole: 5.5 }
+      - name: printed-panel
+        params: { panel_t: 4 }
+
   - id: camera/arca_plate
     system: Camera
     name: Arca-style plate
