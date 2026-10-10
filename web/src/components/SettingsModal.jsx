@@ -11,6 +11,7 @@ import {
   setSystemOrder,
 } from "../lib/uiPrefs.js";
 import { clearGlobalOverrides, getGlobalOverrides, updateGlobalOverrides } from "../lib/userOverrides.js";
+import DecimalInput from "./DecimalInput.jsx";
 import InfoTip from "./InfoTip.jsx";
 import Modal from "./Modal.jsx";
 
@@ -41,10 +42,8 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const current = saved.FIT_CLEARANCE ?? catalogueDefault;
   const differs = catalogueDefault !== undefined && current !== catalogueDefault;
 
-  function apply(raw) {
-    // An emptied field mid-edit is not a request to save 0.
-    if (raw === "") return;
-    setSaved(updateGlobalOverrides({ FIT_CLEARANCE: Number(raw) }));
+  function apply(value) {
+    setSaved(updateGlobalOverrides({ FIT_CLEARANCE: value }));
   }
 
   function reset() {
@@ -115,7 +114,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
             </button>
           )}
         </span>
-        <input aria-label="Fit clearance (mm)" type="number" step="any" value={current ?? ""} onChange={(e) => apply(e.target.value)} />
+        <DecimalInput aria-label="Fit clearance (mm)" step="0.05" value={current ?? ""} onChange={apply} />
       </label>
       <label className="field has-info-tip">
         <span className="field-label">

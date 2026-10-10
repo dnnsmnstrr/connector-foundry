@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { SKADIS_SPACING } from "../../lib/screwHoles.js";
+import DecimalInput from "../DecimalInput.jsx";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
 // copies (screwHoles.js's repeatHole(), whose option names these fields
@@ -18,14 +19,7 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
   const number = (key, label, { min, step = 1, title } = {}) => (
     <label className="field" htmlFor={`${id}-${key}`} title={title}>
       <span className="field-label">{label}</span>
-      <input
-        id={`${id}-${key}`}
-        type="number"
-        min={min}
-        step={step}
-        value={options[key]}
-        onChange={(e) => onChange({ [key]: e.target.value === "" ? 0 : Number(e.target.value) })}
-      />
+      <DecimalInput id={`${id}-${key}`} min={min} step={step} value={options[key]} onChange={(value) => onChange({ [key]: value })} />
     </label>
   );
   return (

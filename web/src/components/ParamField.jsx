@@ -1,4 +1,5 @@
 import { useId } from "react";
+import DecimalInput from "./DecimalInput.jsx";
 
 // catalogueDefault + onReset: an "obvious way to see that a value
 // differs from the catalogue default and reset it back" — a dot next
@@ -6,10 +7,10 @@ import { useId } from "react";
 // actually differs (deep-enough for the primitives every param is).
 // Shared by Library mode and the Bench's per-node param editor.
 //
-// `min` (catalogue.yaml's `minimums`): the number field's spinner stops
+// `min` (catalogue.yaml's `minimums`): the number field's arrow keys stop
 // there, and a value typed under it is raised to it when the field loses
 // focus — not on every keystroke, which would turn the "1" of a "10"
-// being typed into the minimum.
+// being typed into the minimum. Decimals take a comma or a period.
 export default function ParamField({ name, value, options, min, catalogueDefault, onChange, onReset }) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.
@@ -66,17 +67,7 @@ export default function ParamField({ name, value, options, min, catalogueDefault
     return (
       <label htmlFor={inputId} className="field">
         {label}
-        <input
-          id={inputId}
-          type="number"
-          value={value}
-          step="any"
-          min={min}
-          onChange={(e) => onChange(Number(e.target.value))}
-          onBlur={() => {
-            if (min !== undefined && value < min) onChange(min);
-          }}
-        />
+        <DecimalInput id={inputId} value={value} min={min} onChange={onChange} />
       </label>
     );
   }

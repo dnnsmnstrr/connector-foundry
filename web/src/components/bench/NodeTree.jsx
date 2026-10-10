@@ -2,6 +2,7 @@ import { childrenOf, getNode, jointsFor, normalizeShift } from "../../lib/assemb
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
+import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
 
 // One node in the "Attached" tree (always a non-root node — root gets
@@ -66,14 +67,7 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
       </div>
       <label className="field bench-offset-field" title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
         Offset (mm)
-        <input
-          type="number"
-          step="any"
-          value={node.overlap ?? 0}
-          onChange={(e) => {
-            if (e.target.value !== "") actions.setOverlap(nodeId, Number(e.target.value));
-          }}
-        />
+        <DecimalInput value={node.overlap ?? 0} onChange={(value) => actions.setOverlap(nodeId, value)} />
       </label>
       <label
         className="field bench-offset-field bench-shift-field"
@@ -82,16 +76,13 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
         Shift X / Y (mm)
         <span className="bench-shift-inputs">
           {[0, 1].map((axis) => (
-            <input
+            <DecimalInput
               key={axis}
-              type="number"
-              step="any"
               aria-label={`Shift ${axis === 0 ? "X" : "Y"} (mm)`}
               value={shift[axis]}
-              onChange={(e) => {
-                if (e.target.value === "") return;
+              onChange={(value) => {
                 const next = [...shift];
-                next[axis] = Number(e.target.value);
+                next[axis] = value;
                 actions.setShift(nodeId, next);
               }}
             />

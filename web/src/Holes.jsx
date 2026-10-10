@@ -3,6 +3,7 @@ import { BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
+import DecimalInput from "./components/DecimalInput.jsx";
 import HoleSpecFields from "./components/holes/HoleSpecFields.jsx";
 import PresetPicker from "./components/holes/PresetPicker.jsx";
 import RepeatFields from "./components/holes/RepeatFields.jsx";
@@ -815,7 +816,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             </label>
             <label className="field bench-offset-field holes-inset-field" title="How far in from each edge the corner snap points sit; a radial line runs from the face center through each of them">
               <span className="field-label">Corner inset (mm)</span>
-              <input type="number" min="0" step="0.5" value={inset} onChange={(e) => setInset(Math.max(0, Number(e.target.value) || 0))} />
+              <DecimalInput min="0" step="0.5" value={inset} onChange={(value) => setInset(Math.max(0, value))} />
             </label>
             <p className="muted holes-params-note">
               Hold <kbd className="holes-key">⌥ Option</kbd> to see the pointed-at spot's distances to the face's edges and
@@ -823,7 +824,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             </p>
             <label className="field bench-offset-field holes-inset-field" title="A circle of this radius around the face center — a bolt circle. Snap points where it crosses the center lines and the radials; a click near it lands on it. 0 draws none.">
               <span className="field-label">Center radius (mm)</span>
-              <input type="number" min="0" step="0.5" value={radius} onChange={(e) => setRadius(Math.max(0, Number(e.target.value) || 0))} />
+              <DecimalInput min="0" step="0.5" value={radius} onChange={(value) => setRadius(Math.max(0, value))} />
             </label>
 
             <h3>{multi ? `${selectedHoles.length} holes` : selected ? `Hole ${doc.holes.indexOf(selected) + 1}` : "New holes"}</h3>

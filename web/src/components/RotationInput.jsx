@@ -1,3 +1,4 @@
+import DecimalInput from "./DecimalInput.jsx";
 import SpinButtons from "./SpinButtons.jsx";
 
 // An angle in degrees: the exact field, and the quarter-turn buttons
@@ -21,18 +22,7 @@ import SpinButtons from "./SpinButtons.jsx";
 export default function RotationInput({ value, onChange, onRotate, name, viewedFrom, id, placeholder, step = 90 }) {
   return (
     <span className="rotation-controls">
-      <input
-        id={id}
-        type="number"
-        step={step}
-        min="-360"
-        max="360"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => {
-          if (e.target.value !== "") onChange(Number(e.target.value));
-        }}
-      />
+      <DecimalInput id={id} step={step} min="-360" max="360" value={value} placeholder={placeholder} onChange={onChange} />
       <SpinButtons name={name} onRotate={onRotate} viewedFrom={viewedFrom} step={step} />
     </span>
   );

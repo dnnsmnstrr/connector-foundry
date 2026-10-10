@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
 import { EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
+import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -47,10 +48,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   const numberProps = (key, extra = {}) => ({
     value: isMixed(key) ? "" : spec[key],
     placeholder: isMixed(key) ? "mixed" : extra.placeholder,
-    onChange: (e) => {
-      if (e.target.value === "" && isMixed(key)) return;
-      set({ [key]: e.target.value === "" ? 0 : Number(e.target.value) });
-    },
+    onChange: (value) => set({ [key]: value }),
   });
 
   function toggleThrough(on) {
@@ -106,11 +104,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-side`} title="Added around the head, per side. Increase if the slot feels too tight.">
             <span className="field-label">Side gap (mm)</span>
-            <input id={`${id}-side`} type="number" min="0" step="0.05" {...numberProps("sideClearance")} />
+            <DecimalInput id={`${id}-side`} min="0" step="0.05" {...numberProps("sideClearance")} />
           </label>
           <label className="field" htmlFor={`${id}-depth`} title="Added under the head's pocket.">
             <span className="field-label">Depth gap (mm)</span>
-            <input id={`${id}-depth`} type="number" min="0" step="0.05" {...numberProps("depthClearance")} />
+            <DecimalInput id={`${id}-depth`} min="0" step="0.05" {...numberProps("depthClearance")} />
           </label>
         </div>
         {spinField}
@@ -128,9 +126,8 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-depth`} title={`How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`}>
             <span className="field-label">Depth (mm)</span>
-            <input
+            <DecimalInput
               id={`${id}-depth`}
-              type="number"
               min="0"
               step="0.5"
               {...numberProps("depth", { placeholder: "through" })}
@@ -140,7 +137,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           </label>
           <label className="field" htmlFor={`${id}-clear`} title={`Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`}>
             <span className="field-label">Clearance (mm)</span>
-            <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
+            <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
         </div>
         <label className="field field-checkbox holes-through-field" htmlFor={`${id}-through`}>
@@ -163,11 +160,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-length`} title="How far the channel runs down from the round end the head rests in. 28 mm is one openGrid cell; Multiboard spaces its slots 25 mm apart.">
             <span className="field-label">Channel (mm)</span>
-            <input id={`${id}-length`} type="number" min="1" step="1" {...numberProps("length")} />
+            <DecimalInput id={`${id}-length`} min="1" step="1" {...numberProps("length")} />
           </label>
           <label className="field" htmlFor={`${id}-clear`} title="Added to every radius. The published slot already has 0.15 mm on the head.">
             <span className="field-label">Extra gap (mm)</span>
-            <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
+            <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
         </div>
         {spinField}
@@ -204,9 +201,8 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   const depthField = (
     <label className="field" htmlFor={`${id}-depth`}>
       <span className="field-label">Depth (mm)</span>
-      <input
+      <DecimalInput
         id={`${id}-depth`}
-        type="number"
         min="0"
         step="0.5"
         {...numberProps("depth", { placeholder: "through" })}
@@ -220,7 +216,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   const chamferField = (
     <label className="field" htmlFor={`${id}-chamfer`} title="A 45° bevel this deep round the opening: a lead-in for whatever goes in, and room for the slightly flared first layers of a hole printed opening-down. 0 for none.">
       <span className="field-label">Chamfer (mm)</span>
-      <input id={`${id}-chamfer`} type="number" min="0" step="0.25" {...numberProps("chamfer")} />
+      <DecimalInput id={`${id}-chamfer`} min="0" step="0.25" {...numberProps("chamfer")} />
     </label>
   );
   const teardropField = (what, disabled = false) => (
@@ -246,7 +242,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-d`}>
             <span className="field-label">Diameter (mm)</span>
-            <input id={`${id}-d`} type="number" min="0.1" step="0.5" {...numberProps("diameter")} />
+            <DecimalInput id={`${id}-d`} min="0.1" step="0.5" {...numberProps("diameter")} />
           </label>
           {depthField}
           {chamferField}
@@ -275,12 +271,12 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             title="Added to each side of the channel. A KLIPPT clip grips the base's neck by bending its lips, which a rigid part can't: 0 is the clip exactly; 0.3 seats the base free, with a small bump at the entry that holds it in; 0.45 and more slides freely, held only one way by the lock."
           >
             <span className="field-label">Clearance (mm)</span>
-            <input id={`${id}-klippt-clear`} type="number" min="0" max="1" step="0.05" {...numberProps("clearance")} />
+            <DecimalInput id={`${id}-klippt-clear`} min="0" max="1" step="0.05" {...numberProps("clearance")} />
           </label>
           {!isMixed("pocket") && !spec.pocket && (
             <label className="field" htmlFor={`${id}-runout`} title={`How far the channel runs on past its entry, its lips held clear of the base's neck — far enough to leave the part's edge. At least ${KLIPPT.minRunout} mm.`}>
               <span className="field-label">Run-out (mm)</span>
-              <input id={`${id}-runout`} type="number" min={KLIPPT.minRunout} step="1" {...numberProps("runout")} />
+              <DecimalInput id={`${id}-runout`} min={KLIPPT.minRunout} step="1" {...numberProps("runout")} />
             </label>
           )}
         </div>
@@ -316,7 +312,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           {depthField}
           <label className="field" htmlFor={`${id}-clear`} title={`Added to each side of the ${EXTRUSION.profile} mm square, and taken off each side of the keys. More if the rail is hard to push in.`}>
             <span className="field-label">Clearance (mm)</span>
-            <input id={`${id}-clear`} type="number" min="0" step="0.05" {...numberProps("clearance")} />
+            <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
           {chamferField}
         </div>
@@ -364,15 +360,15 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-w`} title="Across, square to its direction.">
             <span className="field-label">Width (mm)</span>
-            <input id={`${id}-w`} type="number" min="0.1" step="0.5" {...numberProps("width")} />
+            <DecimalInput id={`${id}-w`} min="0.1" step="0.5" {...numberProps("width")} />
           </label>
           <label className="field" htmlFor={`${id}-h`} title="Along its direction — up, unturned.">
             <span className="field-label">Height (mm)</span>
-            <input id={`${id}-h`} type="number" min="0.1" step="0.5" {...numberProps("height")} />
+            <DecimalInput id={`${id}-h`} min="0.1" step="0.5" {...numberProps("height")} />
           </label>
           <label className="field" htmlFor={`${id}-r`} title="Rounds the corners. Half the narrower side makes a pill; more is cut as that.">
             <span className="field-label">Corner radius (mm)</span>
-            <input id={`${id}-r`} type="number" min="0" step="0.5" {...numberProps("cornerRadius")} />
+            <DecimalInput id={`${id}-r`} min="0" step="0.5" {...numberProps("cornerRadius")} />
           </label>
           {depthField}
           {chamferField}
@@ -404,13 +400,12 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
       <div className="holes-spec-grid">
         <label className="field" htmlFor={`${id}-d`}>
           <span className="field-label">Diameter (mm)</span>
-          <input id={`${id}-d`} type="number" min="0.1" step="0.1" {...numberProps("diameter")} />
+          <DecimalInput id={`${id}-d`} min="0.1" step="0.1" {...numberProps("diameter")} />
         </label>
         <label className="field" htmlFor={`${id}-depth`}>
           <span className="field-label">Depth (mm)</span>
-          <input
+          <DecimalInput
             id={`${id}-depth`}
-            type="number"
             min="0"
             step="0.5"
             {...numberProps("depth", { placeholder: "through" })}
@@ -432,16 +427,16 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-hd`}>
             <span className="field-label">{headLabel} (mm)</span>
-            <input id={`${id}-hd`} type="number" min="0" step="0.1" {...numberProps("headDiameter")} />
+            <DecimalInput id={`${id}-hd`} min="0" step="0.1" {...numberProps("headDiameter")} />
           </label>
           <label className="field" htmlFor={`${id}-hdepth`}>
             <span className="field-label">{depthLabel} (mm)</span>
-            <input id={`${id}-hdepth`} type="number" min="0" step="0.1" {...numberProps("headDepth")} />
+            <DecimalInput id={`${id}-hdepth`} min="0" step="0.1" {...numberProps("headDepth")} />
           </label>
           {spec.head === "countersink" && (
             <label className="field" htmlFor={`${id}-angle`}>
               <span className="field-label">Angle (°)</span>
-              <input id={`${id}-angle`} type="number" min="10" max="179" step="1" {...numberProps("sinkAngle")} />
+              <DecimalInput id={`${id}-angle`} min="10" max="179" step="1" {...numberProps("sinkAngle")} />
             </label>
           )}
         </div>

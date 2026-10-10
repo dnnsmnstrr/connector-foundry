@@ -475,7 +475,7 @@ button, input, select, textarea {
   color: #c9cacd;
 }
 
-.field input[type="text"], .field input[type="number"], .field select {
+.field input[type="text"], .field select {
   min-width: 0;
   background: #1c1d20;
   border: 1px solid #33343a;
@@ -2001,7 +2001,6 @@ a.mode-tab {
   .bench-preset-name,
   .search-input,
   .field input[type="text"],
-  .field input[type="number"],
   .field select,
   .bench-child-meta select {
     min-height: 44px;
@@ -2199,7 +2198,6 @@ a.mode-tab {
      smaller than 16px; keep every field at 1rem on small screens. */
   :root:not(.desktop) .search-input,
   :root:not(.desktop) .field input[type="text"],
-  :root:not(.desktop) .field input[type="number"],
   :root:not(.desktop) .field select,
   :root:not(.desktop) .bench-child-meta select,
   :root:not(.desktop) .bench-offset-field input,
