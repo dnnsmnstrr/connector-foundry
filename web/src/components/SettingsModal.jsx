@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
 import { groupBySystem, resolveSystemOrder } from "../lib/catalogueUtils.js";
+import { downloadBlob } from "../lib/download.js";
+import { getHolesSession } from "../lib/holesSession.js";
+import { SETTINGS_EXTENSION, applySettings, exportSettings, parseSettings, settingsToJson } from "../lib/settingsBackup.js";
 import {
   getBenchFollowsLibrary,
   getSystemOrder,
@@ -20,7 +23,9 @@ import Modal from "./Modal.jsx";
 // "same override layer" as per-part defaults but not scoped to a part
 // (see lib/userOverrides.js) — and UI preferences (lib/uiPrefs.js),
 // including the order of the system headings in every part list and
-// which systems and parts are listed at all.
+// which systems and parts are listed at all. Below them, a backup of
+// all of it plus the bench presets and saved part defaults
+// (lib/settingsBackup.js).
 export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
@@ -82,6 +87,45 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   function resetSystemOrder() {
     setSystemOrder(null);
     setSavedOrder(null);
+  }
+
+  // --- Backup (lib/settingsBackup.js) ---
+  const importInputRef = useRef(null);
+  const [backupError, setBackupError] = useState(null);
+
+  function exportAll() {
+    setBackupError(null);
+    let doc;
+    try {
+      doc = exportSettings();
+    } catch {
+      setBackupError("This browser isn't letting the app read its storage, so there is nothing to export.");
+      return;
+    }
+    const date = doc.exportedAt.slice(0, 10);
+    downloadBlob(settingsToJson(doc), `connector-foundry-${date}${SETTINGS_EXTENSION}`, "application/json");
+  }
+
+  // Applying means a reload (see settingsBackup.js). The bench survives
+  // it — it lives in the URL — but a Holes document only in memory.
+  async function importAll(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setBackupError(null);
+    let entries;
+    try {
+      entries = parseSettings(await file.text());
+    } catch (err) {
+      setBackupError(`Couldn't import "${file.name}": ${err.message}`);
+      return;
+    }
+    const holesWarning = getHolesSession().doc ? " The Holes tab starts over." : "";
+    const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.${holesWarning}`;
+    if (!window.confirm(question)) return;
+    const problem = applySettings(entries);
+    if (problem) setBackupError(problem);
+    else window.location.reload();
   }
 
   return (
@@ -240,6 +284,36 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
           </>
         )}
       </p>
+
+      <h4 className="settings-section has-info-tip">
+        Backup
+        <InfoTip
+          label="About settings backups"
+          text="One file with everything on this page, your bench presets and the defaults you saved for parts. Import it on another computer or browser, or after a reinstall. Importing replaces what is here now."
+        />
+      </h4>
+      <div className="settings-backup">
+        <button type="button" className="bench-modal-cancel" onClick={exportAll}>
+          Export settings…
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept={`${SETTINGS_EXTENSION},.json,application/json`}
+          onChange={importAll}
+          hidden
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+        <button type="button" className="bench-modal-cancel" onClick={() => importInputRef.current?.click()}>
+          Import settings…
+        </button>
+      </div>
+      {backupError && (
+        <p className="error-text settings-backup-error" role="alert">
+          {backupError}
+        </p>
+      )}
 
       <button type="button" className="bench-modal-cancel" onClick={onClose}>
         Close

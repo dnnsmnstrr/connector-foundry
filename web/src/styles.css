@@ -1420,6 +1420,20 @@ a.mode-tab {
   margin: -0.4rem 0 0;
 }
 
+/* Settings > Backup: Export and Import side by side. */
+.settings-backup {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-backup .bench-modal-cancel {
+  margin-top: 0;
+}
+
+.settings-backup-error {
+  margin: 0.5rem 0 0;
+}
+
 /* Settings > Part list: one row per system heading — a "shown" box, the
    name, a collapsed list of its parts (each with its own box) — with
    ▲/▼ to move the heading. */
