@@ -155,6 +155,26 @@ test("every preset has a usable spec and a drawable screw", () => {
   }
 });
 
+test("USB and memory card openings clear what they are named for", () => {
+  // [preset, width, thickness of the shell / plug / card it takes]
+  const outlines = [
+    ["usb-c", 8.94, 3.26], ["usb-c-plug", 12.35, 6.5], ["usb-a", 12.5, 5.12], ["usb-a-plug", 16, 8],
+    ["usb-micro", 7.5, 2.5], ["usb-mini", 7.7, 3.9], ["usb-b", 12, 10.9],
+    ["sd-slot", 24, 2.1], ["microsd-slot", 11, 1], ["sd-stand", 24, 2.1], ["minisd-stand", 20, 1.4],
+    ["microsd-stand", 11, 1], ["cf-stand", 36.4, 3.3], ["cfexpress-a-stand", 20, 2.8], ["cfexpress-b-stand", 29.6, 3.8],
+  ];
+  for (const [id, w, h] of outlines) {
+    const { spec } = getPreset(id);
+    assert.ok(spec.width > w && spec.width - w <= 1, `${id} width ${spec.width} for ${w}`);
+    assert.ok(spec.height > h && spec.height - h <= 1, `${id} height ${spec.height} for ${h}`);
+  }
+  // Ports and case slots go through; a holder's slot holds the card half in.
+  assert.equal(getPreset("usb-c").spec.depth, 0);
+  assert.equal(getPreset("sd-slot").spec.depth, 0);
+  assert.equal(getPreset("sd-stand").spec.depth, 16);
+  assert.equal(getPreset("microsd-stand").spec.depth, 7.5);
+});
+
 test("a connector slot is cut by the repo's own library in a frame whose +Y is the face's up", () => {
   let { doc } = addHole(plateDoc(), { point: [5, -3, 4], normal: [0, 0, 1], spec: getPreset("oc-slot").spec, presetId: "oc-slot" });
   ({ doc } = addHole(doc, { point: [0, 0, 0], normal: [0, 0, -1], spec: getPreset("mc-slot-open").spec, presetId: "mc-slot-open" }));

@@ -241,6 +241,14 @@ The **Generic shapes** cut a plain cutout of any size instead of a fastener's ho
 (a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius
 — half the narrower side, or the "Pill" tick, makes it a pill with round ends). A rectangle has a
 direction like a slot: its height runs up the face unturned, and it turns in the sidebar.
+The **USB ports** presets are rounded-rectangle openings for USB-C, USB-A, Micro-USB, Mini-USB and
+USB-B, each the receptacle's metal shell plus 0.35 mm a side, for a port that sits at the opening.
+USB-C and USB-A also come as "room for the plug": wide enough for the plug's moulded grip at the
+spec's maximum, for a port set back behind a wall. The **Memory cards** presets are slots: through
+slots for an SD or microSD card in a case, and holder slots that stand an SD, miniSD, microSD,
+CompactFlash or CFexpress Type A / Type B (XQD) card on its short edge, half its length deep, for
+printing a card holder (Repeat a row of them). All of them are rectangles, so they turn, get a
+chamfer and take any other size like one.
 The **KLIPPT** presets cut a KLIPPT clip's own channel (`lib/klippt.scad`, from FH's clip, CC BY-SA
 4.0), so the part slides onto a `klippt/base` the way a KLIPPT clip does: its lips, the gap the
 base's flange slides into and its lock are the clip's. Click where the seated base's centre goes;

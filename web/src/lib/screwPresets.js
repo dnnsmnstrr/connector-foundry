@@ -44,6 +44,26 @@
 // 0.2 mm wider so a printed one still takes a moulded hook. The Repeat
 // form's "Skådis spacing" lays a board's pattern out from it.
 //
+// The USB and memory card presets are rectangles too, sized from the
+// connectors' and cards' published outlines:
+//   - A port's opening takes the receptacle's metal shell, 0.35 mm a
+//     side over, for a port that sits at the opening (the usual board in
+//     a case): USB-C 8.94 × 3.26 (Type-C spec), USB-A 12.5 × 5.12, Micro-B
+//     7.5 × 2.5 and Mini-B 7.7 × 3.9 (both trapezoids, taken at their
+//     widest), USB-B 12 × 10.9.
+//   - A "plug" opening clears the plug's overmould at the spec's maximum
+//     (USB-C 12.35 × 6.5, USB-A 16 × 8), for a port set back behind a
+//     wall the plug has to reach through. Real overmoulds are mostly
+//     smaller.
+//   - A card slot in a case is the card's width and thickness, 0.4 mm a
+//     side over, through: SD 24 × 2.1, microSD 11 × 1.0. A holder's slot
+//     stands a card on its short edge, half its length deep, 0.25 mm a
+//     side over: SD 24 × 32 × 2.1, miniSD 20 × 21.5 × 1.4, microSD
+//     11 × 15 × 1.0, CompactFlash 36.4 × 42.8 × 3.3 (Type I; Type II is
+//     5 mm), CFexpress Type A 20 × 28 × 2.8, Type B (and XQD)
+//     29.6 × 38.5 × 3.8.
+// Starting points like everything here: makers' shells differ by tenths.
+//
 // The KLIPPT channel (kind "klippt", lib/klippt.scad) is cut from
 // KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
 // base gets in.
@@ -271,6 +291,25 @@ function skadis(id, name, short) {
   return { id, name, short, group: "Skådis", spec: { kind: "rectangle", width, height: 15, cornerRadius: width / 2, depth: 0, chamfer: 0, spin: 0 }, screw: { style: "shape" } };
 }
 
+// An opening `w` × `h` with corner radius `r`, through: a port, or a card
+// slot in a case. Unturned, `w` runs across the face — level on a wall.
+function opening(id, name, short, group, w, h, r) {
+  return { id, name, short, group, spec: { kind: "rectangle", width: w, height: h, cornerRadius: r, depth: 0, chamfer: 0, spin: 0 }, screw: { style: "shape" } };
+}
+
+// A holder's slot for a card `w` × `l` × `t`: stood on its short edge,
+// half its length deep, 0.25 mm a side over.
+function cardStand(id, name, short, w, l, t) {
+  return {
+    id,
+    name,
+    short,
+    group: "Memory cards",
+    spec: { kind: "rectangle", width: round1(w + 0.5), height: round1(t + 0.5), cornerRadius: 0.5, depth: round1(l / 2), chamfer: 0, spin: 0 },
+    screw: { style: "shape" },
+  };
+}
+
 // A socket for a 2020 rail's end, 15 mm deep — enough for it to stand.
 function extrusion(id, name, short, keys) {
   return {
@@ -341,6 +380,21 @@ export const SCREW_PRESETS = [
   shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, chamfer: 0, spin: 0 }),
   shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, chamfer: 0, spin: 0 }),
   shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, chamfer: 0, spin: 0 }),
+  opening("usb-c", "USB-C port", "USB-C", "USB ports", 9.6, 4, 2),
+  opening("usb-c-plug", "USB-C, room for the plug", "C plug", "USB ports", 12.9, 7, 2),
+  opening("usb-a", "USB-A port", "USB-A", "USB ports", 13.2, 5.8, 0.5),
+  opening("usb-a-plug", "USB-A, room for the plug", "A plug", "USB ports", 16.5, 8.5, 1),
+  opening("usb-micro", "Micro-USB port", "Micro", "USB ports", 8.2, 3.2, 0.6),
+  opening("usb-mini", "Mini-USB port", "Mini", "USB ports", 8.4, 4.6, 0.5),
+  opening("usb-b", "USB-B port", "USB-B", "USB ports", 12.7, 11.6, 0.5),
+  opening("sd-slot", "SD card slot, through", "SD slot", "Memory cards", 24.8, 2.9, 0.5),
+  opening("microsd-slot", "microSD card slot, through", "µSD slot", "Memory cards", 11.8, 1.8, 0.5),
+  cardStand("sd-stand", "SD card holder slot", "SD", 24, 32, 2.1),
+  cardStand("minisd-stand", "miniSD card holder slot", "miniSD", 20, 21.5, 1.4),
+  cardStand("microsd-stand", "microSD card holder slot", "µSD", 11, 15, 1),
+  cardStand("cf-stand", "CompactFlash card holder slot (Type I)", "CF", 36.4, 42.8, 3.3),
+  cardStand("cfexpress-a-stand", "CFexpress Type A card holder slot", "CFe A", 20, 28, 2.8),
+  cardStand("cfexpress-b-stand", "CFexpress Type B / XQD card holder slot", "CFe B", 29.6, 38.5, 3.8),
   skadis("skadis-slot", "Skådis slot (5 × 15 mm)", "Slot"),
   pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
