@@ -186,11 +186,29 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: sha256sum *.dmg *.exe > SHA256SUMS.txt
+      - uses: actions/checkout@v4
+        with:
+          path: src
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+      # This version's section of CHANGELOG.md heads the notes; nothing
+      # there (a tag without a changelog entry) just leaves it out.
+      - name: Changelog section
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            /^## / { if (found) exit; if (index($0, "## " v " ") == 1 || $0 == "## " v) { found = 1; next } }
+            found
+          ' src/CHANGELOG.md > changes.md
+          echo "$(wc -l < changes.md) lines for $version"
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > notes.md <<'NOTES'
+          if [ -s changes.md ]; then
+            { echo "## What's new"; cat changes.md; echo; } > notes.md
+          fi
+          cat >> notes.md <<'NOTES'
           ## Connector Foundry for macOS and Windows
 
           **macOS** — download the DMG for your Mac:
