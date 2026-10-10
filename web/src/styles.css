@@ -484,6 +484,83 @@ button, input, select, textarea {
   border-radius: 4px;
 }
 
+/* components/DecimalInput.jsx: a number field with up/down arrows inside
+   its right edge, shown on hover and focus like the native spinner (and
+   always where there is no hover to find them). The wrapper takes the
+   field's place in the layout: stretched in a column .field, the input's
+   own width (a bench offset's 4.5rem) where it isn't. */
+.decimal-input {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.decimal-input > input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 1.2rem;
+}
+
+.decimal-input-arrows {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+  flex-direction: column;
+  width: 1rem;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.decimal-input:hover .decimal-input-arrows,
+.decimal-input:focus-within .decimal-input-arrows {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .decimal-input-arrows {
+    opacity: 1;
+  }
+}
+
+.decimal-input-arrow {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #33343a;
+  background: #26272b;
+  color: #8b8c91;
+  cursor: default;
+  touch-action: manipulation;
+}
+
+.decimal-input-arrow:first-child {
+  border-bottom: 1px solid #33343a;
+  border-top-right-radius: 3px;
+}
+
+.decimal-input-arrow:last-child {
+  border-bottom-right-radius: 3px;
+}
+
+.decimal-input-arrow:hover:not(:disabled) {
+  background: #303136;
+  color: #e6e6e6;
+}
+
+.decimal-input-arrow:active:not(:disabled) {
+  background: #3a3b41;
+}
+
+.decimal-input-arrow:disabled {
+  color: #4a4b50;
+}
+
 .field select {
   /* Without this the control renders at the platform default height and
      sits a couple of pixels taller than the text inputs beside it. */

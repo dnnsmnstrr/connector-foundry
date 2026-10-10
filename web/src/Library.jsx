@@ -31,6 +31,7 @@ const PARAM_RENDER_DELAY_MS = 400;
 export default function Library({
   parts,
   onOpenInBench,
+  onAddHoles,
   onSelectionChange,
   initialSelection,
   sidebarCollapsed,
@@ -210,6 +211,13 @@ export default function Library({
                   title="Start a new Bench with this part (and its current parameters) as the root"
                 >
                   Open in Bench
+                </button>
+                <button
+                  className="render-button bench-open-button"
+                  onClick={() => onAddHoles(selected, params)}
+                  title="Drill holes into this part (with its current parameters) in the Holes tab"
+                >
+                  Add Holes
                 </button>
                 <button
                   className="render-button"

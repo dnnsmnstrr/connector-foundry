@@ -423,3 +423,65 @@ function extents(bytes) {
   const { min, max } = geometry.boundingBox;
   return [max.x - min.x, max.y - min.y, max.z - min.z].map((n) => Math.round(n * 100) / 100);
 }
+
+test("number fields step by their arrows and the wheel, finer with Shift", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, true);
+  await page.goto("/");
+  // By its wrapper: once w differs from its default, the label's reset
+  // button joins the field's accessible name.
+  const wrap = page.locator(".decimal-input").first();
+  const field = wrap.getByRole("spinbutton");
+  const [up, down] = [0, 1].map((i) => wrap.locator(".decimal-input-arrow").nth(i));
+  await expect(field).toHaveValue("40");
+  // The wheel leaves an unfocused field alone: scrolling the sidebar past it.
+  await field.hover();
+  await page.mouse.wheel(0, -100);
+  await expect(field).toHaveValue("40");
+  // Arrows: a step a click, half a step with Shift; a click focuses the field.
+  await up.click();
+  await expect(field).toHaveValue("41");
+  await expect(field).toBeFocused();
+  await up.click({ modifiers: ["Shift"] });
+  await expect(field).toHaveValue("41.5");
+  await down.click();
+  await expect(field).toHaveValue("40.5");
+  // Wheel, focused: a step a tick, a tenth with Shift.
+  await page.mouse.wheel(0, -100);
+  await expect(field).toHaveValue("41.5");
+  await page.keyboard.down("Shift");
+  await page.mouse.wheel(0, 100);
+  await page.keyboard.up("Shift");
+  await expect(field).toHaveValue("41.4");
+  // The keyboard keeps the native field's Shift: ten steps.
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(field).toHaveValue("51.4");
+});
+
+test("/ jumps to the Library's part search from any mode", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, true);
+  await page.goto("/");
+  const search = page.getByRole("searchbox", { name: "Search parts" });
+  await search.fill("post");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("/");
+  await expect(search).toBeFocused();
+  expect(await search.evaluate((el) => [el.selectionStart, el.selectionEnd])).toEqual([0, 4]);
+  // Typing "/" in a field is just a slash.
+  await search.press("ArrowRight");
+  await search.press("/");
+  await expect(search).toHaveValue("post/");
+  // From the Bench with the sidebar collapsed: back to the Library,
+  // sidebar open, search focused.
+  await search.blur();
+  await page.keyboard.press("[");
+  await expect(page.locator("[aria-expanded]").first()).toHaveAttribute("aria-expanded", "false");
+  await page.keyboard.press("2");
+  await expect(page.locator(".mode-tab.active")).toContainText("Bench");
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press("/");
+  await expect(page.locator(".mode-tab.active")).toContainText("Library");
+  await expect(page.locator("[aria-expanded]").first()).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".sidebar .search-input")).toBeFocused();
+});

@@ -100,6 +100,7 @@ Bench's own `<aside>` read — these live at the `App` level since they're not s
 screen.
 
 - Keyboard shortcuts: `1`/`2`/`3` switch Library/Bench/Holes, `s` opens Settings, `[` toggles the sidebar,
+  `/` jumps to the Library's part search (switching mode and opening the sidebar as needed),
   `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
   `isEditableTarget()` (`src/lib/isEditableTarget.js`, shared with the Bench's own keys) skips every
   single-key shortcut (not `Escape`, which is expected to work

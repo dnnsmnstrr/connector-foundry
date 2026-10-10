@@ -72,6 +72,25 @@ test("the Holes tab opens on 3, takes a catalogue part, and exports the base as 
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
 });
 
+test("the Library's Add Holes opens the part, with its parameters, in the Holes tab", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/");
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("55");
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  await expect(page).toHaveURL(/mode=holes/);
+  await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
+  await expect.poll(async () => (await jobs(page)).at(-1)?.params?.w).toBe(55);
+  // Nothing drilled yet, so a second hand-over replaces the base without asking.
+  let asked = false;
+  page.on("dialog", (dialog) => { asked = true; dialog.dismiss(); });
+  await page.keyboard.press("1");
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  await expect(page).toHaveURL(/mode=holes/);
+  expect(asked).toBe(false);
+});
+
 test("a click on a face drills a snapped hole and the render carries it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

@@ -8,6 +8,8 @@ import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
 import { useRenderActivity } from "./hooks/useRenderActivity.js";
 import { createAssembly } from "./lib/assembly.js";
 import { replaceBenchSession } from "./lib/benchSession.js";
+import { getHolesSession, setHolesDoc } from "./lib/holesSession.js";
+import { createHolesDoc } from "./lib/screwHoles.js";
 import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
 import { cancelRenders } from "./lib/openscad-client.js";
 import { isEditableTarget } from "./lib/isEditableTarget.js";
@@ -171,8 +173,29 @@ export default function App() {
     });
   }
 
+  // "/": the Library, its sidebar open, the search box focused with its
+  // text selected to type over. From another mode, or with the sidebar
+  // collapsed, the box only exists once the Library has rendered with it,
+  // so keep looking for half a second.
+  function jumpToLibrarySearch() {
+    const switching = mode !== "library" || sidebarCollapsed;
+    setMode("library");
+    if (sidebarCollapsed) toggleSidebar();
+    let tries = 0;
+    const focus = () => {
+      const box = !switching || tries > 0 ? document.querySelector(".sidebar .search-input") : null;
+      if (box) {
+        box.focus();
+        box.select();
+      } else if (++tries < 30) {
+        setTimeout(focus, 16);
+      }
+    };
+    focus();
+  }
+
   // Global shortcuts: 1/2/3 switch mode, s opens Settings, [ toggles the
-  // sidebar, Escape closes Settings. Bench's own modals (attach-a-part,
+  // sidebar, / jumps to the Library's part search, Escape closes Settings. Bench's own modals (attach-a-part,
   // STL import) and the Holes tab's import close on Escape too, but
   // that's handled locally in Bench.jsx / Holes.jsx — they own that
   // state, App doesn't need to reach into it.
@@ -200,6 +223,12 @@ export default function App() {
         case "[":
           toggleSidebar();
           break;
+        case "/":
+          // Not from under an open dialog (an attach-a-part picker, Settings):
+          // it would switch mode out from behind it.
+          if (document.querySelector("dialog[open]")) return;
+          jumpToLibrarySearch();
+          break;
         default:
           return;
       }
@@ -207,10 +236,10 @@ export default function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // switchToBench() reads `mode` and `assembly`, so the listener is
-    // re-bound with them.
+    // switchToBench() reads `mode` and `assembly`, jumpToLibrarySearch()
+    // `sidebarCollapsed`, so the listener is re-bound with them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsOpen, mode, assembly]);
+  }, [settingsOpen, mode, assembly, sidebarCollapsed]);
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
   if (!parts || !restored) return <div className="loading-screen">Loading catalogue&hellip;</div>;
@@ -220,6 +249,16 @@ export default function App() {
     if (assembly && !window.confirm(`Replace the current bench with a new one on ${part.name}?`)) return;
     seedBench(part, params);
     setMode("bench");
+  }
+
+  // Library's "Add Holes": the selected part, with its current parameters,
+  // as the Holes tab's base. Asks first only when there are holes to lose;
+  // a base with none drilled yet is just replaced.
+  function openInHoles(part, params) {
+    const current = getHolesSession().doc;
+    if (current?.holes.length && !window.confirm(`Replace the holes you've placed with a new start on ${part.name}?`)) return;
+    setHolesDoc(createHolesDoc({ kind: "catalogue", partId: part.id, params }));
+    setMode("holes");
   }
 
   return (
@@ -298,6 +337,7 @@ export default function App() {
           <Library
             parts={parts}
             onOpenInBench={openInBench}
+            onAddHoles={openInHoles}
             onSelectionChange={onLibrarySelectionChange}
             initialSelection={librarySelection.current}
             sidebarCollapsed={sidebarCollapsed}
