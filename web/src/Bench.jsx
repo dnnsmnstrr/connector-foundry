@@ -790,7 +790,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   attached part to select it, then turn, move, or delete it.
                 </>
               )}
-              {status === "rendering" && " Rendering…"}
+              {/* No " Rendering…" appended here: the extra word wrapped the
+                  sentence onto another line and pushed the viewer down
+                  while a render ran. The header's render indicator (a
+                  status live region, App.jsx) already says it. */}
             </p>
           </div>
         </header>
