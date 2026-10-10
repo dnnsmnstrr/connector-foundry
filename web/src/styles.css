@@ -414,6 +414,20 @@ button, input, select, textarea {
   cursor: pointer;
 }
 
+/* A label stacked over its longest variant (the sizer, invisible), so
+   the element is as wide as that variant whichever one shows. */
+.stable-label {
+  display: inline-grid;
+}
+
+.stable-label > * {
+  grid-area: 1 / 1;
+}
+
+.stable-label-sizer {
+  visibility: hidden;
+}
+
 .part-header-actions {
   display: flex;
   gap: 0.6rem;

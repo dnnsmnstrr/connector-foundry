@@ -190,9 +190,16 @@ export default function Library({
               <div>
                 <h2>{selected.name}</h2>
                 <p className="print-note">{selected.print_note}</p>
-                {dimensions && (
+                {/* The line keeps its height while a render is in flight
+                    (dimensions is null until it lands), so the form and the
+                    viewer below don't jump up and back on every edit. */}
+                {dimensions ? (
                   <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
                     Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
+                  </p>
+                ) : (
+                  <p className="outside-dimensions" aria-hidden="true">
+                    {"\u00a0"}
                   </p>
                 )}
               </div>
@@ -210,7 +217,14 @@ export default function Library({
                   disabled={status === "rendering"}
                   aria-live="polite"
                 >
-                  {status === "rendering" ? "Rendering…" : "Render"}
+                  {/* Sized for the longer label either way, so the button
+                      doesn't grow when a render starts. */}
+                  <span className="stable-label">
+                    <span>{status === "rendering" ? "Rendering…" : "Render"}</span>
+                    <span className="stable-label-sizer" aria-hidden="true">
+                      Rendering…
+                    </span>
+                  </span>
                 </button>
               </div>
             </header>
