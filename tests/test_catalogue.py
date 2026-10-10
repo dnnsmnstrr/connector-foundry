@@ -7,6 +7,9 @@ is a warning, not an error, and the render proceeds with the default. So
 a typo in this file does not fail anywhere — it quietly produces the
 wrong part, and every test that only checks the part renders will pass.
 """
+import pytest
+import typer
+
 import foundry
 
 # The face anchors web/src/lib/slots.js knows how to place — the only
@@ -28,6 +31,7 @@ def test_declared_parameters_exist_on_the_module():
         declared = {
             "defaults": part.get("defaults", {}).keys(),
             "options": part.get("options", {}).keys(),
+            "minimums": part.get("minimums", {}).keys(),
             "attached_defaults": part.get("attached_defaults", {}).keys(),
         }
         for variant in part.get("variants", []):
@@ -77,6 +81,34 @@ def test_option_lists_agree_with_defaults_and_variants():
                 problems.append(
                     f"{part['id']}: attached default {key}={value!r} is not in {options[key]}")
     assert not problems, "\n".join(problems)
+
+
+def test_minimums_hold_for_defaults_and_variants():
+    """`minimums` stops the web field and the CLI at a floor; the
+    catalogue's own values must not sit under it, or its default would be
+    a value the editor refuses."""
+    problems = []
+    for part in _parts():
+        minimums = part.get("minimums", {})
+        defaults = part.get("defaults", {})
+        values = [("default", defaults), ("attached default", part.get("attached_defaults", {}))]
+        values += [(f"variant {v['name']}", v["params"]) for v in part.get("variants", [])]
+        for key, floor in minimums.items():
+            if not _is_mm(floor):
+                problems.append(f"{part['id']}: minimum {key}={floor!r} is not a number")
+            elif not _is_mm(defaults.get(key)):
+                problems.append(f"{part['id']}: minimum for {key!r}, which has no number default")
+            for where, params in values:
+                if key in params and _is_mm(params[key]) and params[key] < floor:
+                    problems.append(f"{part['id']} [{where}]: {key}={params[key]} is under its minimum {floor}")
+    assert not problems, "\n".join(problems)
+
+
+def test_check_minimums_rejects_a_value_under_the_floor():
+    female = next(p for p in _parts() if p["id"] == "gopro/female")
+    foundry.check_minimums(female, {"outer_w": 3})
+    with pytest.raises(typer.BadParameter, match="outer_w=2.5 is under its minimum of 3"):
+        foundry.check_minimums(female, {"outer_w": 2.5})
 
 
 def test_slot_count_params_are_real_defaults():

@@ -252,6 +252,15 @@ def check_options(part: dict, params: dict[str, object]) -> None:
                 + ", ".join(repr(a) for a in allowed))
 
 
+def check_minimums(part: dict, params: dict[str, object]) -> None:
+    """Reject a number under a parameter's declared minimum, before
+    OpenSCAD's own assertion turns it into a failed render."""
+    for key, floor in part.get("minimums", {}).items():
+        value = params.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value < floor:
+            raise typer.BadParameter(f"{part['id']}: {key}={value!r} is under its minimum of {floor}")
+
+
 def resolve_params(part: dict, overrides: dict[str, object], use_user_config: bool) -> dict:
     """catalogue default -> saved user override -> this render's overrides.
 
@@ -328,6 +337,7 @@ def render_part(part: dict, overrides: dict[str, object], out_dir: Path,
     """Render one catalogue part to <out_dir>/<slug>.stl and return that path."""
     params = resolve_params(part, overrides, use_user_config)
     check_options(part, params)
+    check_minimums(part, params)
     out_stl = out_dir / f"{slug(part['id'])}.stl"
     global_overrides = userconfig.get_global_overrides() if use_user_config else {}
     with _stub_file(part, params, out_dir) as stub:

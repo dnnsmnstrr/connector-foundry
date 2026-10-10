@@ -26,6 +26,12 @@
 #   remember that a board variant is spelled "lite" and its chamfers are
 #   spelled "Corners". A test holds `options` and `defaults` together.
 #
+# minimums: for a number parameter with a floor the module asserts, that
+#   floor. The web app's field stops there (and raises a lower value to
+#   it when you leave the field), and the CLI rejects anything under it,
+#   instead of either finding out from an OpenSCAD assertion. A test
+#   keeps defaults and variants at or above it.
+#
 # license: omitted means the repository's MIT licence. A part that calls
 #   into a vendored upstream carries that upstream's terms instead — see
 #   the README "Licensing" section. This field is not decoration: it is
@@ -397,6 +403,10 @@ parts:
     # `symmetric` pads the other leg to match.
     mount_offset:
       y: { param: outer_w, offset: -3, scale: 0.5, unless: symmetric }
+    # The far leg is never narrower than the other prongs (GP_LEG_T,
+    # asserted in parts/gopro/female.scad): 3 is the equal-prongs buckle.
+    minimums:
+      outer_w: 3
     defaults:
       base_h: 3
       base_w: 20

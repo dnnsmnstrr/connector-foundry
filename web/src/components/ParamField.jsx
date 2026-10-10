@@ -5,7 +5,12 @@ import { useId } from "react";
 // to the label plus a reset button, shown only when the current value
 // actually differs (deep-enough for the primitives every param is).
 // Shared by Library mode and the Bench's per-node param editor.
-export default function ParamField({ name, value, options, catalogueDefault, onChange, onReset }) {
+//
+// `min` (catalogue.yaml's `minimums`): the number field's spinner stops
+// there, and a value typed under it is raised to it when the field loses
+// focus — not on every keystroke, which would turn the "1" of a "10"
+// being typed into the minimum.
+export default function ParamField({ name, value, options, min, catalogueDefault, onChange, onReset }) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.
   const inputId = useId();
@@ -61,7 +66,17 @@ export default function ParamField({ name, value, options, catalogueDefault, onC
     return (
       <label htmlFor={inputId} className="field">
         {label}
-        <input id={inputId} type="number" value={value} step="any" onChange={(e) => onChange(Number(e.target.value))} />
+        <input
+          id={inputId}
+          type="number"
+          value={value}
+          step="any"
+          min={min}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onBlur={() => {
+            if (min !== undefined && value < min) onChange(min);
+          }}
+        />
       </label>
     );
   }
