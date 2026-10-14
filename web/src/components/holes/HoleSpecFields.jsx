@@ -15,7 +15,8 @@ import RotationInput from "../RotationInput.jsx";
 // generic shape: its size and depth, and a rectangle's corner radius
 // (up to a pill) and which way it is turned. For a 2020 socket: how far
 // the rail goes in, the clearance, the keys and which way it is turned.
-// For a DeckMate socket: only which way it is turned.
+// For a DeckMate socket: how much deeper than the Innie, and which way
+// it is turned.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -296,12 +297,22 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   if (spec.kind === "deckmate") {
     return (
       <div className="holes-spec">
+        <div className="holes-spec-grid">
+          <label
+            className="field"
+            htmlFor={`${id}-dm-depth`}
+            title="How much deeper the floor goes than an Innie's, the lips left as they are. Seated in an Innie, the Outie's rail meets the plate with no room to spare, so a print a hair thick won't seat: 0 is the Innie exactly; raise it if the Outie won't go all the way in."
+          >
+            <span className="field-label">Extra depth (mm)</span>
+            <DecimalInput id={`${id}-dm-depth`} min="0" max="2" step="0.1" {...numberProps("extraDepth")} />
+          </label>
+        </div>
         {spinField}
         <p className="muted holes-params-note">
           A DeckMate Innie's own socket, cut from Mechanism's Innie (CC BY-NC 4.0): the part takes a DeckMate Outie the way an
           Innie does. The point you click is the Innie's centre; push the Outie in there and slide it {DECKMATE.seat} mm the
           way the arrow points to seat it. It needs a face at least {Math.ceil(2 * DECKMATE.notchOut)} mm across and about{" "}
-          {Math.ceil(DECKMATE.depth)} mm of material under the surface, and prints best on a face that is up.
+          {Math.ceil(DECKMATE.depth + (isMixed("extraDepth") ? DECKMATE.extraDepth : spec.extraDepth))} mm of material under the surface, and prints best on a face that is up.
         </p>
       </div>
     );

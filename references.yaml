@@ -1277,6 +1277,24 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
 
+  - id: deckmate/outie-seated-in-holes-socket-deeper
+    why: >
+      With the web app's default 0.3mm of extra depth, the floor drops
+      away from the rail and nothing else changes: seated, the Outie
+      still touches only the surface it rests on.
+    a: |
+      include <{repo}/parts/deckmate/outie.scad>
+      translate([0, 2, 0.6]) rotate([0, 0, 180]) deckmate_outie(anchor = CENTER);
+    b: |
+      use <{repo}/lib/deckmate.scad>
+      difference() {{
+          translate([-25, -25, -8]) cube([50, 50, 8]);
+          deckmate_socket(extra_depth = 0.3);
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.1]
+
   - id: extrusion2020/tab-in-slot
     part: extrusion2020/tab
     reference_source: nopscadlib

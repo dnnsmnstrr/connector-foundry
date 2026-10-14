@@ -268,8 +268,10 @@ accessory) goes into the part the way it goes into an Innie, with no 2 mm plate 
 the face. Its lips, the undercut behind them and the ends of its walls are the Innie's; past the
 Innie's outline, a notch either side clears the ends of the Outie's rail, which on an Innie stand
 out in the air. Click where the Innie's centre goes; push the Outie in there and slide it 2 mm the way the
-arrow points to seat it. It needs a face about 38 mm across and prints best on one that is up, as
-an Innie prints back down. references.yaml checks an Outie in it: in on the way down, and seated.
+arrow points to seat it. Seated in an Innie, the Outie's rail meets the plate with no room to spare,
+so a print a hair thick won't go all the way in: the floor is cut 0.3 mm deeper than the Innie's by
+default (**Extra depth**; 0 is the Innie exactly), the lips left as they are. It needs a face about
+38 mm across and prints best on one that is up, as an Innie prints back down. references.yaml checks an Outie in it: in on the way down, and seated.
 
 The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets, a
 25×4.5 mm pot magnet and a 608 bearing, each 0.2 mm over in diameter and depth. The pot magnet

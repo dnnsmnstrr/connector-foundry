@@ -69,8 +69,8 @@
 // base gets in.
 //
 // The DeckMate socket (kind "deckmate", lib/deckmate.scad) is cut from
-// Mechanism's own Innie (CC BY-NC 4.0): there is one, nothing to set
-// but which way it faces.
+// Mechanism's own Innie (CC BY-NC 4.0): there is one, 0.3 mm deeper
+// than the Innie so a printed Outie seats.
 //
 // The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
 // a 20-series aluminium extrusion; its presets differ only in the keys
@@ -413,7 +413,7 @@ export const SCREW_PRESETS = [
     name: "DeckMate Innie socket",
     short: "Innie",
     group: "DeckMate",
-    spec: { kind: "deckmate", spin: 0 },
+    spec: { kind: "deckmate", extraDepth: 0.3, spin: 0 },
     screw: { style: "deckmate" },
   },
   extrusion("ex-socket", "2020 socket, keyed into the slots", "Keyed", true),

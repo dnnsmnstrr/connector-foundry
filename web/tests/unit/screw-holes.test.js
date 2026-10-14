@@ -655,7 +655,8 @@ test("a DeckMate socket is cut by lib/deckmate.scad in the slots' frame", () => 
   const scad = holesToScad(doc, partsById, { throughLength: 50 });
   assert.match(scad, /^use <\.\.\/lib\/deckmate\.scad>$/m);
   assert.doesNotMatch(scad, /BOSL2/);
-  assert.equal(scad.match(/deckmate_socket\(overshoot = 1\);/g).length, 2);
+  // The preset's floor 0.3 mm past the Innie's; a hole without the field gets the same.
+  assert.equal(scad.match(/deckmate_socket\(extra_depth = 0\.3, overshoot = 1\);/g).length, 2);
   // The slots' frame: unturned on a level face, the Outie seats along +Y.
   assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
   assert.equal(holeLabel(doc.holes[0]), "DeckMate socket");
@@ -663,9 +664,12 @@ test("a DeckMate socket is cut by lib/deckmate.scad in the slots' frame", () => 
   assert.equal(holeMeta(doc.holes[1]), "turned 90°");
   // It turns like a slot and is still its preset turned.
   assert.equal(rotateHoles(doc, [doc.holes[0].id], 90).holes[0].spec.spin, 90);
-  assert.ok(specMatchesPreset({ kind: "deckmate", spin: 180 }, "deckmate-innie"));
-  // Nothing else to set: anything else is dropped.
-  assert.deepEqual(normalizeSpec({ kind: "deckmate", depth: 5, clearance: 1 }), { kind: "deckmate", spin: 0 });
+  assert.ok(specMatchesPreset({ kind: "deckmate", extraDepth: 0.3, spin: 180 }, "deckmate-innie"));
+  assert.ok(!specMatchesPreset({ kind: "deckmate", extraDepth: 0.5, spin: 0 }, "deckmate-innie"));
+  // 0 (the Innie exactly) stays 0; too much is held to 2; anything else is dropped.
+  assert.equal(normalizeSpec({ kind: "deckmate", extraDepth: 0 }).extraDepth, 0);
+  assert.equal(normalizeSpec({ kind: "deckmate", extraDepth: 9 }).extraDepth, 2);
+  assert.deepEqual(normalizeSpec({ kind: "deckmate", depth: 5, clearance: 1 }), { kind: "deckmate", extraDepth: 0.3, spin: 0 });
   // Its outline closes — the rounded square with both notches — with the arrow.
   assert.ok(slotOutline(doc.holes[0]).length > 36);
 });

@@ -33,6 +33,14 @@
 // and chamfered at the bottom: cut to the outline itself, a thin moat
 // would run round the outside of the walls.
 //
+// `extra_depth` lowers the floor by that much, the socket's footprint
+// at the floor carried straight down; the lips, the undercut and the
+// walls stay the Innie's. Seated in an Innie, an Outie's rail meets the
+// plate just as its base meets the face, with no room between — an
+// Innie and an Outie both a hair thick off the printer and the Outie
+// can't go far enough in for its hook to get under the lip. 0, the
+// default here, is the Innie exactly; the web app cuts 0.3.
+//
 // Frame: the surface at z = 0 where the Innie's socket face was, the
 // material below; the origin at the Innie's centre; +Y the way an Outie
 // slides to seat — its own centre pushed straight in at the origin (or
@@ -50,7 +58,24 @@ DM_SOCKET_INSET  = 1.3;
 DM_SOCKET_GAP_W  = 14;
 DM_SOCKET_GAP_X  = [15.5, DM_INNIE_SIZE.x / 2 + 1];
 
-module deckmate_socket(overshoot = 1) {
+module deckmate_socket(extra_depth = 0, overshoot = 1) {
+    deckmate_socket_cavity(overshoot);
+    // The deeper floor: the cavity's section just above its floor (the
+    // undercut's and the notches' too), carried down. It reaches 0.01mm
+    // up into the cavity and is 0.01mm smaller all round, so none of its
+    // faces is one of the cavity's.
+    if (extra_depth > 0)
+        translate([0, 0, -DM_SOCKET_DEPTH - extra_depth])
+            linear_extrude(height = extra_depth + 0.01)
+                offset(delta = -0.01)
+                    projection(cut = true)
+                        translate([0, 0, DM_SOCKET_DEPTH - 0.01])
+                            deckmate_socket_cavity(overshoot);
+}
+
+// The Innie's own socket: between its walls, from the face down to the
+// plate, and the notches past its outline.
+module deckmate_socket_cavity(overshoot) {
     difference() {
         union() {
             translate([0, 0, -DM_SOCKET_DEPTH])

@@ -51,7 +51,7 @@ function describe(spec) {
   if (spec.kind === "thread") return `openGrid snap thread, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance`;
   if (spec.kind === "extrusion") return `Socket for a 2020 extrusion's end, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance${spec.keys ? ", keyed into its slots" : ""}${spec.bolt ? ", M5 bolt hole" : ""}`;
   if (spec.kind === "klippt") return `KLIPPT clip channel: slides onto a KLIPPT base; ${spec.pocket ? "a drop-in pocket at the entry" : `open, ${spec.runout} mm lead-in`}, ${spec.clearance} mm clearance a side`;
-  if (spec.kind === "deckmate") return "A DeckMate Innie's own socket, cut 3.25 mm into the part: a DeckMate Outie pushes in and slides along to seat, as in an Innie";
+  if (spec.kind === "deckmate") return `A DeckMate Innie's own socket, cut into the part: a DeckMate Outie pushes in and slides along to seat, as in an Innie; the floor ${spec.extraDepth} mm deeper than an Innie's`;
   if (spec.kind === "pinhole") return `BitBeam pin hole: Ø4.8 with the groove a Technic pin clicks into, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
   if (spec.kind === "cylinder") return `Round Ø${spec.diameter} mm, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
   if (spec.kind === "rectangle") return `${spec.width} × ${spec.height} mm cutout${spec.cornerRadius > 0 ? `, ${spec.cornerRadius} mm corner radius` : ""}, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;

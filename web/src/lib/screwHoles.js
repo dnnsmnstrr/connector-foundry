@@ -96,9 +96,13 @@
 // "deckmate" — a DeckMate Innie's socket (lib/deckmate.scad's
 // deckmate_socket(), cut from Mechanism's own Innie, CC BY-NC 4.0): the
 // part takes a DeckMate Outie the way an Innie does. The point is the
-// Innie's centre; the cut is 3.25 mm deep.
-//   spin       the way the Outie slides to seat (pushed straight in
-//              at the point, then 2 mm along), as a slot's
+// Innie's centre; the cut is 3.25 mm deep, plus `extraDepth`.
+//   extraDepth  mm the floor goes down past the Innie's: seated, an
+//               Outie's rail meets an Innie's plate with no room
+//               between, which a print a hair thick won't seat into
+//               (0 is the Innie exactly)
+//   spin        the way the Outie slides to seat (pushed straight in
+//               at the point, then 2 mm along), as a slot's
 //
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
 // into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
@@ -196,7 +200,7 @@ export const KLIPPT = Object.freeze({
 // on out past it at either side for the ends of the Outie's rail. `seat`
 // is how far the Outie slides from where it goes in to where it seats.
 // Drawing only; the cut is the library's.
-export const DECKMATE = Object.freeze({ half: 17.84, radius: 6.45, notchHalf: 7, notchOut: 18.84, depth: 3.25, seat: 2 });
+export const DECKMATE = Object.freeze({ half: 17.84, radius: 6.45, notchHalf: 7, notchOut: 18.84, depth: 3.25, seat: 2, extraDepth: 0.3 });
 
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
 // BITBEAM_UNIT, lib/pinhole.scad's groove), for the viewer and the icon.
@@ -307,7 +311,7 @@ export function normalizeSpec(spec) {
       spin: normalizeSpin(spec?.spin),
     };
   }
-  if (kind === "deckmate") return { kind, spin: normalizeSpin(spec?.spin) };
+  if (kind === "deckmate") return { kind, extraDepth: Math.min(2, n(spec?.extraDepth, DECKMATE.extraDepth)), spin: normalizeSpin(spec?.spin) };
   if (kind === "pinhole") {
     return {
       kind,
@@ -822,7 +826,7 @@ export function cutterLines(hole, throughLength, extents = null) {
     body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "deckmate") {
-    body.push(`deckmate_socket(overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(`deckmate_socket(extra_depth = ${fmt(s.extraDepth)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "pinhole") {
     // Blind: a groove at the bottom as well as the entry, as a beam's
