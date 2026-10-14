@@ -24,6 +24,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "klippt") return <KlipptIcon title={title} className={className} />;
+  if (spec.kind === "deckmate") return <DeckMateIcon title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -554,6 +555,65 @@ function KlipptIcon({ title, className }) {
         <rect x={CX - 14 * s} y={SURFACE_Y - 7} width={28 * s} height={4} rx="0.8" />
         <rect x={CX - 9 * s} y={SURFACE_Y - 3.2} width={18 * s} height={lipsY - SURFACE_Y + 3.2} />
         <rect x={CX - 10 * s} y={lipsY} width={20 * s} height={pz(1) - 0.4} />
+      </g>
+    </svg>
+  );
+}
+
+// A DeckMate socket in section, along the way the Outie slides (which
+// runs it toward one lip): the slab with the Innie's socket cut in — the
+// dovetail lips at the surface, the undercut under each — and an Outie
+// in it, its base on the surface and its rail under the lips. To scale across (the lips 24.8mm
+// apart, the undercut 30.8mm, the Outie's base 26.5mm); the depths drawn
+// twice over.
+function DeckMateIcon({ title, className }) {
+  const s = 36 / 31;
+  const pz = (mm) => mm * s * 2;
+  const lipY = SURFACE_Y + pz(1.4);
+  const floorY = SURFACE_Y + pz(3.25);
+  const cut = [
+    [CX - 12.4 * s, SURFACE_Y - 1],
+    [CX + 12.4 * s, SURFACE_Y - 1],
+    [CX + 12.4 * s, SURFACE_Y + pz(0.3)],
+    [CX + 15.4 * s, lipY],
+    [CX + 15.4 * s, floorY],
+    [CX - 15.4 * s, floorY],
+    [CX - 15.4 * s, lipY],
+    [CX - 12.4 * s, SURFACE_Y + pz(0.3)],
+  ];
+  // The rail, its edges hooked under the lips, and the base on the
+  // surface above.
+  const rail = [
+    [CX - 11.6 * s, SURFACE_Y],
+    [CX + 11.6 * s, SURFACE_Y],
+    [CX + 11.6 * s, SURFACE_Y + pz(0.6)],
+    [CX + 14.4 * s, lipY + pz(0.3)],
+    [CX + 14.4 * s, floorY - 0.6],
+    [CX - 14.4 * s, floorY - 0.6],
+    [CX - 14.4 * s, lipY + pz(0.3)],
+    [CX - 11.6 * s, SURFACE_Y + pz(0.6)],
+  ];
+  const at = (points) => points.map((pt) => pt.join(",")).join(" ");
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">
+        <polygon points={at(cut)} />
+      </g>
+      <g className="screw-icon-fastener">
+        <polygon points={at(rail)} />
+        <rect x={CX - 13.25 * s} y={SURFACE_Y - 7} width={26.5 * s} height={7} rx="0.8" />
       </g>
     </svg>
   );

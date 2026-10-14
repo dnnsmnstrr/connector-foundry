@@ -146,7 +146,7 @@ test("every preset has a usable spec and a drawable screw", () => {
       assert.ok(["none", "counterbore", "countersink", "hex"].includes(preset.spec.head), `${preset.id} head`);
       if (preset.spec.head !== "none") assert.ok(preset.spec.headDiameter > preset.spec.diameter, `${preset.id} head wider than shank`);
     } else {
-      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt"].includes(preset.spec.kind), `${preset.id} kind`);
+      assert.ok(["openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt", "deckmate"].includes(preset.spec.kind), `${preset.id} kind`);
       if ("spin" in preset.spec) assert.equal(preset.spec.spin, 0, `${preset.id} starts unturned`);
     }
     assert.ok(typeof preset.screw.style === "string", `${preset.id} screw style`);
@@ -647,6 +647,27 @@ test("a new hole never takes an id the document already has", () => {
   const { doc, hole } = addHole({ ...plateDoc(), holes: taken }, { point: [0, 9, 4], normal: [0, 0, 1] });
   assert.ok(!taken.some((h) => h.id === hole.id));
   assert.equal(new Set(doc.holes.map((h) => h.id)).size, doc.holes.length);
+});
+
+test("a DeckMate socket is cut by lib/deckmate.scad in the slots' frame", () => {
+  let { doc } = addHole(plateDoc(), { point: [10, 10, 4], normal: [0, 0, 1], spec: getPreset("deckmate-innie").spec, presetId: "deckmate-innie" });
+  ({ doc } = addHole(doc, { point: [0, -20, 2], normal: [0, -1, 0], spec: { kind: "deckmate", spin: 90 } }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  assert.match(scad, /^use <\.\.\/lib\/deckmate\.scad>$/m);
+  assert.doesNotMatch(scad, /BOSL2/);
+  assert.equal(scad.match(/deckmate_socket\(overshoot = 1\);/g).length, 2);
+  // The slots' frame: unturned on a level face, the Outie seats along +Y.
+  assert.equal(cutterLines(doc.holes[0], 50)[0], "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {");
+  assert.equal(holeLabel(doc.holes[0]), "DeckMate socket");
+  assert.equal(holeLabel(doc.holes[1]), "DeckMate socket, 90°");
+  assert.equal(holeMeta(doc.holes[1]), "turned 90°");
+  // It turns like a slot and is still its preset turned.
+  assert.equal(rotateHoles(doc, [doc.holes[0].id], 90).holes[0].spec.spin, 90);
+  assert.ok(specMatchesPreset({ kind: "deckmate", spin: 180 }, "deckmate-innie"));
+  // Nothing else to set: anything else is dropped.
+  assert.deepEqual(normalizeSpec({ kind: "deckmate", depth: 5, clearance: 1 }), { kind: "deckmate", spin: 0 });
+  // Its outline closes — the rounded square with both notches — with the arrow.
+  assert.ok(slotOutline(doc.holes[0]).length > 36);
 });
 
 test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a pocket or a run-out", () => {

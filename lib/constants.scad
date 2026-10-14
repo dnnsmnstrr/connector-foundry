@@ -339,3 +339,16 @@ DM_OUTIE_HOLE_D_BASE    = 4.45;
 DM_OUTIE_HOLE_D_RAIL    = 2.4;
 DM_UNIVERSAL_HOLE_D     = 2.98;
 DM_UNIVERSAL_CSK_D      = 4.96;
+
+// The Innie's mesh (parts/deckmate/innie.stl) bounding box in its own
+// coordinates, measured once with trimesh and restated here because
+// OpenSCAD cannot measure an import(): parts/deckmate/innie.scad's
+// attachable() needs the size up front, and the file's geometry sits far
+// from the origin (y ~ 326, z ~ -19), so it is recentred by exactly this
+// much — as is lib/deckmate.scad's socket cutter. tests/test_anchors.py
+// renders every face anchor against the real geometry, so these cannot
+// drift from the file without failing.
+DM_INNIE_BBOX_MIN = [-17.650327682495117, 308.703857421875, -22.030094146728516];
+DM_INNIE_BBOX_MAX = [18.02832794189453, 344.38287353515625, -16.780000686645508];
+DM_INNIE_SIZE     = DM_INNIE_BBOX_MAX - DM_INNIE_BBOX_MIN;   // ~ [35.68, 35.68, 5.25]
+DM_INNIE_CENTER   = (DM_INNIE_BBOX_MIN + DM_INNIE_BBOX_MAX) / 2;

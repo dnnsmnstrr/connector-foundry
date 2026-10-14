@@ -68,6 +68,10 @@
 // KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
 // base gets in.
 //
+// The DeckMate socket (kind "deckmate", lib/deckmate.scad) is cut from
+// Mechanism's own Innie (CC BY-NC 4.0): there is one, nothing to set
+// but which way it faces.
+//
 // The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
 // a 20-series aluminium extrusion; its presets differ only in the keys
 // into the rail's slots.
@@ -404,6 +408,14 @@ export const SCREW_PRESETS = [
   pocket("bearing-608", "608 bearing (22 × 7 mm)", "608", 22, 7),
   klippt("klippt-pocket", "KLIPPT channel, drop-in pocket", "Pocket", true),
   klippt("klippt-open", "KLIPPT channel, open end", "Run-out", false),
+  {
+    id: "deckmate-innie",
+    name: "DeckMate Innie socket",
+    short: "Innie",
+    group: "DeckMate",
+    spec: { kind: "deckmate", spin: 0 },
+    screw: { style: "deckmate" },
+  },
   extrusion("ex-socket", "2020 socket, keyed into the slots", "Keyed", true),
   extrusion("ex-socket-plain", "2020 socket, plain square", "Plain", false),
 ];

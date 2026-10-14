@@ -93,6 +93,13 @@
 //              bump at the entry to hold it; 0.45 slides freely)
 //   spin       the way the base travels to seat, as a slot's
 //
+// "deckmate" — a DeckMate Innie's socket (lib/deckmate.scad's
+// deckmate_socket(), cut from Mechanism's own Innie, CC BY-NC 4.0): the
+// part takes a DeckMate Outie the way an Innie does. The point is the
+// Innie's centre; the cut is 3.25 mm deep.
+//   spin       the way the Outie slides to seat (pushed straight in
+//              at the point, then 2 mm along), as a slot's
+//
 // "extrusion" — a socket the end of a 2020 aluminium extrusion pushes
 // into, along the hole's axis (lib/exsocket.scad's ex_socket()): the
 // 20 mm square, and optionally a key into each of its slots so the rail
@@ -133,7 +140,7 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt"];
+export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt", "deckmate"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -183,6 +190,14 @@ export const KLIPPT = Object.freeze({
   clearance: 0.3,
 });
 
+// A DeckMate socket's footprint (lib/deckmate.scad's, in its frame: the
+// Innie's centre at the origin, +Y the way an Outie slides to seat), for
+// the viewer's outline: the Innie's rounded square, and the notches cut
+// on out past it at either side for the ends of the Outie's rail. `seat`
+// is how far the Outie slides from where it goes in to where it seats.
+// Drawing only; the cut is the library's.
+export const DECKMATE = Object.freeze({ half: 17.84, radius: 6.45, notchHalf: 7, notchOut: 18.84, depth: 3.25, seat: 2 });
+
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
 // BITBEAM_UNIT, lib/pinhole.scad's groove), for the viewer and the icon.
 export const PINHOLE = Object.freeze({ diameter: 4.8, grooveDiameter: 5, unit: 8 });
@@ -223,7 +238,7 @@ export function isConnector(spec) {
 // a 2020 socket. What the quarter-turn buttons turn and a flip turns
 // over with the part.
 export function hasDirection(spec) {
-  return isConnector(spec) || ["rectangle", "extrusion", "klippt"].includes(spec?.kind);
+  return isConnector(spec) || ["rectangle", "extrusion", "klippt", "deckmate"].includes(spec?.kind);
 }
 
 // A rectangle's corner radius as cut: never more than half its narrower
@@ -292,6 +307,7 @@ export function normalizeSpec(spec) {
       spin: normalizeSpin(spec?.spin),
     };
   }
+  if (kind === "deckmate") return { kind, spin: normalizeSpin(spec?.spin) };
   if (kind === "pinhole") {
     return {
       kind,
@@ -633,6 +649,7 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "pinhole") return PINHOLE.grooveDiameter / 2;
   // The seated base's neck: the outline shows the rest.
   if (spec.kind === "klippt") return 9;
+  if (spec.kind === "deckmate") return DECKMATE.half;
   if (spec.kind === "extrusion") return EXTRUSION.profile / 2 + spec.clearance;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
@@ -682,6 +699,7 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   if (holes.some((h) => h.spec.kind === "extrusion")) lines.push("use <../lib/exsocket.scad>");
   if (holes.some((h) => h.spec.kind === "pinhole")) lines.push("use <../lib/pinhole.scad>");
   if (holes.some((h) => h.spec.kind === "klippt")) lines.push("use <../lib/klippt.scad>");
+  if (holes.some((h) => h.spec.kind === "deckmate")) lines.push("use <../lib/deckmate.scad>");
 
   lines.push("", `$fn = ${ROUND_FN};`, "");
   if (holes.length === 0) {
@@ -741,6 +759,7 @@ export function holeLabel(hole, presetName = null) {
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
   if (s.kind === "pinhole") return `BitBeam pin hole ${depth}`;
   if (s.kind === "klippt") return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  if (s.kind === "deckmate") return `DeckMate socket${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
@@ -763,7 +782,7 @@ export function holeLabel(hole, presetName = null) {
 export function holeMeta(hole) {
   const s = hole.spec;
   if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
-  if (isSlot(s) || s.kind === "klippt") return `turned ${fmt(s.spin)}°`;
+  if (isSlot(s) || s.kind === "klippt" || s.kind === "deckmate") return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
 
@@ -801,6 +820,9 @@ export function cutterLines(hole, throughLength, extents = null) {
     m = slotFrameMatrix(hole);
   } else if (s.kind === "klippt") {
     body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    m = slotFrameMatrix(hole);
+  } else if (s.kind === "deckmate") {
+    body.push(`deckmate_socket(overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
   } else if (s.kind === "pinhole") {
     // Blind: a groove at the bottom as well as the entry, as a beam's
@@ -1015,6 +1037,22 @@ export function slotOutline(hole) {
     loop([[left, -k.half], [right, -k.half], [right, k.half], [p, k.half], [p, p], [-p, p], [-p, k.half], [left, k.half]]);
     if (s.pocket) loop([[-p, -k.half - k.pocket], [p, -k.half - k.pocket], [p, -k.half], [-p, -k.half]], true);
     else loop([[-k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half], [-k.gap / 2, -k.half]], true);
+    polyline([[0, -3], [0, 5]]);
+    polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
+    return segments;
+  }
+  if (s.kind === "deckmate") {
+    // The Innie's rounded square, with a notch out of either side for
+    // the ends of the Outie's rail, then the arrow the way it seats.
+    const d = DECKMATE;
+    const a = d.half - d.radius;
+    const points = [];
+    for (const [cx, cy, from] of [[a, a, 0], [-a, a, 0.5], [-a, -a, 1], [a, -a, 1.5]]) points.push(...arc(cx, cy, d.radius, from * Math.PI, (from + 0.5) * Math.PI, 8));
+    // Into the +X side's straight run, before the first corner: the
+    // notch, then the -X one in its place halfway round.
+    const notch = (sx) => (sx > 0 ? [[d.half, -d.notchHalf], [d.notchOut, -d.notchHalf], [d.notchOut, d.notchHalf], [d.half, d.notchHalf]] : [[-d.half, d.notchHalf], [-d.notchOut, d.notchHalf], [-d.notchOut, -d.notchHalf], [-d.half, -d.notchHalf]]);
+    const half = points.length / 2;
+    loop([...notch(1), ...points.slice(0, half), ...notch(-1), ...points.slice(half)]);
     polyline([[0, -3], [0, 5]]);
     polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
     return segments;

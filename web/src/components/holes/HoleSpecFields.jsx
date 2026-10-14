@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
-import { EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
+import { DECKMATE, EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
 
@@ -15,6 +15,7 @@ import RotationInput from "../RotationInput.jsx";
 // generic shape: its size and depth, and a rectangle's corner radius
 // (up to a pill) and which way it is turned. For a 2020 socket: how far
 // the rail goes in, the clearance, the keys and which way it is turned.
+// For a DeckMate socket: only which way it is turned.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -69,7 +70,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
-    spec.kind === "klippt"
+    spec.kind === "deckmate"
+      ? "Which way the Outie slides to seat once it is pushed in. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : spec.kind === "klippt"
       ? "Which way the base slides in to seat. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
       : spec.kind === "extrusion"
       ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
@@ -290,6 +293,20 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     );
   }
 
+  if (spec.kind === "deckmate") {
+    return (
+      <div className="holes-spec">
+        {spinField}
+        <p className="muted holes-params-note">
+          A DeckMate Innie's own socket, cut from Mechanism's Innie (CC BY-NC 4.0): the part takes a DeckMate Outie the way an
+          Innie does. The point you click is the Innie's centre; push the Outie in there and slide it {DECKMATE.seat} mm the
+          way the arrow points to seat it. It needs a face at least {Math.ceil(2 * DECKMATE.notchOut)} mm across and about{" "}
+          {Math.ceil(DECKMATE.depth)} mm of material under the surface, and prints best on a face that is up.
+        </p>
+      </div>
+    );
+  }
+
   if (spec.kind === "pinhole") {
     return (
       <div className="holes-spec">
@@ -447,7 +464,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
 
 // What the direction field's turn buttons say they turn.
 function directionName(kind, count) {
-  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"], extrusion: ["socket", "sockets"], klippt: ["channel", "channels"] }[kind] ?? ["slot", "slots"];
+  const [one, many] = { thread: ["thread", "threads"], rectangle: ["rectangle", "rectangles"], extrusion: ["socket", "sockets"], klippt: ["channel", "channels"], deckmate: ["socket", "sockets"] }[kind] ?? ["slot", "slots"];
   return count > 1 ? `the ${count} ${many}` : `the ${one}`;
 }
 

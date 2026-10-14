@@ -1233,6 +1233,50 @@ fit_checks:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.5]
 
+  # The Holes tab's DeckMate socket (lib/deckmate.scad) is no catalogue
+  # part either. It is the Innie's own socket, so an Outie goes in it as
+  # in an Innie: pushed straight in at the centre, then slid 2mm along
+  # +Y to seat, its hook under a lip (where it can no longer be pulled
+  # straight out). Both ends of that, against Mechanism's own Outie. The
+  # side notches are what let the ends of its rail, which stand out past
+  # the Innie's outline, into a part at all.
+  - id: deckmate/outie-seated-in-holes-socket
+    why: >
+      Seated, the Outie touches the socket and nothing else: its base on
+      the surface, its rail free in the Innie's own cavity and the side
+      notches.
+    a: |
+      include <{repo}/parts/deckmate/outie.scad>
+      // Seated: rail down in the socket, 2mm along +Y from the centre.
+      translate([0, 2, 0.6]) rotate([0, 0, 180]) deckmate_outie(anchor = CENTER);
+    b: |
+      use <{repo}/lib/deckmate.scad>
+      difference() {{
+          translate([-25, -25, -8]) cube([50, 50, 8]);
+          deckmate_socket();
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.1]
+
+  - id: deckmate/outie-pushed-into-holes-socket
+    why: >
+      The Outie has to get in: pushed straight down at the centre it
+      passes the lips without touching them, all the way to the floor.
+    a: |
+      include <{repo}/parts/deckmate/outie.scad>
+      // Every 0.25mm of the way in, from clear above the part to seated.
+      for (z = [0.6 : 0.25 : 8.6])
+          translate([0, 0, z]) rotate([0, 0, 180]) deckmate_outie(anchor = CENTER);
+    b: |
+      use <{repo}/lib/deckmate.scad>
+      difference() {{
+          translate([-25, -25, -8]) cube([50, 50, 8]);
+          deckmate_socket();
+      }}
+    expect:
+      max_interference_mm3: 0.01
+
   - id: extrusion2020/tab-in-slot
     part: extrusion2020/tab
     reference_source: nopscadlib

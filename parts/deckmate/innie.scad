@@ -20,18 +20,12 @@
 // to that exact point). This part has no screw pattern — see outie.scad
 // and universal.scad for the two that do.
 include <../../vendor/BOSL2/std.scad>
+include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 
-// The mesh's bounding box in its own coordinates, measured once with
-// trimesh and restated here because OpenSCAD cannot measure an import():
-// attachable() needs the size up front, and the file's geometry sits far
-// from the origin (y ~ 326, z ~ -19), so it is recentred by exactly this
-// much. tests/test_anchors.py renders every face anchor against the real
-// geometry, so these cannot drift from the file without failing.
-DM_INNIE_BBOX_MIN = [-17.650327682495117, 308.703857421875, -22.030094146728516];
-DM_INNIE_BBOX_MAX = [18.02832794189453, 344.38287353515625, -16.780000686645508];
-DM_INNIE_SIZE     = DM_INNIE_BBOX_MAX - DM_INNIE_BBOX_MIN;   // ~ [35.68, 35.68, 5.25]
-DM_INNIE_CENTER   = (DM_INNIE_BBOX_MIN + DM_INNIE_BBOX_MAX) / 2;
+// DM_INNIE_SIZE / DM_INNIE_CENTER (the mesh's bounding box, which
+// attachable() needs up front and an import() can't report) live in
+// lib/constants.scad, shared with lib/deckmate.scad's socket cutter.
 
 module deckmate_innie(anchor = BOTTOM, spin = 0, orient = UP) {
     anchors = [

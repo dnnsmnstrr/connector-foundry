@@ -260,6 +260,15 @@ each side out: the base then seats free, with a small bump at the entry to hold 
 still stops it. 0 cuts the clip exactly; 0.45 and up slides freely. references.yaml checks a base
 in it: free in the pocket, free seated at 0.3, gripped just as by the clip at 0.
 
+The **DeckMate** preset cuts a DeckMate Innie's own socket (`lib/deckmate.scad`, from Mechanism's
+Innie, CC BY-NC 4.0) 3.25 mm into the part, so a DeckMate Outie (`deckmate/outie`, or one on an
+accessory) goes into the part the way it goes into an Innie, with no 2 mm plate standing proud of
+the face. Its lips, the undercut behind them and the ends of its walls are the Innie's; past the
+Innie's outline, a notch either side clears the ends of the Outie's rail, which on an Innie stand
+out in the air. Click where the Innie's centre goes; push the Outie in there and slide it 2 mm the way the
+arrow points to seat it. It needs a face about 38 mm across and prints best on one that is up, as
+an Innie prints back down. references.yaml checks an Outie in it: in on the way down, and seated.
+
 The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm disc magnets, a
 25×4.5 mm pot magnet and a 608 bearing, each 0.2 mm over in diameter and depth. The pot magnet
 also comes with an M4 clearance hole through the pocket's floor, for the screw through its
@@ -394,7 +403,7 @@ This repository's own files are MIT. Thirteen parts are not, and each catalogue 
 | --- | --- | --- |
 | `opengrid/board`, `opengrid/snap` | **CC-BY-NC-SA 4.0** | They run `vendor/QuackWorks` code. NonCommercial applies to that use, ShareAlike to adaptations. Upstream licenses *generated tiles* CC-BY, so what you print is unrestricted. |
 | `opengrid/openconnect`, `opengrid/multiconnect` | **CC-BY 4.0** | They run `vendor/opengrid-projects` code (the snap body; the openConnect head; the screw body's thread, `lib/ogthread.scad`, rewritten from it). Attribution to mitufy, nothing else. The Holes tab's openConnect slot and openGrid thread come from the same library; its MultiConnect slot and the MultiConnect head are this repo's MIT code. |
-| `deckmate/innie`, `deckmate/outie`, `deckmate/universal` | **CC BY-NC 4.0** | Mechanism's own STLs (the slim Outie is cut, at render time, from their Adhesive Puck STL), redistributed unmodified under the terms they publish their files under. NonCommercial applies to the files, to prints of them, and to anything fused onto them. The screw pattern's dimensions in `lib/constants.scad` are facts; the generated flange is this repo's MIT code. |
+| `deckmate/innie`, `deckmate/outie`, `deckmate/universal`, the Holes tab's DeckMate socket | **CC BY-NC 4.0** | Mechanism's own STLs (the slim Outie is cut, at render time, from their Adhesive Puck STL), redistributed unmodified under the terms they publish their files under; the Holes tab's DeckMate socket (`lib/deckmate.scad`) is cut from the Innie at render time. NonCommercial applies to the files, to prints of them, to anything fused onto them, and to a part with a DeckMate socket cut into it. The screw pattern's dimensions in `lib/constants.scad` are facts; the generated flange is this repo's MIT code. |
 | `klippt/base`, `klippt/clip_mount`, the Holes tab's KLIPPT channel | **CC BY-SA 4.0** | KLIPPT by FH ([printables.com/@bequ3](https://www.printables.com/@bequ3), [model 424351](https://www.printables.com/model/424351-klippt-locking-cable-clip)): the designer's own files (the base STEP tessellated, the screw base and "cable clip small smooth" STLs as published), redistributed unmodified with that credit; the clip mount and the Holes tab's KLIPPT channel (`lib/klippt.scad`) are cut from the clip at render time. ShareAlike applies to adaptations — a part with a base or a clip mount fused onto it, or a KLIPPT channel cut into it, is one, so share it under BY-SA. |
 | `hsw/wall` | **CC-BY 4.0** | It runs `vendor/hsw-customizable` code (Xander, EdwinEesting, geru). Attribution, nothing else. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
