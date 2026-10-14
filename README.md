@@ -8,7 +8,9 @@ single part as STL, or compose several in the browser and export the result.
 Three ways to get a part from the same `.scad` sources:
 
 - **Browser app** (`web/`) — pick a part, set parameters, preview, export STL; combine parts on the
-  Bench. Runs entirely client-side via `openscad-wasm`. The primary way to use this.
+  Bench. Runs entirely client-side via `openscad-wasm`. The primary way to use this. The 3D view's
+  **Helpers** button (or `H`) hides the grid, slot markers, hole outlines and guides to show just
+  the model.
 - **CLI** (`cli/foundry.py`) — `foundry render gridfinity/base --gx 2 --magnets -o out/`
 - **OpenSCAD** — open anything under `parts/` or `assemblies/` in the GUI.
 

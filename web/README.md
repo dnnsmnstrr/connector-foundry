@@ -102,6 +102,8 @@ screen.
 - Keyboard shortcuts: `1`/`2`/`3` switch Library/Bench/Holes, `s` opens Settings, `[` toggles the sidebar,
   `/` jumps to the Library's part search (switching mode and opening the sidebar as needed),
   `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
+  `h` (the 3D viewer's "Helpers" button: hide the grid, markers, guides and labels to see just the
+  model) is `StlViewer`'s own, since it is that viewer's state;
   `isEditableTarget()` (`src/lib/isEditableTarget.js`, shared with the Bench's own keys) skips every
   single-key shortcut (not `Escape`, which is expected to work
   from inside a focused field the same way a native `<dialog>` does) whenever the event's target is

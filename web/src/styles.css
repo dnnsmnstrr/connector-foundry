@@ -789,6 +789,41 @@ a.mode-tab {
   height: 100%;
 }
 
+/* StlViewer's "Helpers" toggle, in the viewer's top-right corner: a
+   pill like the scene's other floating controls, dimmed while the
+   helpers are hidden so it reads as "off" without getting in the way. */
+.viewer-helpers-toggle {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(42, 43, 46, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.35rem 0.65rem;
+}
+
+.viewer-helpers-toggle:hover {
+  background: #34353a;
+}
+
+.viewer-helpers-toggle[aria-pressed="false"] {
+  color: #9a9ca3;
+  opacity: 0.75;
+}
+
+.viewer-helpers-toggle[aria-pressed="false"]:hover {
+  opacity: 1;
+}
+
 /* DOM layer over the canvas (StlViewer's `children`): pinned to a
    projected 3D point by an inline transform each frame, or docked at
    the bottom when there is no point to pin to. The layer itself lets

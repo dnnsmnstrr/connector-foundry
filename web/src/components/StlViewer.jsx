@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { clusterFace } from "../lib/faceCluster.js";
+import { isEditableTarget } from "../lib/isEditableTarget.js";
 
 const MARKER_COLOR = 0x2ecc71;
 const MARKER_HOVER_COLOR = 0xffd23f;
@@ -14,6 +15,9 @@ const HIGHLIGHT_PAD_MM = 0.3;
 // Pointer travel between pointerdown and click beyond which it was an
 // orbit drag, not a click.
 const CLICK_SLOP_PX = 5;
+// The scene objects that are helpers rather than the model: what the
+// "Helpers" toggle hides (see below).
+const HELPER_OBJECTS = ["grid", "markers", "guides", "highlight"];
 
 // stlBuffer or geometry: one model source. `geometry` (a THREE.BufferGeometry,
 // e.g. straight from meshValidate.js) skips a wasted serialize/reparse
@@ -80,6 +84,15 @@ const CLICK_SLOP_PX = 5;
 // mm) and re-pinned every frame so they follow the camera; with no
 // anchor they dock at the bottom center of the viewer instead.
 //
+// The "Helpers" button in the viewer's top-right corner (or H, with the
+// pointer anywhere but a text field) hides everything that isn't the
+// model — the grid, markers, guides, labels, the highlight box and the
+// `children` overlay — to see the part as it will print. While they are
+// hidden the viewer takes no clicks or hover (nothing to aim at, and a
+// click shouldn't drill a hole or pick a part nobody can see), and a
+// hover in progress is reported as left. Each viewer starts with them
+// shown.
+//
 // Frames are rendered on demand, not on a 60fps loop: a frame is drawn
 // when the camera moves (OrbitControls' "change", which it also fires
 // on each damping step, so a drag settles smoothly), when the model or
@@ -120,6 +133,12 @@ export default function StlViewer({
   // escapes the effect and React unmounts the whole app to a blank page
   // — so show a message in the viewer's place instead.
   const [webglError, setWebglError] = useState(null);
+  const [helpersHidden, setHelpersHidden] = useState(false);
+  // For the event handlers in the mount effect, which outlive renders.
+  const helpersHiddenRef = useRef(false);
+  // Whether the last hover report was a hit, so "left the model" is
+  // reported once — on leaving it, or on the helpers being hidden.
+  const hoveringRef = useRef(false);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -147,6 +166,7 @@ export default function StlViewer({
     dirLight.position.set(1, -1, 2);
     scene.add(dirLight);
     const grid = new THREE.GridHelper(120, 12, 0x444444, 0x2a2b2e);
+    grid.name = "grid";
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
 
@@ -237,11 +257,8 @@ export default function StlViewer({
         shiftKey: Boolean(event?.shiftKey),
       };
     };
-    // Whether the last hover report was a hit, so "left the model" is
-    // reported once, not on every move over empty space.
-    let hovering = false;
-
     const onClick = (event) => {
+      if (helpersHiddenRef.current) return;
       if (pointerDownAt && Math.hypot(event.clientX - pointerDownAt[0], event.clientY - pointerDownAt[1]) > CLICK_SLOP_PX) {
         return;
       }
@@ -292,6 +309,10 @@ export default function StlViewer({
     renderer.domElement.addEventListener("click", onClick);
 
     const onPointerMove = (event) => {
+      if (helpersHiddenRef.current) {
+        renderer.domElement.style.cursor = "default";
+        return;
+      }
       setPointer(event);
       const group = markerGroup();
       const hasMarkers = group && group.children.length;
@@ -324,17 +345,17 @@ export default function StlViewer({
 
       if (callbacks?.placingMode && callbacks?.onSurfaceHover && !markerHits.length) {
         if (modelHits.length) {
-          hovering = true;
+          hoveringRef.current = true;
           callbacks.onSurfaceHover(rawHit(modelHits[0], mesh, event));
-        } else if (hovering) {
-          hovering = false;
+        } else if (hoveringRef.current) {
+          hoveringRef.current = false;
           callbacks.onSurfaceHover(null);
         }
       }
     };
     const onPointerLeave = () => {
-      if (!hovering) return;
-      hovering = false;
+      if (!hoveringRef.current) return;
+      hoveringRef.current = false;
       callbacksRef.current?.onSurfaceHover?.(null);
     };
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
@@ -433,6 +454,7 @@ export default function StlViewer({
       box.expandByScalar(HIGHLIGHT_PAD_MM);
       const helper = new THREE.Box3Helper(box, HIGHLIGHT_COLOR);
       helper.name = "highlight";
+      helper.visible = !helpersHiddenRef.current;
       scene.add(helper);
     }
     requestRender();
@@ -494,6 +516,7 @@ export default function StlViewer({
         group.add(object);
       }
       group.userData.geometries = [...geometryByRadius.values()];
+      group.visible = !helpersHiddenRef.current;
       scene.add(group);
     }
     requestRender();
@@ -524,10 +547,45 @@ export default function StlViewer({
         if (dashed) lines.computeLineDistances();
         group.add(lines);
       }
+      group.visible = !helpersHiddenRef.current;
       scene.add(group);
     }
     requestRender();
   }, [guides]);
+
+  useEffect(() => {
+    helpersHiddenRef.current = helpersHidden;
+    if (!sceneRef.current) return;
+    const { scene, renderer, requestRender } = sceneRef.current;
+    for (const name of HELPER_OBJECTS) {
+      const object = scene.getObjectByName(name);
+      if (object) object.visible = !helpersHidden;
+    }
+    if (helpersHidden) {
+      renderer.domElement.style.cursor = "default";
+      if (hoveringRef.current) {
+        hoveringRef.current = false;
+        callbacksRef.current?.onSurfaceHover?.(null);
+      }
+    }
+    // Also re-pins the overlay and labels coming back.
+    requestRender();
+  }, [helpersHidden]);
+
+  // H toggles them. Not while typing, and not from behind an open
+  // dialog this viewer isn't in (the Bench's own viewer under its STL
+  // import, which has a viewer of its own).
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || (e.key !== "h" && e.key !== "H")) return;
+      if (isEditableTarget(e.target)) return;
+      const dialog = document.querySelector("dialog[open]");
+      if (dialog && !dialog.contains(mountRef.current)) return;
+      setHelpersHidden((hidden) => !hidden);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (webglError) {
     return (
@@ -541,12 +599,22 @@ export default function StlViewer({
   return (
     <div className="viewer-canvas">
       <div ref={mountRef} className="viewer-canvas-mount" />
-      {children && (
+      <button
+        type="button"
+        className="viewer-helpers-toggle"
+        aria-pressed={!helpersHidden}
+        onClick={() => setHelpersHidden((hidden) => !hidden)}
+        title={helpersHidden ? "Show the grid, markers and guides again (H)" : "Hide the grid, markers, guides and labels to see just the model (H)"}
+      >
+        <EyeIcon closed={helpersHidden} />
+        Helpers
+      </button>
+      {children && !helpersHidden && (
         <div ref={overlayRef} className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}>
           {children}
         </div>
       )}
-      {labels && labels.length > 0 && (
+      {labels && labels.length > 0 && !helpersHidden && (
         <div className="viewer-labels" aria-hidden="true">
           {labels.map((label) => (
             <div
@@ -563,6 +631,17 @@ export default function StlViewer({
         </div>
       )}
     </div>
+  );
+}
+
+// An eye, struck through while the helpers are hidden.
+function EyeIcon({ closed }) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2" fill="currentColor" />
+      {closed && <path d="M2.5 13.5l11-11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />}
+    </svg>
   );
 }
 
