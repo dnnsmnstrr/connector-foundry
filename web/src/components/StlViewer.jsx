@@ -128,6 +128,14 @@ export default function StlViewer({
   // effect): a new model of the same size in the same place keeps the
   // view the user has set up.
   const fitRef = useRef(null);
+  // What the marker and highlight helpers in the scene were last built
+  // from (see markersKey / highlightKey): every assembly edit hands the
+  // viewer a fresh `markers` array and a fresh `highlightBox` object,
+  // usually describing exactly what is already there — rebuilding the
+  // spheres (a material each, up to a few dozen) for those would be
+  // wasted work. Keyed on the scene too: a remount starts empty.
+  const builtMarkersRef = useRef(null);
+  const builtHighlightRef = useRef(null);
   // A browser with WebGL disabled (or a GPU process that just died)
   // throws from the WebGLRenderer constructor. Without this, that throw
   // escapes the effect and React unmounts the whole app to a blank page
@@ -447,6 +455,10 @@ export default function StlViewer({
   useEffect(() => {
     if (!sceneRef.current) return;
     const { scene, requestRender } = sceneRef.current;
+    const key = highlightKey(highlightBox);
+    const built = builtHighlightRef.current;
+    if (built && built.scene === scene && built.key === key) return;
+    builtHighlightRef.current = { scene, key };
     disposeHighlight(scene);
     if (highlightBox) {
       const box = new THREE.Box3(new THREE.Vector3(...highlightBox.min), new THREE.Vector3(...highlightBox.max));
@@ -480,6 +492,10 @@ export default function StlViewer({
     if (!sceneRef.current) return;
     const { scene, requestRender } = sceneRef.current;
 
+    const key = markersKey(markers);
+    const built = builtMarkersRef.current;
+    if (built && built.scene === scene && built.key === key) return;
+    builtMarkersRef.current = { scene, key };
     disposeMarkers(scene);
     if (markers && markers.length) {
       const group = new THREE.Group();
@@ -669,6 +685,21 @@ function disposeGuides(scene) {
     lines.geometry.dispose();
     lines.material.dispose();
   }
+}
+
+// Everything the markers effect reads from a marker, as one string, so
+// two lists that would build the same spheres compare equal whatever
+// objects they arrive in. `hitTest` takes part too: it decides whether
+// a sphere answers to the raycaster, so a change there has to rebuild.
+function markersKey(markers) {
+  if (!markers || !markers.length) return "";
+  return markers
+    .map((m) => [m.id, m.x, m.y, m.z, m.radius, m.color, m.shape, m.normal ? m.normal.join(",") : "", m.hitTest === false ? 0 : 1].join("|"))
+    .join("\n");
+}
+
+function highlightKey(box) {
+  return box ? `${box.min.join(",")}/${box.max.join(",")}` : "";
 }
 
 function disposeMarkers(scene) {
