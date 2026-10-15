@@ -731,7 +731,19 @@ function disposeGuides(scene) {
 function markersKey(markers) {
   if (!markers || !markers.length) return "";
   return markers
-    .map((m) => [m.id, m.x, m.y, m.z, m.radius, m.color, m.shape, m.normal ? m.normal.join(",") : "", m.hitTest === false ? 0 : 1].join("|"))
+    .map((m) =>
+      [
+        m.id,
+        m.x,
+        m.y,
+        m.z,
+        m.radius,
+        m.color,
+        m.shape,
+        m.normal ? m.normal.join(",") : "",
+        m.hitTest === false ? 0 : 1,
+      ].join("|"),
+    )
     .join("\n");
 }
 

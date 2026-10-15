@@ -3,3 +3,6 @@ package-lock.json
 public/
 # Prose: Prettier would rewrap tables and lists the author laid out by hand.
 *.md
+release/
+test-results/
+playwright-report/

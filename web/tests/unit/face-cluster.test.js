@@ -17,7 +17,9 @@ function soupBox(flipped = false) {
     const p = raw.attributes.position;
     for (let t = 0; t < p.count / 3; t += 2) {
       const i = 3 * t;
-      const x = p.getX(i + 1), y = p.getY(i + 1), z = p.getZ(i + 1);
+      const x = p.getX(i + 1),
+        y = p.getY(i + 1),
+        z = p.getZ(i + 1);
       p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2));
       p.setXYZ(i + 2, x, y, z);
     }
@@ -44,7 +46,10 @@ test("a primed cluster is the one the lazy build finds", () => {
   const result = clusterFace(primed, 0);
   // The neighbour lists are the same sets in a different order, so the
   // flood fill visits the same triangles, not necessarily in sequence.
-  assert.deepEqual({ ...result, triangles: new Set(result.triangles) }, { ...lazy, triangles: new Set(lazy.triangles) });
+  assert.deepEqual(
+    { ...result, triangles: new Set(result.triangles) },
+    { ...lazy, triangles: new Set(lazy.triangles) },
+  );
   // One whole face of the 2x2x2 box: 8 triangles.
   assert.equal(result.triangleCount, 8);
 });
@@ -52,7 +57,10 @@ test("a primed cluster is the one the lazy build finds", () => {
 test("priming is dropped once the index is swapped", () => {
   const validation = validateAndRepair(soupBox());
   const geometry = validation.geometry;
-  primeNeighbors(geometry, validation.neighbors.map(() => []));
+  primeNeighbors(
+    geometry,
+    validation.neighbors.map(() => []),
+  );
   // Primed with empty lists, a cluster can't grow past the clicked triangle…
   assert.equal(clusterFace(geometry, 0).triangleCount, 1);
   // …until the index changes, which invalidates what was primed.
