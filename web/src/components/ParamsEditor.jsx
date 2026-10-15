@@ -13,6 +13,17 @@ import ParamField from "./ParamField.jsx";
 // `params` is the caller's state; `onChange` gets the whole next object.
 // `allowSavedDefaults` is off for an imported part: it has no catalogue
 // defaults, and no stable id to save an override under.
+/**
+ * @param {{
+ *   part: any,
+ *   params: Record<string, any>,
+ *   onChange: (params: Record<string, any>) => void,
+ *   emptyText?: string,
+ *   allowSavedDefaults?: boolean,
+ *   showSavedNote?: boolean,
+ *   className?: string,
+ * }} props
+ */
 export default function ParamsEditor({
   part,
   params,
@@ -74,14 +85,22 @@ export default function ParamsEditor({
       ))}
       {allowSavedDefaults && (
         <div className="params-defaults-row">
-          <button className="bench-modal-cancel params-defaults-button" onClick={resetAllToCatalogue}>
+          <button
+            type="button"
+            className="bench-modal-cancel params-defaults-button"
+            onClick={resetAllToCatalogue}
+          >
             Reset all to catalogue
           </button>
-          <button className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
+          <button type="button" className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
             Save as my default
           </button>
           {hasSavedOverride && (
-            <button className="bench-modal-cancel params-defaults-button" onClick={clearSavedDefault}>
+            <button
+              type="button"
+              className="bench-modal-cancel params-defaults-button"
+              onClick={clearSavedDefault}
+            >
               Clear my saved default
             </button>
           )}

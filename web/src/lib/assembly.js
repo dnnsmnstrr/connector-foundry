@@ -25,7 +25,7 @@
 // generated wrapper module per import). Both are looked up through the
 // same `partsById` map passed to compileToScad(); imported entries
 // carry `kind: "imported"` so the codegen below can tell them apart.
-import { callArgs } from "./scadLiteral.js";
+import { callArgs, scadLiteral, scadSafeText } from "./scadLiteral.js";
 
 let nextChildId = 1;
 
@@ -207,12 +207,17 @@ export function allocateChildId() {
 }
 
 // Angles wrap to [0, 360) so eight ↻ presses land back on 0, not 720,
-// and the exported .scad never carries a `spin=-270`.
+// and the exported .scad never carries a `spin=-270`. Rounding away the
+// float dust from repeated +/-90 (so 90 stays exactly 90) happens BEFORE
+// the wrap as well as after: rounded only afterwards, a hair under 0 or
+// 360 (-1e-9, 359.9999999) wrapped to just under 360 and then rounded
+// up to 360 itself. `% 360` first keeps the rounding finite for a huge
+// angle, and the last step turns a -0 into 0.
 export function normalizeSpin(spin) {
   if (!Number.isFinite(spin)) return 0;
-  const wrapped = ((spin % 360) + 360) % 360;
-  // Round away float dust from repeated +/-90 so 90 stays exactly 90.
-  return Math.round(wrapped * 1e6) / 1e6;
+  const rounded = Math.round((spin % 360) * 1e6) / 1e6;
+  const wrapped = Math.round((((rounded % 360) + 360) % 360) * 1e6) / 1e6;
+  return wrapped === 360 || wrapped === 0 ? 0 : wrapped;
 }
 
 // Every node attached below `id` — children, their children, and so on —
@@ -354,9 +359,7 @@ function importedModuleSource(part) {
   const [ex, ey, ez] = part.extents;
   const [cx, cy, cz] = part.center;
   const anchors = part.anchors
-    .map(
-      (a) => `named_anchor(${JSON.stringify(a.name)}, [${a.point.join(", ")}], [${a.normal.join(", ")}], 0)`,
-    )
+    .map((a) => `named_anchor(${scadLiteral(a.name)}, ${scadLiteral(a.point)}, ${scadLiteral(a.normal)}, 0)`)
     .join(",\n        ");
   return [
     `module ${name}(anchor = BOTTOM, spin = 0, orient = UP) {`,
@@ -365,7 +368,7 @@ function importedModuleSource(part) {
     `        ${anchors}`,
     `    ];`,
     `    attachable(anchor, spin, orient, size = size, anchors = anchors) {`,
-    `        translate([${-cx}, ${-cy}, ${-cz}]) import("${importedStlPath(part)}");`,
+    `        translate([${-cx}, ${-cy}, ${-cz}]) import(${scadLiteral(importedStlPath(part))});`,
     `        children();`,
     `    }`,
     `}`,
@@ -419,7 +422,7 @@ function partCallArgs(part, params) {
 // which way BOSL2's convention runs. Omitted entirely at 0 (BOSL2's own
 // default) to keep generated .scad free of a no-op argument.
 function overlapArg(child) {
-  return child.overlap ? `, overlap=${-child.overlap}` : "";
+  return child.overlap ? `, overlap=${scadLiteral(-child.overlap)}` : "";
 }
 
 // BOSL2's attach() `spin=` turns the child about the parent anchor's own
@@ -433,7 +436,7 @@ function overlapArg(child) {
 // and only the part on the far side turns.
 function spinArg(child) {
   const spin = normalizeSpin(child.spin ?? 0);
-  return spin ? `, spin=${spin}` : "";
+  return spin ? `, spin=${scadLiteral(spin)}` : "";
 }
 
 // Everything that adjusts how the child sits on its mating face.
@@ -455,7 +458,16 @@ function mateArgs(child) {
 function shiftArg(child) {
   if (!hasShift(child)) return "";
   const [x, y] = normalizeShift(child.shift);
-  return `translate([${x}, ${y}, 0]) `;
+  return `translate(${scadLiteral([x, y, 0])}) `;
+}
+
+// An attach() between a parent's slot and the child's anchor. Slot and
+// anchor names come from config files and #bench= links as much as from
+// the UI, so they go into the source as string literals (scadLiteral())
+// — never pasted between quotes, where a `"` in a name would end the
+// literal and whatever followed would be read as code.
+function attachCall(parentAnchor, childAnchor, mate = "") {
+  return `attach(${scadLiteral(parentAnchor)}, ${scadLiteral(childAnchor)}${mate})`;
 }
 
 // hide_this() only suppresses ONE level's own geometry — its own
@@ -482,7 +494,7 @@ function shiftArg(child) {
 function dispatchBlock(ctx, tag, unitFn, indent) {
   if (ctx.plain) return `${indent}${unitFn(false)}`;
   return (
-    `${indent}if (part == "all" || part == "${tag}")\n` +
+    `${indent}if (part == "all" || part == ${scadLiteral(tag)})\n` +
     `${indent}    ${unitFn(false)}\n` +
     `${indent}else\n` +
     `${indent}    ${unitFn(true)}`
@@ -495,7 +507,7 @@ function dispatchBlock(ctx, tag, unitFn, indent) {
 // crop is set (see compileToScad()): once as the assembly, once as the
 // crop mask, and the mask copy is the one with a tagged node.
 function partCall(ctx, nodeId, part, params) {
-  const tag = ctx.tagged === nodeId ? `tag_this("${CROP_TAG}") ` : "";
+  const tag = ctx.tagged === nodeId ? `tag_this(${scadLiteral(CROP_TAG)}) ` : "";
   return `${tag}${partModule(part)}(${partCallArgs(part, params)})`;
 }
 
@@ -558,8 +570,7 @@ function emitScrewedChild(ctx, child, hide, indent) {
     return dispatchBlock(
       ctx,
       child.id,
-      (unitHide) =>
-        childUnit(`attach("${child.slotName}", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
+      (unitHide) => childUnit(attachCall(child.slotName, child.childAnchor, mate), unitHide, indent + "    "),
       indent,
     );
   }
@@ -568,17 +579,17 @@ function emitScrewedChild(ctx, child, hide, indent) {
       ctx,
       child.id,
       (unitHide) =>
-        `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() ` +
-        childUnit(`attach("mount", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
+        `${attachCall(child.slotName, "seat")} ${hidden(unitHide)}${flange}() ` +
+        childUnit(attachCall("mount", child.childAnchor, mate), unitHide, indent + "    "),
       indent,
     );
   }
   return [
-    `${indent}attach("${child.slotName}", "mount") ${hidden(hide)}${flange}() {`,
+    `${indent}${attachCall(child.slotName, "mount")} ${hidden(hide)}${flange}() {`,
     dispatchBlock(
       ctx,
       child.id,
-      (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${mate})`, unitHide, indent + "        "),
+      (unitHide) => childUnit(attachCall("seat", child.childAnchor, mate), unitHide, indent + "        "),
       indent + "    ",
     ),
     `${indent}}`,
@@ -591,7 +602,7 @@ function emitFusedChild(ctx, child, hide, indent) {
   const mate = mateArgs(child);
   const grandkids = emitChildren(ctx, child.id, hide, indent + "    ");
   const body = grandkids ? ` {\n${grandkids}\n${indent}}` : ";";
-  return `${indent}attach("${child.slotName}", "${child.childAnchor}"${mate}) ${hide ? "hide_this() " : ""}${call}${body}`;
+  return `${indent}${attachCall(child.slotName, child.childAnchor, mate)} ${hide ? "hide_this() " : ""}${call}${body}`;
 }
 
 // A bolted/snap/pin child: flangeA inherits `hide` directly (it's fused
@@ -618,11 +629,13 @@ function emitJointChild(ctx, child, hide, indent) {
     const body = grandkids ? ` {\n${grandkids}\n${indent}        }` : ";";
     return (
       `attach(BOTTOM, "mount") ${unitHide ? "hide_this() " : ""}${flangeB}() ` +
-      `attach(BOTTOM, "${child.childAnchor}"${mate}) ${unitHide ? "hide_this() " : ""}${call}${body}`
+      `attach(BOTTOM, ${scadLiteral(child.childAnchor)}${mate}) ${unitHide ? "hide_this() " : ""}${call}${body}`
     );
   };
 
-  const lines = [`${indent}attach("${child.slotName}", "mount") ${hide ? "hide_this() " : ""}${flangeA}() {`];
+  const lines = [
+    `${indent}${attachCall(child.slotName, "mount")} ${hide ? "hide_this() " : ""}${flangeA}() {`,
+  ];
   lines.push(dispatchBlock(ctx, child.id, childUnit, indent + "    "));
   if (child.joint === "pin") {
     // Centered on the seam between the two flanges — BOSL2's own
@@ -766,14 +779,24 @@ const CROP_HEIGHT_MM = 1000;
 // gets the same crop, which is the point: the trimmed edge is what
 // should print.
 function emitCropped(emitTree, cropNode, partsById) {
-  const name = partsById.get(cropNode.partId)?.name ?? cropNode.partId;
+  // The name is the user's (an imported mesh is named after its file, and
+  // a config can say anything), and a line break in it would end the
+  // comment and turn the rest of the name into code — so one line, always.
+  const name = commentText(partsById.get(cropNode.partId)?.name ?? cropNode.partId);
   return [
-    `// Crop: everything outside the vertical outline of ${cropNode.id} (${name}) is cut away.`,
+    `// Crop: everything outside the vertical outline of ${commentText(cropNode.id)} (${name}) is cut away.`,
     "intersection() {",
     emitTree(null, "    "),
     `    linear_extrude(height = ${CROP_HEIGHT_MM}, center = true) fill() projection()`,
-    `        show_only("${CROP_TAG}")`,
+    `        show_only(${scadLiteral(CROP_TAG)})`,
     emitTree(cropNode.id, "            "),
     "}",
   ];
+}
+
+// `text` fit for the inside of a // comment: OpenSCAD ends one at any
+// line break (\n, \r, and the Unicode line/paragraph separators), so
+// those become spaces; scadSafeText() drops the other control characters.
+function commentText(text) {
+  return scadSafeText(String(text)).replace(/[\r\n\u2028\u2029]+/g, " ");
 }

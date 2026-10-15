@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BoxGeometry } from "three";
+import { BoxGeometry, BufferGeometry, Float32BufferAttribute } from "three";
 
 import { clusterFace, primeNeighbors } from "../../src/lib/faceCluster.js";
 import { triangleNeighbors } from "../../src/lib/meshTopology.js";
@@ -66,4 +66,13 @@ test("priming is dropped once the index is swapped", () => {
   // …until the index changes, which invalidates what was primed.
   geometry.setIndex(geometry.index.clone());
   assert.equal(clusterFace(geometry, 0).triangleCount, 8);
+});
+
+test("a degenerate seed triangle has no face to cluster", () => {
+  const geometry = new BufferGeometry();
+  // Triangle 0 is three points on a line; triangle 1 is a real one.
+  geometry.setAttribute("position", new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 1, 0], 3));
+  geometry.setIndex([0, 1, 2, 0, 1, 3]);
+  assert.equal(clusterFace(geometry, 0), null);
+  assert.deepEqual(clusterFace(geometry, 1).normal, [0, 0, 1]);
 });

@@ -96,6 +96,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      # Before the slow render suite, so a lint slip fails in seconds.
+      - name: Lint (ruff)
+        run: |
+          ruff check cli tools tests
+          ruff format --check cli tools tests
+
       - name: Fetch reference sources
         # Submodule-backed references (gridfinity, GoPro, openGrid) are
         # already present from the checkout. This pulls the ones that are
@@ -137,6 +143,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm run format:check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

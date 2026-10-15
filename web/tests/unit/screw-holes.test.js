@@ -154,7 +154,7 @@ test("a connector slot brings BOSL2 in itself, so it works on a mesh source", ()
 
 test("a mesh source imports its STL and hands the bytes to the caller", () => {
   const bytes = new ArrayBuffer(84);
-  let { doc } = addHole(
+  const { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "My Bracket.step", stlBytes: bytes, extents: [10, 10, 10] }),
     {
       point: [0, 0, 5],
@@ -315,12 +315,15 @@ test("a slot's frame: straight up on a vertical face, the part's Y on a level on
   // Spin is kept in [0, 360).
   assert.equal(normalizeSpec({ kind: "openconnect", spin: -90 }).spin, 270);
   assert.equal(normalizeSpec({ kind: "multiconnect", spin: 720 }).spin, 0);
+  // A hair under a full turn rounds to 360 — which is 0, not 360.
+  assert.equal(normalizeSpec({ kind: "openconnect", spin: 359.99999 }).spin, 0);
+  assert.ok(Object.is(normalizeSpec({ kind: "openconnect", spin: -0 }).spin, 0));
   assert.equal(normalizeSpec({ kind: "openconnect", lock: "sideways" }).lock, "left");
   assert.equal(normalizeSpec({ kind: "multiconnect", length: -4 }).length, 28);
 });
 
 test("a slot keeps pointing the same way along a flipped mesh", () => {
-  let { doc } = addHole(
+  const { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 4] }),
     {
       point: [0, 0, 4],
@@ -409,7 +412,7 @@ test("several holes: shared fields, patched together, turned each from its own d
   const d = add(getPreset("oc-slot").spec, "oc-slot");
 
   // Two screw holes: everything but the edited head depth is shared.
-  let shared = sharedSpec(doc.holes.filter((h) => [a, b].includes(h.id)));
+  const shared = sharedSpec(doc.holes.filter((h) => [a, b].includes(h.id)));
   assert.equal(shared.kind, "screw");
   assert.deepEqual([...shared.mixed], ["headDepth"]);
   assert.equal(shared.spec.diameter, 3.4);
@@ -907,7 +910,7 @@ test("a chamfer is a 45° hull from the outline down at its depth to the outline
 });
 
 test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slots", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("skadis-slot").spec,
@@ -943,7 +946,7 @@ test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slot
 });
 
 test("repeat: MOLLE openings on the rigid panel's spacing lay out molle/rigid_panel's grid", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("molle-opening").spec,
@@ -982,7 +985,7 @@ test("a grid's spacing names the standard it matches, or none", () => {
 });
 
 test("repeat: a circle filled with Skådis spacing is the board's pattern round the hole, which stays put", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("skadis-slot").spec,
@@ -1230,4 +1233,46 @@ test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a poc
   assert.equal(normalizeSpec({ kind: "klippt", clearance: 0 }).clearance, 0);
   // Its outline closes, with the arrow.
   assert.ok(slotOutline(doc.holes[0]).length > 12);
+});
+
+test("a Skådis fill with a huge radius stops early and keeps the same nearest points", () => {
+  const { hole } = addHole(plateDoc(), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("skadis-slot").spec,
+  });
+  const fill = (radius) => repeatPoints(hole, { pattern: "circle", skadisFill: true, radius }).copies;
+  // 400 mm is 20 rings, past the bound, and still cheap to scan in full:
+  // the bounded scan must pick exactly what the full one does.
+  const reference = fill(400);
+  assert.equal(reference.length, 99);
+  const start = performance.now();
+  const huge = fill(100000);
+  assert.ok(performance.now() - start < 200, "a radius of 100000 used to hang the tab");
+  assert.deepEqual(huge, reference);
+  assert.deepEqual(fill(1e300), reference);
+});
+
+test("a hole needs a normal with a direction", () => {
+  const spec = getPreset("m3-cap").spec;
+  for (const normal of [[0, 0, 0], [NaN, 0, 1], [0, Infinity, 0], [0, 0], undefined]) {
+    assert.throws(() => addHole(plateDoc(), { point: [0, 0, 4], normal, spec }), /surface normal/);
+  }
+  const { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 2], spec });
+  assert.deepEqual(hole.normal, [0, 0, 1]);
+  assert.throws(() => updateHole(doc, hole.id, { normal: [0, 0, 0] }), /surface normal/);
+  assert.deepEqual(updateHole(doc, hole.id, { normal: [0, 3, 0] }).holes[0].normal, [0, 1, 0]);
+});
+
+test("a through hole on a mesh with no finite size falls back instead of throwing", () => {
+  const { doc } = addHole(
+    createHolesDoc({ kind: "mesh", name: "empty", stlBytes: new ArrayBuffer(84), extents: [0, 0, 0] }),
+    { point: [0, 0, 0], normal: [0, 0, 1], spec: getPreset("m3-cap").spec },
+  );
+  // What Holes.jsx passes for an empty mesh's -Infinity bounding box.
+  const extents = [-Infinity, -Infinity, -Infinity];
+  const scad = holesToScad(doc, partsById, { throughLength: Math.hypot(...extents) + 2, extents });
+  assert.match(scad, /difference\(\)/);
+  assert.doesNotMatch(scad, /Infinity|NaN/);
+  assert.doesNotThrow(() => holesToScad(doc, partsById, { throughLength: NaN }));
 });

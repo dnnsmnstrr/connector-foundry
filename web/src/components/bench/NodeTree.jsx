@@ -24,6 +24,17 @@ import RotationInput from "../RotationInput.jsx";
 // twin of those buttons: type any angle, or step by 90 with the arrows.
 // "Offset" moves the part along the mating axis, "Shift X / Y" across
 // it (assembly.js's `overlap` and `shift`).
+/**
+ * @param {{
+ *   assembly: any,
+ *   partsById: Record<string, any>,
+ *   nodeExtents: any,
+ *   nodeId: string,
+ *   actions: Record<string, (...args: any[]) => any>,
+ *   selectedId: string | null,
+ *   canAttach: boolean,
+ * }} props
+ */
 export default function NodeTree({
   assembly,
   partsById,
@@ -68,6 +79,7 @@ export default function NodeTree({
       <div className="bench-child-meta">
         <span className="muted">{node.slotName}</span>
         <JointSelect
+          aria-label={`Joint for ${part.name}`}
           value={node.joint}
           options={jointsFor(parentPart, part)}
           onChange={(joint) => actions.setJoint(nodeId, joint)}
@@ -149,6 +161,7 @@ export default function NodeTree({
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
             <button
+              type="button"
               key={slot.name}
               className="bench-attach-here"
               onClick={() => actions.attachAt(nodeId, slot.name)}

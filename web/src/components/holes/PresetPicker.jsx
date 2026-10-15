@@ -14,6 +14,7 @@ import ScrewIcon from "./ScrewIcon.jsx";
 // it. Closed by default, except the group holding the preset in effect;
 // a group opened or closed by hand stays that way (uiPrefs.js). While
 // searching, every group with a match shows open.
+/** @param {{ value: string | null, onPick: (preset: any) => void }} props */
 export default function PresetPicker({ value, onPick }) {
   const id = useId();
   const [query, setQuery] = useState("");

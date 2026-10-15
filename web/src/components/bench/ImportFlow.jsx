@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
   addAnchor,
@@ -53,6 +53,13 @@ function formatMm(n) {
 // placing more and picking one is allowed. `mode` "mesh" (the Holes
 // tab) wants the validated mesh and nothing else: no slots are placed,
 // and the flow ends right after the gate with onConfirm(part).
+/**
+ * @param {{
+ *   mode: "root" | "child" | "mesh",
+ *   onCancel: () => void,
+ *   onConfirm: (part: any, anchor?: string | null) => void,
+ * }} props
+ */
 export default function ImportFlow({ mode, onCancel, onConfirm }) {
   const [stage, setStage] = useState("pick"); // pick | reading | bodies | validating | rejected | placing | ready
   const [readingWhat, setReadingWhat] = useState("STEP");
@@ -62,6 +69,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
   const [validation, setValidation] = useState(null);
   const [part, setPart] = useState(null);
   const [selectedAnchor, setSelectedAnchor] = useState(null);
+  const fileSeq = useRef(0);
 
   function reject(report) {
     setValidation({ ok: false, report });
@@ -81,13 +89,19 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     }
   }
 
-  // Chosen or dropped (components/FileDropzone.jsx).
+  // Chosen or dropped (components/FileDropzone.jsx). A second file picked
+  // while the first is still being read (a STEP tessellating takes
+  // seconds) replaces it: `fileSeq` lets the first one's late result see
+  // that it is stale and drop itself instead of overwriting the second.
   async function handleFile(file) {
+    const seq = ++fileSeq.current;
+    const current = () => seq === fileSeq.current;
     setFileName(file.name);
     setBodies(null);
     setBodyChoice(ALL_BODIES);
     try {
       const buffer = await file.arrayBuffer();
+      if (!current()) return;
       // Several bodies (an assembly, or a part modelled as separate
       // solids): the gate below refuses more than one disconnected
       // solid, so let the user pick before it gets the chance to.
@@ -102,7 +116,8 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       if (isStepFilename(file.name) || looksLikeStep(buffer)) {
         setReadingWhat("STEP");
         setStage("reading");
-        acceptBodies(await tessellateStep(buffer));
+        const read = await tessellateStep(buffer);
+        if (current()) acceptBodies(read);
       } else if (is3mfFilename(file.name) || looksLikeZip(buffer)) {
         setReadingWhat("3MF");
         setStage("reading");
@@ -112,11 +127,11 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
         validate(new STLLoader().parse(buffer), file.name);
       }
     } catch (err) {
-      reject([`Couldn't read this file: ${err.message}`]);
+      if (current()) reject([`Couldn't read this file: ${err.message}`]);
     }
   }
 
-  function useBodies() {
+  function acceptPickedBodies() {
     const chosen = bodyChoice === ALL_BODIES ? bodies : [bodies[Number(bodyChoice)]];
     try {
       validate(geometryFromBodies(chosen), fileName);
@@ -224,7 +239,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             ))}
           </ul>
           <div className="bench-import-actions">
-            <button className="render-button" onClick={useBodies}>
+            <button type="button" className="render-button" onClick={acceptPickedBodies}>
               Use {bodyChoice === ALL_BODIES ? "all bodies" : labels[Number(bodyChoice)]}
             </button>
           </div>
@@ -248,11 +263,11 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             ))}
           </ul>
           {bodies && bodies.length > 1 && (
-            <button className="render-button" onClick={() => setStage("bodies")}>
+            <button type="button" className="render-button" onClick={() => setStage("bodies")}>
               Pick a different body
             </button>
           )}
-          <button className="render-button" onClick={() => setStage("pick")}>
+          <button type="button" className="render-button" onClick={() => setStage("pick")}>
             Try a different file
           </button>
         </>
@@ -270,7 +285,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             your file itself is never changed.
           </p>
           <div className="bench-import-actions">
-            <button className="render-button" onClick={() => onConfirm(part)}>
+            <button type="button" className="render-button" onClick={() => onConfirm(part)}>
               Use this mesh
             </button>
           </div>
@@ -320,6 +335,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
           )}
           <div className="bench-import-actions">
             <button
+              type="button"
               className="render-button"
               disabled={part.anchors.length === 0}
               onClick={() =>

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { clusterFace } from "../lib/faceCluster.js";
-import { isEditableTarget } from "../lib/isEditableTarget.js";
+import { ignoresShortcut } from "../lib/isEditableTarget.js";
 
 const MARKER_COLOR = 0x2ecc71;
 const MARKER_HOVER_COLOR = 0xffd23f;
@@ -99,6 +99,37 @@ const HELPER_OBJECTS = ["grid", "markers", "guides", "highlight"];
 // markers change, on hover highlight, and on resize. A viewer showing a
 // still scene costs nothing — this is the one always-visible WebGL
 // canvas in the app, so it was the app's whole idle GPU/battery cost.
+/**
+ * @typedef {number[]} Vec3 [x, y, z], model mm (callers build them with map(), so not a tuple)
+ * @typedef {{ point: Vec3, normal: Vec3, faceIndex: number, altKey: boolean, shiftKey: boolean }} SurfaceHit
+ * @typedef {{ shiftKey: boolean, altKey: boolean, metaKey: boolean, ctrlKey: boolean }} ClickModifiers
+ * @typedef {object} StlMarker
+ * @property {string} id
+ * @property {number} x
+ * @property {number} y
+ * @property {number} z
+ * @property {number} [radius]
+ * @property {number} [color]
+ * @property {"sphere" | "ring"} [shape]
+ * @property {Vec3} [normal]
+ * @property {boolean} [hitTest]
+ *
+ * @param {object} props
+ * @param {ArrayBuffer} [props.stlBuffer]
+ * @param {THREE.BufferGeometry} [props.geometry]
+ * @param {StlMarker[]} [props.markers]
+ * @param {{ a: Vec3, b: Vec3, color?: number, dashed?: boolean }[]} [props.guides]
+ * @param {{ id: string, point: Vec3, text: string }[]} [props.labels]
+ * @param {(id: string, modifiers: ClickModifiers) => void} [props.onMarkerClick]
+ * @param {boolean} [props.placingMode]
+ * @param {(point: Vec3, normal: Vec3) => void} [props.onSurfacePick]
+ * @param {(hit: SurfaceHit) => void} [props.onSurfaceHit]
+ * @param {(hit: SurfaceHit | null) => void} [props.onSurfaceHover]
+ * @param {(point: Vec3 | null) => void} [props.onModelClick]
+ * @param {{ min: Vec3, max: Vec3 } | null} [props.highlightBox]
+ * @param {Vec3 | null} [props.overlayAnchor]
+ * @param {import("react").ReactNode} [props.children]
+ */
 export default function StlViewer({
   stlBuffer,
   geometry,
@@ -239,8 +270,13 @@ export default function StlViewer({
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
     };
-    const markerGroup = () => scene.getObjectByName("markers");
-    const model = () => scene.getObjectByName("model");
+    // Typed for what this file puts under those names (the model mesh,
+    // a group of marker meshes); getObjectByName() only knows Object3D.
+    const markerGroup = () =>
+      /** @type {THREE.Group<THREE.Object3DEventMap> & { children: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] } | undefined} */ (
+        scene.getObjectByName("markers")
+      );
+    const model = () => /** @type {THREE.Mesh | undefined} */ (scene.getObjectByName("model"));
 
     // The browser fires "click" after an orbit drag too, as long as the
     // pointer went down and came up on the canvas — so remember where it
@@ -300,6 +336,8 @@ export default function StlViewer({
         }
         if (mesh.geometry.index === null) return;
         const cluster = clusterFace(mesh.geometry, hits[0].faceIndex);
+        // A degenerate (zero-area) triangle has no normal to place along.
+        if (!cluster) return;
         const point = new THREE.Vector3(...cluster.point).applyMatrix4(mesh.matrixWorld);
         const normal = new THREE.Vector3(...cluster.normal).transformDirection(mesh.matrixWorld).normalize();
         callbacksRef.current?.onSurfacePick?.([point.x, point.y, point.z], [normal.x, normal.y, normal.z]);
@@ -403,7 +441,14 @@ export default function StlViewer({
       disposeMarkers(scene);
       disposeGuides(scene);
       disposeHighlight(scene);
+      grid.geometry.dispose();
+      grid.material.dispose();
       renderer.dispose();
+      // dispose() frees three's resources but not the WebGL context
+      // itself; browsers cap live contexts (~16), and every tab switch
+      // mounts a new viewer, so without this the oldest canvas is
+      // eventually killed with "Too many active WebGL contexts".
+      renderer.forceContextLoss();
       mount.removeChild(renderer.domElement);
       sceneRef.current = null;
     };
@@ -617,10 +662,8 @@ export default function StlViewer({
   // import, which has a viewer of its own).
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || (e.key !== "h" && e.key !== "H")) return;
-      if (isEditableTarget(e.target)) return;
-      const dialog = document.querySelector("dialog[open]");
-      if (dialog && !dialog.contains(mountRef.current)) return;
+      if (e.repeat || (e.key !== "h" && e.key !== "H")) return;
+      if (ignoresShortcut(e, mountRef.current)) return;
       setHelpersHidden((hidden) => !hidden);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -682,6 +725,7 @@ export default function StlViewer({
 }
 
 // An eye, struck through while the helpers are hidden.
+/** @param {{ closed: boolean }} props */
 function EyeIcon({ closed }) {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">

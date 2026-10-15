@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Bench from "./Bench.jsx";
 import Holes from "./Holes.jsx";
 import Library from "./Library.jsx";
+import ModeErrorBoundary from "./components/ModeErrorBoundary.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
@@ -12,13 +13,16 @@ import { getHolesSession, setHolesDoc } from "./lib/holesSession.js";
 import { createHolesDoc } from "./lib/screwHoles.js";
 import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
 import { cancelRenders } from "./lib/openscad-client.js";
-import { isEditableTarget } from "./lib/isEditableTarget.js";
+import { hasCommandModifier, ignoresShortcut } from "./lib/isEditableTarget.js";
 import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
 import { useSidebarWidth } from "./hooks/useSidebarWidth.js";
 
 // Between the last bench edit and the URL catching up with it — typing a
 // parameter value shouldn't rewrite the address bar once per keystroke.
 const URL_MIRROR_DEBOUNCE_MS = 300;
+
+// For the error boundary's "Something went wrong in …".
+const MODE_LABELS = { library: "the Library", bench: "the Bench", holes: "Holes" };
 
 // Source code and desktop releases.
 const REPO_URL = "https://github.com/dnnsmnstrr/connector-foundry";
@@ -41,9 +45,10 @@ function GitHubMark() {
   );
 }
 
-// Every single-key shortcut below checks isEditableTarget() first (a
+// Every single-key shortcut below checks ignoresShortcut() first (a
 // keystroke in a search box or param field means "type a character", not
-// "trigger a shortcut"); Escape doesn't need to, since "close the dialog"
+// "trigger a shortcut", and one under an open dialog is the dialog's);
+// Escape doesn't need to, since "close the dialog"
 // is expected to work from inside a focused field too (native <dialog>
 // behaves the same way).
 
@@ -192,7 +197,10 @@ export default function App() {
     if (sidebarCollapsed) toggleSidebar();
     let tries = 0;
     const focus = () => {
-      const box = !switching || tries > 0 ? document.querySelector(".sidebar .search-input") : null;
+      const box =
+        !switching || tries > 0
+          ? /** @type {HTMLInputElement | null} */ (document.querySelector(".sidebar .search-input"))
+          : null;
       if (box) {
         box.focus();
         box.select();
@@ -210,12 +218,15 @@ export default function App() {
   // state, App doesn't need to reach into it.
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.repeat || hasCommandModifier(e)) return;
       if (e.key === "Escape") {
         if (settingsOpen) setSettingsOpen(false);
         return;
       }
-      if (isEditableTarget(e.target)) return;
+      // Not while typing, and nothing from under an open dialog (Settings,
+      // an attach-a-part picker): 1/2/3 would switch mode out from behind
+      // it, unmounting the Bench mid-attach.
+      if (ignoresShortcut(e)) return;
       switch (e.key) {
         case "1":
           setMode("library");
@@ -233,9 +244,6 @@ export default function App() {
           toggleSidebar();
           break;
         case "/":
-          // Not from under an open dialog (an attach-a-part picker, Settings):
-          // it would switch mode out from behind it.
-          if (document.querySelector("dialog[open]")) return;
           jumpToLibrarySearch();
           break;
         default:
@@ -345,27 +353,34 @@ export default function App() {
           </button>
         </div>
       </nav>
-      <div className="shell-body" style={{ "--sidebar-width": `${sidebarWidth}px` }}>
-        {mode === "library" ? (
-          <Library
-            parts={parts}
-            onOpenInBench={openInBench}
-            onAddHoles={openInHoles}
-            onSelectionChange={onLibrarySelectionChange}
-            initialSelection={librarySelection.current}
-            sidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={toggleSidebar}
-          />
-        ) : mode === "holes" ? (
-          <Holes
-            parts={parts}
-            sidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={toggleSidebar}
-            librarySelection={librarySelection.current}
-          />
-        ) : (
-          <Bench parts={parts} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-        )}
+      <div
+        className="shell-body"
+        style={/** @type {import("react").CSSProperties} */ ({ "--sidebar-width": `${sidebarWidth}px` })}
+      >
+        {/* Keyed by mode: a switch to another tab starts with a fresh
+            boundary rather than the last mode's error. */}
+        <ModeErrorBoundary key={mode} label={MODE_LABELS[mode]}>
+          {mode === "library" ? (
+            <Library
+              parts={parts}
+              onOpenInBench={openInBench}
+              onAddHoles={openInHoles}
+              onSelectionChange={onLibrarySelectionChange}
+              initialSelection={librarySelection.current}
+              sidebarCollapsed={sidebarCollapsed}
+              onToggleSidebar={toggleSidebar}
+            />
+          ) : mode === "holes" ? (
+            <Holes
+              parts={parts}
+              sidebarCollapsed={sidebarCollapsed}
+              onToggleSidebar={toggleSidebar}
+              librarySelection={librarySelection.current}
+            />
+          ) : (
+            <Bench parts={parts} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+          )}
+        </ModeErrorBoundary>
       </div>
       {settingsOpen && (
         <SettingsModal parts={parts} globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />

@@ -32,6 +32,15 @@ import RotationInput from "../RotationInput.jsx";
 //   count      how many holes this edits, for the slot's button labels
 const NOTHING_MIXED = new Set();
 
+/**
+ * @param {{
+ *   spec: Record<string, any>,
+ *   mixed?: Set<string>,
+ *   onChange: (patch: Record<string, any>) => void,
+ *   onRotate?: (delta: number) => void,
+ *   count?: number,
+ * }} props
+ */
 export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, onRotate, count = 1 }) {
   const id = useId();
   // The depth a blind hole had before "Through" was ticked, so unticking
@@ -601,6 +610,9 @@ function directionName(kind, count) {
 
 // A checkbox that can say "some are, some aren't" (indeterminate) for
 // several holes that disagree; ticking it sets them all.
+/**
+ * @param {{ id: string, checked: boolean, mixed: boolean, disabled?: boolean, onChange: (checked: boolean) => void }} props
+ */
 function MixedCheckbox({ id, checked, mixed, disabled = false, onChange }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -620,6 +632,15 @@ function MixedCheckbox({ id, checked, mixed, disabled = false, onChange }) {
 
 // A <select> with a "Mixed" entry while the holes disagree — shown, not
 // pickable — so picking any real option sets them all.
+/**
+ * @param {{
+ *   id: string,
+ *   value: string,
+ *   mixed: boolean,
+ *   options: readonly { value: string, label: string }[],
+ *   onChange: (value: string) => void,
+ * }} props
+ */
 function MixedSelect({ id, value, mixed, options, onChange }) {
   return (
     <select id={id} value={mixed ? "" : value} onChange={(e) => onChange(e.target.value)}>

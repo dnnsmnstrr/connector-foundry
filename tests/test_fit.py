@@ -6,13 +6,13 @@ Assemblies aren't in catalogue.yaml (no "part" schema there), so this
 renders directly via foundry.run_openscad with -D part=... instead of
 going through render_part/render_variant.
 """
+
 import re
 from pathlib import Path
 
+import foundry
 import pytest
 import trimesh
-
-import foundry
 
 REPO_ROOT = foundry.REPO_ROOT
 ASSEMBLIES_DIR = REPO_ROOT / "assemblies"

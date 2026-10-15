@@ -42,6 +42,24 @@ export default [
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/preserve-manual-memoization": "off",
       "react-hooks/immutability": "off",
+
+      // Bug-catching rules beyond "recommended". Each one had no or only
+      // a handful of violations when it was switched on, so a new one
+      // is a new mistake, not old style.
+      eqeqeq: ["error", "smart"],
+      "no-var": "error",
+      "prefer-const": ["error", { destructuring: "all" }],
+      "no-unused-vars": ["error", { args: "after-used", caughtErrors: "all", ignoreRestSiblings: true }],
+      "array-callback-return": "error",
+      "no-self-compare": "error",
+      "no-unmodified-loop-condition": "error",
+      "no-promise-executor-return": "error",
+      "no-throw-literal": "error",
+      "prefer-promise-reject-errors": "error",
+      "no-implicit-coercion": ["error", { allow: ["!!"] }],
+      // A <button> inside a <form> submits it by default (NameBenchModal,
+      // PresetsPanel), so every button says which kind it is.
+      "react/button-has-type": "error",
     },
   },
   // Browser code: the app itself.
@@ -49,6 +67,9 @@ export default [
     files: ["src/**/*.{js,jsx}"],
     ignores: ["src/worker/**"],
     languageOptions: { globals: globals.browser },
+    // Debug logging does not ship; console.warn/error are how the app
+    // reports a recoverable problem (bad localStorage, a failed render).
+    rules: { "no-console": ["error", { allow: ["warn", "error"] }] },
   },
   // Web Workers: self, postMessage, importScripts, but no window or document.
   {

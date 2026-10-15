@@ -37,12 +37,37 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   under the nominal 1.5" × 1"), and the rigid panel's openings are 0.5 mm over nominal so a
   printed insert fits.
 
+### Fixes
+
+- A part option picked from a dropdown keeps its type: Skådis peg's **Pegs: 2** used to reach
+  OpenSCAD as the text "2" and fail the render (and could be saved that way as a default).
+- Keyboard shortcuts no longer act on the page behind an open dialog (Backspace with Settings
+  open deleted the selected bench part) or with Cmd/Ctrl/Alt held.
+- Holes: a slow **Use the current bench** no longer replaces a model picked in the meantime; a
+  click while the base is re-rendering no longer drills at the old geometry; a revised mesh with
+  the same file name no longer shows the previous render from the cache; a very large Skådis
+  fill radius no longer freezes the tab; big flat faces (finely meshed imports) snap again.
+- Bench: **Start over** clears the old model; a `.scad` export error is shown instead of
+  failing silently; stack markers and click targets are right for parts on side and bottom
+  slots; a second STEP import is not overwritten by a slower first one.
+- Bench configs and shared links can no longer put arbitrary code into the generated `.scad`
+  through part, slot or parameter names, and are checked for non-finite numbers and duplicate
+  ids.
+- A failing tab shows an error with **Try again** instead of a blank page; the 3D viewer
+  releases its WebGL context when it closes.
+- CLI: `foundry render` works from any directory; `foundry defaults` no longer overwrites a
+  config file it cannot parse, and saved defaults for two parts can no longer share a file.
+
 ### Under the hood
 
 - The OpenSCAD bundle the browser loads is a third smaller (only the files the parts actually
   include), the catalogue ships as JSON, and the console no longer logs a spurious error after
   every render.
 - CI runs the desktop tests on Windows on every push, and the Pages deploy retries once.
+- Contributor and agent guide (`AGENTS.md`); Python is linted with ruff, the web app is
+  type-checked (libraries, workers, components with JSDoc-typed props, hooks), `make check` runs
+  every check that needs neither OpenSCAD nor a browser, and a schema test guards
+  `catalogue.yaml`.
 
 ## 0.2.1 — 2026-10-10
 

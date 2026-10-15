@@ -1,4 +1,8 @@
-# Generated or vendored; .gitignore'd paths (dist, public/*.json, test-results, release, desktop/generated) are skipped already.
+# Generated or vendored. Prettier only reads a .gitignore in web/ itself, not
+# the repository root's, so the build output is listed here explicitly too —
+# otherwise format:check fails after any local `npm run build`.
+dist/
+desktop/generated/
 package-lock.json
 public/
 # Prose: Prettier would rewrap tables and lists the author laid out by hand.

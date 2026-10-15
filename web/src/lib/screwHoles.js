@@ -401,13 +401,39 @@ export function normalizeSpec(spec) {
 }
 
 // Degrees, kept in [0, 360) — a slot turned a full circle is the slot.
+// Rounded after the wrap, a hair under 360 (359.99999) rounds up to 360
+// itself, so a result of 360 (or -0) is folded back to 0; the same rule
+// as assembly.js's normalizeSpin().
 function normalizeSpin(v) {
   const num = Number(v);
   if (!Number.isFinite(num)) return 0;
-  const wrapped = ((num % 360) + 360) % 360;
-  return Math.round(wrapped * 1e4) / 1e4;
+  const wrapped = Math.round((((num % 360) + 360) % 360) * 1e4) / 1e4;
+  return wrapped === 360 || wrapped === 0 ? 0 : wrapped;
 }
 
+// A hole's normal, made unit length — or an error for one with no
+// direction. unit() passes a zero vector through as zero, which makes the
+// hole's frame a zero matrix (the cutter collapses to a point and the
+// hole is silently not cut), and a NaN component makes planeBasis() and
+// slotFrame() fail later, far from the cause. Normals come from raycast
+// hits on real triangles, so this only fires on a bug upstream; failing
+// here names it.
+const MIN_NORMAL_LENGTH = 1e-9;
+
+function holeNormal(normal) {
+  const v = Array.isArray(normal) && normal.length === 3 ? normal.map(Number) : null;
+  const length = v ? Math.hypot(v[0], v[1], v[2]) : NaN;
+  if (!Number.isFinite(length) || length < MIN_NORMAL_LENGTH) {
+    throw new Error(`A hole needs a surface normal with a direction, got ${JSON.stringify(normal)}`);
+  }
+  return unit(v);
+}
+
+/**
+ * @param {any} doc
+ * @param {{ point: number[], normal: number[], spec?: object, presetId?: string | null }} hole
+ *   `spec` and `presetId` default to the document's next-hole ones
+ */
 export function addHole(doc, { point, normal, spec, presetId }) {
   // The counter is module state; a document can outlive it (a dev-server
   // hot reload of this module resets it under an open document), and two
@@ -419,7 +445,7 @@ export function addHole(doc, { point, normal, spec, presetId }) {
   const hole = {
     id,
     point: point.map(Number),
-    normal: unit(normal),
+    normal: holeNormal(normal),
     spec: normalizeSpec(spec ?? doc.nextSpec),
     presetId: presetId ?? doc.nextPresetId ?? null,
   };
@@ -505,6 +531,9 @@ export function getHole(doc, id) {
 }
 
 export function updateHole(doc, id, patch) {
+  // Checked before the map, so a bad normal throws whether or not `id`
+  // is on the document.
+  const normal = patch.normal ? holeNormal(patch.normal) : null;
   return {
     ...doc,
     holes: doc.holes.map((h) => {
@@ -512,7 +541,7 @@ export function updateHole(doc, id, patch) {
       const next = { ...h, ...patch };
       if (patch.spec) next.spec = normalizeSpec(patch.spec);
       if (patch.point) next.point = patch.point.map(Number);
-      if (patch.normal) next.normal = unit(patch.normal);
+      if (normal) next.normal = normal;
       return next;
     }),
   };
@@ -603,6 +632,7 @@ export const STANDARD_SPACINGS = Object.freeze([
 ]);
 
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom).
+/** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean }} options */
 export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
   return (
     STANDARD_SPACINGS.find(
@@ -613,6 +643,11 @@ export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.
 export const REPEAT_MAX_HOLES = 100;
+// Enough checkerboard rings for a Skådis fill to reach REPEAT_MAX_HOLES:
+// the points with i + j even within ρ cells number about πρ²/2, which at
+// 10 rings is ~157 — comfortably more than the slice keeps, so the
+// nearest ones all lie strictly inside and no tie at the edge is cut.
+const SKADIS_FILL_MAX_RINGS = 10;
 
 // Where a pattern puts holes: `copies`, the new spots, and `move`, where
 // the selected hole itself goes (null: it stays). Points in the model's
@@ -622,6 +657,7 @@ export function repeatPoints(hole, options) {
   const int = (v, min) => Math.max(min, Math.min(REPEAT_MAX_HOLES, Math.round(Number(v) || 0)));
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const { ex, ey } = slotFrame(hole.point, hole.normal, 0);
+  /** @param {number[]} offset [across, up] on the face plane */
   const at = ([a, b]) => hole.point.map((p, i) => p + ex[i] * a + ey[i] * b);
   let offsets = [];
   let move = null;
@@ -635,10 +671,16 @@ export function repeatPoints(hole, options) {
   } else if (o.pattern === "circle" && o.skadisFill) {
     // The checkerboard's points within the radius, nearest first, then
     // round from straight up (as a ring starts), the hole itself on one.
+    // Only the nearest REPEAT_MAX_HOLES survive the slice below, so the
+    // scan stops at SKADIS_FILL_MAX_RINGS cells out: every point that
+    // close is scanned, and there are more of them than the slice keeps,
+    // so the nearest ones are exactly those an unbounded scan would pick.
+    // Without the bound the scan was (2r/cell)² points and a sort, run on
+    // every keystroke — a radius of 100000 hung the tab.
     const r = Math.max(0, num(o.radius));
     const cell = SKADIS_SPACING.up;
-    const n = Math.floor(r / cell);
-    const angle = ([a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
+    const n = Math.min(Math.floor(r / cell), SKADIS_FILL_MAX_RINGS);
+    const angle = (/** @type {number[]} */ [a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
     for (let j = -n; j <= n; j++)
       for (let i = -n; i <= n; i++)
         if ((i + j) % 2 === 0 && (i || j) && Math.hypot(i, j) * cell <= r + 1e-9)
@@ -670,6 +712,7 @@ export function repeatPoints(hole, options) {
 // `skipped`. A selected hole that would move somewhere unacceptable
 // stays put. Returns the document, the ids of the whole pattern (the
 // selected hole first) and how many copies were skipped.
+/** @param {(point: number[], normal: number[]) => boolean} [accept] */
 export function repeatHole(doc, id, options, accept = () => true) {
   const hole = getHole(doc, id);
   if (!hole) return { doc, ids: [], skipped: 0 };
@@ -732,9 +775,19 @@ export function holeFootprintRadius(spec) {
 // `importedFiles`, when given, receives the mesh bytes a mesh source
 // needs mounted beside the generated file (same contract as
 // assembly.js's compileToScad()).
+/**
+ * @param {object} doc
+ * @param {Record<string, object>} partsById
+ * @param {{ throughLength?: number, extents?: number[] | null, importedFiles?: Map<string, Uint8Array> }} [options]
+ */
 export function holesToScad(doc, partsById, { throughLength, extents, importedFiles } = {}) {
   const { source, holes } = doc;
-  const through = Math.max(1, throughLength ?? 1000);
+  // An empty or not-yet-measured mesh has no finite bounding box (three.js
+  // reports min = +Infinity, max = -Infinity), so the caller's diagonal
+  // comes out Infinity or NaN, which has no OpenSCAD literal. Fall back
+  // to the default reach and drop extents that can't bound a thread.
+  const through = Number.isFinite(throughLength) ? Math.max(1, throughLength) : 1000;
+  const bounds = extents?.every((e) => Number.isFinite(e) && e >= 0) ? extents : null;
   const lines = [
     "// Generated by Connector Foundry — Holes tab.",
     `// ${holes.length} hole${holes.length === 1 ? "" : "s"} on ${sourceLabel(source, partsById)}.`,
@@ -780,7 +833,7 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   lines.push("difference() {", `    ${base}`);
   holes.forEach((hole, i) => {
     lines.push("", `    // hole ${i + 1}: ${holeLabel(hole)} at [${hole.point.map(fmt).join(", ")}]`);
-    lines.push(...cutterLines(hole, through, extents).map((l) => `    ${l}`));
+    lines.push(...cutterLines(hole, through, bounds).map((l) => `    ${l}`));
   });
   lines.push("}", "");
   return lines.join("\n");

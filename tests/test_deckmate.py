@@ -16,14 +16,13 @@ from it. Two things can go wrong, and both are silent in a render:
   editor's codegen can emit for the "screwed" joint is rendered here and
   probed on both sides of the seam at the same (x, y).
 """
+
 import math
 import re
-from pathlib import Path
-
-import pytest
-import trimesh
 
 import foundry
+import pytest
+import trimesh
 from conftest import render_variant
 
 REPO_ROOT = foundry.REPO_ROOT
@@ -83,11 +82,13 @@ def _assert_pattern(mesh, label, origin_xy, z):
         x, y = ox + hx, oy + hy
         assert not _inside(mesh, x, y, z), (
             f"{label}: expected a hole at ({x:.3f}, {y:.3f}, z={z}) but found material — "
-            f"the pattern is not where DM_SCREW_HOLES says")
+            f"the pattern is not where DM_SCREW_HOLES says"
+        )
         bx, by = _beside(hx, hy)
         assert _inside(mesh, ox + bx, oy + by, z), (
             f"{label}: expected material beside the hole at ({ox + bx:.3f}, {oy + by:.3f}, z={z}) — "
-            f"the probe is not even inside the part")
+            f"the probe is not even inside the part"
+        )
 
 
 @pytest.mark.parametrize("part_id", PATTERNED_PARTS)
@@ -107,15 +108,24 @@ CHAINS = {
     # flange fused to a plain parent, Outie screws onto its "seat": flange z 0..4, Outie hangs below
     "flange-then-outie": (
         'deckmate_screw_flange() attach("seat", "mount") deckmate_outie();',
-        (0.0, OUTIE_PATTERN_Y), FLANGE_T / 2, -1.0),
+        (0.0, OUTIE_PATTERN_Y),
+        FLANGE_T / 2,
+        -1.0,
+    ),
     # Outie is the parent (root, rail down): its base face is on top; the flange's "seat" sits on it
     "outie-then-flange": (
         'deckmate_outie() attach("mount", "seat") deckmate_screw_flange();',
-        (0.0, OUTIE_PATTERN_Y), 7.7 - 1.0, 7.7 + FLANGE_T / 2),
+        (0.0, OUTIE_PATTERN_Y),
+        7.7 - 1.0,
+        7.7 + FLANGE_T / 2,
+    ),
     # both carry the pattern: Universal's pattern face is its BOTTOM ("bot"), Outie stacks on it directly
     "universal-then-outie": (
         'deckmate_universal() attach("bot", "mount") deckmate_outie();',
-        (0.0, UNIVERSAL_PATTERN_Y), 1.5, -1.0),
+        (0.0, UNIVERSAL_PATTERN_Y),
+        1.5,
+        -1.0,
+    ),
 }
 
 
@@ -129,7 +139,8 @@ def test_screwed_joint_lines_the_holes_up(name, render_dir):
         f"include <{REPO_ROOT / 'lib' / 'joints.scad'}>\n"
         f"include <{REPO_ROOT / 'parts' / 'deckmate' / 'outie.scad'}>\n"
         f"include <{REPO_ROOT / 'parts' / 'deckmate' / 'universal.scad'}>\n"
-        f"{source}\n")
+        f"{source}\n"
+    )
     out = out_dir / f"{name}.stl"
     foundry.run_openscad(stub, out, {})
     mesh = trimesh.load(out)
@@ -150,15 +161,20 @@ def test_fill_holes_plugs_every_hole(render_dir):
     without moving the part's footprint — and the default still leaves the
     holes open, so the "screwed" joint keeps working."""
     part = _part("deckmate/outie")
-    filled = trimesh.load(render_variant(part, {"fill_holes": True, "anchor": "mount"}, render_dir, "filled-mount"))
+    filled = trimesh.load(
+        render_variant(part, {"fill_holes": True, "anchor": "mount"}, render_dir, "filled-mount")
+    )
     plain = trimesh.load(render_variant(part, {"anchor": "mount"}, render_dir, "anchor-mount"))
     for hx, hy in HOLES:
         for z in FILL_PROBE_Z:
             assert _inside(filled, hx, hy, z), (
-                f"fill_holes: hole at ({hx:.3f}, {hy:.3f}) is still open at z={z}")
+                f"fill_holes: hole at ({hx:.3f}, {hy:.3f}) is still open at z={z}"
+            )
             assert not _inside(plain, hx, hy, z), (
-                f"default: expected an open hole at ({hx:.3f}, {hy:.3f}, z={z})")
+                f"default: expected an open hole at ({hx:.3f}, {hy:.3f}, z={z})"
+            )
     assert filled.is_watertight, "fill_holes: plugs left the mesh non-manifold"
     assert list(filled.extents) == pytest.approx(list(plain.extents), abs=0.01), (
-        "fill_holes must not change the footprint — a plug is poking out of a face")
+        "fill_holes must not change the footprint — a plug is poking out of a face"
+    )
     assert filled.volume > plain.volume, "fill_holes added no material"

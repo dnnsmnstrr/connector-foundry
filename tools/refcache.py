@@ -10,6 +10,7 @@ Reference meshes are produced by rendering a recipe through the same
 OpenSCAD binary the rest of the toolchain uses, so a difference in the
 result is a difference in the model rather than in the mesher.
 """
+
 from __future__ import annotations
 
 import functools
@@ -41,8 +42,15 @@ def load() -> dict:
 
 # ---------------------------------------------------------------- sources
 
+
 def _git(*args: str, cwd: Path | None = None) -> str:
-    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    # A missing git binary (or an unusable cwd) is the same kind of
+    # failure as a git command failing: callers catch RefError to skip
+    # a source, and an OSError would escape that and crash the run.
+    try:
+        proc = subprocess.run(["git", *args], check=False, cwd=cwd, capture_output=True, text=True)
+    except OSError as exc:
+        raise RefError(f"git {' '.join(args)} could not run: {exc}") from exc
     if proc.returncode != 0:
         raise RefError(f"git {' '.join(args)} failed:\n{proc.stderr.strip()}")
     return proc.stdout.strip()
@@ -56,8 +64,8 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
         path = REPO_ROOT / spec["path"]
         if not path.is_dir() or not any(path.iterdir()):
             raise RefError(
-                f"submodule {spec['path']} is not checked out — run "
-                f"`git submodule update --init --recursive`")
+                f"submodule {spec['path']} is not checked out — run `git submodule update --init --recursive`"
+            )
         return path
 
     if kind == "file":
@@ -84,9 +92,7 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
         shutil.rmtree(dest)
 
     if offline:
-        raise RefError(
-                f"source {name} is not cached and --offline was given; "
-                f"run `make refs`")
+        raise RefError(f"source {name} is not cached and --offline was given; run `make refs`")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     print(f"  fetching {name} @ {commit[:12]} ...", file=sys.stderr)
@@ -150,8 +156,7 @@ def _download(url: str, sha256: str, dest: Path) -> Path:
         raise RefError(f"could not download {url}: {exc}") from exc
     got = hashlib.sha256(payload).hexdigest()
     if got != sha256:
-        raise RefError(
-            f"checksum mismatch for {url}\n  expected {sha256}\n  got      {got}")
+        raise RefError(f"checksum mismatch for {url}\n  expected {sha256}\n  got      {got}")
     # Only a verified payload ever lands at `dest`: the existence check in
     # _resolve_file_source() is the cache, so a partial write there would
     # be served as the reference forever after.
@@ -176,7 +181,8 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
         if not source.exists():
             raise RefError(
                 f"source {name}: {spec['path']} not found. This source is a "
-                f"file you supply yourself — see references.yaml.")
+                f"file you supply yourself — see references.yaml."
+            )
     else:
         url, sha256 = spec.get("url"), spec.get("sha256")
         if not (url and sha256):
@@ -184,9 +190,7 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
         source = FILES_CACHE / f"{name}{Path(url).suffix}"
         if not source.exists():
             if offline:
-                raise RefError(
-                f"source {name} is not cached and --offline was given; "
-                f"run `make refs`")
+                raise RefError(f"source {name} is not cached and --offline was given; run `make refs`")
             _download(url, sha256, source)
 
     suffix = source.suffix.lower()
@@ -201,7 +205,15 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
     MESH_CACHE.mkdir(parents=True, exist_ok=True)
     mesh = _load_cad(source, suffix)
     mesh.apply_scale(scale)
-    mesh.export(out)
+    # The existence check above is the cache, so the export goes to a
+    # temp name first: an interrupted export must not leave a truncated
+    # STL at `out` to be served as the reference from then on.
+    tmp = out.with_name(out.name + ".part")
+    try:
+        mesh.export(tmp, file_type="stl")
+        os.replace(tmp, out)
+    finally:
+        tmp.unlink(missing_ok=True)
     return out
 
 
@@ -218,14 +230,14 @@ def _load_cad(source: Path, suffix: str):
         try:
             import cascadio
         except ImportError as exc:  # pragma: no cover - depends on the install
-            raise RefError(
-                "reading STEP needs the `cascadio` package: "
-                "pip install -e '.[dev]'") from exc
+            raise RefError("reading STEP needs the `cascadio` package: pip install -e '.[dev]'") from exc
         glb = MESH_CACHE / f".{source.stem}.glb"
         MESH_CACHE.mkdir(parents=True, exist_ok=True)
-        cascadio.step_to_glb(str(source), str(glb), tol_linear=0.01, tol_angular=0.05)
-        loaded = trimesh.load(glb)
-        glb.unlink(missing_ok=True)
+        try:
+            cascadio.step_to_glb(str(source), str(glb), tol_linear=0.01, tol_angular=0.05)
+            loaded = trimesh.load(glb)
+        finally:
+            glb.unlink(missing_ok=True)
     else:
         loaded = trimesh.load(source)
 
@@ -239,6 +251,7 @@ def _load_cad(source: Path, suffix: str):
 
 # ---------------------------------------------------------------- render
 
+
 def expand(recipe: str, roots: dict[str, Path]) -> str:
     """Resolve {repo} / {source-name} placeholders to absolute paths."""
     try:
@@ -248,6 +261,9 @@ def expand(recipe: str, roots: dict[str, Path]) -> str:
 
 
 SCAD_DIRS = ("lib", "parts", "assemblies")
+# Everything under SCAD_DIRS a render can read: the sources, and the
+# meshes and images they import().
+SCAD_SUFFIXES = (".scad", ".stl", ".3mf", ".off", ".obj", ".svg", ".dxf", ".png")
 
 
 @functools.cache
@@ -258,13 +274,16 @@ def source_fingerprint() -> str:
     the mesh cache on the recipe text alone means editing a part leaves
     the cache serving its old geometry — a verify run that reports on
     code you have already changed, which is worse than having no checks
-    at all. Hash our own .scad tree by content, and each vendored
-    upstream by its checked-out commit. Computed once per process: the
-    sources do not change under a running check.
+    at all. Hash our own .scad tree by content — and the meshes it
+    `import()`s (parts/deckmate/*.stl, parts/klippt/*.stl), which are as
+    much a part's geometry as its code — and each vendored upstream by
+    its checked-out commit. Computed once per process: the sources do
+    not change under a running check.
     """
     digest = hashlib.sha256()
     for directory in SCAD_DIRS:
-        for path in sorted((REPO_ROOT / directory).rglob("*.scad")):
+        paths = [p for suffix in SCAD_SUFFIXES for p in (REPO_ROOT / directory).rglob(f"*{suffix}")]
+        for path in sorted(paths):
             digest.update(str(path.relative_to(REPO_ROOT)).encode())
             digest.update(path.read_bytes())
     vendor = REPO_ROOT / "vendor"
@@ -277,38 +296,57 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def render(recipe: str, roots: dict[str, Path], tag: str,
-           openscad_path: list[Path] | None = None,
-           expanded: bool = False) -> Path:
+def render(
+    recipe: str,
+    roots: dict[str, Path],
+    tag: str,
+    openscad_path: list[Path] | None = None,
+    expanded: bool = False,
+) -> Path:
     """Render a .scad recipe to STL, cached on recipe + source state."""
     source = recipe if expanded else expand(recipe, roots)
-    key = hashlib.sha256(
-        (source + source_fingerprint()).encode()).hexdigest()[:16]
+    key = hashlib.sha256((source + source_fingerprint()).encode()).hexdigest()[:16]
     out = MESH_CACHE / f"{tag}-{key}.stl"
     if out.exists():
         return out
 
     MESH_CACHE.mkdir(parents=True, exist_ok=True)
     scad = MESH_CACHE / f".{tag}-{key}.scad"
-    scad.write_text(source)
+    # openscad writes to a temp name that is only moved onto `out` once
+    # the render has been accepted: `out` existing is the cache, so a
+    # render killed mid-write (Ctrl-C) must not leave a truncated STL
+    # there to be reused forever. The ".part.stl" suffix keeps the
+    # extension openscad picks the export format from.
+    tmp = out.with_name(f".{out.stem}.part.stl")
 
     env = None
     if openscad_path:
-        env = {**os.environ,
-               "OPENSCADPATH": ":".join(str(p) for p in openscad_path)}
+        env = {**os.environ, "OPENSCADPATH": os.pathsep.join(str(p) for p in openscad_path)}
 
-    cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out), str(scad)]
-    proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
-    scad.unlink(missing_ok=True)
-    # An empty result is an error to openscad but a legitimate answer
-    # here: an intersection check *wants* the overlap to be empty.
-    empty = "top level object is empty" in proc.stderr.lower()
-    if proc.returncode != 0 and not empty:
-        raise RefError(f"openscad failed rendering {tag}:\n{proc.stderr.strip()}")
-    if not out.exists():
-        if not empty:
-            raise RefError(f"openscad wrote nothing for {tag}:\n{proc.stderr.strip()}")
-        out.write_text("solid empty\nendsolid empty\n")
+    try:
+        scad.write_text(source)
+        cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(tmp), str(scad)]
+        try:
+            proc = subprocess.run(cmd, check=False, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
+        except OSError as exc:
+            raise RefError(f"could not run {OPENSCAD_BIN!r}: {exc}") from exc
+        # An empty result is an error to openscad but a legitimate answer
+        # here: an intersection check *wants* the overlap to be empty. Only
+        # when that is the whole story, though — a recipe that fails to
+        # compile can also end up with nothing at top level, and that one
+        # is a broken check, not an empty overlap.
+        has_error = any(line.lstrip().startswith("ERROR:") for line in proc.stderr.splitlines())
+        empty = "top level object is empty" in proc.stderr.lower() and not has_error
+        if proc.returncode != 0 and not empty:
+            raise RefError(f"openscad failed rendering {tag}:\n{proc.stderr.strip()}")
+        if not tmp.exists():
+            if not empty:
+                raise RefError(f"openscad wrote nothing for {tag}:\n{proc.stderr.strip()}")
+            tmp.write_text("solid empty\nendsolid empty\n")
+        os.replace(tmp, out)
+    finally:
+        scad.unlink(missing_ok=True)
+        tmp.unlink(missing_ok=True)
     return out
 
 
@@ -340,12 +378,31 @@ def compose_intersection(a: str, b: str) -> str:
     a_head, a_body = _split_includes(a)
     b_head, b_body = _split_includes(b)
     heads = list(dict.fromkeys(a_head + b_head))
-    return "\n".join([
-        *heads, "",
-        "module __fit_a() {", *a_body, "}", "",
-        "module __fit_b() {", *b_body, "}", "",
-        "intersection() { __fit_a(); __fit_b(); }", "",
-    ])
+    return "\n".join(
+        [
+            *heads,
+            "",
+            "module __fit_a() {",
+            # OpenSCAD's own defaults, restored for this repo's side.
+            # Includes are hoisted to file level, so a reference's
+            # top-level settings reach our part too — and NopSCADlib's
+            # global_defs.scad sets `$fs = ... extrusion_width / 2`, which
+            # OpenSCAD evaluates before extrusion_width exists: $fs comes
+            # out undef, BOSL2's segs() returns nonsense and the part fails
+            # to render (the 2020 tab-in-slot check had been erroring,
+            # and passing as an "empty overlap", for that reason).
+            "$fa = 12; $fs = 2;",
+            *a_body,
+            "}",
+            "",
+            "module __fit_b() {",
+            *b_body,
+            "}",
+            "",
+            "intersection() { __fit_a(); __fit_b(); }",
+            "",
+        ]
+    )
 
 
 def sync(offline: bool = False) -> dict[str, Path]:

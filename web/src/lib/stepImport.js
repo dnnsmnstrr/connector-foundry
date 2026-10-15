@@ -41,13 +41,48 @@ function ensureWorker() {
   return created;
 }
 
+function abortError() {
+  return new DOMException("STEP import cancelled", "AbortError");
+}
+
 // `buffer`: the file's ArrayBuffer. It is transferred to the worker, so
 // the caller's copy is empty afterwards. Resolves with
 // [{ name, positions, triangleCount, extents }] (see stepMesh.js).
-export function tessellateStep(buffer) {
+//
+// `options.signal`, optional: aborting it rejects the promise with an
+// AbortError and terminates the worker — the reader is synchronous WASM
+// and cannot be told to stop any other way — so the next import starts
+// a fresh one. Any other request still pending on that worker is
+// rejected as stopped, the same as a crash.
+/**
+ * @param {ArrayBuffer} buffer
+ * @param {{ signal?: AbortSignal }} [options]
+ */
+export function tessellateStep(buffer, { signal } = {}) {
+  if (signal?.aborted) return Promise.reject(abortError());
   return new Promise((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, { resolve, reject });
-    ensureWorker().postMessage({ id, bytes: buffer }, [buffer]);
+    const onAbort = () => {
+      if (!pending.has(id)) return;
+      pending.delete(id);
+      reject(abortError());
+      fail("cancelled");
+    };
+    const settle = (fn) => (value) => {
+      signal?.removeEventListener("abort", onAbort);
+      fn(value);
+    };
+    pending.set(id, { resolve: settle(resolve), reject: settle(reject) });
+    signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      ensureWorker().postMessage({ id, bytes: buffer }, [buffer]);
+    } catch (err) {
+      // A failed post (a detached buffer, a worker that could not be
+      // created) never reaches the worker, so no reply will ever remove
+      // the entry: take it out here rather than leak it.
+      pending.delete(id);
+      signal?.removeEventListener("abort", onAbort);
+      reject(err);
+    }
   });
 }

@@ -201,6 +201,11 @@ external tool the browser runs, the same way the CLI shells out to `openscad`. T
 reader, `occt-import-js`, is Open CASCADE Technology (LGPL-2.1 with the OCCT exception) compiled
 to WebAssembly and loaded as a separate file only when a STEP file is imported.
 
+## Contributing
+
+Start with [AGENTS.md](AGENTS.md): how the pieces fit together, which command proves which kind of
+change (`make check` is the minimum before every commit), and the rules that are easy to break.
+
 ## Repo layout
 
 ```

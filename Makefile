@@ -1,4 +1,4 @@
-.PHONY: all preview test venv refs verify goldens clean-refs
+.PHONY: all preview test venv refs verify goldens clean-refs lint format check
 
 VENV := .venv/bin
 
@@ -19,6 +19,22 @@ goldens:
 
 test:
 	$(VENV)/python -m pytest tests/
+
+# Python lint + format check (config: [tool.ruff] in pyproject.toml).
+lint:
+	$(VENV)/ruff check cli tools tests
+	$(VENV)/ruff format --check cli tools tests
+
+format:
+	$(VENV)/ruff check --fix cli tools tests
+	$(VENV)/ruff format cli tools tests
+
+# Everything that needs neither OpenSCAD nor a browser: Python lint, the
+# catalogue tests that do not render, and the web app's lint, types,
+# formatting and unit tests. The pre-push minimum; CI runs the rest.
+check: lint
+	$(VENV)/python -m pytest tests/test_catalogue.py tests/test_catalogue_schema.py tests/test_openscad_values.py -q
+	cd web && npm run check
 
 # Fetch every reference source into refs/ (gitignored). Submodule-backed
 # sources need nothing; the rest need a network on first run.

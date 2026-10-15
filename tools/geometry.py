@@ -14,16 +14,17 @@ something is:
                     catches a mating profile that is the right overall
                     size but the wrong shape through its depth
 """
+
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import trimesh
 
-
 # ----------------------------------------------------------------- align
+
 
 def _axis_aligned_rotations() -> list[np.ndarray]:
     """The 24 rotations that map a box onto itself, as 4x4 matrices."""
@@ -31,7 +32,7 @@ def _axis_aligned_rotations() -> list[np.ndarray]:
     for perm in itertools.permutations(range(3)):
         for signs in itertools.product((1, -1), repeat=3):
             m = np.zeros((3, 3))
-            for row, (col, sign) in enumerate(zip(perm, signs)):
+            for row, (col, sign) in enumerate(zip(perm, signs, strict=True)):
                 m[row, col] = sign
             if np.isclose(np.linalg.det(m), 1.0):
                 full = np.eye(4)
@@ -50,8 +51,9 @@ def _centered(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh, np.ndarray]:
     return m, centroid
 
 
-def align(mesh: trimesh.Trimesh, reference: trimesh.Trimesh, mode: str = "auto",
-          icp: bool = True) -> tuple[trimesh.Trimesh, np.ndarray]:
+def align(
+    mesh: trimesh.Trimesh, reference: trimesh.Trimesh, mode: str = "auto", icp: bool = True
+) -> tuple[trimesh.Trimesh, np.ndarray]:
     """Return `mesh` moved into `reference`'s frame, plus the transform used.
 
     mode "none"  -- both meshes are already authored in the same frame
@@ -87,8 +89,7 @@ def align(mesh: trimesh.Trimesh, reference: trimesh.Trimesh, mode: str = "auto",
         moved = mesh.copy()
         moved.apply_transform(transform)
         try:
-            refine, _ = trimesh.registration.mesh_other(
-                moved, reference, samples=2000, scale=False)
+            refine, _ = trimesh.registration.mesh_other(moved, reference, samples=2000, scale=False)
             transform = refine @ transform
         except Exception:  # ICP is a refinement, never a requirement
             pass
@@ -99,6 +100,7 @@ def align(mesh: trimesh.Trimesh, reference: trimesh.Trimesh, mode: str = "auto",
 
 
 # -------------------------------------------------------------- distance
+
 
 @dataclass
 class SurfaceDistance:
@@ -116,17 +118,16 @@ def _one_way(a: trimesh.Trimesh, b: trimesh.Trimesh, samples: int) -> np.ndarray
     return np.abs(distance)
 
 
-def surface_distance(a: trimesh.Trimesh, b: trimesh.Trimesh,
-                     samples: int = 20000) -> SurfaceDistance:
+def surface_distance(a: trimesh.Trimesh, b: trimesh.Trimesh, samples: int = 20000) -> SurfaceDistance:
     """Symmetric surface distance: sample both ways so that material
     missing from either mesh shows up. A one-way sample can score a part
     with a whole feature missing as near-perfect."""
     d = np.concatenate([_one_way(a, b, samples), _one_way(b, a, samples)])
-    return SurfaceDistance(rms=float(np.sqrt(np.mean(d ** 2))),
-                           mean=float(d.mean()), max=float(d.max()))
+    return SurfaceDistance(rms=float(np.sqrt(np.mean(d**2))), mean=float(d.mean()), max=float(d.max()))
 
 
 # -------------------------------------------------------------- sections
+
 
 @dataclass
 class SectionDiff:
@@ -152,11 +153,11 @@ def _section_polygon(mesh: trimesh.Trimesh, z: float):
     if len(polys) == 0:
         return None
     from shapely.ops import unary_union
+
     return unary_union(list(polys))
 
 
-def section_diff(ours: trimesh.Trimesh, reference: trimesh.Trimesh,
-                 z: float) -> SectionDiff:
+def section_diff(ours: trimesh.Trimesh, reference: trimesh.Trimesh, z: float) -> SectionDiff:
     """Compare the horizontal cross-section of two meshes at height z.
 
     z is absolute in the shared frame. Both parts sit on the bed by this
@@ -164,15 +165,22 @@ def section_diff(ours: trimesh.Trimesh, reference: trimesh.Trimesh,
     """
     a, b = _section_polygon(ours, z), _section_polygon(reference, z)
     if a is None or b is None:
-        return SectionDiff(z=z, ours_mm2=0.0 if a is None else a.area,
-                           ref_mm2=0.0 if b is None else b.area,
-                           symmetric_difference_mm2=float("inf"), iou=0.0)
+        return SectionDiff(
+            z=z,
+            ours_mm2=0.0 if a is None else a.area,
+            ref_mm2=0.0 if b is None else b.area,
+            symmetric_difference_mm2=float("inf"),
+            iou=0.0,
+        )
     union = a.union(b).area
     return SectionDiff(
-        z=z, ours_mm2=a.area, ref_mm2=b.area,
+        z=z,
+        ours_mm2=a.area,
+        ref_mm2=b.area,
         symmetric_difference_mm2=a.symmetric_difference(b).area,
         iou=(a.intersection(b).area / union) if union else 1.0,
-        ours_extent=_extent(a), ref_extent=_extent(b),
+        ours_extent=_extent(a),
+        ref_extent=_extent(b),
     )
 
 
@@ -182,6 +190,7 @@ def _extent(poly) -> tuple[float, float]:
 
 
 # ------------------------------------------------------------------- fit
+
 
 @dataclass
 class FitResult:
@@ -206,8 +215,7 @@ def _surface_volume(mesh: trimesh.Trimesh | None) -> float:
     return abs(float(mesh.volume))
 
 
-def fit(ours: trimesh.Trimesh, counterpart: trimesh.Trimesh,
-        overlap: trimesh.Trimesh | None) -> FitResult:
+def fit(ours: trimesh.Trimesh, counterpart: trimesh.Trimesh, overlap: trimesh.Trimesh | None) -> FitResult:
     """Do these two solids actually mate?
 
     All three meshes are already in the assembled pose, and `overlap` is

@@ -1,11 +1,12 @@
 """Shared fixtures. `cli/` and `tools/` are on the import path via
 pyproject.toml's [tool.pytest.ini_options] pythonpath, so test modules
 import `foundry`, `refcache` and `verify` directly."""
+
+import hashlib
 from pathlib import Path
 
-import pytest
-
 import foundry
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -45,6 +46,10 @@ def render_variant(part: dict, params: dict, render_dir: Path, tag: str) -> Path
 
     `tag` only names the file the first time a given (part, params) is
     asked for; a later request with a different tag gets the same path.
+    The filename also carries a hash of the key: two different param
+    sets that happened to share a tag would otherwise be renamed onto
+    the same file, and the first one's mesh would quietly be replaced
+    by the second's under a still-cached path.
     """
     key = _render_key(part, params)
     cached = _RENDERED.get(key)
@@ -52,6 +57,7 @@ def render_variant(part: dict, params: dict, render_dir: Path, tag: str) -> Path
         return cached
     out_dir = render_dir / foundry.slug(part["id"])
     stl_path = foundry.render_part(part, params, out_dir, use_user_config=False)
-    renamed = stl_path.rename(out_dir / f"{tag}.stl")
+    digest = hashlib.sha256(repr(key).encode()).hexdigest()[:10]
+    renamed = stl_path.rename(out_dir / f"{tag}-{digest}.stl")
     _RENDERED[key] = renamed
     return renamed

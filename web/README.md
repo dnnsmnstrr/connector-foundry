@@ -13,9 +13,11 @@ running in a Web Worker.
    `public/scad-bundle.json`,
    and parses `catalogue.yaml` into `public/catalogue.json`. This is the only "build step" that touches the
    OpenSCAD sources — the app never transpiles or reimplements them.
-   An included file that does not exist (a submodule that was never checked out) is reported,
-   since the symptom in the browser is otherwise just an unhelpful "can't open include" on the
-   parts that need it.
+   An included file that does not exist (a submodule that was never checked out) fails the
+   sync — and so `dev`, `build` and CI — naming the files, since the symptom in the browser is
+   otherwise just an unhelpful "can't open include" on the parts that need it, in a build that
+   looked green. `SYNC_SCAD_ALLOW_MISSING=1` downgrades it to a warning; the dev server's file
+   watcher only ever warns.
    A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
    under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
    relative `import()` resolves in the browser exactly as it does on disk.
@@ -52,7 +54,7 @@ varying by what the overflow lands on (`memory access out of bounds`, `table ind
 `original is not a function`). Measured on 2026-10-06 in Chrome's worker and in Node alike, with
 `$parent_modules` echoed from an instrumented BOSL2 `attachable()` to count the levels. It is the
 one cause behind every Bench render failure the READMEs blame on bolted/snap/pin joints
-(`src/lib/assembly.js`'s `emitJointChild()`, `Bench.jsx`'s `friendlyRenderError()`): each
+(`src/lib/assembly.js`'s `emitJointChild()`, `src/lib/renderError.js`'s `friendlyRenderError()`): each
 `attach()` / joint flange / rounded cuboid adds levels, and the deep parts (openGrid's snap, the
 openConnect and MultiConnect snaps) start near the limit — `lib/opengrid.scad`'s header says what
 was done so those two render here at all (65 levels), and why they will not survive being a
@@ -75,12 +77,15 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
 | `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
 | `src/Library.jsx`, `src/Bench.jsx`, `src/Holes.jsx` | The three modes — see the sections below |
+| `src/hooks/useRender.js` | The preview render all three modes share: give it a key (a memoised object of the inputs, or null for nothing) and a `run(key, signal)`; it debounces, cancels the render for a replaced key through its `AbortSignal`, drops results that land after their key was replaced, and returns `{ result, key, status, error, setError, retry }` — `key` being the request the shown result came from, so a caller can tell a stale mesh from the current one (Library's download button, Holes' surface clicks) |
+| `src/lib/renderError.js` | `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction) |
+| `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source) and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
 | `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`; BitBeam pin holes cut by `lib/pinhole.scad`; KLIPPT channels cut by `lib/klippt.scad`; DeckMate sockets cut by `lib/deckmate.scad`); the fastener, slot, shape and socket presets; the Repeat form's row / grid / circle patterns (`repeatHole()`, which places only the copies the caller's mesh probe accepts); the face-feature snap points; the live document as module state |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
@@ -370,7 +375,7 @@ a part actually has anchors left over. A few implementation notes that don't bel
   geometry — see catalogue.yaml's `side_slots` schema comment for the field shapes.
 - Fetching every node's own standalone extents (the bullet above) is a `Promise.allSettled`, not
   `Promise.all`: one node's render hitting the same openscad-wasm resource limit
-  `friendlyRenderError()` already has a message for shouldn't cost every *other* node its markers,
+  `renderError.js`'s `friendlyRenderError()` already has a message for shouldn't cost every *other* node its markers,
   or surface as an unhandled promise rejection — it's logged (`console.warn`) and that one node's
   slots just don't show, same as if nothing had asked for them yet. Relatedly,
   `openscad-client.js`'s worker message handler now actually forwards the worker's own

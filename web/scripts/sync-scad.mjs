@@ -172,21 +172,22 @@ function collect() {
     }
   }
 
-  for (const rel of missing) {
-    // A missing vendor file is almost always a submodule that was never
-    // checked out. The bundle still builds, but every part that includes
-    // from it fails in the browser with an unhelpful "can't open
-    // include" — so say what's missing here, at the one point that can
-    // tell.
-    console.warn(
-      `sync-scad: ${rel} is included but does not exist` +
-        (isVendored(rel)
-          ? " — submodule not checked out? Run `git submodule update --init --recursive`."
-          : ""),
-    );
-  }
-  return { files, assets };
+  return { files, assets, missing: [...missing] };
 }
+
+// A missing vendor file is almost always a submodule that was never
+// checked out. A bundle without it still loads, but every part that
+// includes from it fails in the browser with an unhelpful "can't open
+// include" — so say what's missing here, at the one point that can tell.
+function describeMissing(missing) {
+  return missing.map(
+    (rel) =>
+      `  ${rel} is included but does not exist` +
+      (isVendored(rel) ? " (vendored: submodule not checked out?)" : ""),
+  );
+}
+
+export class MissingIncludeError extends Error {}
 
 // Top-level `NAME = <simple literal>;` assignments in lib/constants.scad
 // — the browser's copy of catalogue defaults for the "same override
@@ -227,8 +228,19 @@ function catalogue() {
 }
 
 // Returns { files, assets } counts. See the header for the bundle shape.
-export function syncScad() {
-  const { files, assets } = collect();
+//
+// `strict` (what `npm run sync-scad`, and so every dev/build, uses)
+// throws MissingIncludeError before writing anything when an include
+// does not resolve: a build would otherwise ship parts that cannot
+// render. The dev watcher calls this non-strict — a half-saved file
+// mid-edit must not take the dev server down — and only gets a warning.
+export function syncScad({ strict = false } = {}) {
+  const { files, assets, missing } = collect();
+  if (missing.length) {
+    const lines = describeMissing(missing);
+    if (strict) throw new MissingIncludeError(lines.join("\n"));
+    for (const line of lines) console.warn(`sync-scad:${line}`);
+  }
 
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
   fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, assets }));
@@ -240,6 +252,22 @@ export function syncScad() {
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
-  const { files, assets } = syncScad();
-  console.log(`sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), wrote catalogue.json`);
+  // SYNC_SCAD_ALLOW_MISSING=1 is the escape hatch for working on the web
+  // app without the vendored submodules: the bundle is written anyway
+  // and only the parts that need them fail, in the browser.
+  const allowMissing = process.env.SYNC_SCAD_ALLOW_MISSING === "1";
+  try {
+    const { files, assets } = syncScad({ strict: !allowMissing });
+    console.log(
+      `sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), wrote catalogue.json`,
+    );
+  } catch (error) {
+    if (!(error instanceof MissingIncludeError)) throw error;
+    console.error(
+      `sync-scad: included files are missing, so parts that need them could not render:\n${error.message}\n` +
+        "Run `git submodule update --init --recursive` to check out the vendored libraries, " +
+        "or set SYNC_SCAD_ALLOW_MISSING=1 to write the bundle anyway.",
+    );
+    process.exit(1);
+  }
 }

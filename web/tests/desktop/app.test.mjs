@@ -267,9 +267,9 @@ test(
           child.once("exit", (code, signal) => resolve({ code, signal }));
           child.once("error", reject);
         }),
-        new Promise((_resolve, reject) =>
-          setTimeout(() => reject(new Error("the second instance did not quit within 60 s")), 60_000).unref(),
-        ),
+        new Promise((_resolve, reject) => {
+          setTimeout(() => reject(new Error("the second instance did not quit within 60 s")), 60_000).unref();
+        }),
       ]);
       assert.deepEqual(exit, { code: 0, signal: null });
       assert.equal(await first.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);

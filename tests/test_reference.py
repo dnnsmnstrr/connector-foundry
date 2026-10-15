@@ -12,39 +12,47 @@ first run, and its checks skip rather than fail without one:
     make refs      populate the cache
     make verify    run the checks with the full report
 """
-import pytest
-import yaml
 
+import pytest
 import refcache
 import verify
+import yaml
 
+# Reading references.yaml is all collection needs (it names the test
+# ids). Resolving the sources can mean a git fetch, so it waits for the
+# first test that actually runs a check — `pytest -k catalogue` or a
+# --collect-only must neither reach the network nor need git at all.
 CONFIG = refcache.load()
-AVAILABLE, UNAVAILABLE = refcache.resolve_available(CONFIG)
-SCAD_PATH = verify.openscad_path(CONFIG, AVAILABLE)
 
 
-def _run(check, runner):
+@pytest.fixture(scope="session")
+def sources():
+    """(available roots, why each other source is unavailable, OPENSCADPATH)."""
+    available, unavailable = refcache.resolve_available(CONFIG)
+    return available, unavailable, verify.openscad_path(CONFIG, available)
+
+
+def _run(check, runner, sources):
+    available, unavailable, scad_path = sources
     need = check.get("reference_source")
-    if need in UNAVAILABLE:
-        pytest.skip(f"reference source {need!r} unavailable: {UNAVAILABLE[need]}")
-    result = runner(check, AVAILABLE, SCAD_PATH)
+    if need in unavailable:
+        pytest.skip(f"reference source {need!r} unavailable: {unavailable[need]}")
+    result = runner(check, available, scad_path)
     assert result.passed, (
-        f"{check['id']}\n  " + "\n  ".join(result.failures)
-        + f"\n  metrics: {result.metrics}")
+        f"{check['id']}\n  " + "\n  ".join(result.failures) + f"\n  metrics: {result.metrics}"
+    )
 
 
-@pytest.mark.parametrize("check", CONFIG.get("shape_checks", []),
-                         ids=lambda c: c["id"])
-def test_shape_matches_reference(check):
+@pytest.mark.parametrize("check", CONFIG.get("shape_checks", []), ids=lambda c: c["id"])
+def test_shape_matches_reference(check, sources):
     """Our part and the reference are the same solid, to tolerance."""
-    _run(check, verify.run_shape_check)
+    _run(check, verify.run_shape_check, sources)
 
 
-@pytest.mark.parametrize("check", CONFIG.get("fit_checks", []),
-                         ids=lambda c: c["id"])
-def test_parts_actually_mate(check):
+@pytest.mark.parametrize("check", CONFIG.get("fit_checks", []), ids=lambda c: c["id"])
+def test_parts_actually_mate(check, sources):
     """Our part and its real counterpart go together without interference."""
-    _run(check, verify.run_fit_check)
+    _run(check, verify.run_fit_check, sources)
 
 
 def test_every_exact_part_has_a_reference():
@@ -73,17 +81,21 @@ def test_every_exact_part_has_a_reference():
       tests/test_anchors.py and tests/test_deckmate.py cover.
     """
     catalogue = yaml.safe_load((refcache.REPO_ROOT / "catalogue.yaml").read_text())
-    checked = {c.get("part") for c in
-               CONFIG.get("shape_checks", []) + CONFIG.get("fit_checks", [])}
-    exempt_phrases = ("not tied to an external spec", "no reference geometry to check against",
-                      "the manufacturer's own model")
+    checked = {c.get("part") for c in CONFIG.get("shape_checks", []) + CONFIG.get("fit_checks", [])}
+    exempt_phrases = (
+        "not tied to an external spec",
+        "no reference geometry to check against",
+        "the manufacturer's own model",
+    )
 
     unchecked = [
-        part["id"] for part in catalogue["parts"]
+        part["id"]
+        for part in catalogue["parts"]
         if part["confidence"] == "exact"
         and part["id"] not in checked
         and not any(phrase in part.get("source", "") for phrase in exempt_phrases)
     ]
     assert not unchecked, (
         "these parts claim confidence: exact but nothing in references.yaml "
-        f"checks them: {unchecked}. Either add a check or drop the claim.")
+        f"checks them: {unchecked}. Either add a check or drop the claim."
+    )

@@ -3,17 +3,23 @@
 // the assembly tree (assembly.js), the parts map, and each node's own
 // standalone extents — no React, no three.js — so Bench.jsx only wires
 // state to them.
-import { ROOT_ID, getNode, hasScrewPattern, normalizeShift, occupiedSlotNames } from "./assembly.js";
+import {
+  ROOT_ID,
+  getNode,
+  hasScrewPattern,
+  hasShift,
+  normalizeShift,
+  occupiedSlotNames,
+} from "./assembly.js";
 import { enumerateSlots } from "./slots.js";
 
 // A node's sideways shift (assembly.js's `shift`, in the slot's own x/y
 // as turned by the node's spin — see shiftArg() there) as a world x/y
 // displacement, for a node mated on an upward-facing slot: the slot's
 // axes are then world x/y, and the spin is a plain turn about world z.
-// Exact for root's top grid and a "bot" stack (the only slots whose
-// markers and boxes are placed, see exposedTopWorldPosition()); on a
-// downward slot BOSL2's flip would mirror one axis, so callers that
-// handle those pad by the magnitude instead.
+// Exact for root's top grid and an upward "bot" stack (see
+// matingDirection()); on a downward slot BOSL2's flip would mirror one
+// axis, so callers that handle those pad by the magnitude, or give up.
 export function shiftWorldXY(node) {
   const [sx, sy] = normalizeShift(node.shift);
   const rad = ((node.spin ?? 0) * Math.PI) / 180;
@@ -180,6 +186,40 @@ export function slotFootprint(assembly, partsById, nodeExtents, parentId, slotNa
   return [Math.max(0, extents[0] - 2 * Math.abs(point[0])), Math.max(0, extents[1] - 2 * Math.abs(point[1]))];
 }
 
+// Which way a child mated onto `slotName` of `parentId` points in world
+// space, when that direction is vertical: +1 for a slot facing up (root's
+// top grid, an imported root anchor whose normal is +Z, or the exposed
+// "bot" of a part that itself points up), -1 for one facing down (root's
+// own "bot", a -Z imported anchor, or the "bot" of a part hanging
+// underneath something). null for anything sideways or unknown — and a
+// part on a side slot lies on its side, so its own "bot" is sideways too:
+// the direction is inherited down the chain, which is why every
+// stack marker and pick box above root asks this first rather than
+// assuming up.
+export function matingDirection(assembly, partsById, parentId, slotName) {
+  const parent = getNode(assembly, parentId);
+  const parentPart = parent && partsById.get(parent.partId);
+  if (!parentPart) return null;
+  if (parentId !== ROOT_ID) {
+    // Deeper than root, the only slot whose direction is known is the
+    // exposed "bot" of a catalogue part that attached through its own
+    // "mount" — "bot" sits straight behind it (see
+    // exposedTopWorldPosition()), so it faces wherever the part does.
+    if (parentPart.kind === "imported" || slotName !== STACK_ANCHOR || parent.childAnchor !== "mount") {
+      return null;
+    }
+    return matingDirection(assembly, partsById, parent.parentId, parent.slotName);
+  }
+  if (parentPart.kind === "imported") {
+    const anchor = parentPart.anchors.find((a) => a.name === slotName);
+    if (!anchor || Math.abs(anchor.normal[2]) < 0.9) return null;
+    return anchor.normal[2] > 0 ? 1 : -1;
+  }
+  if (slotName.startsWith("mount")) return 1;
+  if (slotName === STACK_ANCHOR) return -1;
+  return null;
+}
+
 // World position of the point where `nodeId` itself touches its own
 // parent. For a root child this is just a lookup in `rootSlotWorldPositions`
 // (root's own slots are already computed in the part's local frame and
@@ -209,7 +249,11 @@ export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, no
 // turn sends (0,0,h) to (0,0,-h) relative to the anchor, full stop. So
 // "bot" ends up exactly `extents.z` above wherever "mount" landed, with
 // x/y unchanged — no need to replicate BOSL2's actual rotation to place
-// this marker correctly. That equivalence breaks for an anchor NOT on
+// this marker correctly. That holds for a part mated on an upward slot;
+// one hanging under a downward slot ("bot" under "bot") has its own "bot"
+// the same distance BELOW, and one on a side slot (root's "xpos") lies
+// on its side, so its "bot" faces sideways and gets no marker at all —
+// matingDirection() decides which, for the whole chain up to root. That equivalence breaks for an anchor NOT on
 // mount's vertical (a plate's "xpos", "ypos", etc.), where the axis
 // matters; those stay text-only in the sidebar for now rather than risk
 // a wrong 3D position. (For the record, BOSL2's flip is about Y — see
@@ -219,15 +263,23 @@ export function attachPointWorld(assembly, partsById, rootSlotWorldPositions, no
 // leaves the point alone too, for the same reason. What does move it is
 // anything the joint puts between the parts, and the Offset — hence
 // matingRise() — and, sideways, the node's own shift (shiftWorldXY()),
-// which slides the whole part, "bot" included, across the slot.
+// which slides the whole part, "bot" included, across the slot. On a
+// downward slot the shift's direction depends on the flip, so a shifted
+// part hanging underneath gets no marker rather than a misplaced one.
 export function exposedTopWorldPosition(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId) {
+  const node = getNode(assembly, nodeId);
+  const part = node && partsById.get(node.partId);
+  if (!node || nodeId === ROOT_ID || !part || part.kind === "imported" || node.childAnchor !== "mount") {
+    return null;
+  }
+  const dir = matingDirection(assembly, partsById, node.parentId, node.slotName);
+  if (dir === null || (dir < 0 && hasShift(node))) return null;
   const attachPoint = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
   const extents = nodeExtents.get(nodeId);
   if (!attachPoint || !extents) return null;
-  const node = getNode(assembly, nodeId);
   const rise = matingRise(assembly, partsById, node);
-  const [dx, dy] = shiftWorldXY(node);
-  return [attachPoint[0] + dx, attachPoint[1] + dy, attachPoint[2] + rise + extents[2]];
+  const [dx, dy] = dir > 0 ? shiftWorldXY(node) : [0, 0];
+  return [attachPoint[0] + dx, attachPoint[1] + dy, attachPoint[2] + dir * (rise + extents[2])];
 }
 
 // A non-root node's open slots for the sidebar's "+ Attach" buttons —

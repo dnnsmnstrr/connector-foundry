@@ -12,6 +12,18 @@ import DecimalInput from "./DecimalInput.jsx";
 // a value typed past one is brought back to it when the field loses
 // focus — not on every keystroke, which would turn the "1" of a "10"
 // being typed into the minimum. Decimals take a comma or a period.
+/**
+ * @param {{
+ *   name: string,
+ *   value: any,
+ *   options?: any[],
+ *   min?: number | string,
+ *   max?: number | string,
+ *   catalogueDefault?: any,
+ *   onChange: (value: any) => void,
+ *   onReset?: () => void,
+ * }} props
+ */
 export default function ParamField({ name, value, options, min, max, catalogueDefault, onChange, onReset }) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.
@@ -46,7 +58,15 @@ export default function ParamField({ name, value, options, min, max, catalogueDe
     return (
       <label htmlFor={inputId} className="field">
         {label}
-        <select id={inputId} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select
+          id={inputId}
+          value={value}
+          // An <option>'s value is always a string; hand back the catalogue's
+          // own option (a number for e.g. `pegs: [1, 2]`), or the .scad
+          // literal, the "differs from default" check and a saved default
+          // would all get "2" where the part expects 2.
+          onChange={(e) => onChange(options.find((o) => String(o) === e.target.value) ?? e.target.value)}
+        >
           {options.map((option) => (
             <option key={option} value={option}>
               {option}
