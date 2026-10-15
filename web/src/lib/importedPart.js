@@ -11,6 +11,7 @@
 // lives in browser memory for the session and nowhere else.
 import * as THREE from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
+import { primeNeighbors } from "./faceCluster.js";
 
 let nextImportId = 1;
 
@@ -22,6 +23,8 @@ let nextImportId = 1;
 // namespace is per session, and a config's ids are just labels.
 export function createImportedPart(name, validation, anchors = []) {
   const geometry = validation.geometry;
+  // The gate's own adjacency, so the first slot click doesn't rebuild it.
+  primeNeighbors(geometry, validation.neighbors);
   return {
     id: `imported:${nextImportId++}`,
     kind: "imported",
