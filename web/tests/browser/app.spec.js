@@ -15,7 +15,7 @@ const parts = [
 async function catalogue(page) {
   // Use real catalogue-shaped records and real SCAD sources; keep the
   // picker small so these tests aren't tied to its catalogue ordering.
-  await page.route("**/catalogue.yaml", (route) => route.fulfill({ json: { parts } }));
+  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts } }));
 }
 
 async function mockWorker(page, auto = false) {

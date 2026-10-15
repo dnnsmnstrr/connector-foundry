@@ -14,7 +14,7 @@ const parts = [
 ];
 
 async function catalogue(page) {
-  await page.route("**/catalogue.yaml", (route) => route.fulfill({ json: { parts } }));
+  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts } }));
 }
 
 async function mockWorker(page) {

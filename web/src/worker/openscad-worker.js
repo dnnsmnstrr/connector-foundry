@@ -17,6 +17,7 @@
 // work is serialized.
 import { createOpenSCAD } from "openscad-wasm";
 import { fetchPublic } from "../lib/publicAsset.js";
+import { isOpenscadError } from "../lib/openscadLog.js";
 import { callArgs, defineArgs, scadLiteral } from "../lib/scadLiteral.js";
 
 // Where the source bundle is mounted inside the WASM filesystem. It
@@ -129,7 +130,7 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     const instance = await createOpenSCAD({
       print: () => {},
       printErr: (text) => {
-        if (/error/i.test(text)) postMessage({ type: "log", level: "error", text });
+        if (isOpenscadError(text)) postMessage({ type: "log", level: "error", text });
       },
     });
     const os = instance.getInstance();
