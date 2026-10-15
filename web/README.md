@@ -193,7 +193,7 @@ screen.
 ## Bench (`src/Bench.jsx`)
 
 The visual editor: a root part plus a tree of parts snapped onto open slots, each connection with
-its own joint type — see the root README's "Bench" section for what it does, including how
+its own joint type — see [docs/BENCH.md](../docs/BENCH.md) for what it does, including how
 stacking (attaching onto something that's itself attached) works and why it's only offered where
 a part actually has anchors left over. A few implementation notes that don't belong there:
 
@@ -225,7 +225,7 @@ a part actually has anchors left over. A few implementation notes that don't bel
   attached to it; `bodyTags()` generalises "one printable body per fused subtree" to
   any depth, and — for a pin joint — one further tag for the pin itself
   (`"<childId>_pin"`, since the pin is its own third printable body, not integral to either
-  flange; see the root README's "Joints" section). Getting an isolated body's export right for
+  flange; see [docs/JOINTS.md](../docs/JOINTS.md)). Getting an isolated body's export right for
   anything deeper than one level needed more than gating the whole tree with one `if (part == tag)`:
   BOSL2's `hide_this()` (an "invisible parent that still positions its children" — see its own doc
   comment in `vendor/BOSL2/attachments.scad`) only suppresses geometry ONE level at a time, so
@@ -357,8 +357,8 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `anchors` field (`[bot, xpos, xneg, ypos, yneg]`) is what makes a multi-anchor part like Basics
   plate/post enumerable this way without parsing its `.scad`: each name is just the center of that
   face of the part's own rendered bounding box (`src/lib/slots.js`'s `FACE_ANCHOR_LOCAL`) — no
-  per-part formula to restate. The Bench currently only *offers* `bot` for stacking (see the root
-  README); the rest of the field, and `FACE_ANCHOR_LOCAL`'s other entries, stay there for root's
+  per-part formula to restate. The Bench currently only *offers* `bot` for stacking (see
+  [docs/BENCH.md](../docs/BENCH.md)); the rest of the field, and `FACE_ANCHOR_LOCAL`'s other entries, stay there for root's
   own display and as the seam for whenever off-axis stacking is worth the marker-placement work.
 - `slots.js`'s `enumerateSlots()` combines every slot source a part declares — a top grid
   (`slots`), single box-face anchors (`anchors`), and now a per-face row (`side_slots`) — instead
@@ -380,7 +380,7 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - Every node — root or any depth of child — gets a parameter editor in the sidebar: the same
   `src/components/ParamsEditor.jsx` Library mode's params panel is, so the catalogue-default
   diff/reset/save-as-default flow is one implementation, not two that agree.
-- Each child carries an `overlap` field (mm, default 0) — the root README's "Offset" — that
+- Each child carries an `overlap` field (mm, default 0) — [docs/BENCH.md](../docs/BENCH.md)'s "Offset" — that
   becomes BOSL2 `attach()`'s own `overlap=` on the *final* attach in that child's chain (the plain
   attach for a fused joint, or the child-onto-flangeB attach for bolted/snap — never the flanges'
   own placement, which stays exactly where the joint geometry expects it).
@@ -450,7 +450,7 @@ Holes source is imported raw rather than through the Bench's centering wrapper; 
 toggle offers one setting, **Flip upside down** — `groundedMesh()`'s `flip`, a half turn about X before
 grounding, with `screwHoles.js`'s `flipHoles()` moving the holes already placed to the same spots on the
 turned-over part),
-or the current bench rendered as one mesh. See the root README's "Holes" section for what it does;
+or the current bench rendered as one mesh. See [docs/HOLES.md](../docs/HOLES.md) for what it does;
 the implementation notes:
 
 - The document (`src/lib/screwHoles.js`) is `{ source, holes, name, nextSpec, nextPresetId }`:
@@ -635,8 +635,8 @@ localStorage), so a preset can always become a file and a file a preset with no 
 
 ## User overrides (`src/lib/userOverrides.js`)
 
-The browser side of the CLI's `foundry defaults`/`foundry settings` — see the root README's
-"User overrides" section for the resolution order (catalogue default -> saved override ->
+The browser side of the CLI's `foundry defaults`/`foundry settings` — see
+[docs/OVERRIDES.md](../docs/OVERRIDES.md) for the resolution order (catalogue default -> saved override ->
 instance value) and why it's one resolver per side rather than two that could disagree. A few
 things specific to the web implementation:
 
