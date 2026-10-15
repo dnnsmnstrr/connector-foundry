@@ -11,6 +11,7 @@
 // lives in browser memory for the session and nowhere else.
 import * as THREE from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
+import { primeNeighbors } from "./faceCluster.js";
 
 let nextImportId = 1;
 
@@ -20,8 +21,15 @@ let nextImportId = 1;
 // the repaired mesh this same module exported, so its center is the one
 // they were measured against. Always a fresh id, even then — the id
 // namespace is per session, and a config's ids are just labels.
-export function createImportedPart(name, validation, anchors = []) {
+//
+// `stlBytes`, when given, stands in for the export below: benchConfig.js
+// passes the bytes it just decoded when the gate found nothing to
+// repair in them, since exporting the same triangles again would only
+// produce them a second time.
+export function createImportedPart(name, validation, anchors = [], { stlBytes = null } = {}) {
   const geometry = validation.geometry;
+  // The gate's own adjacency, so the first slot click doesn't rebuild it.
+  primeNeighbors(geometry, validation.neighbors);
   return {
     id: `imported:${nextImportId++}`,
     kind: "imported",
@@ -32,7 +40,7 @@ export function createImportedPart(name, validation, anchors = []) {
     // the worker (the validated/repaired mesh, not the raw upload), and
     // re-serializing on every compileToScad() call would be wasted work
     // since the geometry never changes after import.
-    stlBytes: exportStlBytesFor(geometry),
+    stlBytes: stlBytes ?? exportStlBytesFor(geometry),
     extents: validation.extents,
     center: validation.center,
     report: validation.report,
@@ -61,10 +69,15 @@ export function groundedMesh(geometry, { flip = false } = {}) {
   return { stlBytes, extents: [max.x - min.x, max.y - min.y, max.z - min.z] };
 }
 
+// The exporter's binary output is a DataView over a buffer it sized for
+// exactly this mesh, so the buffer itself is the file — no copy needed.
 function exportStlBytesFor(geometry) {
   const mesh = new THREE.Mesh(geometry);
   const data = new STLExporter().parse(mesh, { binary: true });
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  if (data.byteOffset !== 0 || data.byteLength !== data.buffer.byteLength) {
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  }
+  return data.buffer;
 }
 
 // Anchors are stored relative to the part's bounding-box center (the

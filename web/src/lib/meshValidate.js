@@ -157,9 +157,13 @@ function commitFaces(geometry, faces) {
   return buildTopology(geometry.index.array, vertexCount);
 }
 
-// Returns { geometry, ok, report, extents, center }. `geometry` is
-// always indexed and welded, whether or not `ok`; a caller that wants
+// Returns { geometry, ok, report, extents, center, neighbors }. `geometry`
+// is always indexed and welded, whether or not `ok`; a caller that wants
 // to render a rejected mesh for diagnostic purposes still can.
+// `neighbors` (face index -> [neighbouring face indices], in the order
+// of the returned index) is the adjacency this gate ended on, handed
+// out so faceCluster.js's primeNeighbors() can take it over instead of
+// walking every edge again on the first slot click.
 export function validateAndRepair(rawGeometry) {
   const report = [];
 
@@ -269,5 +273,9 @@ export function validateAndRepair(rawGeometry) {
   if (ok && report.length === 0) report.push("Clean — watertight, single solid, no repairs needed.");
   else if (ok) report.push("Passed after repair.");
 
-  return { geometry, ok, report, extents, center };
+  // Every commit above rebuilt `adjacency` from the index it wrote, and
+  // without one the index is still what the adjacency was built from —
+  // so this matches `geometry.index` either way.
+  const neighbors = adjacency.map((links) => links.map((link) => link.face));
+  return { geometry, ok, report, extents, center, neighbors };
 }

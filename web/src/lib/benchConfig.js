@@ -156,17 +156,28 @@ export function hydrateBenchConfig(doc, catalogueById) {
   const importedParts = new Map();
   for (const imp of doc.imports ?? []) {
     const name = imp.name ?? "imported.stl";
+    let bytes;
     let validation;
     try {
-      const rawGeometry = new STLLoader().parse(base64ToBytes(imp.stl));
-      validation = validateAndRepair(rawGeometry);
+      bytes = base64ToBytes(imp.stl);
+      validation = validateAndRepair(new STLLoader().parse(bytes));
     } catch (err) {
       throw new Error(`Couldn't read the embedded mesh "${name}": ${err.message}`);
     }
     if (!validation.ok) {
       throw new Error(`The embedded mesh "${name}" didn't pass validation: ${validation.report.join(" ")}`);
     }
-    const part = createImportedPart(name, validation, imp.anchors);
+    // A mesh the gate had nothing to repair in is the same triangles it
+    // decoded, so those bytes serve as the part's STL as they are, and
+    // the text they came from serves as their base64 — the next save of
+    // this bench re-encodes nothing. (A repaired mesh is re-exported:
+    // its bytes differ from the file's.)
+    let stlBytes = null;
+    if (isUnrepaired(validation)) {
+      stlBytes = bytes;
+      base64ByBuffer.set(bytes, imp.stl);
+    }
+    const part = createImportedPart(name, validation, imp.anchors, { stlBytes });
     importIdMap.set(imp.id, part.id);
     importedParts.set(part.id, part);
   }
@@ -242,16 +253,33 @@ function isVec3(v) {
   return Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && Number.isFinite(x));
 }
 
+// The gate's verdict when the mesh went through untouched: what
+// meshValidate.js reports for a watertight single solid that needed no
+// weld-time triangle drop, no winding fix and no flip.
+function isUnrepaired(validation) {
+  return validation.ok && validation.report.length === 1 && validation.report[0].startsWith("Clean");
+}
+
+// A part's STL bytes never change after import, but the bench they are
+// in is serialised on every change to its imported parts (App.jsx's
+// session mirror, "Download config", presets) — tens of milliseconds a
+// mesh, every time, for the same text. Once per buffer instead.
+const base64ByBuffer = new WeakMap();
+
 // Chunked so a multi-megabyte mesh doesn't blow the argument limit of
 // String.fromCharCode(...bytes).
 function bytesToBase64(buffer) {
+  const cached = base64ByBuffer.get(buffer);
+  if (cached !== undefined) return cached;
   const bytes = new Uint8Array(buffer);
   let binary = "";
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
   }
-  return btoa(binary);
+  const encoded = btoa(binary);
+  base64ByBuffer.set(buffer, encoded);
+  return encoded;
 }
 
 function base64ToBytes(b64) {

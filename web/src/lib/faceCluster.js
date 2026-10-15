@@ -28,6 +28,16 @@ const DEFAULT_PLANE_TOL_MM = 0.05;
 // swapped for another.
 const neighborsByGeometry = new WeakMap();
 
+// The adjacency meshValidate.js's validateAndRepair() already built for
+// the same index: handed over here, the first slot click on a large
+// import costs what every later one does, instead of a second pass over
+// every edge. `neighbors`: face index -> [neighbouring face indices], in
+// the order of `geometry.index` as it is now.
+export function primeNeighbors(geometry, neighbors) {
+  if (!geometry.index || !neighbors) return;
+  neighborsByGeometry.set(geometry, { index: geometry.index, neighbors });
+}
+
 function neighborsFor(geometry) {
   const index = geometry.index;
   const cached = neighborsByGeometry.get(geometry);
