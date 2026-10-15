@@ -55,7 +55,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
     );
   }
 
-  const fastener = drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, coneH });
+  const fastener = drawFastener({ screw, spec, px, through, holeFloorY, pocketDepth, coneH });
 
   return (
     <svg
@@ -112,7 +112,7 @@ function threads(x, y0, y1, w, pitch = 2.4) {
   return lines;
 }
 
-function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, coneH }) {
+function drawFastener({ screw, spec, px, through, holeFloorY, pocketDepth, coneH }) {
   if (!screw || screw.style === "none") return null;
   const parts = [];
   const nominalW = Math.max(1.5, px(screw.nominal));

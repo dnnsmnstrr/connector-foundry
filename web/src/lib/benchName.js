@@ -37,6 +37,7 @@ function partLabel(part, partId) {
 export function safeStem(name) {
   const stem = String(name ?? "")
     .trim()
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
     .replace(/[\\/:*?"<>|\s\u0000-\u001f]+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^[-.]+|[-.]+$/g, "");

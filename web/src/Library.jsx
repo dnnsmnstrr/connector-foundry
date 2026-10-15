@@ -116,6 +116,7 @@ export default function Library({
     setParams(initial);
     doRender(initial);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a sequence counter, not a DOM node: bumping it is how the cleanup invalidates the render in flight
       ++renderSeq.current;
       clearTimeout(paramRenderTimer.current);
       previewController.current?.abort();

@@ -217,6 +217,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       getCachedRender(holedRequestIfKnown(doc, catalogueById, baseExtents, globalOverrides)) !== null;
     const timer = setTimeout(run, cached ? 0 : RENDER_DEBOUNCE_MS);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a sequence counter, not a DOM node: bumping it is how the cleanup invalidates the render in flight
       ++renderSeq.current;
       clearTimeout(timer);
       controller.abort();

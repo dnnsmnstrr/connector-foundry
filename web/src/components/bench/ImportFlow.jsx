@@ -91,7 +91,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       // Several bodies (an assembly, or a part modelled as separate
       // solids): the gate below refuses more than one disconnected
       // solid, so let the user pick before it gets the chance to.
-      const useBodies = (read) => {
+      const acceptBodies = (read) => {
         if (read.length === 0) reject(["No mesh found in this file."]);
         else if (read.length === 1) validate(geometryFromBodies(read), file.name);
         else {
@@ -102,11 +102,11 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       if (isStepFilename(file.name) || looksLikeStep(buffer)) {
         setReadingWhat("STEP");
         setStage("reading");
-        useBodies(await tessellateStep(buffer));
+        acceptBodies(await tessellateStep(buffer));
       } else if (is3mfFilename(file.name) || looksLikeZip(buffer)) {
         setReadingWhat("3MF");
         setStage("reading");
-        useBodies(read3mf(buffer));
+        acceptBodies(read3mf(buffer));
       } else {
         setStage("validating");
         validate(new STLLoader().parse(buffer), file.name);
