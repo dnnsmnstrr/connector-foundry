@@ -21,10 +21,10 @@ wound inward. openGrid's heavy tile has four of them, one per cell,
 where its two back-to-back halves leave a deliberate gap. Counting
 those as separate bodies would fail a part that is perfectly sound.
 """
-import pytest
-import trimesh
 
 import foundry
+import pytest
+import trimesh
 from conftest import render_variant
 
 # Below this a "body" is an export artifact, not geometry.
@@ -35,16 +35,14 @@ def cases():
     return list(foundry.catalogue_cases(foundry.load_catalogue()))
 
 
-@pytest.mark.parametrize("part,params,tag", cases(),
-                         ids=lambda v: v if isinstance(v, str) else "")
+@pytest.mark.parametrize("part,params,tag", cases(), ids=lambda v: v if isinstance(v, str) else "")
 def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
     mesh = trimesh.load(render_variant(part, params, render_dir, tag))
 
     assert mesh.is_winding_consistent, f"{part['id']} [{tag}] has inconsistent winding"
     assert mesh.volume > 0, f"{part['id']} [{tag}] has non-positive volume"
 
-    components = [b for b in mesh.split(only_watertight=False)
-                  if b.area > MIN_BODY_AREA_MM2]
+    components = [b for b in mesh.split(only_watertight=False) if b.area > MIN_BODY_AREA_MM2]
     solids = [b for b in components if b.volume > 0]
     cavities = len(components) - len(solids)
 
@@ -52,4 +50,5 @@ def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
         f"{part['id']} [{tag}] rendered {len(solids)} disconnected solids "
         f"(volumes {sorted(round(b.volume, 2) for b in solids)}), expected 1 — "
         f"this part would print as separate pieces"
-        + (f" ({cavities} sealed internal cavities, which are fine)" if cavities else ""))
+        + (f" ({cavities} sealed internal cavities, which are fine)" if cavities else "")
+    )

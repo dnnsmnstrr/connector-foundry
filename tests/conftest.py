@@ -1,11 +1,11 @@
 """Shared fixtures. `cli/` and `tools/` are on the import path via
 pyproject.toml's [tool.pytest.ini_options] pythonpath, so test modules
 import `foundry`, `refcache` and `verify` directly."""
+
 from pathlib import Path
 
-import pytest
-
 import foundry
+import pytest
 
 
 @pytest.fixture(scope="session")

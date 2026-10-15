@@ -10,6 +10,7 @@ Reference meshes are produced by rendering a recipe through the same
 OpenSCAD binary the rest of the toolchain uses, so a difference in the
 result is a difference in the model rather than in the mesher.
 """
+
 from __future__ import annotations
 
 import functools
@@ -41,8 +42,9 @@ def load() -> dict:
 
 # ---------------------------------------------------------------- sources
 
+
 def _git(*args: str, cwd: Path | None = None) -> str:
-    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    proc = subprocess.run(["git", *args], check=False, cwd=cwd, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RefError(f"git {' '.join(args)} failed:\n{proc.stderr.strip()}")
     return proc.stdout.strip()
@@ -56,8 +58,8 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
         path = REPO_ROOT / spec["path"]
         if not path.is_dir() or not any(path.iterdir()):
             raise RefError(
-                f"submodule {spec['path']} is not checked out — run "
-                f"`git submodule update --init --recursive`")
+                f"submodule {spec['path']} is not checked out — run `git submodule update --init --recursive`"
+            )
         return path
 
     if kind == "file":
@@ -84,9 +86,7 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
         shutil.rmtree(dest)
 
     if offline:
-        raise RefError(
-                f"source {name} is not cached and --offline was given; "
-                f"run `make refs`")
+        raise RefError(f"source {name} is not cached and --offline was given; run `make refs`")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     print(f"  fetching {name} @ {commit[:12]} ...", file=sys.stderr)
@@ -150,8 +150,7 @@ def _download(url: str, sha256: str, dest: Path) -> Path:
         raise RefError(f"could not download {url}: {exc}") from exc
     got = hashlib.sha256(payload).hexdigest()
     if got != sha256:
-        raise RefError(
-            f"checksum mismatch for {url}\n  expected {sha256}\n  got      {got}")
+        raise RefError(f"checksum mismatch for {url}\n  expected {sha256}\n  got      {got}")
     # Only a verified payload ever lands at `dest`: the existence check in
     # _resolve_file_source() is the cache, so a partial write there would
     # be served as the reference forever after.
@@ -176,7 +175,8 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
         if not source.exists():
             raise RefError(
                 f"source {name}: {spec['path']} not found. This source is a "
-                f"file you supply yourself — see references.yaml.")
+                f"file you supply yourself — see references.yaml."
+            )
     else:
         url, sha256 = spec.get("url"), spec.get("sha256")
         if not (url and sha256):
@@ -184,9 +184,7 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
         source = FILES_CACHE / f"{name}{Path(url).suffix}"
         if not source.exists():
             if offline:
-                raise RefError(
-                f"source {name} is not cached and --offline was given; "
-                f"run `make refs`")
+                raise RefError(f"source {name} is not cached and --offline was given; run `make refs`")
             _download(url, sha256, source)
 
     suffix = source.suffix.lower()
@@ -218,9 +216,7 @@ def _load_cad(source: Path, suffix: str):
         try:
             import cascadio
         except ImportError as exc:  # pragma: no cover - depends on the install
-            raise RefError(
-                "reading STEP needs the `cascadio` package: "
-                "pip install -e '.[dev]'") from exc
+            raise RefError("reading STEP needs the `cascadio` package: pip install -e '.[dev]'") from exc
         glb = MESH_CACHE / f".{source.stem}.glb"
         MESH_CACHE.mkdir(parents=True, exist_ok=True)
         cascadio.step_to_glb(str(source), str(glb), tol_linear=0.01, tol_angular=0.05)
@@ -238,6 +234,7 @@ def _load_cad(source: Path, suffix: str):
 
 
 # ---------------------------------------------------------------- render
+
 
 def expand(recipe: str, roots: dict[str, Path]) -> str:
     """Resolve {repo} / {source-name} placeholders to absolute paths."""
@@ -277,13 +274,16 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def render(recipe: str, roots: dict[str, Path], tag: str,
-           openscad_path: list[Path] | None = None,
-           expanded: bool = False) -> Path:
+def render(
+    recipe: str,
+    roots: dict[str, Path],
+    tag: str,
+    openscad_path: list[Path] | None = None,
+    expanded: bool = False,
+) -> Path:
     """Render a .scad recipe to STL, cached on recipe + source state."""
     source = recipe if expanded else expand(recipe, roots)
-    key = hashlib.sha256(
-        (source + source_fingerprint()).encode()).hexdigest()[:16]
+    key = hashlib.sha256((source + source_fingerprint()).encode()).hexdigest()[:16]
     out = MESH_CACHE / f"{tag}-{key}.stl"
     if out.exists():
         return out
@@ -294,11 +294,10 @@ def render(recipe: str, roots: dict[str, Path], tag: str,
 
     env = None
     if openscad_path:
-        env = {**os.environ,
-               "OPENSCADPATH": ":".join(str(p) for p in openscad_path)}
+        env = {**os.environ, "OPENSCADPATH": ":".join(str(p) for p in openscad_path)}
 
     cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out), str(scad)]
-    proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
+    proc = subprocess.run(cmd, check=False, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
     scad.unlink(missing_ok=True)
     # An empty result is an error to openscad but a legitimate answer
     # here: an intersection check *wants* the overlap to be empty.
@@ -340,12 +339,22 @@ def compose_intersection(a: str, b: str) -> str:
     a_head, a_body = _split_includes(a)
     b_head, b_body = _split_includes(b)
     heads = list(dict.fromkeys(a_head + b_head))
-    return "\n".join([
-        *heads, "",
-        "module __fit_a() {", *a_body, "}", "",
-        "module __fit_b() {", *b_body, "}", "",
-        "intersection() { __fit_a(); __fit_b(); }", "",
-    ])
+    return "\n".join(
+        [
+            *heads,
+            "",
+            "module __fit_a() {",
+            *a_body,
+            "}",
+            "",
+            "module __fit_b() {",
+            *b_body,
+            "}",
+            "",
+            "intersection() { __fit_a(); __fit_b(); }",
+            "",
+        ]
+    )
 
 
 def sync(offline: bool = False) -> dict[str, Path]:

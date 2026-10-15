@@ -18,6 +18,8 @@ dependencies = [
 # cascadio: STEP -> mesh, for supplier CAD references (see references.yaml).
 dev = [
     "pytest>=8.0",
+    # Lint + format; `make lint` / `make format`. Config is [tool.ruff] below.
+    "ruff>=0.15",
     "rtree>=1.0",
     "scipy>=1.11",
     "shapely>=2.0",
@@ -39,6 +41,27 @@ testpaths = ["tests"]
 # not packages; this is what lets the tests `import foundry` and
 # `import refcache` without every file editing sys.path first.
 pythonpath = ["cli", "tools"]
+
+[tool.ruff]
+# Matches web/.prettierrc's printWidth, so both halves of the repo wrap alike.
+line-length = 110
+target-version = "py310"
+# vendor/ is upstream code and refs/ a fetched cache; neither is ours to lint.
+extend-exclude = ["vendor", "refs", "web"]
+
+[tool.ruff.lint]
+# pyflakes + pycodestyle errors, then the bug-finding sets: bugbear (B),
+# pyupgrade (UP), import order (I), ruff's own (RUF), and subprocess.run
+# without check= (PLW1510) — every openscad/git call here checks the
+# return code by hand, and saying check=False makes that a decision.
+select = ["E", "W", "F", "B", "UP", "I", "RUF", "PIE", "C4", "PLE", "PLW1510"]
+ignore = [
+    # typer's CLI idiom is `opt: str = typer.Option(...)` in the signature.
+    "B008",
+    # The formatter wraps code; what is left over 110 is a string or comment
+    # that reads worse broken.
+    "E501",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

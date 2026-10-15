@@ -8,11 +8,11 @@ references.yaml and tests/test_reference.py.
 
 Regenerate after an intended change:  foundry goldens --update
 """
+
+import foundry
 import pytest
 import trimesh
 import yaml
-
-import foundry
 from conftest import render_variant
 
 BBOX_TOL_MM = 0.05
@@ -27,15 +27,13 @@ def cases():
 
 def test_every_catalogue_entry_is_recorded():
     """A part with no recorded dimensions is a part nothing is watching."""
-    missing = [f"{part['id']} [{tag}]" for part, _, tag in cases()
-               if tag not in GOLDEN.get(part["id"], {})]
+    missing = [f"{part['id']} [{tag}]" for part, _, tag in cases() if tag not in GOLDEN.get(part["id"], {})]
     assert not missing, (
-        "no recorded dimensions for: " + ", ".join(missing)
-        + " — run `foundry goldens --update`")
+        "no recorded dimensions for: " + ", ".join(missing) + " — run `foundry goldens --update`"
+    )
 
 
-@pytest.mark.parametrize("part,params,tag", cases(),
-                         ids=lambda v: v if isinstance(v, str) else "")
+@pytest.mark.parametrize("part,params,tag", cases(), ids=lambda v: v if isinstance(v, str) else "")
 def test_recorded_dimensions(part, params, tag, render_dir):
     expected = GOLDEN.get(part["id"], {}).get(tag)
     if expected is None:
@@ -43,11 +41,12 @@ def test_recorded_dimensions(part, params, tag, render_dir):
 
     mesh = trimesh.load(render_variant(part, params, render_dir, tag))
 
-    for axis, (actual, want) in enumerate(zip(mesh.extents, expected["bbox"])):
+    for axis, (actual, want) in enumerate(zip(mesh.extents, expected["bbox"], strict=True)):
         assert actual == pytest.approx(want, abs=BBOX_TOL_MM), (
             f"{part['id']} [{tag}] bbox {list(mesh.extents)} != recorded "
-            f"{expected['bbox']} on axis {'xyz'[axis]}")
+            f"{expected['bbox']} on axis {'xyz'[axis]}"
+        )
 
     assert mesh.volume == pytest.approx(expected["volume_mm3"], rel=VOLUME_TOL_PCT / 100), (
-        f"{part['id']} [{tag}] volume {mesh.volume:.2f} != recorded "
-        f"{expected['volume_mm3']}")
+        f"{part['id']} [{tag}] volume {mesh.volume:.2f} != recorded {expected['volume_mm3']}"
+    )

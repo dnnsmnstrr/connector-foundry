@@ -20,12 +20,12 @@ hard-fails a render that anchors to an unknown name (attachments.scad:
 grid's edge can be checked precisely: the outermost declared slot must
 render, and one step further out must not.
 """
+
 import math
 
+import foundry
 import pytest
 import trimesh
-
-import foundry
 from conftest import render_variant
 
 TOL_MM = 0.01

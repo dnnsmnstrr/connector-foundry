@@ -12,10 +12,10 @@ face lands exactly on the origin. This is what catches the class of bug
 where a wrapper inherits an upstream module that centres itself on
 something other than its own bounding box.
 """
-import pytest
-import trimesh
 
 import foundry
+import pytest
+import trimesh
 from conftest import render_variant
 
 TOL_MM = 0.001
@@ -24,9 +24,12 @@ OFFSET_TOL_MM = 0.005
 
 # anchor name -> (axis, which bound must be zero)
 FACES = {
-    "BOTTOM": (2, 0), "TOP": (2, 1),
-    "LEFT": (0, 0), "RIGHT": (0, 1),
-    "FWD": (1, 0), "BACK": (1, 1),
+    "BOTTOM": (2, 0),
+    "TOP": (2, 1),
+    "LEFT": (0, 0),
+    "RIGHT": (0, 1),
+    "FWD": (1, 0),
+    "BACK": (1, 1),
 }
 
 
@@ -38,8 +41,11 @@ def _cases():
     """Every part at its defaults, plus every variant of a part whose
     mount_offset depends on its parameters — the variants are where
     such an offset changes, so they are where its rule gets checked."""
-    return [(part, params, tag) for part, params, tag in foundry.catalogue_cases(foundry.load_catalogue())
-            if tag == "default" or isinstance(part.get("mount_offset"), dict)]
+    return [
+        (part, params, tag)
+        for part, params, tag in foundry.catalogue_cases(foundry.load_catalogue())
+        if tag == "default" or isinstance(part.get("mount_offset"), dict)
+    ]
 
 
 @pytest.mark.parametrize("part,params,tag", _cases(), ids=lambda v: v if isinstance(v, str) else "")
@@ -63,16 +69,22 @@ def test_named_anchors_sit_where_the_catalogue_says(part, params, tag, render_di
     ox, oy = foundry.mount_offset(part, params)
     names = ["mount"] + (["bot"] if "bot" in part.get("anchors", []) else [])
     for name in names:
-        mesh = trimesh.load(render_variant(part, {**params, "anchor": name}, render_dir, f"anchor-{name}-{tag}"))
+        mesh = trimesh.load(
+            render_variant(part, {**params, "anchor": name}, render_dir, f"anchor-{name}-{tag}")
+        )
         center = (mesh.bounds[0] + mesh.bounds[1]) / 2
-        assert center[0] == pytest.approx(-ox, abs=OFFSET_TOL_MM) and center[1] == pytest.approx(-oy, abs=OFFSET_TOL_MM), (
+        assert center[0] == pytest.approx(-ox, abs=OFFSET_TOL_MM) and center[1] == pytest.approx(
+            -oy, abs=OFFSET_TOL_MM
+        ), (
             f"{part['id']} [{tag}] anchored {name!r}: the anchor sits at ({-center[0]:.3f}, {-center[1]:.3f}) from "
             f"the bounding-box center, but the catalogue's mount_offset evaluates to {[ox, oy]} — the web editor "
-            f"would draw its marker in the wrong place")
+            f"would draw its marker in the wrong place"
+        )
         face_z = mesh.bounds[1][2] if name == "mount" else mesh.bounds[0][2]
         assert face_z == pytest.approx(0.0, abs=TOL_MM), (
             f"{part['id']} [{tag}] anchored {name!r}: expected that anchor on the "
-            f"{'top' if name == 'mount' else 'bottom'} face, but the face sits at z={face_z:.4f}")
+            f"{'top' if name == 'mount' else 'bottom'} face, but the face sits at z={face_z:.4f}"
+        )
 
 
 @pytest.mark.parametrize("part", _parts(), ids=lambda p: p["id"])

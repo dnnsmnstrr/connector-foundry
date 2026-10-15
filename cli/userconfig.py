@@ -24,6 +24,7 @@ override on one developer's machine would otherwise make
 test_dimensions fail confusingly there and pass in CI, which is
 exactly the class of bug this file exists to avoid.
 """
+
 from __future__ import annotations
 
 import json

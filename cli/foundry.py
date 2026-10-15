@@ -18,6 +18,7 @@ everything above the `# CLI` marker has no typer in its signatures and
 raises OpenSCADError (a render failed) or typer.BadParameter (the input
 named something that does not exist) rather than exiting the process.
 """
+
 from __future__ import annotations
 
 import functools
@@ -31,9 +32,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import typer
-import yaml
-
 import userconfig
+import yaml
 
 app = typer.Typer(add_completion=False, help=__doc__)
 
@@ -58,6 +58,7 @@ class OpenSCADError(RuntimeError):
 
 
 # ------------------------------------------------------------- catalogue
+
 
 def load_catalogue() -> dict:
     return yaml.safe_load(CATALOGUE_PATH.read_text())
@@ -109,6 +110,7 @@ def mount_offset(part: dict, params: dict[str, object] | None = None) -> tuple[f
 
 # ------------------------------------------------------- OpenSCAD values
 
+
 class Raw(str):
     """A value to emit into OpenSCAD verbatim rather than as a string.
 
@@ -150,7 +152,8 @@ def parse_scalar(raw: str):
 
 # ------------------------------------------------------------ signatures
 
-@functools.lru_cache(maxsize=None)
+
+@functools.cache
 def _module_parameters(scad_file: str, module: str) -> tuple[str, ...]:
     source = (REPO_ROOT / scad_file).read_text()
     match = re.search(rf"\bmodule\s+{re.escape(module)}\s*\(", source)
@@ -165,7 +168,7 @@ def _module_parameters(scad_file: str, module: str) -> tuple[str, ...]:
     while depth and index < len(source):
         depth += {"(": 1, "[": 1, ")": -1, "]": -1}.get(source[index], 0)
         index += 1
-    signature = source[start:index - 1]
+    signature = source[start : index - 1]
 
     names, depth, token = [], 0, ""
     for char in signature + ",":
@@ -222,8 +225,7 @@ def check_settings(overrides: dict[str, object]) -> None:
         raise typer.BadParameter(f"not a constant in lib/constants.scad: {', '.join(unknown)}")
     detail = overrides.get("CIRCLE_DETAIL")
     if detail is not None and detail not in circle_details():
-        raise typer.BadParameter(
-            f"CIRCLE_DETAIL={detail!r} is not one of {', '.join(circle_details())}")
+        raise typer.BadParameter(f"CIRCLE_DETAIL={detail!r} is not one of {', '.join(circle_details())}")
 
 
 def check_parameters(part: dict, overrides: dict[str, object]) -> None:
@@ -234,7 +236,8 @@ def check_parameters(part: dict, overrides: dict[str, object]) -> None:
         raise typer.BadParameter(
             f"{part['id']}: {', '.join(repr(k) for k in unknown)} "
             f"{'is not a parameter' if len(unknown) == 1 else 'are not parameters'} "
-            f"of {part['module']}(). Accepts: {', '.join(known)}")
+            f"of {part['module']}(). Accepts: {', '.join(known)}"
+        )
 
 
 def check_options(part: dict, params: dict[str, object]) -> None:
@@ -248,8 +251,8 @@ def check_options(part: dict, params: dict[str, object]) -> None:
         value = params.get(key)
         if value is not None and value not in allowed:
             raise typer.BadParameter(
-                f"{part['id']}: {key}={value!r} is not one of "
-                + ", ".join(repr(a) for a in allowed))
+                f"{part['id']}: {key}={value!r} is not one of " + ", ".join(repr(a) for a in allowed)
+            )
 
 
 def check_minimums(part: dict, params: dict[str, object]) -> None:
@@ -283,6 +286,7 @@ def resolve_params(part: dict, overrides: dict[str, object], use_user_config: bo
 
 # ------------------------------------------------------------- rendering
 
+
 def openscad_env() -> dict[str, str]:
     """vendor/ on the OpenSCAD library path.
 
@@ -295,8 +299,9 @@ def openscad_env() -> dict[str, str]:
     return {**os.environ, "OPENSCADPATH": str(REPO_ROOT / "vendor")}
 
 
-def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object],
-                 extra_args: Sequence[str] = ()) -> None:
+def run_openscad(
+    scad_file: Path, out_file: Path, params: dict[str, object], extra_args: Sequence[str] = ()
+) -> None:
     """Render `scad_file` to `out_file` (format by extension) with each
     param passed as a -D override. Raises OpenSCADError on failure."""
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -305,22 +310,23 @@ def run_openscad(scad_file: Path, out_file: Path, params: dict[str, object],
         cmd += ["-D", f"{key}={openscad_value(value)}"]
     cmd.append(str(scad_file))
     try:
-        result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True,
-                                env=openscad_env())
+        result = subprocess.run(
+            cmd, check=False, cwd=REPO_ROOT, capture_output=True, text=True, env=openscad_env()
+        )
     except FileNotFoundError as exc:
         raise OpenSCADError(
             f"{OPENSCAD_BIN!r} not found. Install an OpenSCAD dev snapshot (the "
-            f"Manifold backend needs one) or point OPENSCAD_BIN at it.") from exc
+            f"Manifold backend needs one) or point OPENSCAD_BIN at it."
+        ) from exc
     if result.returncode != 0:
-        raise OpenSCADError(
-            result.stderr.strip() or f"openscad exited {result.returncode} without output")
+        raise OpenSCADError(result.stderr.strip() or f"openscad exited {result.returncode} without output")
 
 
 def stub_source(part: dict, params: dict[str, object]) -> str:
     """The two-line .scad that renders one catalogue part: include its
     file, call its module with these parameters."""
     call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
-    return f'include <{REPO_ROOT / part["file"]}>\n{part["module"]}({call_args});\n'
+    return f"include <{REPO_ROOT / part['file']}>\n{part['module']}({call_args});\n"
 
 
 @contextmanager
@@ -337,8 +343,9 @@ def _stub_file(part: dict, params: dict[str, object], out_dir: Path) -> Iterator
         stub.unlink(missing_ok=True)
 
 
-def render_part(part: dict, overrides: dict[str, object], out_dir: Path,
-                use_user_config: bool = False) -> Path:
+def render_part(
+    part: dict, overrides: dict[str, object], out_dir: Path, use_user_config: bool = False
+) -> Path:
     """Render one catalogue part to <out_dir>/<slug>.stl and return that path."""
     params = resolve_params(part, overrides, use_user_config)
     check_options(part, params)
@@ -360,9 +367,11 @@ def render_preview(part: dict, out_dir: Path) -> Path:
 
 # =================================================================== CLI
 
+
 def _exits_on_render_failure(command):
     """A failed render is an error message and exit status 1, not a
     traceback. Library callers (the tests) still get the exception."""
+
     @functools.wraps(command)
     def wrapper(*args, **kwargs):
         try:
@@ -370,6 +379,7 @@ def _exits_on_render_failure(command):
         except OpenSCADError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
+
     return wrapper
 
 
@@ -406,8 +416,7 @@ def list_parts():
             # Licence varies per part now that some wrap non-MIT
             # upstreams, so it belongs next to the part, not in a footnote.
             licence = part.get("license", "MIT")
-            typer.echo(f"  {part['id']:<28} [{part['confidence']:<10}] "
-                       f"{licence:<15} {part['name']}")
+            typer.echo(f"  {part['id']:<28} [{part['confidence']:<10}] {licence:<15} {part['name']}")
 
 
 @app.command("render")
@@ -419,13 +428,18 @@ def render(
     magnets: bool = typer.Option(None),
     screws: bool = typer.Option(None),
     set_: list[str] = typer.Option(
-        None, "--set", metavar="KEY=VALUE",
-        help="Any other module parameter, repeatable: --set thumbscrew=true"),
+        None,
+        "--set",
+        metavar="KEY=VALUE",
+        help="Any other module parameter, repeatable: --set thumbscrew=true",
+    ),
     out: Path = typer.Option(Path("out"), "-o", "--out"),
     no_user_config: bool = typer.Option(
-        False, "--no-user-config",
+        False,
+        "--no-user-config",
         help="Ignore saved `foundry defaults`/`foundry settings` and render at "
-             "true catalogue values plus only what's passed here — what CI does."),
+        "true catalogue values plus only what's passed here — what CI does.",
+    ),
 ):
     """Render one catalogue part to STL.
 
@@ -440,15 +454,18 @@ def render(
     typer.echo(f"wrote {stl_path}")
 
 
-defaults_app = typer.Typer(add_completion=False, help=(
-    "Persisted per-part parameter overrides, layered between catalogue.yaml's "
-    "committed defaults and a single `render` call's flags — 'gridfinity should "
-    "always have magnet holes on'. Applied automatically by `foundry render` "
-    "(pass --no-user-config to skip); never applied to build/preview/goldens or "
-    "the test suite, which always reflect true catalogue.yaml defaults. Saved as "
-    "OpenSCAD Customizer JSON under ~/.config/connector-foundry/overrides/, one "
-    "file per part, so it also opens as a parameter set in the OpenSCAD GUI."
-))
+defaults_app = typer.Typer(
+    add_completion=False,
+    help=(
+        "Persisted per-part parameter overrides, layered between catalogue.yaml's "
+        "committed defaults and a single `render` call's flags — 'gridfinity should "
+        "always have magnet holes on'. Applied automatically by `foundry render` "
+        "(pass --no-user-config to skip); never applied to build/preview/goldens or "
+        "the test suite, which always reflect true catalogue.yaml defaults. Saved as "
+        "OpenSCAD Customizer JSON under ~/.config/connector-foundry/overrides/, one "
+        "file per part, so it also opens as a parameter set in the OpenSCAD GUI."
+    ),
+)
 app.add_typer(defaults_app, name="defaults")
 
 
@@ -481,14 +498,15 @@ def defaults_show(part_id: str = typer.Argument(..., help="Catalogue id, e.g. gr
     user = userconfig.get_overrides(part_id)
     typer.echo(f"catalogue default: {catalogue_defaults}")
     typer.echo(f"user override:     {user or '(none)'}")
-    typer.echo(f"effective:         {({**catalogue_defaults, **user})}")
+    typer.echo(f"effective:         { ({**catalogue_defaults, **user}) }")
 
 
 @defaults_app.command("clear")
 def defaults_clear(
     part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
     param: list[str] = typer.Option(
-        None, "--param", help="Clear only these; omit to clear every saved override for this part."),
+        None, "--param", help="Clear only these; omit to clear every saved override for this part."
+    ),
 ):
     """Forget this part's saved user defaults (all, or just --param ones)."""
     userconfig.clear_overrides(part_id, param or None)
@@ -507,12 +525,15 @@ def defaults_list():
         typer.echo(f"{part_id}: {userconfig.get_overrides(part_id)}")
 
 
-settings_app = typer.Typer(add_completion=False, help=(
-    "Persisted printer-level overrides — constants from lib/constants.scad, "
-    "e.g. fit clearance ('my printer runs tight'). Same override layer and "
-    "storage mechanism as `defaults`, just not scoped to one part: applied to "
-    "every render regardless of which part it is."
-))
+settings_app = typer.Typer(
+    add_completion=False,
+    help=(
+        "Persisted printer-level overrides — constants from lib/constants.scad, "
+        "e.g. fit clearance ('my printer runs tight'). Same override layer and "
+        "storage mechanism as `defaults`, just not scoped to one part: applied to "
+        "every render regardless of which part it is."
+    ),
+)
 app.add_typer(settings_app, name="settings")
 
 
@@ -520,11 +541,12 @@ app.add_typer(settings_app, name="settings")
 def settings_set(
     fit_clearance: float = typer.Option(None, help="Shorthand for --set FIT_CLEARANCE=..."),
     circle_detail: str = typer.Option(
-        None, help="How finely curves are faceted: draft, normal or fine. "
-                   "Shorthand for --set CIRCLE_DETAIL=..."),
+        None,
+        help="How finely curves are faceted: draft, normal or fine. Shorthand for --set CIRCLE_DETAIL=...",
+    ),
     set_: list[str] = typer.Option(
-        None, "--set", metavar="NAME=VALUE",
-        help="Any constant from lib/constants.scad, repeatable."),
+        None, "--set", metavar="NAME=VALUE", help="Any constant from lib/constants.scad, repeatable."
+    ),
 ):
     """Save (merging into any already saved) printer-level constants."""
     overrides = parse_set_items(set_, metavar="NAME=VALUE")
@@ -549,7 +571,8 @@ def settings_show():
 @settings_app.command("clear")
 def settings_clear(
     param: list[str] = typer.Option(
-        None, "--param", help="Clear only these; omit to clear every saved global setting."),
+        None, "--param", help="Clear only these; omit to clear every saved global setting."
+    ),
 ):
     """Forget saved printer-level constants (all, or just --param ones)."""
     userconfig.clear_global_overrides(param or None)
@@ -571,7 +594,9 @@ def build(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Pa
 
 @app.command("preview")
 @_exits_on_render_failure
-def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Path("docs/img"), "-o", "--out")):
+def preview(
+    all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(Path("docs/img"), "-o", "--out")
+):
     """Render a PNG per catalogue entry, for the README gallery."""
     catalogue = load_catalogue()
     if not all_:
@@ -584,8 +609,7 @@ def preview(all_: bool = typer.Option(False, "--all"), out: Path = typer.Option(
 
 @app.command("goldens")
 @_exits_on_render_failure
-def goldens(update: bool = typer.Option(False, "--update",
-                                        help="rewrite tests/golden/dimensions.yaml")):
+def goldens(update: bool = typer.Option(False, "--update", help="rewrite tests/golden/dimensions.yaml")):
     """Show, or regenerate, the recorded bounding box and volume per part.
 
     These are a change detector, not a correctness claim: they catch a
@@ -604,9 +628,11 @@ def goldens(update: bool = typer.Option(False, "--update",
                 "bbox": [round(float(v), 3) for v in mesh.extents],
                 "volume_mm3": round(float(mesh.volume), 2),
             }
-            typer.echo(f"{part['id']:<28} {tag:<24} "
-                       f"{[round(float(v), 2) for v in mesh.extents]} "
-                       f"{mesh.volume:.2f}mm3")
+            typer.echo(
+                f"{part['id']:<28} {tag:<24} "
+                f"{[round(float(v), 2) for v in mesh.extents]} "
+                f"{mesh.volume:.2f}mm3"
+            )
 
     if update:
         GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -617,7 +643,8 @@ def goldens(update: bool = typer.Option(False, "--update",
             "# moving when nobody meant to move it. It does NOT say a part is\n"
             "# correct — a wrong part has a perfectly stable bounding box.\n"
             "# Correctness lives in references.yaml (`make verify`).\n"
-            + yaml.safe_dump(recorded, sort_keys=True))
+            + yaml.safe_dump(recorded, sort_keys=True)
+        )
         typer.echo(f"\nwrote {GOLDEN_PATH.relative_to(REPO_ROOT)}")
 
 
@@ -625,8 +652,10 @@ def goldens(update: bool = typer.Option(False, "--update",
 def readme():
     """Regenerate the catalogue table in README.md from catalogue.yaml."""
     catalogue = load_catalogue()
-    lines = ["| Part | System | Confidence | Licence | Source | Print note |",
-             "| --- | --- | --- | --- | --- | --- |"]
+    lines = [
+        "| Part | System | Confidence | Licence | Source | Print note |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
     for part in catalogue["parts"]:
         # `hidden` parts (bitbeam/pin, bitbeam/axle) exist for the Bench's
         # pin joint and the CLI, not for the gallery — same rule as the
@@ -634,15 +663,13 @@ def readme():
         if part.get("hidden"):
             continue
         img = f"docs/img/{slug(part['id'])}.png"
-        cell = (f"![{part['name']}]({img})<br>{part['name']}"
-                if (REPO_ROOT / img).exists() else part["name"])
+        cell = f"![{part['name']}]({img})<br>{part['name']}" if (REPO_ROOT / img).exists() else part["name"]
         licence = part.get("license", "MIT")
         source = " ".join(part["source"].split())
         if part.get("source_url"):
             source = f"[{source}]({part['source_url']})"
         note = " ".join(part["print_note"].split())
-        lines.append(f"| {cell} | {part['system']} | {part['confidence']} "
-                     f"| {licence} | {source} | {note} |")
+        lines.append(f"| {cell} | {part['system']} | {part['confidence']} | {licence} | {source} | {note} |")
     table = "\n".join(lines)
 
     readme_path = REPO_ROOT / "README.md"

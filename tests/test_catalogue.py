@@ -7,10 +7,10 @@ is a warning, not an error, and the render proceeds with the default. So
 a typo in this file does not fail anywhere — it quietly produces the
 wrong part, and every test that only checks the part renders will pass.
 """
-import pytest
-import typer
 
 import foundry
+import pytest
+import typer
 
 # The face anchors web/src/lib/slots.js knows how to place — the only
 # names catalogue.yaml's `anchors` field may use (see FACE_ANCHOR_LOCAL).
@@ -43,7 +43,8 @@ def test_declared_parameters_exist_on_the_module():
                 if key not in known:
                     problems.append(
                         f"{part['id']} [{where}]: {key!r} is not a parameter of "
-                        f"{part['module']}() — it accepts {sorted(known)}")
+                        f"{part['module']}() — it accepts {sorted(known)}"
+                    )
     assert not problems, "\n".join(problems)
 
 
@@ -60,18 +61,18 @@ def test_option_lists_agree_with_defaults_and_variants():
             if key not in defaults:
                 problems.append(f"{part['id']}: options list {key!r}, which has no default")
             elif defaults[key] not in allowed:
-                problems.append(
-                    f"{part['id']}: default {key}={defaults[key]!r} is not in {allowed}")
+                problems.append(f"{part['id']}: default {key}={defaults[key]!r} is not in {allowed}")
         for variant in part.get("variants", []):
             for key, value in variant["params"].items():
                 if key in options and value not in options[key]:
                     problems.append(
-                        f"{part['id']} [{variant['name']}]: {key}={value!r} "
-                        f"is not in {options[key]}")
+                        f"{part['id']} [{variant['name']}]: {key}={value!r} is not in {options[key]}"
+                    )
         # `attached_up` is an [x, y] axis the Bench turns up on a side face.
         up = part.get("attached_up")
         if up is not None and not (
-                isinstance(up, list) and len(up) == 2 and all(_is_mm(v) for v in up) and any(up)):
+            isinstance(up, list) and len(up) == 2 and all(_is_mm(v) for v in up) and any(up)
+        ):
             problems.append(f"{part['id']}: attached_up must be a non-zero [x, y], got {up!r}")
         # `attached_defaults` is the same kind of promise as `defaults`:
         # the Bench hands these values to the module unchecked.
@@ -79,8 +80,7 @@ def test_option_lists_agree_with_defaults_and_variants():
             if key not in defaults:
                 problems.append(f"{part['id']}: attached_defaults {key!r} has no default")
             elif key in options and value not in options[key]:
-                problems.append(
-                    f"{part['id']}: attached default {key}={value!r} is not in {options[key]}")
+                problems.append(f"{part['id']}: attached default {key}={value!r} is not in {options[key]}")
     assert not problems, "\n".join(problems)
 
 
@@ -93,8 +93,10 @@ def test_limits_hold_for_defaults_and_variants():
         defaults = part.get("defaults", {})
         values = [("default", defaults), ("attached default", part.get("attached_defaults", {}))]
         values += [(f"variant {v['name']}", v["params"]) for v in part.get("variants", [])]
-        for kind, limits, outside in (("minimum", part.get("minimums", {}), lambda v, lim: v < lim),
-                                      ("maximum", part.get("maximums", {}), lambda v, lim: v > lim)):
+        for kind, limits, outside in (
+            ("minimum", part.get("minimums", {}), lambda v, lim: v < lim),
+            ("maximum", part.get("maximums", {}), lambda v, lim: v > lim),
+        ):
             for key, limit in limits.items():
                 if not _is_mm(limit):
                     problems.append(f"{part['id']}: {kind} {key}={limit!r} is not a number")
@@ -103,7 +105,9 @@ def test_limits_hold_for_defaults_and_variants():
                     problems.append(f"{part['id']}: {kind} for {key!r}, which has no number default")
                 for where, params in values:
                     if key in params and _is_mm(params[key]) and outside(params[key], limit):
-                        problems.append(f"{part['id']} [{where}]: {key}={params[key]} is outside its {kind} {limit}")
+                        problems.append(
+                            f"{part['id']} [{where}]: {key}={params[key]} is outside its {kind} {limit}"
+                        )
         for key, ceiling in part.get("maximums", {}).items():
             floor = part.get("minimums", {}).get(key)
             if _is_mm(floor) and _is_mm(ceiling) and floor > ceiling:
@@ -114,14 +118,14 @@ def test_limits_hold_for_defaults_and_variants():
 def test_check_minimums_rejects_a_value_under_the_floor():
     female = next(p for p in _parts() if p["id"] == "gopro/female")
     foundry.check_minimums(female, {"outer_w": 3})
-    with pytest.raises(typer.BadParameter, match="outer_w=2.5 is under its minimum of 3"):
+    with pytest.raises(typer.BadParameter, match=r"outer_w=2\.5 is under its minimum of 3"):
         foundry.check_minimums(female, {"outer_w": 2.5})
 
 
 def test_check_minimums_rejects_a_value_over_the_ceiling():
     male = next(p for p in _parts() if p["id"] == "gopro/male")
     foundry.check_minimums(male, {"leg_dia": 20})
-    with pytest.raises(typer.BadParameter, match="leg_dia=20.5 is over its maximum of 20"):
+    with pytest.raises(typer.BadParameter, match=r"leg_dia=20\.5 is over its maximum of 20"):
         foundry.check_minimums(male, {"leg_dia": 20.5})
 
 
@@ -138,7 +142,9 @@ def test_slot_count_params_are_real_defaults():
         if not count_params:
             continue
         if len(count_params) != 2:
-            problems.append(f"{part['id']}: slots.count_params must name exactly 2 params, got {count_params!r}")
+            problems.append(
+                f"{part['id']}: slots.count_params must name exactly 2 params, got {count_params!r}"
+            )
             continue
         for key in count_params:
             if key not in part.get("defaults", {}):
@@ -161,7 +167,8 @@ def test_side_slot_params_are_real_parameters():
                 elif name not in known:
                     problems.append(
                         f"{part['id']}: side_slots face {face.get('name')!r} {field}={name!r} "
-                        f"is not a parameter of {part['module']}()")
+                        f"is not a parameter of {part['module']}()"
+                    )
     assert not problems, "\n".join(problems)
 
 
@@ -191,20 +198,32 @@ def _mount_offset_problems(part: dict) -> list[str]:
     for axis, expr in offset.items():
         if _is_mm(expr):
             continue
-        if not isinstance(expr, dict) or "param" not in expr or set(expr) - {"param", "offset", "scale", "unless"}:
-            problems.append(f"{part['id']}: mount_offset.{axis} must be a number or {{param, offset, scale, unless}}, got {expr!r}")
+        if (
+            not isinstance(expr, dict)
+            or "param" not in expr
+            or set(expr) - {"param", "offset", "scale", "unless"}
+        ):
+            problems.append(
+                f"{part['id']}: mount_offset.{axis} must be a number or {{param, offset, scale, unless}}, got {expr!r}"
+            )
             continue
         for field in ("param", "unless"):
             name = expr.get(field)
             if name is None:
                 continue
             if name not in known:
-                problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} is not a parameter of {part['module']}()")
+                problems.append(
+                    f"{part['id']}: mount_offset.{axis} {field}={name!r} is not a parameter of {part['module']}()"
+                )
             elif name not in defaults:
-                problems.append(f"{part['id']}: mount_offset.{axis} {field}={name!r} has no catalogue default to evaluate from")
+                problems.append(
+                    f"{part['id']}: mount_offset.{axis} {field}={name!r} has no catalogue default to evaluate from"
+                )
         for field in ("offset", "scale"):
             if field in expr and not _is_mm(expr[field]):
-                problems.append(f"{part['id']}: mount_offset.{axis} {field} must be a number, got {expr[field]!r}")
+                problems.append(
+                    f"{part['id']}: mount_offset.{axis} {field} must be a number, got {expr[field]!r}"
+                )
     return problems
 
 
