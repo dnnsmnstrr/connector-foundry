@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LAYERLING_CLIPBOARD_PREFIX, layerlingClipboardText, layerlingShapes } from "../../src/lib/layerlingClipboard.js";
+import {
+  LAYERLING_CLIPBOARD_PREFIX,
+  layerlingClipboardText,
+  layerlingShapes,
+} from "../../src/lib/layerlingClipboard.js";
 
 // Binary STL of the given triangles ([[x,y,z] x3] each), as OpenSCAD
 // writes it (Z-up).
@@ -19,8 +23,20 @@ function box(min, max) {
   const [x0, y0, z0] = min;
   const [x1, y1, z1] = max;
   const c = (i) => [i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? z1 : z0];
-  const quads = [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]];
-  return binaryStl(quads.flatMap(([a, b, cc, d]) => [[c(a), c(b), c(cc)], [c(a), c(cc), c(d)]]));
+  const quads = [
+    [0, 2, 3, 1],
+    [4, 5, 7, 6],
+    [0, 1, 5, 4],
+    [2, 6, 7, 3],
+    [0, 4, 6, 2],
+    [1, 3, 7, 5],
+  ];
+  return binaryStl(
+    quads.flatMap(([a, b, cc, d]) => [
+      [c(a), c(b), c(cc)],
+      [c(a), c(cc), c(d)],
+    ]),
+  );
 }
 
 // What Layerling's pasteShape()/parseClipboardShapes() accept: the
@@ -55,7 +71,10 @@ test("turns Z-up into Layerling's Y-up and centres the mesh on its own footprint
   // 30 wide (X), 20 deep (Y), 15 tall (Z), off the origin.
   const [shape] = layerlingShapes([{ name: "Block", stlBuffer: box([5, -40, 2], [35, -20, 17]) }]);
   assert.deepEqual([shape.width, shape.depth, shape.height], [30, 20, 15]);
-  assert.deepEqual([shape.importedMesh.baseWidth, shape.importedMesh.baseDepth, shape.importedMesh.baseHeight], [30, 20, 15]);
+  assert.deepEqual(
+    [shape.importedMesh.baseWidth, shape.importedMesh.baseDepth, shape.importedMesh.baseHeight],
+    [30, 20, 15],
+  );
   const p = shape.importedMesh.positions;
   const axis = (a) => p.filter((_, i) => i % 3 === a);
   assert.deepEqual([Math.min(...axis(0)), Math.max(...axis(0))], [-15, 15]);
@@ -82,7 +101,10 @@ test("skips empty bodies and refuses a copy with nothing in it", () => {
     { name: "Empty", stlBuffer: binaryStl([]) },
     { name: "Cube", stlBuffer: box([0, 0, 0], [5, 5, 5]) },
   ]);
-  assert.deepEqual(shapes.map((s) => s.name), ["Cube"]);
+  assert.deepEqual(
+    shapes.map((s) => s.name),
+    ["Cube"],
+  );
   assert.throws(() => layerlingClipboardText([{ name: "Empty", stlBuffer: binaryStl([]) }]), /no geometry/);
 });
 

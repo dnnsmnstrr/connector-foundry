@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { SIDEBAR_WIDTH_DEFAULT, clampSidebarWidth, getSidebarWidth, setSidebarWidth, subscribeSidebarWidth } from "../../src/lib/uiPrefs.js";
+import {
+  SIDEBAR_WIDTH_DEFAULT,
+  clampSidebarWidth,
+  getSidebarWidth,
+  setSidebarWidth,
+  subscribeSidebarWidth,
+} from "../../src/lib/uiPrefs.js";
 
 test("the sidebar width is held between its limits and whole pixels", () => {
   assert.equal(clampSidebarWidth(100), 220);

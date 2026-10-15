@@ -25,7 +25,9 @@ function occt() {
     occtPromise = occtimportjs({ locateFile: () => wasmUrl });
     // A failed load (offline, blocked fetch) is not cached: the next
     // import retries instead of failing forever with a stale rejection.
-    occtPromise.catch(() => { occtPromise = null; });
+    occtPromise.catch(() => {
+      occtPromise = null;
+    });
   }
   return occtPromise;
 }
@@ -36,7 +38,10 @@ self.onmessage = async (event) => {
     const module = await occt();
     const result = module.ReadStepFile(new Uint8Array(bytes), { ...STEP_TESSELLATION });
     const bodies = bodiesFromOcct(result);
-    self.postMessage({ id, type: "result", bodies }, bodies.map((b) => b.positions.buffer));
+    self.postMessage(
+      { id, type: "result", bodies },
+      bodies.map((b) => b.positions.buffer),
+    );
   } catch (err) {
     self.postMessage({ id, type: "error", message: err?.message ?? String(err) });
   }

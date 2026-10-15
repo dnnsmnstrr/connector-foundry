@@ -259,7 +259,10 @@ export default function StlViewer({
     };
     const onClick = (event) => {
       if (helpersHiddenRef.current) return;
-      if (pointerDownAt && Math.hypot(event.clientX - pointerDownAt[0], event.clientY - pointerDownAt[1]) > CLICK_SLOP_PX) {
+      if (
+        pointerDownAt &&
+        Math.hypot(event.clientX - pointerDownAt[0], event.clientY - pointerDownAt[1]) > CLICK_SLOP_PX
+      ) {
         return;
       }
       setPointer(event);
@@ -321,7 +324,7 @@ export default function StlViewer({
         const hitSet = new Set(markerHits.map((h) => h.object));
         let recolored = false;
         for (const marker of group.children) {
-          const color = hitSet.has(marker) ? MARKER_HOVER_COLOR : marker.userData.color ?? MARKER_COLOR;
+          const color = hitSet.has(marker) ? MARKER_HOVER_COLOR : (marker.userData.color ?? MARKER_COLOR);
           if (marker.material.color.getHex() !== color) {
             marker.material.color.setHex(color);
             recolored = true;
@@ -427,7 +430,8 @@ export default function StlViewer({
     // changed: a Bench part turned in place, or a hole drilled into a
     // plate, leaves the view where the user put it.
     const fit = fitRef.current;
-    const unchanged = fit && fit.center.distanceTo(center) < 0.02 * radius && Math.abs(fit.radius - radius) < 0.02 * radius;
+    const unchanged =
+      fit && fit.center.distanceTo(center) < 0.02 * radius && Math.abs(fit.radius - radius) < 0.02 * radius;
     if (!unchanged) {
       controls.target.copy(center);
       camera.position.set(center.x + radius * 1.6, center.y - radius * 1.6, center.z + radius * 1.6);
@@ -441,7 +445,14 @@ export default function StlViewer({
   }, [stlBuffer, geometry]);
 
   useEffect(() => {
-    callbacksRef.current = { onMarkerClick, placingMode, onSurfacePick, onSurfaceHit, onSurfaceHover, onModelClick };
+    callbacksRef.current = {
+      onMarkerClick,
+      placingMode,
+      onSurfacePick,
+      onSurfaceHit,
+      onSurfaceHover,
+      onModelClick,
+    };
   }, [onMarkerClick, placingMode, onSurfacePick, onSurfaceHit, onSurfaceHover, onModelClick]);
 
   useEffect(() => {
@@ -449,7 +460,10 @@ export default function StlViewer({
     const { scene, requestRender } = sceneRef.current;
     disposeHighlight(scene);
     if (highlightBox) {
-      const box = new THREE.Box3(new THREE.Vector3(...highlightBox.min), new THREE.Vector3(...highlightBox.max));
+      const box = new THREE.Box3(
+        new THREE.Vector3(...highlightBox.min),
+        new THREE.Vector3(...highlightBox.max),
+      );
       // A hair outside the part so the lines don't z-fight its faces.
       box.expandByScalar(HIGHLIGHT_PAD_MM);
       const helper = new THREE.Box3Helper(box, HIGHLIGHT_COLOR);
@@ -494,7 +508,10 @@ export default function StlViewer({
         const key = `${shape}:${radius}`;
         let geom = geometryByRadius.get(key);
         if (!geom) {
-          geom = shape === "ring" ? new THREE.RingGeometry(radius * 0.7, radius, 48) : new THREE.SphereGeometry(radius, 16, 16);
+          geom =
+            shape === "ring"
+              ? new THREE.RingGeometry(radius * 0.7, radius, 48)
+              : new THREE.SphereGeometry(radius, 16, 16);
           geometryByRadius.set(key, geom);
         }
         const color = marker.color ?? MARKER_COLOR;
@@ -534,14 +551,21 @@ export default function StlViewer({
       const byStyle = new Map();
       for (const g of guides) {
         const key = `${g.dashed ? "d" : "s"}:${g.color ?? 0xffffff}`;
-        if (!byStyle.has(key)) byStyle.set(key, { dashed: Boolean(g.dashed), color: g.color ?? 0xffffff, points: [] });
+        if (!byStyle.has(key))
+          byStyle.set(key, { dashed: Boolean(g.dashed), color: g.color ?? 0xffffff, points: [] });
         byStyle.get(key).points.push(...g.a, ...g.b);
       }
       for (const { dashed, color, points } of byStyle.values()) {
         const geom = new THREE.BufferGeometry();
         geom.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
         const material = dashed
-          ? new THREE.LineDashedMaterial({ color, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.7 })
+          ? new THREE.LineDashedMaterial({
+              color,
+              dashSize: 0.8,
+              gapSize: 0.5,
+              transparent: true,
+              opacity: 0.7,
+            })
           : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
         const lines = new THREE.LineSegments(geom, material);
         if (dashed) lines.computeLineDistances();
@@ -604,13 +628,20 @@ export default function StlViewer({
         className="viewer-helpers-toggle"
         aria-pressed={!helpersHidden}
         onClick={() => setHelpersHidden((hidden) => !hidden)}
-        title={helpersHidden ? "Show the grid, markers and guides again (H)" : "Hide the grid, markers, guides and labels to see just the model (H)"}
+        title={
+          helpersHidden
+            ? "Show the grid, markers and guides again (H)"
+            : "Hide the grid, markers, guides and labels to see just the model (H)"
+        }
       >
         <EyeIcon closed={helpersHidden} />
         Helpers
       </button>
       {children && !helpersHidden && (
-        <div ref={overlayRef} className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}>
+        <div
+          ref={overlayRef}
+          className={overlayAnchor ? "viewer-overlay" : "viewer-overlay viewer-overlay-docked"}
+        >
           {children}
         </div>
       )}
@@ -638,7 +669,13 @@ export default function StlViewer({
 function EyeIcon({ closed }) {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-      <path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path
+        d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
       <circle cx="8" cy="8" r="2" fill="currentColor" />
       {closed && <path d="M2.5 13.5l11-11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />}
     </svg>

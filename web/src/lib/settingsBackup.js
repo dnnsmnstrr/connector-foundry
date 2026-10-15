@@ -23,7 +23,9 @@ export const SETTINGS_VERSION = 1;
 export const SETTINGS_EXTENSION = ".settings.json";
 
 export function isAppKey(key) {
-  return typeof key === "string" && (key.startsWith("connector-foundry.") || key.startsWith("connector-foundry:"));
+  return (
+    typeof key === "string" && (key.startsWith("connector-foundry.") || key.startsWith("connector-foundry:"))
+  );
 }
 
 function appKeys(storage) {
@@ -42,7 +44,12 @@ export function exportSettings(storage = window.localStorage) {
     const value = storage.getItem(key);
     if (value !== null) entries[key] = value;
   }
-  return { format: SETTINGS_FORMAT, version: SETTINGS_VERSION, exportedAt: new Date().toISOString(), entries };
+  return {
+    format: SETTINGS_FORMAT,
+    version: SETTINGS_VERSION,
+    exportedAt: new Date().toISOString(),
+    entries,
+  };
 }
 
 export function settingsToJson(doc) {
@@ -63,7 +70,9 @@ export function parseSettings(text) {
     throw new Error("it isn't a Connector Foundry settings file.");
   }
   if (!Number.isInteger(doc.version) || doc.version > SETTINGS_VERSION) {
-    throw new Error("it was made by a newer version of Connector Foundry. Update the app, then import it again.");
+    throw new Error(
+      "it was made by a newer version of Connector Foundry. Update the app, then import it again.",
+    );
   }
   if (!doc.entries || typeof doc.entries !== "object" || Array.isArray(doc.entries)) {
     throw new Error("it has no settings in it.");

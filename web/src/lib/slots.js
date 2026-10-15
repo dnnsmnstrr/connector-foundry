@@ -70,8 +70,12 @@ function gridCounts(part, params, meshExtents) {
 function sideRowLocal(faceName, extents, pitch, i) {
   const rowOnX = faceName === "xpos" || faceName === "xneg";
   const fixed = rowOnX
-    ? (faceName === "xpos" ? extents[0] / 2 : -extents[0] / 2)
-    : (faceName === "ypos" ? extents[1] / 2 : -extents[1] / 2);
+    ? faceName === "xpos"
+      ? extents[0] / 2
+      : -extents[0] / 2
+    : faceName === "ypos"
+      ? extents[1] / 2
+      : -extents[1] / 2;
   return rowOnX ? [fixed, i * pitch, 0] : [i * pitch, fixed, 0];
 }
 

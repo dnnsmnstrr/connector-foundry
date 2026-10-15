@@ -103,13 +103,28 @@ function metric(nominal) {
 }
 
 // ISO 4762 socket head cap: [head diameter, head height]
-const CAP_HEAD = { 2: [3.8, 2], 2.5: [4.5, 2.5], 3: [5.5, 3], 4: [7, 4], 5: [8.5, 5], 6: [10, 6], 8: [13, 8] };
+const CAP_HEAD = {
+  2: [3.8, 2],
+  2.5: [4.5, 2.5],
+  3: [5.5, 3],
+  4: [7, 4],
+  5: [8.5, 5],
+  6: [10, 6],
+  8: [13, 8],
+};
 // ISO 10642 countersunk: head diameter (the actual, not theoretical sharp)
 const CSK_HEAD = { 3: 6.0, 4: 8.0, 5: 10.0, 6: 12.0, 8: 16.0 };
 // ISO 7380 button head: [head diameter, head height]
 const BUTTON_HEAD = { 3: [5.7, 1.65], 4: [7.6, 2.2], 5: [9.5, 2.75], 6: [10.5, 3.3] };
 // Heat-set inserts (common brass, e.g. Ruthex/CNC Kitchen): [bore, length]
-const INSERT = { 2: [3.2, 4.0], 2.5: [3.6, 5.7], 3: [4.0, 5.7], 4: [5.6, 8.1], 5: [6.4, 9.5], 6: [8.0, 12.7] };
+const INSERT = {
+  2: [3.2, 4.0],
+  2.5: [3.6, 5.7],
+  3: [4.0, 5.7],
+  4: [5.6, 8.1],
+  5: [6.4, 9.5],
+  6: [8.0, 12.7],
+};
 // Thread-forming core hole for a machine screw straight into plastic
 const TAP = { 2: 1.6, 2.5: 2.05, 3: 2.5, 4: 3.3, 5: 4.2, 6: 5.0 };
 // ISO 4032 nut: [across flats, thickness]
@@ -125,7 +140,14 @@ function cap(nominal) {
     id: `m${nominal}-cap`,
     name: `M${nominal} socket cap`,
     group: "Socket head cap (ISO 4762)",
-    spec: screw({ diameter: metric(nominal), depth: 0, head: "counterbore", headDiameter: round1(hd + 0.6), headDepth: hh, sinkAngle: 90 }),
+    spec: screw({
+      diameter: metric(nominal),
+      depth: 0,
+      head: "counterbore",
+      headDiameter: round1(hd + 0.6),
+      headDepth: hh,
+      sinkAngle: 90,
+    }),
     screw: { style: "cap", nominal, headDiameter: hd, headHeight: hh },
   };
 }
@@ -136,7 +158,14 @@ function countersunk(nominal) {
     id: `m${nominal}-csk`,
     name: `M${nominal} countersunk`,
     group: "Countersunk (ISO 10642)",
-    spec: screw({ diameter: metric(nominal), depth: 0, head: "countersink", headDiameter: round1(hd + 0.4), headDepth: 0, sinkAngle: 90 }),
+    spec: screw({
+      diameter: metric(nominal),
+      depth: 0,
+      head: "countersink",
+      headDiameter: round1(hd + 0.4),
+      headDepth: 0,
+      sinkAngle: 90,
+    }),
     screw: { style: "flat", nominal, headDiameter: hd, headHeight: (hd - nominal) / 2 },
   };
 }
@@ -147,7 +176,14 @@ function button(nominal) {
     id: `m${nominal}-button`,
     name: `M${nominal} button head`,
     group: "Button head (ISO 7380)",
-    spec: screw({ diameter: metric(nominal), depth: 0, head: "counterbore", headDiameter: round1(hd + 0.6), headDepth: hh, sinkAngle: 90 }),
+    spec: screw({
+      diameter: metric(nominal),
+      depth: 0,
+      head: "counterbore",
+      headDiameter: round1(hd + 0.6),
+      headDepth: hh,
+      sinkAngle: 90,
+    }),
     screw: { style: "button", nominal, headDiameter: hd, headHeight: hh },
   };
 }
@@ -158,7 +194,14 @@ function insert(nominal) {
     id: `m${nominal}-insert`,
     name: `M${nominal} heat-set insert`,
     group: "Heat-set insert",
-    spec: screw({ diameter: bore, depth: round1(length + 1), head: "none", headDiameter: 0, headDepth: 0, sinkAngle: 90 }),
+    spec: screw({
+      diameter: bore,
+      depth: round1(length + 1),
+      head: "none",
+      headDiameter: 0,
+      headDepth: 0,
+      sinkAngle: 90,
+    }),
     screw: { style: "insert", nominal, headDiameter: bore, headHeight: length },
   };
 }
@@ -168,7 +211,14 @@ function tap(nominal) {
     id: `m${nominal}-tap`,
     name: `M${nominal} thread-forming`,
     group: "Thread-forming (screw into plastic)",
-    spec: screw({ diameter: TAP[nominal], depth: round1(nominal * 3), head: "none", headDiameter: 0, headDepth: 0, sinkAngle: 90 }),
+    spec: screw({
+      diameter: TAP[nominal],
+      depth: round1(nominal * 3),
+      head: "none",
+      headDiameter: 0,
+      headDepth: 0,
+      sinkAngle: 90,
+    }),
     screw: { style: "tap", nominal, headDiameter: 0, headHeight: 0 },
   };
 }
@@ -179,7 +229,14 @@ function nutTrap(nominal) {
     id: `m${nominal}-nut`,
     name: `M${nominal} nut trap`,
     group: "Nut trap (ISO 4032)",
-    spec: screw({ diameter: metric(nominal), depth: 0, head: "hex", headDiameter: round1(af / Math.cos(Math.PI / 6) + 0.3), headDepth: round1(thick + 0.3), sinkAngle: 90 }),
+    spec: screw({
+      diameter: metric(nominal),
+      depth: 0,
+      head: "hex",
+      headDiameter: round1(af / Math.cos(Math.PI / 6) + 0.3),
+      headDepth: round1(thick + 0.3),
+      sinkAngle: 90,
+    }),
     screw: { style: "nut", nominal, headDiameter: af, headHeight: thick },
   };
 }
@@ -194,7 +251,14 @@ function tripodNut(id, name, short, d, af, thick) {
     name,
     short,
     group: "Tripod thread (camera)",
-    spec: screw({ diameter: round1(d * 1.07), depth: 0, head: "hex", headDiameter: round1(af / Math.cos(Math.PI / 6) + 0.3), headDepth: round1(thick + 0.3), sinkAngle: 90 }),
+    spec: screw({
+      diameter: round1(d * 1.07),
+      depth: 0,
+      head: "hex",
+      headDiameter: round1(af / Math.cos(Math.PI / 6) + 0.3),
+      headDepth: round1(thick + 0.3),
+      sinkAngle: 90,
+    }),
     screw: { style: "nut", nominal: d, headDiameter: af, headHeight: thick },
   };
 }
@@ -204,8 +268,20 @@ function wood(nominal, headDiameter) {
     id: `wood-${String(nominal).replace(".", "-")}`,
     name: `Wood screw ${nominal} mm`,
     group: "Wood screw (countersunk)",
-    spec: screw({ diameter: round1(nominal + 0.5), depth: 0, head: "countersink", headDiameter, headDepth: 0, sinkAngle: 90 }),
-    screw: { style: "wood", nominal, headDiameter: headDiameter - 0.5, headHeight: (headDiameter - nominal) / 2 },
+    spec: screw({
+      diameter: round1(nominal + 0.5),
+      depth: 0,
+      head: "countersink",
+      headDiameter,
+      headDepth: 0,
+      sinkAngle: 90,
+    }),
+    screw: {
+      style: "wood",
+      nominal,
+      headDiameter: headDiameter - 0.5,
+      headHeight: (headDiameter - nominal) / 2,
+    },
   };
 }
 
@@ -214,7 +290,14 @@ function pilot(nominal, bore) {
     id: `pilot-${String(nominal).replace(".", "-")}`,
     name: `Pilot for ${nominal} mm wood screw`,
     group: "Wood screw (countersunk)",
-    spec: screw({ diameter: bore, depth: round1(nominal * 4), head: "none", headDiameter: 0, headDepth: 0, sinkAngle: 90 }),
+    spec: screw({
+      diameter: bore,
+      depth: round1(nominal * 4),
+      head: "none",
+      headDiameter: 0,
+      headDepth: 0,
+      sinkAngle: 90,
+    }),
     screw: { style: "wood-tap", nominal, headDiameter: 0, headHeight: 0 },
   };
 }
@@ -280,7 +363,14 @@ function round(spec) {
 
 // A pocket for a round part `d` × `h` mm: 0.2 over on both.
 function pocket(id, name, short, d, h) {
-  return { id, name, short, group: "Magnets & bearings", spec: round({ diameter: round1(d + 0.2), depth: round1(h + 0.2) }), screw: { style: "shape" } };
+  return {
+    id,
+    name,
+    short,
+    group: "Magnets & bearings",
+    spec: round({ diameter: round1(d + 0.2), depth: round1(h + 0.2) }),
+    screw: { style: "shape" },
+  };
 }
 
 // A pot magnet's pocket over a through hole for the screw that holds it
@@ -291,7 +381,14 @@ function potMagnet(id, name, short, d, h, nominal) {
     name,
     short,
     group: "Magnets & bearings",
-    spec: screw({ diameter: metric(nominal), depth: 0, head: "counterbore", headDiameter: round1(d + 0.2), headDepth: round1(h + 0.2), sinkAngle: 90 }),
+    spec: screw({
+      diameter: metric(nominal),
+      depth: 0,
+      head: "counterbore",
+      headDiameter: round1(d + 0.2),
+      headDepth: round1(h + 0.2),
+      sinkAngle: 90,
+    }),
     screw: { style: "shape" },
   };
 }
@@ -299,13 +396,27 @@ function potMagnet(id, name, short, d, h, nominal) {
 // A Skådis slot, upright: a 5 × 15 mm pill, 0.2 mm over across.
 function skadis(id, name, short) {
   const width = 5.2;
-  return { id, name, short, group: "Skådis", spec: { kind: "rectangle", width, height: 15, cornerRadius: width / 2, depth: 0, chamfer: 0, spin: 0 }, screw: { style: "shape" } };
+  return {
+    id,
+    name,
+    short,
+    group: "Skådis",
+    spec: { kind: "rectangle", width, height: 15, cornerRadius: width / 2, depth: 0, chamfer: 0, spin: 0 },
+    screw: { style: "shape" },
+  };
 }
 
 // An opening `w` × `h` with corner radius `r`, through: a port, or a card
 // slot in a case. Unturned, `w` runs across the face — level on a wall.
 function opening(id, name, short, group, w, h, r) {
-  return { id, name, short, group, spec: { kind: "rectangle", width: w, height: h, cornerRadius: r, depth: 0, chamfer: 0, spin: 0 }, screw: { style: "shape" } };
+  return {
+    id,
+    name,
+    short,
+    group,
+    spec: { kind: "rectangle", width: w, height: h, cornerRadius: r, depth: 0, chamfer: 0, spin: 0 },
+    screw: { style: "shape" },
+  };
 }
 
 // A holder's slot for a card `w` × `l` × `t`: stood on its short edge,
@@ -316,7 +427,15 @@ function cardStand(id, name, short, w, l, t) {
     name,
     short,
     group: "Memory cards",
-    spec: { kind: "rectangle", width: round1(w + 0.5), height: round1(t + 0.5), cornerRadius: 0.5, depth: round1(l / 2), chamfer: 0, spin: 0 },
+    spec: {
+      kind: "rectangle",
+      width: round1(w + 0.5),
+      height: round1(t + 0.5),
+      cornerRadius: 0.5,
+      depth: round1(l / 2),
+      chamfer: 0,
+      spin: 0,
+    },
     screw: { style: "shape" },
   };
 }
@@ -328,7 +447,16 @@ function extrusion(id, name, short, keys) {
     name,
     short,
     group: "2020 extrusion",
-    spec: { kind: "extrusion", depth: 15, clearance: 0.15, keys, bolt: false, chamfer: 0.5, teardrop: false, spin: 0 },
+    spec: {
+      kind: "extrusion",
+      depth: 15,
+      clearance: 0.15,
+      keys,
+      bolt: false,
+      chamfer: 0.5,
+      teardrop: false,
+      spin: 0,
+    },
     screw: { style: "extrusion" },
   };
 }
@@ -347,16 +475,40 @@ function klippt(id, name, short, pocket) {
 }
 
 export const SCREW_PRESETS = [
-  cap(2), cap(2.5), cap(3), cap(4), cap(5), cap(6),
-  countersunk(3), countersunk(4), countersunk(5), countersunk(6),
-  button(3), button(4), button(5),
-  insert(2), insert(2.5), insert(3), insert(4), insert(5), insert(6),
-  tap(2.5), tap(3), tap(4), tap(5),
-  nutTrap(3), nutTrap(4), nutTrap(5), nutTrap(6),
+  cap(2),
+  cap(2.5),
+  cap(3),
+  cap(4),
+  cap(5),
+  cap(6),
+  countersunk(3),
+  countersunk(4),
+  countersunk(5),
+  countersunk(6),
+  button(3),
+  button(4),
+  button(5),
+  insert(2),
+  insert(2.5),
+  insert(3),
+  insert(4),
+  insert(5),
+  insert(6),
+  tap(2.5),
+  tap(3),
+  tap(4),
+  tap(5),
+  nutTrap(3),
+  nutTrap(4),
+  nutTrap(5),
+  nutTrap(6),
   tripodNut("tripod-1-4-nut", '1/4"-20 tripod nut trap', '1/4"', 6.35, 11.1125, 5.55625),
   tripodNut("tripod-3-8-nut", '3/8"-16 tripod nut trap', '3/8"', 9.525, 14.2875, 8.334375),
-  wood(3.5, 7.0), wood(4.0, 8.0), wood(5.0, 10.0),
-  pilot(3.5, 2.0), pilot(4.0, 2.5),
+  wood(3.5, 7.0),
+  wood(4.0, 8.0),
+  wood(5.0, 10.0),
+  pilot(3.5, 2.0),
+  pilot(4.0, 2.5),
   {
     id: "plain-3",
     name: "Plain 3 mm hole",
@@ -384,13 +536,40 @@ export const SCREW_PRESETS = [
   openConnect("oc-slot-free", "openConnect slot, no lock", "No lock", "none"),
   multiConnect("mc-slot", "MultiConnect slot", "On-ramp", { onRamp: true, detent: true }),
   multiConnect("mc-slot-open", "MultiConnect slot, open-ended", "Open end", { onRamp: false, detent: true }),
-  multiConnect("mc-slot-release", "MultiConnect slot, quick release", "No detent", { onRamp: true, detent: false }),
+  multiConnect("mc-slot-release", "MultiConnect slot, quick release", "No detent", {
+    onRamp: true,
+    detent: false,
+  }),
   thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
   thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
   shape("shape-cylinder", "Round cutout", "Round", round({ diameter: 10, depth: 0 })),
-  shape("shape-rect", "Rectangular cutout", "Rectangle", { kind: "rectangle", width: 20, height: 10, cornerRadius: 0, depth: 0, chamfer: 0, spin: 0 }),
-  shape("shape-rounded", "Rounded rectangle cutout", "Rounded", { kind: "rectangle", width: 20, height: 10, cornerRadius: 2, depth: 0, chamfer: 0, spin: 0 }),
-  shape("shape-pill", "Pill cutout", "Pill", { kind: "rectangle", width: 20, height: 8, cornerRadius: 4, depth: 0, chamfer: 0, spin: 0 }),
+  shape("shape-rect", "Rectangular cutout", "Rectangle", {
+    kind: "rectangle",
+    width: 20,
+    height: 10,
+    cornerRadius: 0,
+    depth: 0,
+    chamfer: 0,
+    spin: 0,
+  }),
+  shape("shape-rounded", "Rounded rectangle cutout", "Rounded", {
+    kind: "rectangle",
+    width: 20,
+    height: 10,
+    cornerRadius: 2,
+    depth: 0,
+    chamfer: 0,
+    spin: 0,
+  }),
+  shape("shape-pill", "Pill cutout", "Pill", {
+    kind: "rectangle",
+    width: 20,
+    height: 8,
+    cornerRadius: 4,
+    depth: 0,
+    chamfer: 0,
+    spin: 0,
+  }),
   opening("usb-c", "USB-C port", "USB-C", "USB ports", 9.6, 4, 2),
   opening("usb-c-plug", "USB-C, room for the plug", "C plug", "USB ports", 12.9, 7, 2),
   opening("usb-a", "USB-A port", "USB-A", "USB ports", 13.2, 5.8, 0.5),
@@ -466,8 +645,12 @@ export function presetGroups() {
 export function specMatchesPreset(spec, presetId) {
   const preset = getPreset(presetId);
   if (!preset) return false;
-  const keys = isConnectorKind(preset.spec.kind) ? ["kind", ...presetKeys(preset.spec.kind)] : Object.keys(preset.spec).filter((key) => !PRINT_KEYS.includes(key));
-  return keys.every((key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key]);
+  const keys = isConnectorKind(preset.spec.kind)
+    ? ["kind", ...presetKeys(preset.spec.kind)]
+    : Object.keys(preset.spec).filter((key) => !PRINT_KEYS.includes(key));
+  return keys.every(
+    (key) => Math.abs(Number(spec[key]) - Number(preset.spec[key])) < 1e-9 || spec[key] === preset.spec[key],
+  );
 }
 
 // How a hole is turned and printed rather than what it is for: which
@@ -490,7 +673,9 @@ const keysByKind = new Map();
 export function presetKeys(kind) {
   if (!keysByKind.has(kind)) {
     const specs = SCREW_PRESETS.filter((p) => p.spec.kind === kind).map((p) => p.spec);
-    const keys = specs.length ? Object.keys(specs[0]).filter((key) => key !== "kind" && specs.some((s) => s[key] !== specs[0][key])) : [];
+    const keys = specs.length
+      ? Object.keys(specs[0]).filter((key) => key !== "kind" && specs.some((s) => s[key] !== specs[0][key]))
+      : [];
     keysByKind.set(kind, keys);
   }
   return keysByKind.get(kind);
@@ -508,13 +693,21 @@ export function presetKeys(kind) {
 export function presetSpecFor(currentSpec, presetSpec) {
   if (!currentSpec) return { ...presetSpec };
   if (!isConnectorKind(presetSpec.kind)) {
-    const kept = PRINT_KEYS.filter((key) => key in presetSpec && key in currentSpec).map((key) => [key, currentSpec[key]]);
+    const kept = PRINT_KEYS.filter((key) => key in presetSpec && key in currentSpec).map((key) => [
+      key,
+      currentSpec[key],
+    ]);
     return { ...presetSpec, ...Object.fromEntries(kept) };
   }
   const own = new Set(["kind", ...presetKeys(presetSpec.kind)]);
   const kept = Object.fromEntries(
     Object.keys(presetSpec)
-      .filter((key) => !own.has(key) && key in currentSpec && (currentSpec.kind === presetSpec.kind || PRINT_KEYS.includes(key)))
+      .filter(
+        (key) =>
+          !own.has(key) &&
+          key in currentSpec &&
+          (currentSpec.kind === presetSpec.kind || PRINT_KEYS.includes(key)),
+      )
       .map((key) => [key, currentSpec[key]]),
   );
   return { ...presetSpec, ...kept };

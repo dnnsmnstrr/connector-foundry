@@ -104,10 +104,14 @@ function fromTo(from, to) {
   const t = unit(to);
   if (close(f, t)) return identity();
   // BOSL2 takes a level pair as a plain turn about Z.
-  if (Math.abs(f[2]) < 1e-12 && Math.abs(t[2]) < 1e-12) return rotZ(((Math.atan2(t[1], t[0]) - Math.atan2(f[1], f[0])) * 180) / Math.PI);
+  if (Math.abs(f[2]) < 1e-12 && Math.abs(t[2]) < 1e-12)
+    return rotZ(((Math.atan2(t[1], t[0]) - Math.atan2(f[1], f[0])) * 180) / Math.PI);
   // vector_axis(): for opposite vectors, cross with UP — or with RIGHT
   // when the vector is ±UP itself, which is the bot slot's case.
-  const opposite = close(f, t.map((x) => -x));
+  const opposite = close(
+    f,
+    t.map((x) => -x),
+  );
   const helper = !opposite ? t : !close(f.map(Math.abs), [0, 0, 1]) ? [0, 0, 1] : [1, 0, 0];
   const axis = unit(cross(f, helper));
   const angle = Math.acos(Math.max(-1, Math.min(1, dot(f, t))));

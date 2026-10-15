@@ -50,7 +50,16 @@ import {
   updateHole,
 } from "./lib/screwHoles.js";
 import { getPreset, presetSpecFor, specMatchesPreset } from "./lib/screwPresets.js";
-import { DEFAULT_CENTER_RADIUS_MM, DEFAULT_CORNER_INSET_MM, analyzeFace, edgeDistances, gridPoint, nearestCandidate, nearestGuide, planePoint } from "./lib/snapCandidates.js";
+import {
+  DEFAULT_CENTER_RADIUS_MM,
+  DEFAULT_CORNER_INSET_MM,
+  analyzeFace,
+  edgeDistances,
+  gridPoint,
+  nearestCandidate,
+  nearestGuide,
+  planePoint,
+} from "./lib/snapCandidates.js";
 import { resolveParams } from "./lib/userOverrides.js";
 
 // Debounce between the last hole edit and the re-render it triggers, so
@@ -70,7 +79,14 @@ const REPEAT_PROBE_MM = 0.5;
 const REPEAT_SURFACE_TOLERANCE_MM = 0.05;
 // The probe's mesh is never drawn; one material does for every model.
 const PROBE_MATERIAL = new MeshBasicMaterial({ side: DoubleSide });
-const SNAP_COLORS = { hole: 0x7fa8e0, center: 0x2ecc71, quarter: 0xd8d9db, corner: 0xd8d9db, intersection: 0x9a9ba0, circle: 0xe0c07f };
+const SNAP_COLORS = {
+  hole: 0x7fa8e0,
+  center: 0x2ecc71,
+  quarter: 0xd8d9db,
+  corner: 0xd8d9db,
+  intersection: 0x9a9ba0,
+  circle: 0xe0c07f,
+};
 // Guide lines on the hovered face: center lines solid, quarter lines
 // dashed, radials dashed and dim, the center circle in the circle
 // points' colour.
@@ -182,7 +198,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       try {
         const base = await baseBuffer(doc.source, catalogueById, globalOverrides, signal);
         const extents = meshExtents(base);
-        const buf = doc.holes.length ? await renderPart(holedRequest(doc, catalogueById, extents, globalOverrides), { signal }) : base;
+        const buf = doc.holes.length
+          ? await renderPart(holedRequest(doc, catalogueById, extents, globalOverrides), { signal })
+          : base;
         if (seq !== renderSeq.current) return;
         setBaseExtents(extents);
         setStlBuffer(buf);
@@ -194,7 +212,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       }
     };
     // Only a real compile is worth waiting out the debounce for.
-    const cached = doc.holes.length === 0 || getCachedRender(holedRequestIfKnown(doc, catalogueById, baseExtents, globalOverrides)) !== null;
+    const cached =
+      doc.holes.length === 0 ||
+      getCachedRender(holedRequestIfKnown(doc, catalogueById, baseExtents, globalOverrides)) !== null;
     const timer = setTimeout(run, cached ? 0 : RENDER_DEBOUNCE_MS);
     return () => {
       ++renderSeq.current;
@@ -236,7 +256,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       const n = new Vector3(...normal).normalize();
       raycaster.set(new Vector3(...point).addScaledVector(n, REPEAT_PROBE_MM), n.clone().negate());
       const hit = raycaster.intersectObject(mesh, false)[0];
-      return Boolean(hit && Math.abs(hit.distance - REPEAT_PROBE_MM) < REPEAT_SURFACE_TOLERANCE_MM && hit.face && hit.face.normal.dot(n) > 0.99);
+      return Boolean(
+        hit &&
+        Math.abs(hit.distance - REPEAT_PROBE_MM) < REPEAT_SURFACE_TOLERANCE_MM &&
+        hit.face &&
+        hit.face.normal.dot(n) > 0.99,
+      );
     };
   }, [geometries]);
   const guideFaceKey = guide && geometries && guide.topo === geometries.topo ? guide.key : null;
@@ -278,7 +303,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     };
   }
 
-  const dimensions = useMemo(() => (stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null), [stlBuffer]);
+  const dimensions = useMemo(
+    () => (stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
+    [stlBuffer],
+  );
   const maxExtent = baseExtents ? Math.max(...baseExtents) : 50;
   // How close to a snap point a click has to land to take it, and how
   // big the dots are — both scaled to the model.
@@ -381,7 +409,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
 
   function changeBase() {
-    if (doc.holes.length && !window.confirm(`Pick another model? The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped.`)) return;
+    if (
+      doc.holes.length &&
+      !window.confirm(
+        `Pick another model? The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped.`,
+      )
+    )
+      return;
     setDoc(null);
     setSelectedIds([]);
   }
@@ -400,7 +434,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const snapping = snapOn && !hit.shiftKey;
     const snap = snapping ? nearestCandidate(face, hit.point, snapRadius) : null;
     const line = snapping && !snap ? nearestGuide(face, hit.point, snapRadius) : null;
-    const point = snap ? snap.point : line ? line.point : snapping ? gridPoint(face, hit.point) : planePoint(face, hit.point);
+    const point = snap
+      ? snap.point
+      : line
+        ? line.point
+        : snapping
+          ? gridPoint(face, hit.point)
+          : planePoint(face, hit.point);
     return { face, snap, line, point };
   }
 
@@ -415,7 +455,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const resolved = resolveHit(hit);
     if (!resolved) return;
     hoverPoint.current = resolved.point;
-    if (altHeld) setMeasurePoint((prev) => (prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point));
+    if (altHeld)
+      setMeasurePoint((prev) =>
+        prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
+      );
     proposeGuideFace(resolved.face.key);
     const next = {
       faceKey: resolved.face.key,
@@ -439,7 +482,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // with the "new holes" spec and selects that. (Shift on a bare face
   // is still free placement: resolveHit() didn't snap it.)
   function placeAt(point, normal, shiftKey = false) {
-    const existing = doc.holes.find((h) => distance(h.point, point) < Math.max(1, holeFootprintRadius(h.spec)));
+    const existing = doc.holes.find(
+      (h) => distance(h.point, point) < Math.max(1, holeFootprintRadius(h.spec)),
+    );
     if (existing) {
       pickHole(existing.id, shiftKey);
       return;
@@ -495,7 +540,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // direction already set.
   function applyPreset(preset) {
     if (multi) {
-      setDoc((d) => setNextSpec(setHolesSpec(d, selectedIds, preset.spec, preset.id), presetSpecFor(d.nextSpec, preset.spec), preset.id));
+      setDoc((d) =>
+        setNextSpec(
+          setHolesSpec(d, selectedIds, preset.spec, preset.id),
+          presetSpecFor(d.nextSpec, preset.spec),
+          preset.id,
+        ),
+      );
       return;
     }
     applySpec(presetSpecFor(editingSpec, preset.spec), preset.id);
@@ -508,7 +559,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // its counts and its button: worked out afresh on each change.
   const repeatTarget = repeatOpen && selectedIds.length === 1 ? selectedIds[0] : null;
   const repeatResult = useMemo(
-    () => (repeatTarget && doc && repeatProbe ? repeatHole(doc, repeatTarget, repeatOptions, repeatProbe) : null),
+    () =>
+      repeatTarget && doc && repeatProbe ? repeatHole(doc, repeatTarget, repeatOptions, repeatProbe) : null,
     [repeatTarget, doc, repeatProbe, repeatOptions],
   );
   function applyRepeat() {
@@ -529,7 +581,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   async function holedBuffer() {
     const base = await baseBuffer(doc.source, catalogueById, globalOverrides);
-    return doc.holes.length ? renderPart(holedRequest(doc, catalogueById, meshExtents(base), globalOverrides)) : base;
+    return doc.holes.length
+      ? renderPart(holedRequest(doc, catalogueById, meshExtents(base), globalOverrides))
+      : base;
   }
 
   async function downloadStl() {
@@ -547,7 +601,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   function downloadScad() {
     const throughLength = baseExtents ? Math.hypot(...baseExtents) + 2 : undefined;
-    downloadBlob(holesToScad(doc, catalogueById, { throughLength, extents: baseExtents }), exportFilename(exportName, "holes", ".scad"), "text/plain");
+    downloadBlob(
+      holesToScad(doc, catalogueById, { throughLength, extents: baseExtents }),
+      exportFilename(exportName, "holes", ".scad"),
+      "text/plain",
+    );
   }
 
   // --- markers -------------------------------------------------------
@@ -613,7 +671,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         y: c.point[1],
         z: c.point[2],
         radius: active ? snapDot * 1.7 : snapDot,
-        color: active ? SELECTED_COLOR : SNAP_COLORS[c.kind] ?? SNAP_COLORS.quarter,
+        color: active ? SELECTED_COLOR : (SNAP_COLORS[c.kind] ?? SNAP_COLORS.quarter),
       });
     }
     return out;
@@ -628,10 +686,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // its face along the normal.
   const guides = useMemo(() => {
     const segments = [];
-    const lifted = (p, normal) => [p[0] + normal[0] * GUIDE_LIFT_MM, p[1] + normal[1] * GUIDE_LIFT_MM, p[2] + normal[2] * GUIDE_LIFT_MM];
+    const lifted = (p, normal) => [
+      p[0] + normal[0] * GUIDE_LIFT_MM,
+      p[1] + normal[1] * GUIDE_LIFT_MM,
+      p[2] + normal[2] * GUIDE_LIFT_MM,
+    ];
     for (const h of doc?.holes ?? []) {
       const color = selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR;
-      for (const seg of slotOutline(h)) segments.push({ a: lifted(seg.a, h.normal), b: lifted(seg.b, h.normal), color, dashed: seg.dashed });
+      for (const seg of slotOutline(h))
+        segments.push({ a: lifted(seg.a, h.normal), b: lifted(seg.b, h.normal), color, dashed: seg.dashed });
     }
     const face = snapOn ? guideFace : null;
     if (!face) return segments;
@@ -640,17 +703,31 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       if (g.kind === "circle") {
         // The circle as a chain of short segments.
         for (let i = 0; i + 1 < g.points.length; i++) {
-          segments.push({ a: lift(g.points[i]), b: lift(g.points[i + 1]), color: GUIDE_CIRCLE_COLOR, dashed: false });
+          segments.push({
+            a: lift(g.points[i]),
+            b: lift(g.points[i + 1]),
+            color: GUIDE_CIRCLE_COLOR,
+            dashed: false,
+          });
         }
         continue;
       }
-      const color = g.kind === "center" ? GUIDE_CENTER_COLOR : g.kind === "radial" ? GUIDE_RADIAL_COLOR : GUIDE_QUARTER_COLOR;
+      const color =
+        g.kind === "center"
+          ? GUIDE_CENTER_COLOR
+          : g.kind === "radial"
+            ? GUIDE_RADIAL_COLOR
+            : GUIDE_QUARTER_COLOR;
       segments.push({ a: lift(g.a), b: lift(g.b), color, dashed: g.kind !== "center" });
     }
     return segments;
   }, [guideFace, snapOn, doc?.holes, selectedIds]);
 
-  const hoveredSnap = hover?.snapId ? { label: hover.snapLabel } : hover?.linePoint ? { label: hover.lineLabel, point: hover.linePoint } : null;
+  const hoveredSnap = hover?.snapId
+    ? { label: hover.snapLabel }
+    : hover?.linePoint
+      ? { label: hover.lineLabel, point: hover.linePoint }
+      : null;
 
   // With Option held: the hovered point's (else the selected hole's, if
   // it lies on the guide face) distances to the guide face's edges and
@@ -659,9 +736,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const none = { guides: [], labels: [] };
     if (!altHeld || !guideFace) return none;
     const face = guideFace;
-    const onPlane = (p) => Math.abs((p[0] - face.center[0]) * face.normal[0] + (p[1] - face.center[1]) * face.normal[1] + (p[2] - face.center[2]) * face.normal[2]) < 0.05;
+    const onPlane = (p) =>
+      Math.abs(
+        (p[0] - face.center[0]) * face.normal[0] +
+          (p[1] - face.center[1]) * face.normal[1] +
+          (p[2] - face.center[2]) * face.normal[2],
+      ) < 0.05;
     const point = measurePoint ?? (selected && onPlane(selected.point) ? selected.point : null);
-    const lift = (p) => [p[0] + face.normal[0] * MEASURE_LIFT_MM, p[1] + face.normal[1] * MEASURE_LIFT_MM, p[2] + face.normal[2] * MEASURE_LIFT_MM];
+    const lift = (p) => [
+      p[0] + face.normal[0] * MEASURE_LIFT_MM,
+      p[1] + face.normal[1] * MEASURE_LIFT_MM,
+      p[2] + face.normal[2] * MEASURE_LIFT_MM,
+    ];
     const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
     const mm = (n) => `${n.toFixed(1)} mm`;
     const guides = [];
@@ -681,7 +767,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     }
     if (d.toCenter > 0.05) {
       guides.push({ a: lift(point), b: lift(face.center), color: MEASURE_COLOR, dashed: true });
-      labels.push({ id: "center", point: lift(mid(point, face.center)), text: `${mm(d.toCenter)} to center` });
+      labels.push({
+        id: "center",
+        point: lift(mid(point, face.center)),
+        text: `${mm(d.toCenter)} to center`,
+      });
     }
     return { guides, labels };
   }, [altHeld, guideFace, measurePoint, selected]);
@@ -693,10 +783,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       <main className="bench-empty holes-empty">
         <h2>Drill screw holes</h2>
         <p className="muted">
-          Pick a model to put screw holes into — a catalogue part, a mesh of your own, or the bench as it stands.
-          Then click its faces: a hole snaps to the face's center, the center of each quadrant, holes already in
-          it, a set-in point at each corner, and the guide lines drawn across it — center and quarter lines, a
-          radial to each corner, and a circle of the radius you choose.
+          Pick a model to put screw holes into — a catalogue part, a mesh of your own, or the bench as it
+          stands. Then click its faces: a hole snaps to the face's center, the center of each quadrant, holes
+          already in it, a set-in point at each corner, and the guide lines drawn across it — center and
+          quarter lines, a radial to each corner, and a circle of the radius you choose.
         </p>
         {renderError && (
           <p className="error-text bench-config-error" role="alert">
@@ -736,7 +826,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             }
           />
         </div>
-        {importOpen && <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />}
+        {importOpen && (
+          <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />
+        )}
       </main>
     );
   }
@@ -758,10 +850,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           <>
             <h2>{label}</h2>
             <p className="muted">
-              {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."} Click a face in the scene to drill
-              a hole.
+              {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."} Click a face in the
+              scene to drill a hole.
             </p>
-            <label className="field bench-name-field" title="What the exports are called — <name>_holes.stl and <name>_holes.scad">
+            <label
+              className="field bench-name-field"
+              title="What the exports are called — <name>_holes.stl and <name>_holes.scad"
+            >
               <span className="field-label">Name</span>
               <input
                 type="text"
@@ -787,8 +882,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                   />
                   {doc.holes.length > 0 && (
                     <p className="muted holes-params-note">
-                      Holes stay where they are in the part's coordinates; a change that moves a face moves it out
-                      from under them.
+                      Holes stay where they are in the part's coordinates; a change that moves a face moves it
+                      out from under them.
                     </p>
                   )}
                 </>
@@ -798,36 +893,65 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                     className="field field-checkbox bench-crop-field"
                     title="Turn the mesh over (a half turn about X) so the other side faces up — for a file saved the way it prints rather than the way it is used. Holes already placed go with it."
                   >
-                    <input type="checkbox" checked={Boolean(doc.source.flip)} onChange={(e) => setFlip(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={Boolean(doc.source.flip)}
+                      onChange={(e) => setFlip(e.target.checked)}
+                    />
                     <span className="field-label">Flip upside down</span>
                   </label>
                   <p className="muted holes-params-note">
-                    A mesh has no other parameters — change it in the file it came from, or in the Bench if it is
-                    the bench.
+                    A mesh has no other parameters — change it in the file it came from, or in the Bench if it
+                    is the bench.
                   </p>
                 </>
               )}
             </details>
 
             <h3>Snapping</h3>
-            <label className="field field-checkbox bench-crop-field" title="Clicks land on the face center, quadrant centers, existing holes, corner insets and the guide lines when one is within reach. Shift-click places freely.">
+            <label
+              className="field field-checkbox bench-crop-field"
+              title="Clicks land on the face center, quadrant centers, existing holes, corner insets and the guide lines when one is within reach. Shift-click places freely."
+            >
               <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />
               <span className="field-label">Snap to face features and guide lines</span>
             </label>
-            <label className="field bench-offset-field holes-inset-field" title="How far in from each edge the corner snap points sit; a radial line runs from the face center through each of them">
+            <label
+              className="field bench-offset-field holes-inset-field"
+              title="How far in from each edge the corner snap points sit; a radial line runs from the face center through each of them"
+            >
               <span className="field-label">Corner inset (mm)</span>
-              <DecimalInput min="0" step="0.5" value={inset} onChange={(value) => setInset(Math.max(0, value))} />
+              <DecimalInput
+                min="0"
+                step="0.5"
+                value={inset}
+                onChange={(value) => setInset(Math.max(0, value))}
+              />
             </label>
             <p className="muted holes-params-note">
-              Hold <kbd className="holes-key">⌥ Option</kbd> to see the pointed-at spot's distances to the face's edges and
-              center.
+              Hold <kbd className="holes-key">⌥ Option</kbd> to see the pointed-at spot's distances to the
+              face's edges and center.
             </p>
-            <label className="field bench-offset-field holes-inset-field" title="A circle of this radius around the face center — a bolt circle. Snap points where it crosses the center lines and the radials; a click near it lands on it. 0 draws none.">
+            <label
+              className="field bench-offset-field holes-inset-field"
+              title="A circle of this radius around the face center — a bolt circle. Snap points where it crosses the center lines and the radials; a click near it lands on it. 0 draws none."
+            >
               <span className="field-label">Center radius (mm)</span>
-              <DecimalInput min="0" step="0.5" value={radius} onChange={(value) => setRadius(Math.max(0, value))} />
+              <DecimalInput
+                min="0"
+                step="0.5"
+                value={radius}
+                onChange={(value) => setRadius(Math.max(0, value))}
+              />
             </label>
 
-            <h3>{multi ? `${selectedHoles.length} holes` : selected ? `Hole ${doc.holes.indexOf(selected) + 1}` : "New holes"}</h3>
+            <h3>
+              {multi
+                ? `${selectedHoles.length} holes`
+                : selected
+                  ? `Hole ${doc.holes.indexOf(selected) + 1}`
+                  : "New holes"}
+            </h3>
             {multi ? (
               <p className="muted holes-editor-note">
                 {shared.kind
@@ -837,13 +961,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             ) : selected ? (
               <p className="muted holes-editor-note">
                 {selectedPreset ? selectedPreset.name : "Custom"}
-                {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at [
-                {formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
+                {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at
+                [{formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
               </p>
             ) : (
               <p className="muted holes-editor-note">
-                The screw — or connector slot — every new hole is made for: the one picked or edited last. Select a hole to
-                change it.
+                The screw — or connector slot — every new hole is made for: the one picked or edited last.
+                Select a hole to change it.
               </p>
             )}
             <PresetPicker value={editingPresetId} onPick={applyPreset} />
@@ -914,7 +1038,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               {doc.holes.map((h, i) => {
                 const preset = getPreset(h.presetId);
                 return (
-                  <li key={h.id} className={selectedIds.includes(h.id) ? "holes-row is-selected" : "holes-row"}>
+                  <li
+                    key={h.id}
+                    className={selectedIds.includes(h.id) ? "holes-row is-selected" : "holes-row"}
+                  >
                     <button
                       type="button"
                       className="holes-row-main"
@@ -923,7 +1050,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                       // it to the selection or take it out.
                       onClick={(e) => {
                         if (e.shiftKey) pickHole(h.id, true);
-                        else setSelectedIds(selectedIds.length === 1 && selectedIds[0] === h.id ? [] : [h.id]);
+                        else
+                          setSelectedIds(selectedIds.length === 1 && selectedIds[0] === h.id ? [] : [h.id]);
                       }}
                       title={`${holeLabel(h)} — Shift-click to select several`}
                     >
@@ -938,7 +1066,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                         </span>
                       </span>
                     </button>
-                    <button type="button" className="bench-remove" aria-label={`Remove hole ${i + 1}`} title="Remove this hole" onClick={() => deleteHoles([h.id])}>
+                    <button
+                      type="button"
+                      className="bench-remove"
+                      aria-label={`Remove hole ${i + 1}`}
+                      title="Remove this hole"
+                      onClick={() => deleteHoles([h.id])}
+                    >
                       ✕
                     </button>
                   </li>
@@ -948,13 +1082,26 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
             <h3>Export</h3>
             <div className="bench-export">
-              <button className="download-button bench-export-button" onClick={downloadStl} disabled={status === "error"}>
+              <button
+                className="download-button bench-export-button"
+                onClick={downloadStl}
+                disabled={status === "error"}
+              >
                 Download STL
               </button>
-              <button className="download-button bench-export-button layerling-button" onClick={copyToLayerling} disabled={status === "error" || layerling.copying} title={LAYERLING_COPY_TITLE}>
+              <button
+                className="download-button bench-export-button layerling-button"
+                onClick={copyToLayerling}
+                disabled={status === "error" || layerling.copying}
+                title={LAYERLING_COPY_TITLE}
+              >
                 {layerling.label}
               </button>
-              <button className="download-button bench-export-button" onClick={downloadScad} title="The base and the holes as OpenSCAD source">
+              <button
+                className="download-button bench-export-button"
+                onClick={downloadScad}
+                title="The base and the holes as OpenSCAD source"
+              >
                 Download .scad
               </button>
             </div>
@@ -968,7 +1115,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           <div>
             <h2>Holes</h2>
             {dimensions && (
-              <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
+              <p
+                className="outside-dimensions"
+                aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+              >
                 Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
               </p>
             )}
@@ -979,18 +1129,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <p className="print-note holes-note" aria-live="polite">
               {multi ? (
                 <>
-                  {selectedHoles.length} holes selected — edit them together in the sidebar; Delete removes them, Esc deselects;
-                  Shift-click a hole to add or remove it.
+                  {selectedHoles.length} holes selected — edit them together in the sidebar; Delete removes
+                  them, Esc deselects; Shift-click a hole to add or remove it.
                 </>
               ) : selected ? (
                 <>
-                  Hole {doc.holes.indexOf(selected) + 1} selected — edit it in the sidebar; Delete removes it, Esc deselects;
-                  Shift-click another to select several.
+                  Hole {doc.holes.indexOf(selected) + 1} selected — edit it in the sidebar; Delete removes it,
+                  Esc deselects; Shift-click another to select several.
                 </>
               ) : (
                 <>
-                  {doc.holes.length === 0 ? `Click a face of ${label} to drill a hole there.` : `${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on ${label}.`}{" "}
-                  Hover a face for snap points and guides; hold Option for distances; Shift-click places freely, or on a hole selects several.
+                  {doc.holes.length === 0
+                    ? `Click a face of ${label} to drill a hole there.`
+                    : `${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on ${label}.`}{" "}
+                  Hover a face for snap points and guides; hold Option for distances; Shift-click places
+                  freely, or on a hole selects several.
                 </>
               )}
               {status === "rendering" && " Rendering…"}
@@ -1023,7 +1176,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                     ) : (
                       <>
                         Hole {doc.holes.indexOf(selected) + 1}
-                        <span className="muted"> · {selectedPreset ? selectedPreset.name : holeLabel(selected)}</span>
+                        <span className="muted">
+                          {" "}
+                          · {selectedPreset ? selectedPreset.name : holeLabel(selected)}
+                        </span>
                       </>
                     )}
                   </span>
@@ -1031,7 +1187,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                     type="button"
                     className="bench-rotate-delete"
                     onClick={() => deleteHoles(selectedIds)}
-                    aria-label={multi ? `Remove the ${selectedHoles.length} selected holes` : `Remove hole ${doc.holes.indexOf(selected) + 1}`}
+                    aria-label={
+                      multi
+                        ? `Remove the ${selectedHoles.length} selected holes`
+                        : `Remove hole ${doc.holes.indexOf(selected) + 1}`
+                    }
                     title="Remove (Delete)"
                   >
                     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -1041,7 +1201,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                       />
                     </svg>
                   </button>
-                  <button type="button" className="bench-rotate-close" onClick={() => setSelectedIds([])} aria-label="Deselect" title="Deselect (Esc)">
+                  <button
+                    type="button"
+                    className="bench-rotate-close"
+                    onClick={() => setSelectedIds([])}
+                    aria-label="Deselect"
+                    title="Deselect (Esc)"
+                  >
                     ✕
                   </button>
                 </div>
@@ -1065,7 +1231,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         </div>
       </main>
 
-      {importOpen && <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />}
+      {importOpen && (
+        <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />
+      )}
     </div>
   );
 }
@@ -1097,12 +1265,19 @@ function baseBuffer(source, catalogueById, globalOverrides, signal) {
   if (source.kind === "mesh") return Promise.resolve(source.stlBytes);
   const part = catalogueById.get(source.partId);
   if (!part) return Promise.reject(new Error(`Unknown catalogue part ${source.partId}`));
-  return renderPart({ scadFile: part.file, module: part.module, params: source.params, globalOverrides }, { signal });
+  return renderPart(
+    { scadFile: part.file, module: part.module, params: source.params, globalOverrides },
+    { signal },
+  );
 }
 
 function holedRequest(doc, catalogueById, extents, globalOverrides) {
   const importedFiles = new Map();
-  const scadSource = holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, extents, importedFiles });
+  const scadSource = holesToScad(doc, catalogueById, {
+    throughLength: Math.hypot(...extents) + 2,
+    extents,
+    importedFiles,
+  });
   return { scadSource, importedFiles, globalOverrides };
 }
 

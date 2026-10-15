@@ -40,8 +40,21 @@ import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
-import { CONFIG_EXTENSION, configToJson, hydrateBenchConfig, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
-import { centeredToWorld, parseMarkerId, rootSlots, sceneMarkers, slotFootprint, slotInDirection } from "./lib/benchLayout.js";
+import {
+  CONFIG_EXTENSION,
+  configToJson,
+  hydrateBenchConfig,
+  parseBenchConfig,
+  serializeBenchConfig,
+} from "./lib/benchConfig.js";
+import {
+  centeredToWorld,
+  parseMarkerId,
+  rootSlots,
+  sceneMarkers,
+  slotFootprint,
+  slotInDirection,
+} from "./lib/benchLayout.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
 import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { deletePreset, savePreset } from "./lib/benchPresets.js";
@@ -81,11 +94,13 @@ function friendlyRenderError(message) {
   // to a BigInt" and "null function or function signature mismatch"
   // included, which an openGrid snap body attached as a child produces.
   if (WASM_STACK_SYMPTOMS.test(message)) {
-    return "This combination nests too deep for this browser's OpenSCAD build to preview " +
+    return (
+      "This combination nests too deep for this browser's OpenSCAD build to preview " +
       "(a known limitation, not a bad model). An openGrid snap with its body, attached to another part, " +
-      "always does: set its body to \"none\" to attach just the connector head. Otherwise try \"fused\" " +
+      'always does: set its body to "none" to attach just the connector head. Otherwise try "fused" ' +
       "for a bolted/snap/pin joint, or fuse one of the joints in a stacked chain. The generated .scad still " +
-      "renders with a native OpenSCAD install.";
+      "renders with a native OpenSCAD install."
+    );
   }
   return message;
 }
@@ -226,7 +241,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     let cancelled = false;
     const controller = new AbortController();
     let timer = null;
-    const allNodes = [{ id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params }, ...assembly.nodes];
+    const allNodes = [
+      { id: ROOT_ID, partId: assembly.root.partId, params: assembly.root.params },
+      ...assembly.nodes,
+    ];
     const requestFor = (part, node) => ({
       scadFile: part.file,
       module: part.module,
@@ -250,7 +268,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       const entries = [];
       for (const result of results) {
         if (result.status === "fulfilled") entries.push(result.value);
-        else if (result.reason?.name !== "AbortError") console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
+        else if (result.reason?.name !== "AbortError")
+          console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
       }
       setNodeExtents(new Map(entries));
     };
@@ -292,7 +311,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   }, [allSlots, rootExtents]);
 
   const markers = useMemo(
-    () => sceneMarkers({ assembly, partsById, openRootSlots: openSlots, rootExtents, rootSlotWorldPositions, nodeExtents }),
+    () =>
+      sceneMarkers({
+        assembly,
+        partsById,
+        openRootSlots: openSlots,
+        rootExtents,
+        rootSlotWorldPositions,
+        nodeExtents,
+      }),
     [assembly, partsById, openSlots, rootExtents, rootSlotWorldPositions, nodeExtents],
   );
 
@@ -367,7 +394,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the user picked in the import flow.
   function attachPending(partId, params, childAnchor, spin = 0) {
     setAssembly((a) =>
-      addChild(a, { parentId: pendingSlot.parentId, partId, params, slotName: pendingSlot.slotName, joint: pendingJoint, childAnchor, spin }),
+      addChild(a, {
+        parentId: pendingSlot.parentId,
+        partId,
+        params,
+        slotName: pendingSlot.slotName,
+        joint: pendingJoint,
+        childAnchor,
+        spin,
+      }),
     );
     setPendingSlot(null);
     setPendingJoint("fused");
@@ -381,7 +416,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     // Size a grid part to the surface it lands on (a 5x5 BitBeam plate on
     // a single Gridfinity base, 3x3 on an openGrid snap) — except for a
     // count the user's saved default for this part already pins.
-    const available = slotFootprint(assembly, partsById, nodeExtents, pendingSlot.parentId, pendingSlot.slotName);
+    const available = slotFootprint(
+      assembly,
+      partsById,
+      nodeExtents,
+      pendingSlot.parentId,
+      pendingSlot.slotName,
+    );
     const fitted = fitGridCounts(part, available);
     if (fitted) {
       const pinned = getOverrides(part.id);
@@ -393,7 +434,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     // direction) starts turned so that axis points up when it lands on
     // a side face — the way it hangs on a wall — instead of wherever
     // BOSL2's attach() happens to leave it.
-    const spin = part.attached_up ? uprightSpin(assembly, partsById, pendingSlot.parentId, pendingSlot.slotName, part.attached_up) ?? 0 : 0;
+    const spin = part.attached_up
+      ? (uprightSpin(assembly, partsById, pendingSlot.parentId, pendingSlot.slotName, part.attached_up) ?? 0)
+      : 0;
     attachPending(part.id, params, "mount", spin);
   }
 
@@ -480,7 +523,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setParams: (id, params) => setAssembly((a) => updateNodeParams(a, id, params)),
     // `on` false only clears the crop if it's this node's — unticking one
     // part never drops a crop that belongs to another.
-    setCrop: (id, on) => setAssembly((a) => (on ? setCropTo(a, id) : a.cropTo === id ? setCropTo(a, null) : a)),
+    setCrop: (id, on) =>
+      setAssembly((a) => (on ? setCropTo(a, id) : a.cropTo === id ? setCropTo(a, null) : a)),
     select: selectNode,
   };
 
@@ -538,11 +582,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       return tag.endsWith("_pin") ? `${name} pin` : name;
     };
     const tags = bodyTags(assembly);
-    layerling.copy(Promise.all(tags.map(async (tag) => ({ name: bodyName(tag), stlBuffer: await renderAssembly(tag) }))));
+    layerling.copy(
+      Promise.all(tags.map(async (tag) => ({ name: bodyName(tag), stlBuffer: await renderAssembly(tag) }))),
+    );
   }
 
   function downloadScad() {
-    withName((name) => downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain"));
+    withName((name) =>
+      downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain"),
+    );
   }
 
   // --- Configs and presets (lib/benchConfig.js, lib/benchPresets.js) ---
@@ -606,8 +654,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       <main className="bench-empty">
         <h2>Start a bench</h2>
         <p className="muted">
-          Pick a base part with slots — Gridfinity base or openGrid board are good starting points — or import your
-          own STL.
+          Pick a base part with slots — Gridfinity base or openGrid board are good starting points — or import
+          your own STL.
         </p>
         {/* Saved benches first — a returning user is most likely here for
             one of these. Nothing to show (and nothing to say) until one
@@ -615,7 +663,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         {(presets.length > 0 || shownError) && (
           <section className="bench-empty-section" aria-labelledby="bench-presets-heading">
             <h3 id="bench-presets-heading">Saved presets</h3>
-            <PresetsPanel presets={presets} onLoad={loadPreset} onDelete={removePreset} error={shownError} emptyText={null} />
+            <PresetsPanel
+              presets={presets}
+              onLoad={loadPreset}
+              onDelete={removePreset}
+              error={shownError}
+              emptyText={null}
+            />
           </section>
         )}
         <div className="bench-part-list">
@@ -643,14 +697,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const pendingParentPart = pendingSlot && partsById.get(getNode(assembly, pendingSlot.parentId).partId);
   // "screwed" needs a screw pattern on one side of the seam: if the
   // parent has none, only parts that do are offered for that joint.
-  const screwedNeedsPatternedChild = pendingJoint === "screwed" && pendingParentPart && !screwedApplies(pendingParentPart, null);
-  const attachableParts = screwedNeedsPatternedChild ? parts.filter((p) => screwedApplies(pendingParentPart, p)) : parts;
+  const screwedNeedsPatternedChild =
+    pendingJoint === "screwed" && pendingParentPart && !screwedApplies(pendingParentPart, null);
+  const attachableParts = screwedNeedsPatternedChild
+    ? parts.filter((p) => screwedApplies(pendingParentPart, p))
+    : parts;
 
   // Resolved fresh each render so removing the selected node (or its
   // ancestor) simply drops the controls — no separate cleanup to forget.
-  const selectedNode = selectedNodeId && selectedNodeId !== ROOT_ID ? getNode(assembly, selectedNodeId) : null;
+  const selectedNode =
+    selectedNodeId && selectedNodeId !== ROOT_ID ? getNode(assembly, selectedNodeId) : null;
   const selectedPart = selectedNode ? partsById.get(selectedNode.partId) : null;
-  const selectedBox = selectedNode ? nodeBoxes.get(selectedNode.id) ?? null : null;
+  const selectedBox = selectedNode ? (nodeBoxes.get(selectedNode.id) ?? null) : null;
   const moving = moveMode && Boolean(selectedNode);
   const cropping = Boolean(selectedNode) && assembly.cropTo === selectedNode.id;
 
@@ -709,7 +767,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               />
             </details>
 
-            <h3>Attached ({assembly.nodes.length} of {MAX_ATTACHED})</h3>
+            <h3>
+              Attached ({assembly.nodes.length} of {MAX_ATTACHED})
+            </h3>
             {assembly.nodes.length === 0 && <p className="muted">Nothing attached yet.</p>}
             <ul className="bench-child-list">
               {childrenOf(assembly, ROOT_ID).map((child) => (
@@ -729,7 +789,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             <h3>Export</h3>
             <div className="bench-export">
               {bodyTags(assembly).map((tag) => (
-                <button key={tag} className="download-button bench-export-button" onClick={() => downloadBody(tag)}>
+                <button
+                  key={tag}
+                  className="download-button bench-export-button"
+                  onClick={() => downloadBody(tag)}
+                >
                   STL: {tag}
                 </button>
               ))}
@@ -743,7 +807,12 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               >
                 Download config
               </button>
-              <button className="download-button bench-export-button layerling-button" onClick={copyToLayerling} disabled={layerling.copying} title={LAYERLING_COPY_TITLE}>
+              <button
+                className="download-button bench-export-button layerling-button"
+                onClick={copyToLayerling}
+                disabled={layerling.copying}
+                title={LAYERLING_COPY_TITLE}
+              >
                 {layerling.label}
               </button>
             </div>
@@ -769,25 +838,29 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           <div>
             <h2>Bench</h2>
             {dimensions && (
-              <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
+              <p
+                className="outside-dimensions"
+                aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+              >
                 Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
               </p>
             )}
             <p className="print-note" aria-live="polite">
               {moving ? (
                 <>
-                  Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the arrow
-                  keys. Esc cancels.
+                  Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the
+                  arrow keys. Esc cancels.
                 </>
               ) : roomToAttach ? (
                 <>
-                  {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a marker
-                  to attach a part there; click an attached part to select it, then turn, move, or delete it.
+                  {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a
+                  marker to attach a part there; click an attached part to select it, then turn, move, or
+                  delete it.
                 </>
               ) : (
                 <>
-                  {MAX_ATTACHED} parts attached — the most a bench takes. Remove one to attach another; click an
-                  attached part to select it, then turn, move, or delete it.
+                  {MAX_ATTACHED} parts attached — the most a bench takes. Remove one to attach another; click
+                  an attached part to select it, then turn, move, or delete it.
                 </>
               )}
               {/* No " Rendering…" appended here: the extra word wrapped the
@@ -813,13 +886,20 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                     {selectedPart.name}
                     <span className="muted"> · {selectedNode.spin ?? 0}°</span>
                   </span>
-                  <SpinButtons name={selectedPart.name} onRotate={(delta) => nodeActions.rotate(selectedNode.id, delta)} />
+                  <SpinButtons
+                    name={selectedPart.name}
+                    onRotate={(delta) => nodeActions.rotate(selectedNode.id, delta)}
+                  />
                   <button
                     type="button"
                     className="bench-rotate-pill bench-rotate-move"
                     onClick={() => setMoveMode((armed) => !armed)}
                     aria-pressed={moving}
-                    aria-label={moving ? `Stop moving ${selectedPart.name}` : `Move ${selectedPart.name} to another slot`}
+                    aria-label={
+                      moving
+                        ? `Stop moving ${selectedPart.name}`
+                        : `Move ${selectedPart.name} to another slot`
+                    }
                     title="Move to another slot: then click an open marker, or use the arrow keys (M)"
                   >
                     {moving ? "Pick a slot…" : "Move"}
@@ -829,7 +909,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                     className="bench-rotate-pill bench-rotate-crop"
                     onClick={() => nodeActions.setCrop(selectedNode.id, !cropping)}
                     aria-pressed={cropping}
-                    aria-label={cropping ? `Stop cropping to ${selectedPart.name}` : `Crop everything else to ${selectedPart.name}'s outline`}
+                    aria-label={
+                      cropping
+                        ? `Stop cropping to ${selectedPart.name}`
+                        : `Crop everything else to ${selectedPart.name}'s outline`
+                    }
                     title="Crop everything else to this part's vertical outline — edges that stick out past it are cut away"
                   >
                     Crop
@@ -890,7 +974,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           {screwedNeedsPatternedChild && (
             <p className="muted">
               Screwed joins through a part's own screw holes, so only parts that carry a pattern are listed
-              here — a flange with matching heat-set insert bores is generated on the {pendingParentPart.name} side.
+              here — a flange with matching heat-set insert bores is generated on the {pendingParentPart.name}{" "}
+              side.
             </p>
           )}
           <div className="bench-part-list">

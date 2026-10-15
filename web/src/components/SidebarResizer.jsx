@@ -1,6 +1,12 @@
 import { useRef } from "react";
 import { useSidebarWidth } from "../hooks/useSidebarWidth.js";
-import { SIDEBAR_WIDTH_DEFAULT, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, getSidebarWidth, setSidebarWidth } from "../lib/uiPrefs.js";
+import {
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  getSidebarWidth,
+  setSidebarWidth,
+} from "../lib/uiPrefs.js";
 
 // The drag handle on the sidebar's right edge. A sibling of the
 // <aside>, not a child: the sidebar scrolls, and a handle inside it

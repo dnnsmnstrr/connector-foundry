@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { BoxGeometry, ExtrudeGeometry, Path, Shape } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import { analyzeFace, edgeDistances, gridPoint, nearestCandidate, nearestGuide } from "../../src/lib/snapCandidates.js";
+import {
+  analyzeFace,
+  edgeDistances,
+  gridPoint,
+  nearestCandidate,
+  nearestGuide,
+} from "../../src/lib/snapCandidates.js";
 
 // The welded, indexed geometry the Holes tab analyses (see Holes.jsx).
 function welded(geometry) {
@@ -33,8 +39,28 @@ test("a box's top face: center, four quadrant centers, four corner insets — no
   assert.deepEqual(round(face.normal), [0, 0, 1]);
   assert.deepEqual(round(face.center), [0, 0, 2]);
   assert.deepEqual(byKind(face, "center"), [[0, 0, 2]]);
-  assert.deepEqual(new Set(byKind(face, "quarter").map(String)), new Set([[-5, -2.5, 2], [5, -2.5, 2], [5, 2.5, 2], [-5, 2.5, 2]].map(String)));
-  assert.deepEqual(new Set(byKind(face, "corner").map(String)), new Set([[-8, -3, 2], [8, -3, 2], [8, 3, 2], [-8, 3, 2]].map(String)));
+  assert.deepEqual(
+    new Set(byKind(face, "quarter").map(String)),
+    new Set(
+      [
+        [-5, -2.5, 2],
+        [5, -2.5, 2],
+        [5, 2.5, 2],
+        [-5, 2.5, 2],
+      ].map(String),
+    ),
+  );
+  assert.deepEqual(
+    new Set(byKind(face, "corner").map(String)),
+    new Set(
+      [
+        [-8, -3, 2],
+        [8, -3, 2],
+        [8, 3, 2],
+        [-8, 3, 2],
+      ].map(String),
+    ),
+  );
   assert.equal(byKind(face, "hole").length, 0);
   assert.equal(byKind(face, "edge").length, 0);
 });
@@ -64,7 +90,9 @@ test("a hole through the face is a snap point at its center; nothing lands insid
 });
 
 test("a rounded plate still gets its corner points where the sharp corners would be", () => {
-  const w = 20, h = 20, r = 3;
+  const w = 20,
+    h = 20,
+    r = 3;
   const outline = new Shape();
   outline.moveTo(-w + r, -h);
   outline.lineTo(w - r, -h);
@@ -78,8 +106,28 @@ test("a rounded plate still gets its corner points where the sharp corners would
   const geometry = welded(new ExtrudeGeometry(outline, { depth: 4, bevelEnabled: false, curveSegments: 8 }));
   const face = analyzeFace(geometry, topTriangle(geometry, 3.99), { inset: 5 });
 
-  assert.deepEqual(new Set(byKind(face, "corner").map(String)), new Set([[15, 15, 4], [-15, 15, 4], [-15, -15, 4], [15, -15, 4]].map(String)));
-  assert.deepEqual(new Set(byKind(face, "quarter").map(String)), new Set([[10, 10, 4], [-10, 10, 4], [-10, -10, 4], [10, -10, 4]].map(String)));
+  assert.deepEqual(
+    new Set(byKind(face, "corner").map(String)),
+    new Set(
+      [
+        [15, 15, 4],
+        [-15, 15, 4],
+        [-15, -15, 4],
+        [15, -15, 4],
+      ].map(String),
+    ),
+  );
+  assert.deepEqual(
+    new Set(byKind(face, "quarter").map(String)),
+    new Set(
+      [
+        [10, 10, 4],
+        [-10, 10, 4],
+        [-10, -10, 4],
+        [10, -10, 4],
+      ].map(String),
+    ),
+  );
 });
 
 test("nearest snap within reach, the face grid otherwise; both cached per face", () => {
@@ -90,10 +138,22 @@ test("nearest snap within reach, the face grid otherwise; both cached per face",
   assert.equal(nearestCandidate(face, [9.2, 0.3, 2], 1.5), null);
   assert.deepEqual(round(gridPoint(face, [1.26, -2.74, 2])), [1.5, -2.5, 2]);
   // The same face from another of its triangles is the same cached record.
-  const other = [...Array(geometry.index.count / 3).keys()].find((i) => i !== t && face.triangles.includes(i));
+  const other = [...Array(geometry.index.count / 3).keys()].find(
+    (i) => i !== t && face.triangles.includes(i),
+  );
   assert.equal(analyzeFace(geometry, other, { inset: 2 }), face);
   // A different inset recomputes the corners only.
-  assert.deepEqual(new Set(byKind(analyzeFace(geometry, t, { inset: 1 }), "corner").map(String)), new Set([[-9, -4, 2], [9, -4, 2], [9, 4, 2], [-9, 4, 2]].map(String)));
+  assert.deepEqual(
+    new Set(byKind(analyzeFace(geometry, t, { inset: 1 }), "corner").map(String)),
+    new Set(
+      [
+        [-9, -4, 2],
+        [9, -4, 2],
+        [9, 4, 2],
+        [-9, 4, 2],
+      ].map(String),
+    ),
+  );
 });
 
 test("guide lines: two center lines and four quarter lines, clipped to the face, with their crossings as snap points", () => {
@@ -118,7 +178,17 @@ test("guide lines: two center lines and four quarter lines, clipped to the face,
   }
   assert.equal(face.guides.filter((g) => g.kind === "circle").length, 0);
 
-  assert.deepEqual(new Set(byKind(face, "intersection").map(String)), new Set([[5, 0, 2], [-5, 0, 2], [0, 2.5, 2], [0, -2.5, 2]].map(String)));
+  assert.deepEqual(
+    new Set(byKind(face, "intersection").map(String)),
+    new Set(
+      [
+        [5, 0, 2],
+        [-5, 0, 2],
+        [0, 2.5, 2],
+        [0, -2.5, 2],
+      ].map(String),
+    ),
+  );
 });
 
 test("near a guide line but no point, the hit slides onto the line and rounds along it", () => {
@@ -149,10 +219,26 @@ test("the center circle: drawn at the chosen radius, snap points where it meets 
 
   const onCircle = byKind(face, "circle");
   assert.equal(onCircle.length, 8);
-  for (const q of [[3, 0, 2], [-3, 0, 2], [0, 3, 2], [0, -3, 2]]) assert.ok(onCircle.some((p) => String(p) === String(q)), `missing ${q}`);
+  for (const q of [
+    [3, 0, 2],
+    [-3, 0, 2],
+    [0, 3, 2],
+    [0, -3, 2],
+  ])
+    assert.ok(
+      onCircle.some((p) => String(p) === String(q)),
+      `missing ${q}`,
+    );
   // Toward a corner (10, 5): 3 mm out along that direction.
-  const toward = [Math.round((3 * 10) / Math.hypot(10, 5) * 100) / 100, Math.round((3 * 5) / Math.hypot(10, 5) * 100) / 100, 2];
-  assert.ok(onCircle.some((p) => String(p) === String(toward)), `missing ${toward}`);
+  const toward = [
+    Math.round(((3 * 10) / Math.hypot(10, 5)) * 100) / 100,
+    Math.round(((3 * 5) / Math.hypot(10, 5)) * 100) / 100,
+    2,
+  ];
+  assert.ok(
+    onCircle.some((p) => String(p) === String(toward)),
+    `missing ${toward}`,
+  );
 
   const slid = nearestGuide(face, [2.9, 0.15, 2], 1.5);
   assert.equal(slid.guide.kind, "circle");
@@ -177,7 +263,10 @@ test("edge distances: from a point on the face to the outline each way, and to t
   // and "right" are along y and "down"/"up" along x; the four distances
   // are the two pairs 4/6 and 7/13 either way round.
   assert.deepEqual([d.left + d.right, d.down + d.up].sort(), [10, 20]);
-  assert.deepEqual([d.left, d.right, d.down, d.up].map((n) => Math.round(n * 100) / 100).sort((a, b) => a - b), [4, 6, 7, 13]);
+  assert.deepEqual(
+    [d.left, d.right, d.down, d.up].map((n) => Math.round(n * 100) / 100).sort((a, b) => a - b),
+    [4, 6, 7, 13],
+  );
   assert.ok(Math.abs(d.toCenter - Math.hypot(3, 1)) < 1e-9);
   for (const end of Object.values(d.ends)) assert.equal(Math.round(end[2] * 100) / 100, 2);
   assert.equal(edgeDistances(face, [30, 0, 2]), null);

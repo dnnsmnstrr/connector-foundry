@@ -24,7 +24,15 @@ import RotationInput from "../RotationInput.jsx";
 // twin of those buttons: type any angle, or step by 90 with the arrows.
 // "Offset" moves the part along the mating axis, "Shift X / Y" across
 // it (assembly.js's `overlap` and `shift`).
-export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, actions, selectedId, canAttach }) {
+export default function NodeTree({
+  assembly,
+  partsById,
+  nodeExtents,
+  nodeId,
+  actions,
+  selectedId,
+  canAttach,
+}) {
   const node = getNode(assembly, nodeId);
   const part = partsById.get(node.partId);
   const parentPart = partsById.get(getNode(assembly, node.parentId).partId);
@@ -65,7 +73,10 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
           onChange={(joint) => actions.setJoint(nodeId, joint)}
         />
       </div>
-      <label className="field bench-offset-field" title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
+      <label
+        className="field bench-offset-field"
+        title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap."
+      >
         Offset (mm)
         <DecimalInput value={node.overlap ?? 0} onChange={(value) => actions.setOverlap(nodeId, value)} />
       </label>
@@ -137,7 +148,11 @@ export default function NodeTree({ assembly, partsById, nodeExtents, nodeId, act
       {canAttach && openSlots.length > 0 && (
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
-            <button key={slot.name} className="bench-attach-here" onClick={() => actions.attachAt(nodeId, slot.name)}>
+            <button
+              key={slot.name}
+              className="bench-attach-here"
+              onClick={() => actions.attachAt(nodeId, slot.name)}
+            >
               + Attach: {slot.name}
             </button>
           ))}

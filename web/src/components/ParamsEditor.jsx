@@ -88,7 +88,9 @@ export default function ParamsEditor({
         </div>
       )}
       {showSavedNote && hasSavedOverride && (
-        <p className="muted params-saved-note">Your saved default for this part: {JSON.stringify(savedOverride)}</p>
+        <p className="muted params-saved-note">
+          Your saved default for this part: {JSON.stringify(savedOverride)}
+        </p>
       )}
     </div>
   );

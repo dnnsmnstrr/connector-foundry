@@ -15,7 +15,10 @@ test("a part on its own takes its defaults; attached, the catalogue's attached_d
   assert.deepEqual(resolveParams(connector, {}), { variant: "full", body: "directional" });
   assert.deepEqual(resolveAttachedParams(connector, {}), { variant: "full", body: "none" });
   // An instance value still beats both.
-  assert.deepEqual(resolveAttachedParams(connector, { body: "symmetric" }), { variant: "full", body: "symmetric" });
+  assert.deepEqual(resolveAttachedParams(connector, { body: "symmetric" }), {
+    variant: "full",
+    body: "symmetric",
+  });
   // A part without attached_defaults attaches as it is.
   assert.deepEqual(resolveAttachedParams({ id: "basics/plate", defaults: { w: 40 } }, {}), { w: 40 });
 });

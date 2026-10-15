@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BoxGeometry, Group, Mesh } from "three";
 
-import { bodiesFromGroup, is3mfFilename, looksLikeZip, modelUnitOf, unitScale } from "../../src/lib/threeMfMesh.js";
+import {
+  bodiesFromGroup,
+  is3mfFilename,
+  looksLikeZip,
+  modelUnitOf,
+  unitScale,
+} from "../../src/lib/threeMfMesh.js";
 import { MESH_FILE_ACCEPT } from "../../src/lib/stepMesh.js";
 import { make3mf } from "../fixtures/threeMf.js";
 

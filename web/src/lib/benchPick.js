@@ -81,7 +81,9 @@ export function nodeWorldBox(assembly, partsById, rootSlotWorldPositions, nodeEx
   // directions — the box then contains the part whatever the flip did,
   // at the cost of being |offset| too generous per side for the few
   // (DeckMate) parts that have one.
-  const mount = enumerateSlots(part, node.params, extents).find((s) => s.name === "mount" || s.name === "mount_0_0");
+  const mount = enumerateSlots(part, node.params, extents).find(
+    (s) => s.name === "mount" || s.name === "mount_0_0",
+  );
   const [ox, oy] = mount ? [Math.abs(mount.x), Math.abs(mount.y)] : [0, 0];
   let [hx, hy] = spunHalfExtents(ex / 2 + ox, ey / 2 + oy, node.spin ?? 0);
 
@@ -122,9 +124,12 @@ const PICK_SLACK_MM = 0.05;
 
 function boxContains({ min, max }, [x, y, z]) {
   return (
-    x >= min[0] - PICK_SLACK_MM && x <= max[0] + PICK_SLACK_MM &&
-    y >= min[1] - PICK_SLACK_MM && y <= max[1] + PICK_SLACK_MM &&
-    z >= min[2] - PICK_SLACK_MM && z <= max[2] + PICK_SLACK_MM
+    x >= min[0] - PICK_SLACK_MM &&
+    x <= max[0] + PICK_SLACK_MM &&
+    y >= min[1] - PICK_SLACK_MM &&
+    y <= max[1] + PICK_SLACK_MM &&
+    z >= min[2] - PICK_SLACK_MM &&
+    z <= max[2] + PICK_SLACK_MM
   );
 }
 

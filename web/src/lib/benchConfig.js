@@ -23,7 +23,15 @@
 // OpenSCAD error on the next render, the same way a bad parameter does,
 // not as a silent misplacement.
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { JOINTS, MAX_ATTACHED, ROOT_ID, allocateChildId, hasShift, normalizeShift, normalizeSpin } from "./assembly.js";
+import {
+  JOINTS,
+  MAX_ATTACHED,
+  ROOT_ID,
+  allocateChildId,
+  hasShift,
+  normalizeShift,
+  normalizeSpin,
+} from "./assembly.js";
 import { createImportedPart } from "./importedPart.js";
 import { validateAndRepair } from "./meshValidate.js";
 
@@ -99,10 +107,12 @@ export function parseBenchConfig(text) {
 // on. Returns `doc` itself when it passes.
 export function checkBenchConfig(doc) {
   if (!isObject(doc) || doc.format !== CONFIG_FORMAT) {
-    throw new Error("This isn't a Connector Foundry bench config (no \"format\": \"connector-foundry/bench\").");
+    throw new Error('This isn\'t a Connector Foundry bench config (no "format": "connector-foundry/bench").');
   }
   if (doc.version !== CONFIG_VERSION) {
-    throw new Error(`This config is version ${JSON.stringify(doc.version)}; this app reads version ${CONFIG_VERSION}.`);
+    throw new Error(
+      `This config is version ${JSON.stringify(doc.version)}; this app reads version ${CONFIG_VERSION}.`,
+    );
   }
   if (!isObject(doc.root) || typeof doc.root.partId !== "string" || !isObject(doc.root.params ?? {})) {
     throw new Error("The config has no valid root part.");
@@ -112,25 +122,44 @@ export function checkBenchConfig(doc) {
     throw new Error(`This config attaches ${doc.nodes.length} parts; a bench takes at most ${MAX_ATTACHED}.`);
   }
   doc.nodes.forEach((n, i) => {
-    if (!isObject(n) || typeof n.id !== "string" || typeof n.parentId !== "string" || typeof n.partId !== "string"
-      || typeof n.slotName !== "string") {
+    if (
+      !isObject(n) ||
+      typeof n.id !== "string" ||
+      typeof n.parentId !== "string" ||
+      typeof n.partId !== "string" ||
+      typeof n.slotName !== "string"
+    ) {
       throw new Error(`Attached part #${i + 1} is missing its id, parent, part, or slot.`);
     }
-    if (n.params !== undefined && !isObject(n.params)) throw new Error(`Attached part "${n.id}" has malformed parameters.`);
+    if (n.params !== undefined && !isObject(n.params))
+      throw new Error(`Attached part "${n.id}" has malformed parameters.`);
     if (n.joint !== undefined && !JOINTS.includes(n.joint)) {
-      throw new Error(`Attached part "${n.id}" uses an unknown joint "${n.joint}" (known: ${JOINTS.join(", ")}).`);
+      throw new Error(
+        `Attached part "${n.id}" uses an unknown joint "${n.joint}" (known: ${JOINTS.join(", ")}).`,
+      );
     }
-    if (n.childAnchor !== undefined && typeof n.childAnchor !== "string") throw new Error(`Attached part "${n.id}" has a malformed anchor.`);
-    if (n.overlap !== undefined && typeof n.overlap !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric offset.`);
-    if (n.spin !== undefined && typeof n.spin !== "number") throw new Error(`Attached part "${n.id}" has a non-numeric rotation.`);
-    if (n.shift !== undefined && !isVec2(n.shift)) throw new Error(`Attached part "${n.id}" has a malformed sideways shift (expected [x, y] in mm).`);
+    if (n.childAnchor !== undefined && typeof n.childAnchor !== "string")
+      throw new Error(`Attached part "${n.id}" has a malformed anchor.`);
+    if (n.overlap !== undefined && typeof n.overlap !== "number")
+      throw new Error(`Attached part "${n.id}" has a non-numeric offset.`);
+    if (n.spin !== undefined && typeof n.spin !== "number")
+      throw new Error(`Attached part "${n.id}" has a non-numeric rotation.`);
+    if (n.shift !== undefined && !isVec2(n.shift))
+      throw new Error(`Attached part "${n.id}" has a malformed sideways shift (expected [x, y] in mm).`);
   });
-  if (doc.name !== undefined && typeof doc.name !== "string") throw new Error("The config's \"name\" isn't text.");
-  if (doc.cropTo !== undefined && typeof doc.cropTo !== "string") throw new Error("The config's \"cropTo\" isn't a part id.");
+  if (doc.name !== undefined && typeof doc.name !== "string")
+    throw new Error("The config's \"name\" isn't text.");
+  if (doc.cropTo !== undefined && typeof doc.cropTo !== "string")
+    throw new Error("The config's \"cropTo\" isn't a part id.");
   if (doc.imports !== undefined) {
     if (!Array.isArray(doc.imports)) throw new Error("The config's \"imports\" isn't a list.");
     doc.imports.forEach((imp, i) => {
-      if (!isObject(imp) || typeof imp.id !== "string" || typeof imp.stl !== "string" || !Array.isArray(imp.anchors)) {
+      if (
+        !isObject(imp) ||
+        typeof imp.id !== "string" ||
+        typeof imp.stl !== "string" ||
+        !Array.isArray(imp.anchors)
+      ) {
         throw new Error(`Imported mesh #${i + 1} is missing its id, anchors, or STL data.`);
       }
       for (const a of imp.anchors) {
@@ -174,10 +203,16 @@ export function hydrateBenchConfig(doc, catalogueById) {
   const resolvePart = (savedId, where) => {
     if (importIdMap.has(savedId)) return importIdMap.get(savedId);
     if (catalogueById.has(savedId)) return savedId;
-    throw new Error(`${where} uses part "${savedId}", which isn't in this catalogue${importIdMap.size || (doc.imports?.length ?? 0) ? " or among the config's imported meshes" : ""}.`);
+    throw new Error(
+      `${where} uses part "${savedId}", which isn't in this catalogue${importIdMap.size || (doc.imports?.length ?? 0) ? " or among the config's imported meshes" : ""}.`,
+    );
   };
 
-  const root = { id: ROOT_ID, partId: resolvePart(doc.root.partId, "The root"), params: { ...(doc.root.params ?? {}) } };
+  const root = {
+    id: ROOT_ID,
+    partId: resolvePart(doc.root.partId, "The root"),
+    params: { ...(doc.root.params ?? {}) },
+  };
 
   // Nodes may appear in any order in the file; hand out ids parents-first
   // so a child always finds its parent's new id. A node whose parent is
@@ -188,7 +223,7 @@ export function hydrateBenchConfig(doc, catalogueById) {
   const nodes = [];
   while (pending.length) {
     const before = pending.length;
-    for (let i = 0; i < pending.length; ) {
+    for (let i = 0; i < pending.length;) {
       const n = pending[i];
       if (!nodeIdMap.has(n.parentId)) {
         i++;
@@ -213,7 +248,9 @@ export function hydrateBenchConfig(doc, catalogueById) {
     }
     if (pending.length === before) {
       const orphan = pending[0];
-      throw new Error(`Attached part "${orphan.id}" is attached to "${orphan.parentId}", which isn't in the config.`);
+      throw new Error(
+        `Attached part "${orphan.id}" is attached to "${orphan.parentId}", which isn't in the config.`,
+      );
     }
   }
 

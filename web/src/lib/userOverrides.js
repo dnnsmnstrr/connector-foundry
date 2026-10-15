@@ -21,7 +21,9 @@ const GLOBAL_ID = "__global__";
 
 let globalVersion = 0;
 const globalListeners = new Set();
-export function getGlobalVersion() { return globalVersion; }
+export function getGlobalVersion() {
+  return globalVersion;
+}
 export function subscribeGlobalOverrides(listener) {
   globalListeners.add(listener);
   return () => globalListeners.delete(listener);
@@ -142,6 +144,8 @@ export function resolveParams(part, instanceParams) {
 // for the same parameter, which is a deliberate choice.
 export function resolveAttachedParams(part, instanceParams) {
   const pinned = getOverrides(part.id);
-  const attached = Object.fromEntries(Object.entries(part.attached_defaults ?? {}).filter(([key]) => !(key in pinned)));
+  const attached = Object.fromEntries(
+    Object.entries(part.attached_defaults ?? {}).filter(([key]) => !(key in pinned)),
+  );
   return { ...resolveParams(part, {}), ...attached, ...instanceParams };
 }

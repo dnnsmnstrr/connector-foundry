@@ -7,17 +7,29 @@ import { zipSync, strToU8 } from "three/examples/jsm/libs/fflate.module.js";
 export function make3mf({ unit = "millimeter", size = [10, 10, 4], name = "Box", placements = [null] } = {}) {
   const [sx, sy, sz] = size;
   const v = [
-    [0, 0, 0], [sx, 0, 0], [sx, sy, 0], [0, sy, 0],
-    [0, 0, sz], [sx, 0, sz], [sx, sy, sz], [0, sy, sz],
+    [0, 0, 0],
+    [sx, 0, 0],
+    [sx, sy, 0],
+    [0, sy, 0],
+    [0, 0, sz],
+    [sx, 0, sz],
+    [sx, sy, sz],
+    [0, sy, sz],
   ];
   // Outward-wound triangles of the box.
   const t = [
-    [0, 2, 1], [0, 3, 2], // bottom (-z)
-    [4, 5, 6], [4, 6, 7], // top (+z)
-    [0, 1, 5], [0, 5, 4], // front (-y)
-    [1, 2, 6], [1, 6, 5], // right (+x)
-    [2, 3, 7], [2, 7, 6], // back (+y)
-    [3, 0, 4], [3, 4, 7], // left (-x)
+    [0, 2, 1],
+    [0, 3, 2], // bottom (-z)
+    [4, 5, 6],
+    [4, 6, 7], // top (+z)
+    [0, 1, 5],
+    [0, 5, 4], // front (-y)
+    [1, 2, 6],
+    [1, 6, 5], // right (+x)
+    [2, 3, 7],
+    [2, 7, 6], // back (+y)
+    [3, 0, 4],
+    [3, 4, 7], // left (-x)
   ];
   const items = placements
     .map((m) => `<item objectid="1"${m ? ` transform="${m.join(" ")}"` : ""}/>`)

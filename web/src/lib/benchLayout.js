@@ -126,7 +126,11 @@ export function slotInDirection(slots, from, open, [dx, dy]) {
     const along = rx * dx + ry * dy;
     const perp = Math.abs(rx * dy - ry * dx);
     if (along <= DIRECTION_TIE_MM || perp > along + DIRECTION_TIE_MM) continue;
-    if (!best || perp < best.perp - DIRECTION_TIE_MM || (Math.abs(perp - best.perp) <= DIRECTION_TIE_MM && along < best.along)) {
+    if (
+      !best ||
+      perp < best.perp - DIRECTION_TIE_MM ||
+      (Math.abs(perp - best.perp) <= DIRECTION_TIE_MM && along < best.along)
+    ) {
       best = { name: slot.name, along, perp };
     }
   }
@@ -235,9 +239,10 @@ export function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
   const part = node && partsById.get(node.partId);
   const extents = nodeExtents.get(nodeId);
   if (!node || !part || !extents) return [];
-  const all = part.kind === "imported"
-    ? part.anchors.map((a) => ({ name: a.name }))
-    : enumerateSlots(part, node.params, extents);
+  const all =
+    part.kind === "imported"
+      ? part.anchors.map((a) => ({ name: a.name }))
+      : enumerateSlots(part, node.params, extents);
   // A slot with a grandchild attached is occupied; so, for a non-root
   // node, is the anchor it used to attach to ITS OWN parent
   // (childAnchor) — that face is already touching the parent, it can't
@@ -249,14 +254,22 @@ export function slotsForNode(assembly, partsById, nodeExtents, nodeId) {
 
 // Every clickable marker in the scene: root's own open slots, plus one
 // more per stacked node that still has its "bot" anchor open.
-export function sceneMarkers({ assembly, partsById, openRootSlots, rootExtents, rootSlotWorldPositions, nodeExtents }) {
+export function sceneMarkers({
+  assembly,
+  partsById,
+  openRootSlots,
+  rootExtents,
+  rootSlotWorldPositions,
+  nodeExtents,
+}) {
   if (!assembly || !rootExtents) return [];
   // On an odd grid, gently emphasize the slot at the root part's centre.
   // Requiring one unique (0, 0) slot avoids arbitrarily favouring a corner
   // when an even grid has several equally central slots.
-  const centeredSlots = openRootSlots.length > 1
-    ? openRootSlots.filter((s) => Math.hypot(s.point[0], s.point[1]) <= CENTER_SLOT_TOLERANCE_MM)
-    : [];
+  const centeredSlots =
+    openRootSlots.length > 1
+      ? openRootSlots.filter((s) => Math.hypot(s.point[0], s.point[1]) <= CENTER_SLOT_TOLERANCE_MM)
+      : [];
   const centeredSlotName = centeredSlots.length === 1 ? centeredSlots[0].name : null;
   const markers = openRootSlots.map((s) => {
     const [x, y, z] = centeredToWorld(s.point, rootExtents);

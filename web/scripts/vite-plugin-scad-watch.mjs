@@ -35,9 +35,12 @@ export default function scadWatchPlugin() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           const { files } = syncScad();
-          server.config.logger.info(`[scad-watch] resynced ${files} .scad files (${path.relative(REPO_ROOT, file)} changed)`, {
-            timestamp: true,
-          });
+          server.config.logger.info(
+            `[scad-watch] resynced ${files} .scad files (${path.relative(REPO_ROOT, file)} changed)`,
+            {
+              timestamp: true,
+            },
+          );
           server.ws.send({ type: "full-reload" });
         }, 150);
       };

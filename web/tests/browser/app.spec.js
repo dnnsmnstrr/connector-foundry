@@ -8,8 +8,26 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 const cube = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4)), { binary: true });
 const cubeBytes = [...new Uint8Array(cube.buffer, cube.byteOffset, cube.byteLength)];
 const parts = [
-  { id: "basics/plate", name: "Flat plate", system: "Basics", confidence: "exact", file: "parts/basics/plate.scad", module: "basics_plate", defaults: { w: 40, d: 40, t: 4, r: 3 }, anchors: ["bot"] },
-  { id: "basics/post", name: "Round post", system: "Basics", confidence: "exact", file: "parts/basics/post.scad", module: "basics_post", defaults: { d: 12, h: 20 }, anchors: ["bot"] },
+  {
+    id: "basics/plate",
+    name: "Flat plate",
+    system: "Basics",
+    confidence: "exact",
+    file: "parts/basics/plate.scad",
+    module: "basics_plate",
+    defaults: { w: 40, d: 40, t: 4, r: 3 },
+    anchors: ["bot"],
+  },
+  {
+    id: "basics/post",
+    name: "Round post",
+    system: "Basics",
+    confidence: "exact",
+    file: "parts/basics/post.scad",
+    module: "basics_post",
+    defaults: { d: 12, h: 20 },
+    anchors: ["bot"],
+  },
 ];
 
 async function catalogue(page) {
@@ -19,83 +37,120 @@ async function catalogue(page) {
 }
 
 async function mockWorker(page, auto = false) {
-  await page.addInitScript(({ bytes, auto }) => {
-    window.__renders = {
-      auto, jobs: [],
-      finish(index, error) {
-        const job = this.jobs[index];
-        job.worker.onmessage({ data: error
-          ? { id: job.request.id, type: "error", message: error }
-          : { id: job.request.id, type: "result", stl: new Uint8Array(bytes).buffer } });
-      },
-    };
-    window.Worker = class {
-      terminated = false;
-      postMessage(request) {
-        const index = window.__renders.jobs.push({ request, worker: this }) - 1;
-        if (window.__renders.auto) queueMicrotask(() => window.__renders.finish(index));
-      }
-      terminate() { this.terminated = true; }
-    };
-  }, { bytes: cubeBytes, auto });
+  await page.addInitScript(
+    ({ bytes, auto }) => {
+      window.__renders = {
+        auto,
+        jobs: [],
+        finish(index, error) {
+          const job = this.jobs[index];
+          job.worker.onmessage({
+            data: error
+              ? { id: job.request.id, type: "error", message: error }
+              : { id: job.request.id, type: "result", stl: new Uint8Array(bytes).buffer },
+          });
+        },
+      };
+      window.Worker = class {
+        terminated = false;
+        postMessage(request) {
+          const index = window.__renders.jobs.push({ request, worker: this }) - 1;
+          if (window.__renders.auto) queueMicrotask(() => window.__renders.finish(index));
+        }
+        terminate() {
+          this.terminated = true;
+        }
+      };
+    },
+    { bytes: cubeBytes, auto },
+  );
 }
 
 const jobCount = (page) => page.evaluate(() => window.__renders.jobs.length);
-const finish = (page, index, error) => page.evaluate(({ index, error }) => window.__renders.finish(index, error), { index, error });
-async function downloadBytes(download) { return readFile(await download.path()); }
+const finish = (page, index, error) =>
+  page.evaluate(({ index, error }) => window.__renders.finish(index, error), { index, error });
+async function downloadBytes(download) {
+  return readFile(await download.path());
+}
 async function importConfig(page, config) {
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Import config…", exact: true }).click();
-  await (await chooser).setFiles({ name: "test.bench.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(config)) });
+  await (
+    await chooser
+  ).setFiles({
+    name: "test.bench.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(config)),
+  });
 }
 // Named, so exports start at once: a bench without a name asks for one
 // before its first export, and these tests wait on the download instead.
 const config = (root = { partId: "basics/plate", params: { w: 40, d: 40, t: 4, r: 3 } }) => ({
-  format: "connector-foundry/bench", version: 1, name: "bench", root, nodes: [], imports: [],
+  format: "connector-foundry/bench",
+  version: 1,
+  name: "bench",
+  root,
+  nodes: [],
+  imports: [],
 });
 
-for (const [platform, width] of [['mac', 1280], ['mac', 640], ['win', 1280], ['win', 640]]) {
-  test(`${platform} desktop panes scroll independently at ${width}px without moving the header`, async ({ page }) => {
+for (const [platform, width] of [
+  ["mac", 1280],
+  ["mac", 640],
+  ["win", 1280],
+  ["win", 640],
+]) {
+  test(`${platform} desktop panes scroll independently at ${width}px without moving the header`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 600 });
     // Also exercise the CSS width reached by zooming a native window: it must
     // keep independent panes instead of switching into the mobile layout,
     // on either desktop (main.jsx adds these classes under foundry://).
-    await page.addInitScript((platform) => document.addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('desktop', `desktop-${platform}`)), platform);
+    await page.addInitScript(
+      (platform) =>
+        document.addEventListener("DOMContentLoaded", () =>
+          document.documentElement.classList.add("desktop", `desktop-${platform}`),
+        ),
+      platform,
+    );
     await mockWorker(page, true);
-    await page.goto('/');
-    await expect(page.locator('html')).toHaveClass(new RegExp(`desktop-${platform}`));
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveClass(new RegExp(`desktop-${platform}`));
     // openGrid's Board; Skådis has a Board too.
-    const openGrid = page.locator('.system-group').filter({ has: page.getByRole('heading', { name: 'openGrid', exact: true }) });
-    await openGrid.getByRole('button', { name: 'Board exact', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled();
-    const sidebar = page.locator('.sidebar');
-    const params = page.locator('.params-panel');
-    const header = page.locator('.mode-tabs');
+    const openGrid = page
+      .locator(".system-group")
+      .filter({ has: page.getByRole("heading", { name: "openGrid", exact: true }) });
+    await openGrid.getByRole("button", { name: "Board exact", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    const sidebar = page.locator(".sidebar");
+    const params = page.locator(".params-panel");
+    const header = page.locator(".mode-tabs");
     const headerBefore = await header.boundingBox();
-    const viewerBefore = await page.locator('.viewer-panel').boundingBox();
+    const viewerBefore = await page.locator(".viewer-panel").boundingBox();
     await sidebar.hover();
     await page.mouse.wheel(0, 700);
-    await expect.poll(() => sidebar.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-    const sidebarTop = await sidebar.evaluate(el => el.scrollTop);
-    expect(await params.evaluate(el => el.scrollTop)).toBe(0);
+    await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    const sidebarTop = await sidebar.evaluate((el) => el.scrollTop);
+    expect(await params.evaluate((el) => el.scrollTop)).toBe(0);
     await params.hover();
     await page.mouse.wheel(0, 700);
-    await expect.poll(() => params.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-    expect(await sidebar.evaluate(el => el.scrollTop)).toBe(sidebarTop);
+    await expect.poll(() => params.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await sidebar.evaluate((el) => el.scrollTop)).toBe(sidebarTop);
     expect(await header.boundingBox()).toEqual(headerBefore);
-    expect(await page.locator('.viewer-panel').boundingBox()).toEqual(viewerBefore);
+    expect(await page.locator(".viewer-panel").boundingBox()).toEqual(viewerBefore);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(600);
 
-    await page.getByTitle('Bench (2)').click();
-    await page.locator('.bench-empty').hover();
+    await page.getByTitle("Bench (2)").click();
+    await page.locator(".bench-empty").hover();
     await page.mouse.wheel(0, 700);
-    await expect.poll(() => page.locator('.bench-empty').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => page.locator(".bench-empty").evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
     expect(await header.boundingBox()).toEqual(headerBefore);
     await importConfig(page, config());
     await sidebar.hover();
     await page.mouse.wheel(0, 700);
-    await expect.poll(() => sidebar.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
     expect(await header.boundingBox()).toEqual(headerBefore);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
@@ -114,7 +169,8 @@ test("the sidebar's edge resizes it, within limits, and the width sticks", async
   await mockWorker(page, true);
   await page.goto("/");
   const handle = page.getByRole("separator", { name: "Resize sidebar" });
-  const sidebarWidth = () => page.locator("aside.sidebar").evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  const sidebarWidth = () =>
+    page.locator("aside.sidebar").evaluate((el) => Math.round(el.getBoundingClientRect().width));
   // A loaded page first: under a busy parallel run the app can take
   // longer than a poll's 5s to come up, which would read as a wrong width.
   const loaded = () => expect(handle).toBeVisible({ timeout: 20_000 });
@@ -141,7 +197,9 @@ test("the sidebar's edge resizes it, within limits, and the width sticks", async
   await page.mouse.up();
   await expect.poll(sidebarWidth).toBe(340);
   // Stored on release (not on every move of the drag).
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("connector-foundry.sidebarWidth"))).toBe("340");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("connector-foundry.sidebarWidth")))
+    .toBe("340");
 
   // It is kept, and the same column in every mode.
   await page.reload();
@@ -150,7 +208,10 @@ test("the sidebar's edge resizes it, within limits, and the width sticks", async
   await page.keyboard.press("3");
   await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
   // The Holes start screen focuses its search box, so click back.
-  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: /^Library/ }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: /^Library/ })
+    .click();
   await expect.poll(sidebarWidth).toBe(340);
 
   // A double-click puts the default back.
@@ -255,11 +316,18 @@ test("printer settings invalidate downloads and refresh the preview", async ({ p
   await expect(detail).toHaveValue("normal");
   await detail.selectOption("fine");
   await expect.poll(() => jobCount(page)).toBe(3);
-  expect(await page.evaluate(() => window.__renders.jobs[2].request.globalOverrides)).toEqual({ FIT_CLEARANCE: 0.3, CIRCLE_DETAIL: "fine" });
+  expect(await page.evaluate(() => window.__renders.jobs[2].request.globalOverrides)).toEqual({
+    FIT_CLEARANCE: 0.3,
+    CIRCLE_DETAIL: "fine",
+  });
   await detail.selectOption("normal");
   await expect.poll(() => jobCount(page)).toBe(4);
-  expect(await page.evaluate(() => window.__renders.jobs[3].request.globalOverrides)).toEqual({ FIT_CLEARANCE: 0.3 });
-  expect(await page.evaluate(() => Object.values(localStorage).some((v) => v.includes("CIRCLE_DETAIL")))).toBe(false);
+  expect(await page.evaluate(() => window.__renders.jobs[3].request.globalOverrides)).toEqual({
+    FIT_CLEARANCE: 0.3,
+  });
+  expect(
+    await page.evaluate(() => Object.values(localStorage).some((v) => v.includes("CIRCLE_DETAIL"))),
+  ).toBe(false);
 
   await page.keyboard.press("Escape");
   await expect(download).toBeDisabled();
@@ -327,7 +395,14 @@ test("embedded imported meshes survive config export and reload", async ({ page 
   await mockWorker(page, true);
   await page.goto("/#mode=bench");
   const doc = config({ partId: "imported:test", params: {} });
-  doc.imports = [{ id: "imported:test", name: "test cube", anchors: [{ name: "mount", point: [0, 0, 2], normal: [0, 0, 1] }], stl: Buffer.from(cubeBytes).toString("base64") }];
+  doc.imports = [
+    {
+      id: "imported:test",
+      name: "test cube",
+      anchors: [{ name: "mount", point: [0, 0, 2], normal: [0, 0, 1] }],
+      stl: Buffer.from(cubeBytes).toString("base64"),
+    },
+  ];
   await importConfig(page, doc);
   await expect(page).toHaveURL(/bench=/);
   const saved = page.waitForEvent("download");
@@ -345,7 +420,9 @@ test("embedded imported meshes survive config export and reload", async ({ page 
   expect(restored.imports[0].stl).toBe(exported.imports[0].stl);
 });
 
-test("real WASM renders Library and generated Bench assembly to the expected dimensions", async ({ page }) => {
+test("real WASM renders Library and generated Bench assembly to the expected dimensions", async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   await catalogue(page);
   await page.goto("/");
@@ -357,7 +434,16 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   await page.getByTitle("Bench (2)").click();
   page.on("dialog", (dialog) => dialog.accept());
   const doc = config();
-  doc.nodes.push({ id: "child", parentId: "root", partId: "basics/plate", params: { w: 10, d: 10, t: 6, r: 0 }, slotName: "mount", joint: "fused", overlap: 0, spin: 0 });
+  doc.nodes.push({
+    id: "child",
+    parentId: "root",
+    partId: "basics/plate",
+    params: { w: 10, d: 10, t: 6, r: 0 },
+    slotName: "mount",
+    joint: "fused",
+    overlap: 0,
+    spin: 0,
+  });
   await importConfig(page, doc);
   const exported = page.waitForEvent("download", { timeout: 90_000 });
   await page.getByRole("button", { name: "STL: root", exact: true }).click();
@@ -375,10 +461,17 @@ test("a STEP file is tessellated in the browser and offered for slot placement",
   const chooser = page.waitForEvent("filechooser");
   await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
   // occt-import-js ships a 10 x 10 x 10 mm rounded cube as a test fixture.
-  const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/rounded-cube/rounded-cube.step", import.meta.url));
+  const fixture = fileURLToPath(
+    new URL(
+      "../../node_modules/occt-import-js/test/testfiles/rounded-cube/rounded-cube.step",
+      import.meta.url,
+    ),
+  );
   await (await chooser).setFiles(fixture);
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible({ timeout: 90_000 });
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible({
+    timeout: 90_000,
+  });
   const usePart = dialog.getByRole("button", { name: "Use as base part", exact: true });
   await expect(usePart).toBeVisible();
   await expect(usePart).toBeDisabled();
@@ -407,7 +500,9 @@ test("a multi-body STEP file asks which body to import", async ({ page }) => {
   await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
   await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
-  const fixture = fileURLToPath(new URL("../../node_modules/occt-import-js/test/testfiles/cax-if/as1_pe_203.stp", import.meta.url));
+  const fixture = fileURLToPath(
+    new URL("../../node_modules/occt-import-js/test/testfiles/cax-if/as1_pe_203.stp", import.meta.url),
+  );
   await (await chooser).setFiles(fixture);
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("This file holds 18 bodies.")).toBeVisible({ timeout: 90_000 });
@@ -418,7 +513,9 @@ test("a multi-body STEP file asks which body to import", async ({ page }) => {
 });
 
 function extents(bytes) {
-  const geometry = new STLLoader().parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const geometry = new STLLoader().parse(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  );
   geometry.computeBoundingBox();
   const { min, max } = geometry.boundingBox;
   return [max.x - min.x, max.y - min.y, max.z - min.z].map((n) => Math.round(n * 100) / 100);

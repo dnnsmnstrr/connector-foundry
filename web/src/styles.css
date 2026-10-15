@@ -7,7 +7,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   overflow: hidden;
   margin: 0;
@@ -16,7 +18,10 @@ html, body, #root {
 }
 
 /* Form controls don't inherit the page font by default. */
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
 }
 
@@ -29,7 +34,9 @@ button, input, select, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
@@ -147,7 +154,8 @@ button, input, select, textarea {
    shell so a width chosen on a big window can't push the viewer off a
    small one. The resize handle is positioned with the same expression,
    so the two can't disagree. */
-.app, .bench {
+.app,
+.bench {
   position: relative;
   display: grid;
   grid-template-columns: clamp(220px, var(--sidebar-width, 280px), 60%) minmax(0, 1fr);
@@ -202,7 +210,8 @@ button, input, select, textarea {
   background: #4a6fb5;
 }
 
-.app.sidebar-collapsed, .bench.sidebar-collapsed {
+.app.sidebar-collapsed,
+.bench.sidebar-collapsed {
   grid-template-columns: 2.75rem minmax(0, 1fr);
 }
 
@@ -404,7 +413,8 @@ button, input, select, textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.render-button, .download-button {
+.render-button,
+.download-button {
   background: #3a5aa0;
   color: white;
   border: none;
@@ -475,7 +485,8 @@ button, input, select, textarea {
   color: #c9cacd;
 }
 
-.field input[type="text"], .field select {
+.field input[type="text"],
+.field select {
   min-width: 0;
   background: #1c1d20;
   border: 1px solid #33343a;
@@ -566,10 +577,15 @@ button, input, select, textarea {
      sits a couple of pixels taller than the text inputs beside it. */
   font: inherit;
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, #8b8c91 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8b8c91 50%),
     linear-gradient(135deg, #8b8c91 50%, transparent 50%);
-  background-position: right 0.85rem center, right 0.6rem center;
-  background-size: 5px 5px, 5px 5px;
+  background-position:
+    right 0.85rem center,
+    right 0.6rem center;
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
   padding-right: 1.6rem;
 }
@@ -1662,7 +1678,9 @@ a.mode-tab {
   background: #1c1d20;
   color: #d8d9db;
   text-align: center;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .dropzone:hover,
@@ -1788,7 +1806,8 @@ a.mode-tab {
   width: 100%;
 }
 
-.loading-screen, .error-screen {
+.loading-screen,
+.error-screen {
   display: flex;
   height: 100vh;
   height: 100dvh;

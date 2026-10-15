@@ -24,7 +24,9 @@ async function occt() {
   return occtModule;
 }
 async function readStep(file) {
-  return bodiesFromOcct((await occt()).ReadStepFile(new Uint8Array(readFileSync(file)), { ...STEP_TESSELLATION }));
+  return bodiesFromOcct(
+    (await occt()).ReadStepFile(new Uint8Array(readFileSync(file)), { ...STEP_TESSELLATION }),
+  );
 }
 function extentsOf(geometry) {
   geometry.computeBoundingBox();
@@ -46,7 +48,10 @@ test("recognises STEP by extension or by its ISO 10303-21 header", () => {
 test("a single-body STEP tessellates to one watertight solid in millimetres", async () => {
   const bodies = await readStep(`${fixtures}rounded-cube/rounded-cube.step`);
   assert.equal(bodies.length, 1);
-  assert.deepEqual(bodies[0].extents.map((n) => Math.round(n * 1000) / 1000), [10, 10, 10]);
+  assert.deepEqual(
+    bodies[0].extents.map((n) => Math.round(n * 1000) / 1000),
+    [10, 10, 10],
+  );
   assert.equal(bodies[0].positions.length, bodies[0].triangleCount * 9);
   const result = validateAndRepair(geometryFromBodies(bodies));
   assert.equal(result.ok, true, result.report.join(" "));
@@ -90,10 +95,14 @@ test("a reader failure or an empty result is an error, not an empty part", () =>
 // The vendored Deskware connector is a real-world export (three bodies,
 // blank names). Only present with the QuackWorks submodule checked out.
 const deskware = new URL("../../../vendor/QuackWorks/Deskware/Connector v0.5 v3.step", import.meta.url);
-test("a vendored three-body STEP yields three bodies, each a solid", { skip: !existsSync(deskware) }, async () => {
-  const bodies = await readStep(deskware);
-  assert.equal(bodies.length, 3);
-  assert.deepEqual(bodyLabels(bodies), ["Body 1", "Body 2", "Body 3"]);
-  for (const body of bodies) assert.equal(validateAndRepair(geometryFromBodies([body])).ok, true);
-  assert.match(validateAndRepair(geometryFromBodies(bodies)).report.join(" "), /3 disconnected solids/);
-});
+test(
+  "a vendored three-body STEP yields three bodies, each a solid",
+  { skip: !existsSync(deskware) },
+  async () => {
+    const bodies = await readStep(deskware);
+    assert.equal(bodies.length, 3);
+    assert.deepEqual(bodyLabels(bodies), ["Body 1", "Body 2", "Body 3"]);
+    for (const body of bodies) assert.equal(validateAndRepair(geometryFromBodies([body])).ok, true);
+    assert.match(validateAndRepair(geometryFromBodies(bodies)).report.join(" "), /3 disconnected solids/);
+  },
+);

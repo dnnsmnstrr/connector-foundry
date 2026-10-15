@@ -8,12 +8,12 @@ toolsets:
   # electron-builder's unified NSIS bundle (makensis 3.12 with its plugins)
   # ships a native compiler for every host, Apple Silicon included; the
   # legacy default is x86_64-only on macOS and fails without Rosetta.
-  nsis: '1.2.1'
+  nsis: "1.2.1"
 files:
   - dist/**/*
   - desktop/*.cjs
   - package.json
-  - '!node_modules/**/*'
+  - "!node_modules/**/*"
 extraResources:
   - from: ../LICENSE
     to: LICENSE
@@ -24,7 +24,7 @@ mac:
   # Local builds must not silently select a certificate from the user's keychain.
   # Override explicitly with --config.mac.identity='Developer ID Application: …'
   # when producing a signed release.
-  identity: '-'
+  identity: "-"
   category: public.app-category.graphics-design
   target:
     - target: dmg
@@ -37,7 +37,7 @@ mac:
   entitlements: desktop/entitlements.mac.plist
   entitlementsInherit: desktop/entitlements.mac.plist
   # Release builds override this with fixed, versionless names (desktop.yml).
-  artifactName: 'Connector-Foundry-${version}-mac-${arch}.${ext}'
+  artifactName: "Connector-Foundry-${version}-mac-${arch}.${ext}"
 dmg:
   title: Connector Foundry
 win:
@@ -48,7 +48,7 @@ win:
   target:
     - target: nsis
   # Release builds override this with fixed, versionless names (desktop.yml).
-  artifactName: 'Connector-Foundry-${version}-win-${arch}-setup.${ext}'
+  artifactName: "Connector-Foundry-${version}-win-${arch}-setup.${ext}"
 nsis:
   # An assisted installer: a Next button, a folder choice, per-user by
   # default (no admin prompt unless the user picks "all users").
