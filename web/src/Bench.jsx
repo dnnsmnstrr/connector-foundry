@@ -37,6 +37,7 @@ import {
   updateNodeParams,
 } from "./lib/assembly.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
+import { useRender } from "./hooks/useRender.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
@@ -64,49 +65,10 @@ import { ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
+import { friendlyRenderError } from "./lib/renderError.js";
 import { fitGridCounts } from "./lib/slots.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
 import { uprightSpin } from "./lib/benchOrientation.js";
-
-// A bolted/snap/pin joint nests two rounded-cuboid flanges around the
-// child; openscad-wasm@0.0.4 hard-crashes with an opaque WASM trap
-// once a third rounded-cuboid part (e.g. Basics plate) joins that
-// chain — see assembly.js's emitJointChild() for the full story.
-// The generated .scad is correct (renders fine natively); this is a
-// browser-preview-only limitation, so say so instead of showing a raw
-// WASM trap message.
-function friendlyRenderError(message) {
-  // openscad-wasm@0.0.4 wraps every WASM export in an abort handler
-  // (see node_modules/openscad-wasm/openscad.js's makeAbortWrapper());
-  // when the same resource limit corrupts that export table, the
-  // symptom isn't always the same string — "table index out of
-  // bounds"/"memory access out of bounds" from earlier testing, but
-  // "original is not a function" from a bolted joint nested one level
-  // deeper (a Basics plate — itself a rounded cuboid — fused onto root,
-  // then something bolted onto ONE of the plate's own further anchors:
-  // that's the plate plus both bolted flanges, three rounded cuboids in
-  // one attach() chain, the same limit as bolting a plate directly).
-  // All of these are the one known cause, not different bugs: the WASM
-  // thread stack, which gives out about 70 nested module levels down
-  // (see web/README.md, "Known limit — nesting depth"). Where the
-  // overflow lands decides the wording, so the list below is every
-  // symptom seen while measuring it (2026-10-06) — "Cannot convert 32
-  // to a BigInt" and "null function or function signature mismatch"
-  // included, which an openGrid snap body attached as a child produces.
-  if (WASM_STACK_SYMPTOMS.test(message)) {
-    return (
-      "This combination nests too deep for this browser's OpenSCAD build to preview " +
-      "(a known limitation, not a bad model). An openGrid snap with its body, attached to another part, " +
-      'always does: set its body to "none" to attach just the connector head. Otherwise try "fused" ' +
-      "for a bolted/snap/pin joint, or fuse one of the joints in a stacked chain. The generated .scad still " +
-      "renders with a native OpenSCAD install."
-    );
-  }
-  return message;
-}
-
-const WASM_STACK_SYMPTOMS =
-  /table index|invalid index .* into funcref|memory access out of bounds|is not a function|null function|function signature mismatch|to a BigInt|Maximum call stack size exceeded/i;
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -120,6 +82,15 @@ const ARROW_DIRECTIONS = {
   ArrowUp: [0, 1],
   ArrowDown: [0, -1],
 };
+
+// One body of an assembly as STL — `tag` picks it ("all", "root", or a
+// joint child's own id; see assembly.js's bodyTags()). The generated
+// source is the same for every tag; only the -D part= selector differs.
+function renderBody(assembly, partsById, globalOverrides, tag, options) {
+  const importedFiles = new Map();
+  const scadSource = compileToScad(assembly, partsById, importedFiles);
+  return renderPart({ scadSource, part: tag, importedFiles, globalOverrides }, options);
+}
 
 export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const globalOverrides = useGlobalOverrides();
@@ -155,11 +126,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // meaningful while something is selected; every selection change
   // (selectNode()) disarms it.
   const [moveMode, setMoveMode] = useState(false);
-  const [stlBuffer, setStlBuffer] = useState(null);
-  const [status, setStatus] = useState("idle");
-  const [renderError, setRenderError] = useState(null);
-  const renderSeq = useRef(0);
-  const [renderRetry, setRenderRetry] = useState(0);
+  // Bumped by "Retry preview", so the nodes' own extents are tried again
+  // along with the assembly render (useRender's retry()).
+  const [extentsRetry, setExtentsRetry] = useState(0);
   // Saved setups (lib/benchPresets.js) and whatever the last config
   // load/save had to complain about — shown in the presets panel, on the
   // start screen or in the sidebar, whichever is up, with the session's
@@ -258,7 +227,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     });
     const compute = async () => {
       // allSettled, not all: one node's own standalone render hitting
-      // the known openscad-wasm resource limit (see friendlyRenderError()
+      // the known openscad-wasm resource limit (see renderError.js
       // — the same WASM build the main assembly render already works
       // around) shouldn't cost every OTHER node its markers too, and
       // shouldn't surface as an unhandled rejection either.
@@ -289,7 +258,26 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       controller.abort();
       if (timer !== null) clearTimeout(timer);
     };
-  }, [assembly, partsById, globalOverrides, renderRetry]);
+  }, [assembly, partsById, globalOverrides, extentsRetry]);
+
+  // Re-render the whole assembly (debounced) whenever it changes. No
+  // assembly ("Start over") drops the old bench's mesh and outside
+  // dimensions now, not when (or if) the next root's render replaces them.
+  const renderKey = useMemo(
+    () => (assembly ? { assembly, partsById, globalOverrides } : null),
+    [assembly, partsById, globalOverrides],
+  );
+  const preview = useRender(
+    renderKey,
+    (key, signal) => renderBody(key.assembly, key.partsById, key.globalOverrides, "all", { signal }),
+    {
+      delay: RENDER_DEBOUNCE_MS,
+      formatError: (err) =>
+        err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message),
+    },
+  );
+  const stlBuffer = preview.result;
+  const { status, error: renderError, setError: setRenderError } = preview;
 
   const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
   const dimensions = useMemo(
@@ -349,49 +337,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     [assembly, partsById, rootSlotWorldPositions, nodeExtents],
   );
 
-  // Re-render the whole assembly (debounced) whenever it changes.
-  useEffect(() => {
-    if (!assembly) {
-      // "Start over": drop the old bench's mesh and outside dimensions
-      // now, not when (or if) the next root's render replaces them.
-      setStlBuffer(null);
-      setStatus("idle");
-      setRenderError(null);
-      return;
-    }
-    const seq = ++renderSeq.current;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setStatus("rendering");
-      setRenderError(null);
-      try {
-        const buf = await renderAssembly("all", { signal: controller.signal });
-        if (seq !== renderSeq.current) return;
-        setStlBuffer(buf);
-        setStatus("done");
-      } catch (err) {
-        if (seq !== renderSeq.current) return;
-        setRenderError(err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message));
-        setStatus(err.name === "AbortError" ? "idle" : "error");
-      }
-    }, RENDER_DEBOUNCE_MS);
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- a sequence counter, not a DOM node: bumping it is how the cleanup invalidates the render in flight
-      ++renderSeq.current;
-      clearTimeout(timer);
-      controller.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assembly, partsById, globalOverrides, renderRetry]);
-
-  // The current assembly as one STL — `tag` picks the printable body
-  // ("all", "root", or a joint child's own id; see assembly.js's
-  // bodyTags()). The generated source is the same for every tag; only
-  // the -D part= selector differs.
+  // The current assembly's body `tag` as one STL (renderBody()).
   function renderAssembly(tag, options) {
-    const importedFiles = new Map();
-    const scadSource = compileToScad(assembly, partsById, importedFiles);
-    return renderPart({ scadSource, part: tag, importedFiles, globalOverrides }, options);
+    return renderBody(assembly, partsById, globalOverrides, tag, options);
   }
 
   function pickRoot(part) {
@@ -983,7 +931,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             </p>
           )}
           {renderError && status !== "rendering" && (
-            <button type="button" className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
+            <button
+              type="button"
+              className="render-button"
+              onClick={() => {
+                preview.retry();
+                setExtentsRetry((n) => n + 1);
+              }}
+            >
               Retry preview
             </button>
           )}

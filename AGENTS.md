@@ -110,9 +110,10 @@ single-key shortcut fires while typing in a field, while a dialog the event did 
 open, or with a modifier key held.
 
 **React conventions.** Plain JSX, no TypeScript; components document their props in a comment.
-Async work in an effect (renders, imports) must ignore stale results — a sequence counter or an
-`AbortSignal`, as Library and the Bench do — because a slow render finishing after the user moved
-on is the common bug here. Dispose what three.js allocates. `web/eslint.config.js` switches off
+Async work in an effect (renders, imports) must ignore stale results, because a slow render
+finishing after the user moved on is the common bug here. A preview render goes through
+`web/src/hooks/useRender.js`, which does that (and the debounce and cancellation) for every mode;
+other async work needs its own guard — a flag the effect's cleanup clears, or an `AbortSignal`. Dispose what three.js allocates. `web/eslint.config.js` switches off
 four React-Compiler rules on purpose and says why; don't "fix" those patterns.
 
 **`vendor/` is upstream.** Don't edit it; wrap or re-express in `lib/` (see `lib/opengrid.scad`
