@@ -1,0 +1,5 @@
+# Generated or vendored; .gitignore'd paths (dist, public/*.json, test-results, release, desktop/generated) are skipped already.
+package-lock.json
+public/
+# Prose: Prettier would rewrap tables and lists the author laid out by hand.
+*.md
