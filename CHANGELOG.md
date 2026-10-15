@@ -5,6 +5,45 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 
+## Unreleased
+
+### Holes
+
+- **DeckMate Innie socket**: cut Mechanism's Innie into any part, so a DeckMate Outie pushes in
+  and slides along to seat. Its floor sits 0.3 mm deeper than an Innie's by default (an **Extra
+  depth** field), so a printed Outie seats.
+- Presets are **grouped under headings** that open and close, closed but for the group of the
+  preset in use, with a **search box** over names and groups.
+- **MOLLE** presets: a rigid panel's opening and a slit panel's slit, and the Repeat grid's
+  standard spacings now include MOLLE rigid panel (50.8 mm both ways) and MOLLE slit panel
+  (38.1 × 25.4 mm) next to Skådis.
+
+### Viewer
+
+- A **Helpers** button (or `H`) hides the grid, markers, guides and labels in every viewer, to
+  see just the model.
+
+### Settings
+
+- **Export and import settings**: every preference, bench preset and part default as one
+  `.settings.json` file, to move them to another browser or machine. Import replaces what is
+  there, after a confirm.
+
+### Parts
+
+- **GoPro**: `leg_dia` sets the leg-end diameter (14 to 20 mm, standard 15) on both the male and
+  female halves.
+- **MOLLE**: the insert's boss is now `boss_w` × `boss_h` (38 × 25.3 mm by default, a tenth
+  under the nominal 1.5" × 1"), and the rigid panel's openings are 0.5 mm over nominal so a
+  printed insert fits.
+
+### Under the hood
+
+- The OpenSCAD bundle the browser loads is a third smaller (only the files the parts actually
+  include), the catalogue ships as JSON, and the console no longer logs a spurious error after
+  every render.
+- CI runs the desktop tests on Windows on every push, and the Pages deploy retries once.
+
 ## 0.2.1 — 2026-10-10
 
 ### Holes
