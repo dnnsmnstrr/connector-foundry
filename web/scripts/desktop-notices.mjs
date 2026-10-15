@@ -10,7 +10,7 @@ notices += 'The OpenSCAD WASM package declares GPL-2.0. The STEP reader (occt-im
 for (const base of ['vendor', 'web/node_modules']) {
   // occt-import-js keeps its own licence at the package root and OCCT's
   // (plus the exception text) under dist/, so that directory is scanned too.
-  const names = base === 'vendor' ? (await readdir(path.join(root, base), { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : ['react', 'react-dom', 'scheduler', 'loose-envify', 'js-tokens', 'three', 'js-yaml', 'argparse', 'openscad-wasm', 'occt-import-js', 'occt-import-js/dist'];
+  const names = base === 'vendor' ? (await readdir(path.join(root, base), { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : ['react', 'react-dom', 'scheduler', 'loose-envify', 'js-tokens', 'three', 'openscad-wasm', 'occt-import-js', 'occt-import-js/dist'];
   for (const name of names) {
     const directory = path.join(root, base, name);
     const files = await readdir(directory, { withFileTypes: true });

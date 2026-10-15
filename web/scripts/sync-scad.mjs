@@ -1,7 +1,8 @@
 // Bundles every .scad source the browser needs (vendored upstreams +
-// lib + parts + assemblies) into one JSON blob, and copies
-// catalogue.yaml alongside it, so the app can fetch its whole virtual
-// filesystem in one request instead of one per file. Run before
+// lib + parts + assemblies) into one JSON blob, and writes
+// catalogue.yaml alongside it as catalogue.json (parsed here, once, so
+// the browser needs no YAML parser), so the app can fetch its whole
+// virtual filesystem in one request instead of one per file. Run before
 // dev/build (see package.json), and re-run live by
 // vite-plugin-scad-watch.mjs while `npm run dev` is up.
 //
@@ -13,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import yaml from "js-yaml";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -173,6 +175,14 @@ function globalConstants() {
   return values;
 }
 
+// catalogue.yaml as the plain object the browser fetches. Parsed here
+// rather than in the page so js-yaml stays out of the main bundle; the
+// shape check lives in useCatalogue.js, which names the file in its
+// error either way.
+function catalogue() {
+  return yaml.load(fs.readFileSync(path.join(REPO_ROOT, "catalogue.yaml"), "utf8"));
+}
+
 // Returns { files, assets } counts. See the header for the bundle shape.
 export function syncScad() {
   const files = {};
@@ -200,7 +210,7 @@ export function syncScad() {
 
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
   fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, assets }));
-  fs.copyFileSync(path.join(REPO_ROOT, "catalogue.yaml"), path.join(WEB_PUBLIC, "catalogue.yaml"));
+  fs.writeFileSync(path.join(WEB_PUBLIC, "catalogue.json"), JSON.stringify(catalogue()));
   fs.writeFileSync(path.join(WEB_PUBLIC, "global-defaults.json"), JSON.stringify(globalConstants()));
 
   return { files: Object.keys(files).length, assets: Object.keys(assets).length };
@@ -209,5 +219,5 @@ export function syncScad() {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
   const { files, assets } = syncScad();
-  console.log(`sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), copied catalogue.yaml`);
+  console.log(`sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), wrote catalogue.json`);
 }

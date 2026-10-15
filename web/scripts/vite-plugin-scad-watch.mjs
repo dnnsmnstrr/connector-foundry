@@ -2,7 +2,7 @@
 // default, but the .scad sources live one level up in the main repo
 // (lib/, parts/, assemblies/, vendor/BOSL2/, catalogue.yaml). This
 // plugin adds those paths to the watcher explicitly, re-bundles
-// scad-bundle.json/catalogue.yaml on any change, and full-reloads the
+// scad-bundle.json/catalogue.json on any change, and full-reloads the
 // page so the worker refetches the new bundle — the same thing
 // restarting `npm run dev` would do, without the restart.
 import path from "node:path";

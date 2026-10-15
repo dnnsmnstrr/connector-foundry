@@ -10,14 +10,14 @@ running in a Web Worker.
 1. `npm run sync-scad` (runs automatically before `dev`/`build`) bundles every `.scad` file the
    parts reach into — `lib`, `parts`, `assemblies`, and the vendored upstreams (`SOURCE_DIRS` in
    `scripts/sync-scad.mjs`, narrowed to the subtrees actually used) — into `public/scad-bundle.json`,
-   and copies `catalogue.yaml` into `public/`. This is the only "build step" that touches the
+   and parses `catalogue.yaml` into `public/catalogue.json`. This is the only "build step" that touches the
    OpenSCAD sources — the app never transpiles or reimplements them. A source directory with no
    `.scad` files in it (a submodule that was never checked out) is reported, since the symptom
    in the browser is otherwise just an unhelpful "can't open include" on the parts that need it.
    A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
    under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
    relative `import()` resolves in the browser exactly as it does on disk.
-2. `src/hooks/useCatalogue.js` reads `catalogue.yaml` for the part list, default parameters, and
+2. `src/hooks/useCatalogue.js` reads `catalogue.json` (the parsed `catalogue.yaml`) for the part list, default parameters, and
    confidence labels; `src/Library.jsx` renders a picker + parameter form from it — same schema
    the CLI reads.
 3. `src/worker/openscad-worker.js` fetches `scad-bundle.json` once and decodes it to bytes once
