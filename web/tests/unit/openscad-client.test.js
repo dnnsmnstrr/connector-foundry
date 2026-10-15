@@ -182,3 +182,33 @@ test("parameter ordering shares cache, but printer settings invalidate it", asyn
   assert.equal(client.getCachedRender(b), bytes);
   assert.equal(client.getCachedRender({ ...b, globalOverrides: { FIT_CLEARANCE: 0.5 } }), null);
 });
+
+test("an assembly's imported mesh bytes are part of its cache key", async () => {
+  // Same name, same holes, so the generated source is identical; only
+  // the mounted mesh differs.
+  const assembly = (bytes) => ({
+    scadSource: 'import("imports/bracket.stl");',
+    part: "all",
+    importedFiles: new Map([["imports/bracket.stl", bytes]]),
+  });
+  const oldMesh = assembly(new Uint8Array([1, 2, 3, 4]));
+  const result = client.renderPart(oldMesh);
+  await tick();
+  const bytes = workers[0].result();
+  await result;
+  assert.equal(client.getCachedRender(oldMesh), bytes);
+  assert.equal(client.getCachedRender(assembly(new Uint8Array([1, 2, 3, 5]))), null);
+  // The same bytes decoded again into a fresh buffer still hit.
+  assert.equal(client.getCachedRender(assembly(new Uint8Array([1, 2, 3, 4]))), bytes);
+  assert.equal(client.getCachedRender(assembly(new Uint8Array([1, 2, 3, 4]).buffer)), bytes);
+});
+
+test("bytesDigest tells apart buffers of equal length and honours a view's window", () => {
+  const backing = new Uint8Array([9, 1, 2, 3, 9]);
+  assert.equal(client.bytesDigest(backing.subarray(1, 4)), client.bytesDigest(new Uint8Array([1, 2, 3])));
+  assert.notEqual(
+    client.bytesDigest(new Uint8Array([1, 2, 3])),
+    client.bytesDigest(new Uint8Array([3, 2, 1])),
+  );
+  assert.notEqual(client.bytesDigest(new Uint8Array(0)), client.bytesDigest(new Uint8Array(1)));
+});

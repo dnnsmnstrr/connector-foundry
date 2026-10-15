@@ -43,6 +43,13 @@ self.onmessage = async (event) => {
       bodies.map((b) => b.positions.buffer),
     );
   } catch (err) {
+    // An Emscripten module that threw mid-call (an abort on running out
+    // of memory on a huge file) is left in an undefined state and keeps
+    // failing every later call. Drop it, so the next import compiles a
+    // fresh one rather than every STEP import failing until a reload.
+    // A plain parse failure pays one recompile for it, which is cheap
+    // next to being stuck.
+    occtPromise = null;
     self.postMessage({ id, type: "error", message: err?.message ?? String(err) });
   }
 };

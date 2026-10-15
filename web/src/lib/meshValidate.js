@@ -218,6 +218,13 @@ export function validateAndRepair(rawGeometry) {
   }
   if (totalFlips > 0) report.push(`Fixed winding direction on ${totalFlips} triangle(s).`);
 
+  // Every shell is turned to enclose positive volume on its own, and
+  // more than one solid shell is refused below. So a hollow solid — an
+  // outer skin plus an inward-facing skin around a sealed cavity — is
+  // rejected as "disconnected solids" (its cavity skin flipped outward
+  // first). Telling a cavity from a second part would need a shell-in-
+  // shell containment test; until then such a file has to be exported
+  // without the cavity.
   let flippedComponents = 0;
   for (const members of components) {
     if (signedVolume(faces, members, position) < 0) {
@@ -283,8 +290,12 @@ export function validateAndRepair(rawGeometry) {
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
   const { min, max } = geometry.boundingBox;
-  const extents = [max.x - min.x, max.y - min.y, max.z - min.z];
-  const center = [(min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2];
+  // An empty mesh's box runs from +Infinity to -Infinity; report it as
+  // nothing at the origin, as meshExtents.js does, rather than hand
+  // -Infinity on to anything that sizes or places from it.
+  const empty = geometry.boundingBox.isEmpty();
+  const extents = empty ? [0, 0, 0] : [max.x - min.x, max.y - min.y, max.z - min.z];
+  const center = empty ? [0, 0, 0] : [(min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2];
 
   const ok =
     openEdges === 0 && nonManifoldEdges === 0 && inconsistentEdges === 0 && solidComponents.length === 1;

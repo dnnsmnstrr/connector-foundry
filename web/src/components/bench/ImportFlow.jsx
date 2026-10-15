@@ -124,7 +124,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     }
   }
 
-  function useBodies() {
+  function acceptPickedBodies() {
     const chosen = bodyChoice === ALL_BODIES ? bodies : [bodies[Number(bodyChoice)]];
     try {
       validate(geometryFromBodies(chosen), fileName);
@@ -232,7 +232,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             ))}
           </ul>
           <div className="bench-import-actions">
-            <button type="button" className="render-button" onClick={useBodies}>
+            <button type="button" className="render-button" onClick={acceptPickedBodies}>
               Use {bodyChoice === ALL_BODIES ? "all bodies" : labels[Number(bodyChoice)]}
             </button>
           </div>

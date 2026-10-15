@@ -154,19 +154,12 @@ export function fitGridCounts(part, available) {
   const countParams = part.slots?.count_params;
   if (!countParams || !available) return null;
   const pitch = part.slots.pitch;
-  const fit = (mm) => Math.max(1, Math.floor((mm + FIT_SLACK_MM) / pitch));
+  // A non-finite measurement (a face not measured yet, an empty mesh's
+  // -Infinity) counts as no room: Math.max(1, NaN) is NaN, which would
+  // reach OpenSCAD as a count it cannot read.
+  const fit = (mm) => {
+    const count = Math.floor((mm + FIT_SLACK_MM) / pitch);
+    return Number.isFinite(count) ? Math.max(1, count) : 1;
+  };
   return { [countParams[0]]: fit(available[0]), [countParams[1]]: fit(available[1]) };
-}
-
-export function nearestSlot(slots, localX, localY) {
-  let best = null;
-  let bestDist = Infinity;
-  for (const slot of slots) {
-    const dist = Math.hypot(slot.x - localX, slot.y - localY);
-    if (dist < bestDist) {
-      best = slot;
-      bestDist = dist;
-    }
-  }
-  return best;
 }

@@ -16,7 +16,10 @@ export function meshExtents(stlBuffer) {
     const geometry = new STLLoader().parse(stlBuffer);
     geometry.computeBoundingBox();
     const { min, max } = geometry.boundingBox;
-    extents = [max.x - min.x, max.y - min.y, max.z - min.z];
+    // An STL with no triangles has an empty box (min = +Infinity,
+    // max = -Infinity); its size is nothing, not -Infinity, which would
+    // otherwise flow into slot positions and generated .scad.
+    extents = geometry.boundingBox.isEmpty() ? [0, 0, 0] : [max.x - min.x, max.y - min.y, max.z - min.z];
     geometry.dispose();
     extentsByBuffer.set(stlBuffer, extents);
   }

@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BoxGeometry, ExtrudeGeometry, Path, Shape } from "three";
+import {
+  BoxGeometry,
+  BufferGeometry,
+  ExtrudeGeometry,
+  Float32BufferAttribute,
+  Path,
+  PlaneGeometry,
+  Shape,
+} from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import {
@@ -282,4 +290,21 @@ test("a face index the mesh doesn't have is no face, not a crash", () => {
   assert.equal(analyzeFace(geometry, triangles), null);
   assert.equal(analyzeFace(geometry, triangles + 500), null);
   assert.equal(analyzeFace(geometry, -1), null);
+});
+
+test("a flat face of more triangles than a spread can pass is still analysed", () => {
+  // 2 × 300 × 300 = 180k triangles in one plane: Math.min(...triangles)
+  // overflowed the stack here.
+  const geometry = welded(new PlaneGeometry(100, 100, 300, 300));
+  const face = analyzeFace(geometry, 12345, { inset: 2 });
+  assert.equal(face.triangleCount, 180000);
+  assert.equal(face.key, 0);
+  assert.ok(Math.abs(face.extent[0] - 100) < 1e-6 && Math.abs(face.extent[1] - 100) < 1e-6);
+});
+
+test("a degenerate triangle has no face to analyse", () => {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 1, 0], 3));
+  geometry.setIndex([0, 1, 2, 0, 1, 3]);
+  assert.equal(analyzeFace(geometry, 0), null);
 });

@@ -130,12 +130,62 @@ function sortedEntries(obj) {
   return Object.entries(obj || {}).sort(([a], [b]) => a.localeCompare(b));
 }
 
-export function renderRequestKey({ scadFile, module, params, scadSource, part, globalOverrides }) {
+// A digest of an imported mesh's bytes, memoised per buffer object.
+// The generated source only names a mesh by its mount path
+// (imports/<name stem>.stl), so two different meshes with the same name
+// — a revised bracket.stl, "Use current bench" after the bench changed —
+// produce identical source and would otherwise replay the old render.
+// Content rather than object identity, so the same bytes decoded again
+// (a reloaded session) still hit; memoised, because the key is rebuilt
+// on every edit and hashing a multi-megabyte mesh each time would undo
+// the work benchConfig.js does to avoid touching those buffers. Callers
+// never mutate a mesh's bytes in place (every revision is a new buffer),
+// which is what makes the memo safe. Two independent 32-bit FNV-style
+// hashes plus the length keep an accidental collision out of reach.
+/** @type {WeakMap<object, string>} */
+const digestByBuffer = new WeakMap();
+
+/** @param {ArrayBuffer | ArrayBufferView} bytes */
+export function bytesDigest(bytes) {
+  let digest = digestByBuffer.get(bytes);
+  if (digest) return digest;
+  const view = ArrayBuffer.isView(bytes)
+    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new Uint8Array(bytes);
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < view.length; i++) {
+    h1 = Math.imul(h1 ^ view[i], 0x01000193);
+    h2 = Math.imul(h2 ^ view[i], 0x5bd1e995) ^ (h2 >>> 15);
+  }
+  const hex = (/** @type {number} */ h) => (h >>> 0).toString(16).padStart(8, "0");
+  digest = `${view.length}:${hex(h1)}${hex(h2)}`;
+  digestByBuffer.set(bytes, digest);
+  return digest;
+}
+
+function importedDigests(importedFiles) {
+  return [...(importedFiles ?? [])]
+    .map(([path, bytes]) => [path, bytesDigest(bytes)])
+    .sort(([a], [b]) => a.localeCompare(b));
+}
+
+export function renderRequestKey({
+  scadFile,
+  module,
+  params,
+  scadSource,
+  part,
+  globalOverrides,
+  importedFiles,
+}) {
   // globalOverrides folded in so a FIT_CLEARANCE change actually
   // busts the cache instead of replaying a stale mesh rendered under
   // the old value.
   const globals = sortedEntries(globalOverrides);
-  if (scadSource) return JSON.stringify(["assembly", scadSource, part ?? "all", globals]);
+  if (scadSource) {
+    return JSON.stringify(["assembly", scadSource, part ?? "all", globals, importedDigests(importedFiles)]);
+  }
   // Sorted, so two parameter objects that differ only in key order —
   // which JSON.stringify would otherwise distinguish — share an entry.
   return JSON.stringify([scadFile, module, sortedEntries(params), globals]);

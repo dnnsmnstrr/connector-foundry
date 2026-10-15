@@ -300,6 +300,8 @@ export default function StlViewer({
         }
         if (mesh.geometry.index === null) return;
         const cluster = clusterFace(mesh.geometry, hits[0].faceIndex);
+        // A degenerate (zero-area) triangle has no normal to place along.
+        if (!cluster) return;
         const point = new THREE.Vector3(...cluster.point).applyMatrix4(mesh.matrixWorld);
         const normal = new THREE.Vector3(...cluster.normal).transformDirection(mesh.matrixWorld).normalize();
         callbacksRef.current?.onSurfacePick?.([point.x, point.y, point.z], [normal.x, normal.y, normal.z]);

@@ -81,7 +81,8 @@ function cacheFor(geometry) {
 // changes — as a fresh record replacing the cached one, so a caller
 // comparing records by identity (a React memo) sees the change.
 // null for a triangle index this geometry doesn't have — a face kept
-// from a mesh since replaced — rather than reading past its end.
+// from a mesh since replaced — rather than reading past its end, and
+// for a degenerate triangle, which has no plane (clusterFace()).
 export function analyzeFace(geometry, faceIndex, options = {}) {
   const triangles = (geometry.index ? geometry.index.count : geometry.getAttribute("position").count) / 3;
   if (!Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex >= triangles) return null;
@@ -92,6 +93,7 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
   let face = key !== undefined ? cache.faces.get(key) : null;
   if (!face) {
     face = buildFace(geometry, faceIndex);
+    if (!face) return null;
     for (const t of face.triangles) cache.faceOf.set(t, face.key);
     cache.faces.set(face.key, face);
   }
@@ -105,10 +107,29 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
   return face;
 }
 
+/** @param {ArrayLike<number>} values */
+function minOf(values) {
+  let min = Infinity;
+  for (let i = 0; i < values.length; i++) if (values[i] < min) min = values[i];
+  return min;
+}
+
+/** @param {ArrayLike<number>} values */
+function maxOf(values) {
+  let max = -Infinity;
+  for (let i = 0; i < values.length; i++) if (values[i] > max) max = values[i];
+  return max;
+}
+
 function buildFace(geometry, faceIndex) {
   const cluster = clusterFace(geometry, faceIndex);
+  if (!cluster) return null;
   const triangles = cluster.triangles;
-  const key = Math.min(...triangles);
+  // Loops rather than Math.min(...array) here and below: spreading an
+  // array passes every element as an argument, which overflows the stack
+  // somewhere past ~125k elements — a big flat face on a detailed scan
+  // threw a RangeError on every hover.
+  const key = minOf(triangles);
   const normal = unit(cluster.normal);
   const { u, v } = planeBasis(normal);
   const center = cluster.point;
@@ -160,7 +181,7 @@ function buildFace(geometry, faceIndex) {
     const simplified = simplifyLoop(raw);
     const area = signedArea(simplified.map((s) => s.uv));
     const centroid = averagePoint(simplified.map((s) => s.p));
-    const radius = Math.max(...simplified.map((s) => distance(s.p, centroid)));
+    const radius = maxOf(simplified.map((s) => distance(s.p, centroid)));
     return {
       points: simplified.map((s) => s.p),
       uv: simplified.map((s) => s.uv),
@@ -187,8 +208,8 @@ function buildFace(geometry, faceIndex) {
   if (outerIndex >= 0) {
     const us = built[outerIndex].uv.map((q) => q[0]);
     const vs = built[outerIndex].uv.map((q) => q[1]);
-    extent[0] = Math.max(...us) - Math.min(...us);
-    extent[1] = Math.max(...vs) - Math.min(...vs);
+    extent[0] = maxOf(us) - minOf(us);
+    extent[1] = maxOf(vs) - minOf(vs);
   }
 
   return {

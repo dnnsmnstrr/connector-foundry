@@ -77,6 +77,9 @@ function triCentroid(position, index, t, out) {
 // — all in the geometry's own local space (caller transforms to world if
 // needed). `triangles` is every triangle index in the cluster, which
 // snapCandidates.js walks again for the face's outline.
+// null when the seed triangle is degenerate (zero area, or a NaN
+// vertex): it has no normal, so there is no plane to grow — and a
+// [0, 0, 0] normal handed on would place a hole with no direction.
 export function clusterFace(geometry, faceIndex, options = {}) {
   const angleTolDeg = options.angleTolDeg ?? DEFAULT_ANGLE_TOL_DEG;
   const planeTol = options.planeTol ?? DEFAULT_PLANE_TOL_MM;
@@ -87,6 +90,9 @@ export function clusterFace(geometry, faceIndex, options = {}) {
   const neighbors = neighborsFor(geometry);
 
   const startNormal = triNormal(position, index, faceIndex, new THREE.Vector3());
+  // normalize() leaves a zero vector at zero (and NaN as NaN); a real
+  // normal is length 1, so anything well short of that has none.
+  if (!(startNormal.lengthSq() > 0.5)) return null;
   const planePoint = triCentroid(position, index, faceIndex, new THREE.Vector3());
 
   const normal = new THREE.Vector3();

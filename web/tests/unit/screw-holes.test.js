@@ -1231,3 +1231,45 @@ test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a poc
   // Its outline closes, with the arrow.
   assert.ok(slotOutline(doc.holes[0]).length > 12);
 });
+
+test("a Skådis fill with a huge radius stops early and keeps the same nearest points", () => {
+  const { hole } = addHole(plateDoc(), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("skadis-slot").spec,
+  });
+  const fill = (radius) => repeatPoints(hole, { pattern: "circle", skadisFill: true, radius }).copies;
+  // 400 mm is 20 rings, past the bound, and still cheap to scan in full:
+  // the bounded scan must pick exactly what the full one does.
+  const reference = fill(400);
+  assert.equal(reference.length, 99);
+  const start = performance.now();
+  const huge = fill(100000);
+  assert.ok(performance.now() - start < 200, "a radius of 100000 used to hang the tab");
+  assert.deepEqual(huge, reference);
+  assert.deepEqual(fill(1e300), reference);
+});
+
+test("a hole needs a normal with a direction", () => {
+  const spec = getPreset("m3-cap").spec;
+  for (const normal of [[0, 0, 0], [NaN, 0, 1], [0, Infinity, 0], [0, 0], undefined]) {
+    assert.throws(() => addHole(plateDoc(), { point: [0, 0, 4], normal, spec }), /surface normal/);
+  }
+  const { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 2], spec });
+  assert.deepEqual(hole.normal, [0, 0, 1]);
+  assert.throws(() => updateHole(doc, hole.id, { normal: [0, 0, 0] }), /surface normal/);
+  assert.deepEqual(updateHole(doc, hole.id, { normal: [0, 3, 0] }).holes[0].normal, [0, 1, 0]);
+});
+
+test("a through hole on a mesh with no finite size falls back instead of throwing", () => {
+  const { doc } = addHole(
+    createHolesDoc({ kind: "mesh", name: "empty", stlBytes: new ArrayBuffer(84), extents: [0, 0, 0] }),
+    { point: [0, 0, 0], normal: [0, 0, 1], spec: getPreset("m3-cap").spec },
+  );
+  // What Holes.jsx passes for an empty mesh's -Infinity bounding box.
+  const extents = [-Infinity, -Infinity, -Infinity];
+  const scad = holesToScad(doc, partsById, { throughLength: Math.hypot(...extents) + 2, extents });
+  assert.match(scad, /difference\(\)/);
+  assert.doesNotMatch(scad, /Infinity|NaN/);
+  assert.doesNotThrow(() => holesToScad(doc, partsById, { throughLength: NaN }));
+});
