@@ -401,11 +401,14 @@ export function normalizeSpec(spec) {
 }
 
 // Degrees, kept in [0, 360) — a slot turned a full circle is the slot.
+// Rounded after the wrap, a hair under 360 (359.99999) rounds up to 360
+// itself, so a result of 360 (or -0) is folded back to 0; the same rule
+// as assembly.js's normalizeSpin().
 function normalizeSpin(v) {
   const num = Number(v);
   if (!Number.isFinite(num)) return 0;
-  const wrapped = ((num % 360) + 360) % 360;
-  return Math.round(wrapped * 1e4) / 1e4;
+  const wrapped = Math.round((((num % 360) + 360) % 360) * 1e4) / 1e4;
+  return wrapped === 360 || wrapped === 0 ? 0 : wrapped;
 }
 
 // A hole's normal, made unit length — or an error for one with no

@@ -315,6 +315,9 @@ test("a slot's frame: straight up on a vertical face, the part's Y on a level on
   // Spin is kept in [0, 360).
   assert.equal(normalizeSpec({ kind: "openconnect", spin: -90 }).spin, 270);
   assert.equal(normalizeSpec({ kind: "multiconnect", spin: 720 }).spin, 0);
+  // A hair under a full turn rounds to 360 — which is 0, not 360.
+  assert.equal(normalizeSpec({ kind: "openconnect", spin: 359.99999 }).spin, 0);
+  assert.ok(Object.is(normalizeSpec({ kind: "openconnect", spin: -0 }).spin, 0));
   assert.equal(normalizeSpec({ kind: "openconnect", lock: "sideways" }).lock, "left");
   assert.equal(normalizeSpec({ kind: "multiconnect", length: -4 }).length, 28);
 });

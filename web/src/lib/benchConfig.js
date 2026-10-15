@@ -117,10 +117,12 @@ export function checkBenchConfig(doc) {
   if (!isObject(doc.root) || typeof doc.root.partId !== "string" || !isObject(doc.root.params ?? {})) {
     throw new Error("The config has no valid root part.");
   }
+  checkParams(doc.root.params, "The root part");
   if (!Array.isArray(doc.nodes)) throw new Error("The config's \"nodes\" isn't a list.");
   if (doc.nodes.length > MAX_ATTACHED) {
     throw new Error(`This config attaches ${doc.nodes.length} parts; a bench takes at most ${MAX_ATTACHED}.`);
   }
+  const nodeIds = new Set();
   doc.nodes.forEach((n, i) => {
     if (
       !isObject(n) ||
@@ -131,18 +133,28 @@ export function checkBenchConfig(doc) {
     ) {
       throw new Error(`Attached part #${i + 1} is missing its id, parent, part, or slot.`);
     }
+    // Ids are only references within the file (hydration re-issues them),
+    // but two nodes under one id would make every reference to it
+    // ambiguous, and "root" already names the root part.
+    if (n.id === ROOT_ID) throw new Error(`Attached part #${i + 1} uses the reserved id "${ROOT_ID}".`);
+    if (nodeIds.has(n.id)) throw new Error(`Two attached parts share the id "${n.id}".`);
+    nodeIds.add(n.id);
+    if (!isSlotName(n.slotName)) throw new Error(`Attached part "${n.id}" names a malformed slot.`);
     if (n.params !== undefined && !isObject(n.params))
       throw new Error(`Attached part "${n.id}" has malformed parameters.`);
+    checkParams(n.params, `Attached part "${n.id}"`);
     if (n.joint !== undefined && !JOINTS.includes(n.joint)) {
       throw new Error(
         `Attached part "${n.id}" uses an unknown joint "${n.joint}" (known: ${JOINTS.join(", ")}).`,
       );
     }
-    if (n.childAnchor !== undefined && typeof n.childAnchor !== "string")
+    if (n.childAnchor !== undefined && !isSlotName(n.childAnchor))
       throw new Error(`Attached part "${n.id}" has a malformed anchor.`);
-    if (n.overlap !== undefined && typeof n.overlap !== "number")
+    // Number.isFinite, not typeof: JSON's 1e999 parses to Infinity, which
+    // is a number but has no OpenSCAD literal.
+    if (n.overlap !== undefined && !Number.isFinite(n.overlap))
       throw new Error(`Attached part "${n.id}" has a non-numeric offset.`);
-    if (n.spin !== undefined && typeof n.spin !== "number")
+    if (n.spin !== undefined && !Number.isFinite(n.spin))
       throw new Error(`Attached part "${n.id}" has a non-numeric rotation.`);
     if (n.shift !== undefined && !isVec2(n.shift))
       throw new Error(`Attached part "${n.id}" has a malformed sideways shift (expected [x, y] in mm).`);
@@ -153,6 +165,7 @@ export function checkBenchConfig(doc) {
     throw new Error("The config's \"cropTo\" isn't a part id.");
   if (doc.imports !== undefined) {
     if (!Array.isArray(doc.imports)) throw new Error("The config's \"imports\" isn't a list.");
+    const importIds = new Set();
     doc.imports.forEach((imp, i) => {
       if (
         !isObject(imp) ||
@@ -162,8 +175,16 @@ export function checkBenchConfig(doc) {
       ) {
         throw new Error(`Imported mesh #${i + 1} is missing its id, anchors, or STL data.`);
       }
+      // The name is shown in messages and written into the generated
+      // .scad's comments; anything but text has no business there.
+      if (imp.name !== undefined && typeof imp.name !== "string")
+        throw new Error(`Imported mesh #${i + 1} has a name that isn't text.`);
+      // A second mesh under the same id would silently replace the first
+      // for every part that refers to it.
+      if (importIds.has(imp.id)) throw new Error(`Two imported meshes share the id "${imp.id}".`);
+      importIds.add(imp.id);
       for (const a of imp.anchors) {
-        if (!isObject(a) || typeof a.name !== "string" || !isVec3(a.point) || !isVec3(a.normal)) {
+        if (!isObject(a) || !isSlotName(a.name) || !isVec3(a.point) || !isVec3(a.normal)) {
           throw new Error(`Imported mesh "${imp.name ?? imp.id}" has a malformed slot.`);
         }
       }
@@ -240,7 +261,6 @@ export function hydrateBenchConfig(doc, catalogueById) {
         i++;
         continue;
       }
-      if (nodeIdMap.has(n.id)) throw new Error(`Attached part id "${n.id}" appears twice.`);
       const id = allocateChildId();
       nodeIdMap.set(n.id, id);
       nodes.push({
@@ -276,6 +296,38 @@ export function hydrateBenchConfig(doc, catalogueById) {
   const name = typeof doc.name === "string" ? doc.name.trim() : "";
   if (name) assembly.name = name;
   return { assembly, importedParts };
+}
+
+// What a slot or anchor name looks like: the catalogue's (mount,
+// mount_-1_2, bot, xpos_0) and an imported part's (slot3), with room for
+// a hand-edited file's spaces and dots. The codegen quotes names
+// properly whatever they are (assembly.js's attachCall()); this is so a
+// file that names something else entirely says so on load rather than as
+// a puzzling OpenSCAD error.
+const SLOT_NAME = /^[A-Za-z0-9_][A-Za-z0-9_. -]{0,63}$/;
+
+function isSlotName(v) {
+  return typeof v === "string" && SLOT_NAME.test(v);
+}
+
+const PARAM_NAME = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+// A parameter set as the codegen can write it (scadLiteral.js's
+// callArgs()): identifier names, and values that are text, true/false,
+// finite numbers, or lists of those. Anything else would fail the render
+// with a message about the generated source instead of the file.
+function checkParams(params, where) {
+  if (params === undefined) return;
+  for (const [key, value] of Object.entries(params)) {
+    if (!PARAM_NAME.test(key)) throw new Error(`${where} has a parameter named ${JSON.stringify(key)}.`);
+    if (!isParamValue(value)) throw new Error(`${where} has an unusable value for "${key}".`);
+  }
+}
+
+function isParamValue(v) {
+  if (typeof v === "string" || typeof v === "boolean" || v === null) return true;
+  if (typeof v === "number") return Number.isFinite(v);
+  return Array.isArray(v) && v.every(isParamValue);
 }
 
 function isObject(v) {

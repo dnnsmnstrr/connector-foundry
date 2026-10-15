@@ -94,11 +94,18 @@ export function restoreBenchFromUrl(catalogueById) {
     throw new Error("The bench in this link couldn't be read — the address may have been cut short.");
   }
   const nodes = Array.isArray(tree.nodes) ? tree.nodes : [];
-  const imports = loadSessionImports();
+  const referenced = new Set(
+    [tree.root, ...nodes]
+      .map((n) => n?.partId)
+      .filter((id) => typeof id === "string" && id.startsWith("imported:")),
+  );
+  // Only the meshes this link's tree names: the tab may still hold others
+  // from an earlier bench, and every one handed to hydration is decoded,
+  // validated and checked — a stale or damaged leftover would otherwise
+  // break restoring a link that never used it.
+  const imports = loadSessionImports().filter((i) => referenced.has(i?.id));
   const known = new Set(imports.map((i) => i.id));
-  const missing = [tree.root, ...nodes]
-    .map((n) => n?.partId)
-    .filter((id) => typeof id === "string" && id.startsWith("imported:") && !known.has(id));
+  const missing = [...referenced].filter((id) => !known.has(id));
   if (missing.length) {
     throw new Error(
       "This bench uses an imported STL that is only kept in the tab it was uploaded in, so it can't be " +

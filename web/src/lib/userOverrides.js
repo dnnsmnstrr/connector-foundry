@@ -66,10 +66,18 @@ function read(partId) {
   const raw = safeGet(storageKey(partId));
   if (!raw) return {};
   try {
-    return JSON.parse(raw).parameterSets?.[PRESET_NAME] ?? {};
+    const params = JSON.parse(raw)?.parameterSets?.[PRESET_NAME];
+    // Only a plain object is a parameter set. A settings import can store
+    // anything under the key, and a string or array here would spread
+    // into {0: "a", 1: "b", ...} — parameter names that are no parameter.
+    return isPlainObject(params) ? params : {};
   } catch {
     return {};
   }
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function write(partId, params) {

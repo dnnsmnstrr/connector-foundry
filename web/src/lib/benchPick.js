@@ -11,33 +11,8 @@
 // scene and its outline isn't drawn; it stays selectable from the
 // sidebar. Pure functions; Bench.jsx wires state to them.
 import { ROOT_ID, getNode } from "./assembly.js";
-import { STACK_ANCHOR, attachPointWorld, matingRise, shiftWorldXY } from "./benchLayout.js";
+import { attachPointWorld, matingDirection, matingRise, shiftWorldXY } from "./benchLayout.js";
 import { enumerateSlots } from "./slots.js";
-
-// Which way a child mated onto `slotName` of `parentId` points in world
-// space, when that direction is vertical: +1 for a slot facing up (root's
-// top grid, a stacked part's exposed "bot", an imported anchor whose
-// normal is +Z), -1 for one facing down (root's own "bot", or a -Z
-// imported anchor). null for anything sideways or unknown.
-function verticalMatingDir(assembly, partsById, parentId, slotName) {
-  const parent = getNode(assembly, parentId);
-  const parentPart = parent && partsById.get(parent.partId);
-  if (!parentPart) return null;
-  if (parentId !== ROOT_ID) {
-    // Deeper than root, the only slot whose world position is known is
-    // the exposed "bot" of a catalogue part in an upward stack (see
-    // benchLayout.js's exposedTopWorldPosition()).
-    return parentPart.kind !== "imported" && slotName === STACK_ANCHOR ? 1 : null;
-  }
-  if (parentPart.kind === "imported") {
-    const anchor = parentPart.anchors.find((a) => a.name === slotName);
-    if (!anchor || Math.abs(anchor.normal[2]) < 0.9) return null;
-    return anchor.normal[2] > 0 ? 1 : -1;
-  }
-  if (slotName.startsWith("mount")) return 1;
-  if (slotName === STACK_ANCHOR) return -1;
-  return null;
-}
 
 // Half-extents of a w×d rectangle after turning it `spin` degrees about
 // its center — the axis-aligned box that contains the rotated footprint.
@@ -69,7 +44,10 @@ export function nodeWorldBox(assembly, partsById, rootSlotWorldPositions, nodeEx
   // mount_offset — either way the part hangs off the mating point by a
   // known amount. An imported part's anchor could be anywhere on it.
   if (!part || part.kind === "imported" || node.childAnchor !== "mount") return null;
-  const dir = verticalMatingDir(assembly, partsById, node.parentId, node.slotName);
+  // Which way the chain up to root points (benchLayout.js's
+  // matingDirection()): a grandchild under a part that hangs below root's
+  // "bot" hangs further down, not up into root.
+  const dir = matingDirection(assembly, partsById, node.parentId, node.slotName);
   if (dir === null) return null;
   const attach = attachPointWorld(assembly, partsById, rootSlotWorldPositions, nodeExtents, nodeId);
   if (!attach) return null;
