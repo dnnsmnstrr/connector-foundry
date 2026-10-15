@@ -383,6 +383,15 @@ def compose_intersection(a: str, b: str) -> str:
             *heads,
             "",
             "module __fit_a() {",
+            # OpenSCAD's own defaults, restored for this repo's side.
+            # Includes are hoisted to file level, so a reference's
+            # top-level settings reach our part too — and NopSCADlib's
+            # global_defs.scad sets `$fs = ... extrusion_width / 2`, which
+            # OpenSCAD evaluates before extrusion_width exists: $fs comes
+            # out undef, BOSL2's segs() returns nonsense and the part fails
+            # to render (the 2020 tab-in-slot check had been erroring,
+            # and passing as an "empty overlap", for that reason).
+            "$fa = 12; $fs = 2;",
             *a_body,
             "}",
             "",
