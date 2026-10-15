@@ -22,6 +22,7 @@ render, and one step further out must not.
 """
 
 import math
+import re
 
 import foundry
 import pytest
@@ -29,6 +30,13 @@ import trimesh
 from conftest import render_variant
 
 TOL_MM = 0.01
+
+
+def _unknown_anchor(name: str) -> str:
+    """The pytest.raises() match for BOSL2 refusing `name` specifically —
+    any other render error (a syntax slip, a broken include) must not
+    count as proof that the anchor is absent."""
+    return rf"Unknown anchor: {re.escape(name)}(?![\w.])"
 
 
 def _slotted_parts():
@@ -90,7 +98,7 @@ def test_declared_pitch_matches_the_geometry(part, render_dir):
         # A grid one slot wide (extrusion2020/rail: a 20mm profile at 20mm
         # pitch) has no Y neighbour. Prove the absence the same way the
         # edge test below does for X: BOSL2 refuses the name.
-        with pytest.raises(foundry.OpenSCADError):
+        with pytest.raises(foundry.OpenSCADError, match=_unknown_anchor(y_neighbor_name)):
             render_variant(part, {"anchor": y_neighbor_name}, render_dir, f"anchor-{y_neighbor_name}")
 
 
@@ -104,5 +112,5 @@ def test_grid_edge_matches_the_declared_count(part, render_dir):
 
     render_variant(part, {"anchor": edge_name}, render_dir, f"anchor-{edge_name}")  # must exist
 
-    with pytest.raises(foundry.OpenSCADError):
+    with pytest.raises(foundry.OpenSCADError, match=_unknown_anchor(beyond_name)):
         render_variant(part, {"anchor": beyond_name}, render_dir, f"anchor-{beyond_name}")

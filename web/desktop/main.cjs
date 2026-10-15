@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } = require("electron");
+const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { APP_URL, assetPath, isAppURL } = require("./paths.cjs");
@@ -124,8 +125,13 @@ if (!isMac && !app.requestSingleInstanceLock()) {
 function start() {
   // Packaged apps use CFBundleIconFile; the development Electron launcher
   // needs its Dock icon set explicitly.
-  if (!app.isPackaged && isMac) {
-    app.dock.setIcon(path.join(__dirname, "generated", "icon.png"));
+  // The icon is generated, not committed, so a fresh checkout may not
+  // have it yet — and setIcon() throws on a missing file, which would
+  // abort start() before any window is created. A default Dock icon is
+  // the right fallback for a development run.
+  const devIcon = path.join(__dirname, "generated", "icon.png");
+  if (!app.isPackaged && isMac && fs.existsSync(devIcon)) {
+    app.dock.setIcon(devIcon);
   }
   // Stable private origin: no localhost server, network dependency, or file:// privileges.
   const root = path.join(__dirname, "..", "dist");

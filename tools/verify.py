@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -179,6 +180,17 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     config = refcache.load()
+    # A mistyped filter would otherwise run nothing and report
+    # "0 passed, 0 failed" with exit status 0 — indistinguishable from a
+    # clean run to anything scripting this. Checked before resolving
+    # sources so the mistake costs no fetch.
+    if args.filter:
+        ids = [c["id"] for key in ("shape_checks", "fit_checks") for c in config.get(key, [])]
+        if not any(args.filter in check_id for check_id in ids):
+            print(f"no check id contains {args.filter!r}; known ids:", file=sys.stderr)
+            for check_id in ids:
+                print(f"  {check_id}", file=sys.stderr)
+            return 2
     available, unavailable = refcache.resolve_available(config, offline=args.offline)
     scad_path = openscad_path(config, available)
 

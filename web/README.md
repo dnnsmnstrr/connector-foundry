@@ -13,9 +13,11 @@ running in a Web Worker.
    `public/scad-bundle.json`,
    and parses `catalogue.yaml` into `public/catalogue.json`. This is the only "build step" that touches the
    OpenSCAD sources — the app never transpiles or reimplements them.
-   An included file that does not exist (a submodule that was never checked out) is reported,
-   since the symptom in the browser is otherwise just an unhelpful "can't open include" on the
-   parts that need it.
+   An included file that does not exist (a submodule that was never checked out) fails the
+   sync — and so `dev`, `build` and CI — naming the files, since the symptom in the browser is
+   otherwise just an unhelpful "can't open include" on the parts that need it, in a build that
+   looked green. `SYNC_SCAD_ALLOW_MISSING=1` downgrades it to a warning; the dev server's file
+   watcher only ever warns.
    A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
    under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
    relative `import()` resolves in the browser exactly as it does on disk.

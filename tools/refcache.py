@@ -44,7 +44,13 @@ def load() -> dict:
 
 
 def _git(*args: str, cwd: Path | None = None) -> str:
-    proc = subprocess.run(["git", *args], check=False, cwd=cwd, capture_output=True, text=True)
+    # A missing git binary (or an unusable cwd) is the same kind of
+    # failure as a git command failing: callers catch RefError to skip
+    # a source, and an OSError would escape that and crash the run.
+    try:
+        proc = subprocess.run(["git", *args], check=False, cwd=cwd, capture_output=True, text=True)
+    except OSError as exc:
+        raise RefError(f"git {' '.join(args)} could not run: {exc}") from exc
     if proc.returncode != 0:
         raise RefError(f"git {' '.join(args)} failed:\n{proc.stderr.strip()}")
     return proc.stdout.strip()
@@ -199,7 +205,15 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
     MESH_CACHE.mkdir(parents=True, exist_ok=True)
     mesh = _load_cad(source, suffix)
     mesh.apply_scale(scale)
-    mesh.export(out)
+    # The existence check above is the cache, so the export goes to a
+    # temp name first: an interrupted export must not leave a truncated
+    # STL at `out` to be served as the reference from then on.
+    tmp = out.with_name(out.name + ".part")
+    try:
+        mesh.export(tmp, file_type="stl")
+        os.replace(tmp, out)
+    finally:
+        tmp.unlink(missing_ok=True)
     return out
 
 
@@ -219,9 +233,11 @@ def _load_cad(source: Path, suffix: str):
             raise RefError("reading STEP needs the `cascadio` package: pip install -e '.[dev]'") from exc
         glb = MESH_CACHE / f".{source.stem}.glb"
         MESH_CACHE.mkdir(parents=True, exist_ok=True)
-        cascadio.step_to_glb(str(source), str(glb), tol_linear=0.01, tol_angular=0.05)
-        loaded = trimesh.load(glb)
-        glb.unlink(missing_ok=True)
+        try:
+            cascadio.step_to_glb(str(source), str(glb), tol_linear=0.01, tol_angular=0.05)
+            loaded = trimesh.load(glb)
+        finally:
+            glb.unlink(missing_ok=True)
     else:
         loaded = trimesh.load(source)
 
@@ -245,6 +261,9 @@ def expand(recipe: str, roots: dict[str, Path]) -> str:
 
 
 SCAD_DIRS = ("lib", "parts", "assemblies")
+# Everything under SCAD_DIRS a render can read: the sources, and the
+# meshes and images they import().
+SCAD_SUFFIXES = (".scad", ".stl", ".3mf", ".off", ".obj", ".svg", ".dxf", ".png")
 
 
 @functools.cache
@@ -255,13 +274,16 @@ def source_fingerprint() -> str:
     the mesh cache on the recipe text alone means editing a part leaves
     the cache serving its old geometry — a verify run that reports on
     code you have already changed, which is worse than having no checks
-    at all. Hash our own .scad tree by content, and each vendored
-    upstream by its checked-out commit. Computed once per process: the
-    sources do not change under a running check.
+    at all. Hash our own .scad tree by content — and the meshes it
+    `import()`s (parts/deckmate/*.stl, parts/klippt/*.stl), which are as
+    much a part's geometry as its code — and each vendored upstream by
+    its checked-out commit. Computed once per process: the sources do
+    not change under a running check.
     """
     digest = hashlib.sha256()
     for directory in SCAD_DIRS:
-        for path in sorted((REPO_ROOT / directory).rglob("*.scad")):
+        paths = [p for suffix in SCAD_SUFFIXES for p in (REPO_ROOT / directory).rglob(f"*{suffix}")]
+        for path in sorted(paths):
             digest.update(str(path.relative_to(REPO_ROOT)).encode())
             digest.update(path.read_bytes())
     vendor = REPO_ROOT / "vendor"
@@ -290,24 +312,41 @@ def render(
 
     MESH_CACHE.mkdir(parents=True, exist_ok=True)
     scad = MESH_CACHE / f".{tag}-{key}.scad"
-    scad.write_text(source)
+    # openscad writes to a temp name that is only moved onto `out` once
+    # the render has been accepted: `out` existing is the cache, so a
+    # render killed mid-write (Ctrl-C) must not leave a truncated STL
+    # there to be reused forever. The ".part.stl" suffix keeps the
+    # extension openscad picks the export format from.
+    tmp = out.with_name(f".{out.stem}.part.stl")
 
     env = None
     if openscad_path:
-        env = {**os.environ, "OPENSCADPATH": ":".join(str(p) for p in openscad_path)}
+        env = {**os.environ, "OPENSCADPATH": os.pathsep.join(str(p) for p in openscad_path)}
 
-    cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(out), str(scad)]
-    proc = subprocess.run(cmd, check=False, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
-    scad.unlink(missing_ok=True)
-    # An empty result is an error to openscad but a legitimate answer
-    # here: an intersection check *wants* the overlap to be empty.
-    empty = "top level object is empty" in proc.stderr.lower()
-    if proc.returncode != 0 and not empty:
-        raise RefError(f"openscad failed rendering {tag}:\n{proc.stderr.strip()}")
-    if not out.exists():
-        if not empty:
-            raise RefError(f"openscad wrote nothing for {tag}:\n{proc.stderr.strip()}")
-        out.write_text("solid empty\nendsolid empty\n")
+    try:
+        scad.write_text(source)
+        cmd = [OPENSCAD_BIN, "--backend=Manifold", "-o", str(tmp), str(scad)]
+        try:
+            proc = subprocess.run(cmd, check=False, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
+        except OSError as exc:
+            raise RefError(f"could not run {OPENSCAD_BIN!r}: {exc}") from exc
+        # An empty result is an error to openscad but a legitimate answer
+        # here: an intersection check *wants* the overlap to be empty. Only
+        # when that is the whole story, though — a recipe that fails to
+        # compile can also end up with nothing at top level, and that one
+        # is a broken check, not an empty overlap.
+        has_error = any(line.lstrip().startswith("ERROR:") for line in proc.stderr.splitlines())
+        empty = "top level object is empty" in proc.stderr.lower() and not has_error
+        if proc.returncode != 0 and not empty:
+            raise RefError(f"openscad failed rendering {tag}:\n{proc.stderr.strip()}")
+        if not tmp.exists():
+            if not empty:
+                raise RefError(f"openscad wrote nothing for {tag}:\n{proc.stderr.strip()}")
+            tmp.write_text("solid empty\nendsolid empty\n")
+        os.replace(tmp, out)
+    finally:
+        scad.unlink(missing_ok=True)
+        tmp.unlink(missing_ok=True)
     return out
 
 

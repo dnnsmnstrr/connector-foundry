@@ -40,6 +40,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - run: npm ci
+      # The same gate CI's web checks apply: a deploy straight from main
+      # must not publish a build whose unit tests or lint fail.
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
         env:
           GITHUB_PAGES: "true"
@@ -61,12 +65,20 @@ jobs:
       # attempt 20 minutes, and try once more if it still fails; the second
       # attempt reuses the artifact the build job uploaded, so nothing is
       # rebuilt. The environment URL comes from whichever attempt succeeded.
+      #
+      # continue-on-error keeps a failed first attempt from failing the
+      # job, so a successful retry leaves the run green; the step's
+      # `outcome` still says failure (its `conclusion` is what becomes
+      # success), which is what the retry keys on — not failure(), which
+      # is false once the error has been swallowed. If the retry fails
+      # too, the job fails on it.
       - id: deployment
         uses: actions/deploy-pages@v5
+        continue-on-error: true
         with:
           timeout: "1200000"
       - id: deployment-retry
-        if: failure() && steps.deployment.outcome == 'failure'
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v5
         with:
           timeout: "1200000"

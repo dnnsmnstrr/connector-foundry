@@ -33,7 +33,7 @@ format:
 # catalogue tests that do not render, and the web app's lint, types,
 # formatting and unit tests. The pre-push minimum; CI runs the rest.
 check: lint
-	$(VENV)/python -m pytest tests/test_catalogue.py -q
+	$(VENV)/python -m pytest tests/test_catalogue.py tests/test_catalogue_schema.py tests/test_openscad_values.py -q
 	cd web && npm run check
 
 # Fetch every reference source into refs/ (gitignored). Submodule-backed

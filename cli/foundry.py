@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import functools
 import json
+import math
 import os
 import re
 import subprocess
@@ -120,22 +121,71 @@ class Raw(str):
     """
 
 
+# C0 controls other than \t \n \r, and DEL: json.dumps would write them as
+# \u0001-style escapes, which OpenSCAD's lexer does not read. Same set as
+# web/src/lib/scadLiteral.js's UNESCAPABLE_CONTROL.
+_UNESCAPABLE_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_LONE_SURROGATE = re.compile(r"[\ud800-\udfff]")
+
+# An OpenSCAD identifier: what a parameter or constant name may be. `$`
+# is allowed anywhere because special variables ($fn, $fa) are
+# parameters too. web/src/lib/scadLiteral.js's IDENTIFIER.
+_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
+
+
+def scad_safe_text(text: str) -> str:
+    """`text` without the characters an OpenSCAD string literal cannot
+    carry — dropped, or (a lone surrogate, which names no character)
+    replaced. None of them can mean anything in a parameter value."""
+    return _LONE_SURROGATE.sub("\ufffd", _UNESCAPABLE_CONTROL.sub("", text))
+
+
+def openscad_identifier(name: object) -> str:
+    """`name` if it is an OpenSCAD identifier, else BadParameter.
+
+    A name goes into the source verbatim (`name=value` in a call, `-D
+    name=value` on the command line), so one that is not an identifier
+    could carry code of its own — `x=1);evil(` — and is refused rather
+    than escaped (an identifier has no escapes)."""
+    if not isinstance(name, str) or not _IDENTIFIER.match(name):
+        raise typer.BadParameter(f"{str(name)!r} is not a valid OpenSCAD parameter name")
+    return name
+
+
 def openscad_value(value) -> str:
     """A Python value as an OpenSCAD literal.
 
     Strings go through json.dumps: OpenSCAD's string escapes (\\" and \\\\)
     are JSON's, so a value containing a quote arrives intact instead of
-    ending the literal early. web/src/lib/scadLiteral.js does the same.
+    ending the literal early. JSON's other escapes are not all OpenSCAD's,
+    so the characters that would need them are dropped first (see
+    scad_safe_text()). web/src/lib/scadLiteral.js does the same, and
+    the two have to agree: a value round-trips to the same text
+    whichever side renders it.
+
+    Anything else that has no OpenSCAD literal is refused rather than
+    passed through str(): a float nan/inf (what parse_scalar makes of
+    "--set x=nan") would arrive as an undefined variable named nan, and
+    a dict as Python repr, both of which OpenSCAD quietly reads as undef
+    and renders the part's fallback for.
     """
     if isinstance(value, Raw):
         return str(value)
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
+        return json.dumps(scad_safe_text(value), ensure_ascii=False)
+    if value is None:
+        return "undef"
     if isinstance(value, (list, tuple)):
         return "[" + ", ".join(openscad_value(v) for v in value) + "]"
-    return str(value)
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise typer.BadParameter(f"{value!r} is not a finite number; OpenSCAD has no literal for it")
+        return str(value)
+    raise typer.BadParameter(f"{value!r}: a {type(value).__name__} has no OpenSCAD literal")
 
 
 def parse_scalar(raw: str):
@@ -153,9 +203,45 @@ def parse_scalar(raw: str):
 # ------------------------------------------------------------ signatures
 
 
+def _strip_comments_and_strings(source: str) -> str:
+    """`source` with every comment removed and every string literal
+    emptied to "".
+
+    The signature scan below matches parentheses and splits on commas,
+    so a default like `label="a, b (c)"` or a commented-out parameter
+    would otherwise shift its idea of where each name starts, or where
+    the signature ends — and an earlier commented-out `module foo(`
+    would be taken for the real one. Newlines inside comments are kept
+    so nothing else about the layout changes.
+    """
+    out: list[str] = []
+    index, length = 0, len(source)
+    while index < length:
+        char = source[index]
+        pair = source[index : index + 2]
+        if pair == "//":
+            end = source.find("\n", index)
+            index = length if end < 0 else end
+        elif pair == "/*":
+            end = source.find("*/", index + 2)
+            end = length if end < 0 else end + 2
+            out.append("\n" * source.count("\n", index, end) or " ")
+            index = end
+        elif char == '"':
+            index += 1
+            while index < length and source[index] != '"':
+                index += 2 if source[index] == "\\" else 1
+            out.append('""')
+            index += 1
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
 @functools.cache
 def _module_parameters(scad_file: str, module: str) -> tuple[str, ...]:
-    source = (REPO_ROOT / scad_file).read_text()
+    source = _strip_comments_and_strings((REPO_ROOT / scad_file).read_text())
     match = re.search(rf"\bmodule\s+{re.escape(module)}\s*\(", source)
     if not match:
         raise typer.BadParameter(f"no module {module}() in {scad_file}")
@@ -304,10 +390,16 @@ def run_openscad(
 ) -> None:
     """Render `scad_file` to `out_file` (format by extension) with each
     param passed as a -D override. Raises OpenSCADError on failure."""
+    # openscad runs with cwd=REPO_ROOT (so relative includes in recipes
+    # resolve the same wherever foundry is started), which means a
+    # relative path from the caller — `-o out/` is the CLI's default —
+    # has to be made absolute against the caller's cwd first, or the
+    # installed `foundry` only works when run from the repository root.
+    scad_file, out_file = Path(scad_file).resolve(), Path(out_file).resolve()
     out_file.parent.mkdir(parents=True, exist_ok=True)
     cmd = [OPENSCAD_BIN, "--backend=Manifold", *extra_args, "-o", str(out_file)]
     for key, value in params.items():
-        cmd += ["-D", f"{key}={openscad_value(value)}"]
+        cmd += ["-D", f"{openscad_identifier(key)}={openscad_value(value)}"]
     cmd.append(str(scad_file))
     try:
         result = subprocess.run(
@@ -325,7 +417,7 @@ def run_openscad(
 def stub_source(part: dict, params: dict[str, object]) -> str:
     """The two-line .scad that renders one catalogue part: include its
     file, call its module with these parameters."""
-    call_args = ", ".join(f"{k}={openscad_value(v)}" for k, v in params.items())
+    call_args = ", ".join(f"{openscad_identifier(k)}={openscad_value(v)}" for k, v in params.items())
     return f"include <{REPO_ROOT / part['file']}>\n{part['module']}({call_args});\n"
 
 
@@ -352,6 +444,12 @@ def render_part(
     check_minimums(part, params)
     out_stl = out_dir / f"{slug(part['id'])}.stl"
     global_overrides = userconfig.get_global_overrides() if use_user_config else {}
+    # Saved settings get the same re-check at render time as saved
+    # per-part overrides do in resolve_params(): a constant renamed in
+    # lib/constants.scad since it was saved would otherwise be a -D that
+    # OpenSCAD silently ignores.
+    if global_overrides:
+        check_settings(global_overrides)
     with _stub_file(part, params, out_dir) as stub:
         run_openscad(stub, out_stl, global_overrides)
     return out_stl
@@ -369,14 +467,15 @@ def render_preview(part: dict, out_dir: Path) -> Path:
 
 
 def _exits_on_render_failure(command):
-    """A failed render is an error message and exit status 1, not a
-    traceback. Library callers (the tests) still get the exception."""
+    """A failed render — or a saved config file too broken to update
+    safely — is an error message and exit status 1, not a traceback.
+    Library callers (the tests) still get the exception."""
 
     @functools.wraps(command)
     def wrapper(*args, **kwargs):
         try:
             return command(*args, **kwargs)
-        except OpenSCADError as exc:
+        except (OpenSCADError, userconfig.ConfigError) as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
 
@@ -390,7 +489,13 @@ def parse_set_items(items: list[str] | None, metavar: str = "KEY=VALUE") -> dict
         if "=" not in item:
             raise typer.BadParameter(f"--set expects {metavar}, got {item!r}")
         key, _, raw = item.partition("=")
-        overrides[key.strip()] = parse_scalar(raw.strip())
+        key = openscad_identifier(key.strip())
+        value = parse_scalar(raw.strip())
+        # Fail on "nan"/"inf" here, while the flag is still in view,
+        # rather than at render time — or never, for a value `defaults
+        # set` would have saved into the config file.
+        openscad_value(value)
+        overrides[key] = value
     return overrides
 
 
@@ -470,6 +575,7 @@ app.add_typer(defaults_app, name="defaults")
 
 
 @defaults_app.command("set")
+@_exits_on_render_failure
 def defaults_set(
     part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
     gx: int = typer.Option(None),
@@ -502,6 +608,7 @@ def defaults_show(part_id: str = typer.Argument(..., help="Catalogue id, e.g. gr
 
 
 @defaults_app.command("clear")
+@_exits_on_render_failure
 def defaults_clear(
     part_id: str = typer.Argument(..., help="Catalogue id, e.g. gridfinity/base"),
     param: list[str] = typer.Option(
@@ -509,6 +616,9 @@ def defaults_clear(
     ),
 ):
     """Forget this part's saved user defaults (all, or just --param ones)."""
+    # A typo'd id has no saved file, so clearing it would succeed and
+    # report "cleared" while the real part's defaults stay in force.
+    find_part(load_catalogue(), part_id)
     userconfig.clear_overrides(part_id, param or None)
     typer.echo(f"{part_id}: cleared {'all' if not param else ', '.join(param)} saved override(s)")
 
@@ -538,6 +648,7 @@ app.add_typer(settings_app, name="settings")
 
 
 @settings_app.command("set")
+@_exits_on_render_failure
 def settings_set(
     fit_clearance: float = typer.Option(None, help="Shorthand for --set FIT_CLEARANCE=..."),
     circle_detail: str = typer.Option(
@@ -569,6 +680,7 @@ def settings_show():
 
 
 @settings_app.command("clear")
+@_exits_on_render_failure
 def settings_clear(
     param: list[str] = typer.Option(
         None, "--param", help="Clear only these; omit to clear every saved global setting."

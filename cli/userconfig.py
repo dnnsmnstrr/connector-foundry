@@ -35,31 +35,84 @@ PRESET_NAME = "user-default"
 GLOBAL_ID = "__global__"
 
 
+class ConfigError(ValueError):
+    """A saved config file exists but cannot be parsed, so writing over
+    it would throw away whatever the user had hand-edited into it."""
+
+
 def config_dir() -> Path:
-    base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    # `or`, not a get() default: the XDG spec says an empty
+    # XDG_CONFIG_HOME means unset, and Path("") would otherwise turn the
+    # config into a directory relative to wherever foundry was run from.
+    base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     return base / "connector-foundry"
 
 
 def _override_path(part_id: str) -> Path:
+    # "/" becomes "__", which no catalogue id contains (ids are
+    # lower-case words joined by single "_" or "-"), so the mapping is
+    # injective: the old single-"_" form sent both "a/b_c" and "a_b/c"
+    # to a_b_c.json, and saving one part's defaults silently became the
+    # other's.
+    return config_dir() / "overrides" / f"{part_id.replace('/', '__')}.json"
+
+
+def _legacy_override_path(part_id: str) -> Path:
+    """Where files were saved before the "__" separator. Still read (and
+    removed once the part is written again) so an upgrade keeps
+    everyone's saved defaults."""
     return config_dir() / "overrides" / f"{part_id.replace('/', '_')}.json"
+
+
+def _existing_path(part_id: str) -> Path | None:
+    for path in (_override_path(part_id), _legacy_override_path(part_id)):
+        if path.exists():
+            return path
+    return None
+
+
+def _parse(path: Path) -> dict | None:
+    """The preset in `path`, or None when the file does not parse into
+    the expected shape."""
+    try:
+        doc = json.loads(path.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+        return None
+    if not isinstance(doc, dict):
+        return None
+    sets = doc.get("parameterSets")
+    if sets is None:
+        return {}
+    if not isinstance(sets, dict):
+        return None
+    preset = sets.get(PRESET_NAME, {})
+    return preset if isinstance(preset, dict) else None
 
 
 def _read(part_id: str) -> dict:
     """The saved preset, or {} for a missing, unreadable, or malformed
     file — a hand-edited config that no longer parses should degrade to
     "no overrides", never take `foundry render` down with a traceback."""
-    path = _override_path(part_id)
-    if not path.exists():
+    path = _existing_path(part_id)
+    if path is None:
         return {}
-    try:
-        doc = json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
+    return _parse(path) or {}
+
+
+def _read_for_update(part_id: str) -> dict:
+    """Like _read(), but a file that exists and does not parse is an
+    error rather than {}: the caller is about to write, and merging into
+    {} would replace the hand-edited file with just the new keys."""
+    path = _existing_path(part_id)
+    if path is None:
         return {}
-    if not isinstance(doc, dict):
-        return {}
-    sets = doc.get("parameterSets")
-    preset = sets.get(PRESET_NAME) if isinstance(sets, dict) else None
-    return preset if isinstance(preset, dict) else {}
+    preset = _parse(path)
+    if preset is None:
+        raise ConfigError(
+            f"{path} exists but is not a valid OpenSCAD Customizer parameter file; "
+            "fix or delete it before saving new values (it was left untouched)"
+        )
+    return preset
 
 
 def _write(part_id: str, params: dict) -> None:
@@ -72,6 +125,9 @@ def _write(part_id: str, params: dict) -> None:
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(doc, indent=2) + "\n")
     os.replace(tmp, path)
+    legacy = _legacy_override_path(part_id)
+    if legacy != path:
+        legacy.unlink(missing_ok=True)
 
 
 def get_overrides(part_id: str) -> dict:
@@ -81,27 +137,29 @@ def get_overrides(part_id: str) -> dict:
 
 def update_overrides(part_id: str, params: dict) -> dict:
     """Merge params into whatever's already saved; returns the result."""
-    merged = {**_read(part_id), **params}
+    merged = {**_read_for_update(part_id), **params}
     _write(part_id, merged)
     return merged
 
 
 def clear_overrides(part_id: str, keys: list[str] | None = None) -> None:
     """Clear one part's saved overrides — all of them, or just `keys`."""
-    path = _override_path(part_id)
+    paths = (_override_path(part_id), _legacy_override_path(part_id))
     if keys is None:
-        path.unlink(missing_ok=True)
+        for path in paths:
+            path.unlink(missing_ok=True)
         return
-    remaining = {k: v for k, v in _read(part_id).items() if k not in keys}
+    remaining = {k: v for k, v in _read_for_update(part_id).items() if k not in keys}
     if remaining:
         _write(part_id, remaining)
     else:
-        path.unlink(missing_ok=True)
+        for path in paths:
+            path.unlink(missing_ok=True)
 
 
 def overridden_part_ids(catalogue: dict) -> list[str]:
     """Every catalogue part id with a saved override file."""
-    return [p["id"] for p in catalogue["parts"] if _override_path(p["id"]).exists()]
+    return [p["id"] for p in catalogue["parts"] if _existing_path(p["id"]) is not None]
 
 
 def get_global_overrides() -> dict:
