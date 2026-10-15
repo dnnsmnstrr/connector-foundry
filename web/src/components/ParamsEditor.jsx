@@ -74,14 +74,22 @@ export default function ParamsEditor({
       ))}
       {allowSavedDefaults && (
         <div className="params-defaults-row">
-          <button className="bench-modal-cancel params-defaults-button" onClick={resetAllToCatalogue}>
+          <button
+            type="button"
+            className="bench-modal-cancel params-defaults-button"
+            onClick={resetAllToCatalogue}
+          >
             Reset all to catalogue
           </button>
-          <button className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
+          <button type="button" className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
             Save as my default
           </button>
           {hasSavedOverride && (
-            <button className="bench-modal-cancel params-defaults-button" onClick={clearSavedDefault}>
+            <button
+              type="button"
+              className="bench-modal-cancel params-defaults-button"
+              onClick={clearSavedDefault}
+            >
               Clear my saved default
             </button>
           )}

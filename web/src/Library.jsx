@@ -217,6 +217,7 @@ export default function Library({
               </div>
               <div className="part-header-actions">
                 <button
+                  type="button"
                   className="render-button bench-open-button"
                   onClick={() => onOpenInBench(selected, params)}
                   title="Start a new Bench with this part (and its current parameters) as the root"
@@ -224,6 +225,7 @@ export default function Library({
                   Open in Bench
                 </button>
                 <button
+                  type="button"
                   className="render-button bench-open-button"
                   onClick={() => onAddHoles(selected, params)}
                   title="Drill holes into this part (with its current parameters) in the Holes tab"
@@ -231,6 +233,7 @@ export default function Library({
                   Add Holes
                 </button>
                 <button
+                  type="button"
                   className="render-button"
                   onClick={() => doRender(params)}
                   disabled={status === "rendering"}
@@ -283,6 +286,7 @@ export default function Library({
                 {stlBuffer && (
                   <div className="viewer-actions">
                     <button
+                      type="button"
                       className="download-button layerling-button"
                       onClick={copyToLayerling}
                       disabled={!canDownload || layerling.copying}
@@ -290,7 +294,12 @@ export default function Library({
                     >
                       {layerling.label}
                     </button>
-                    <button className="download-button" onClick={downloadStl} disabled={!canDownload}>
+                    <button
+                      type="button"
+                      className="download-button"
+                      onClick={downloadStl}
+                      disabled={!canDownload}
+                    >
                       Download STL
                     </button>
                   </div>

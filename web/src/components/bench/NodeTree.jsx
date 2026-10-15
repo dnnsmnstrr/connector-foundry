@@ -68,6 +68,7 @@ export default function NodeTree({
       <div className="bench-child-meta">
         <span className="muted">{node.slotName}</span>
         <JointSelect
+          aria-label={`Joint for ${part.name}`}
           value={node.joint}
           options={jointsFor(parentPart, part)}
           onChange={(joint) => actions.setJoint(nodeId, joint)}
@@ -149,6 +150,7 @@ export default function NodeTree({
         <div className="bench-node-slots">
           {openSlots.map((slot) => (
             <button
+              type="button"
               key={slot.name}
               className="bench-attach-here"
               onClick={() => actions.attachAt(nodeId, slot.name)}

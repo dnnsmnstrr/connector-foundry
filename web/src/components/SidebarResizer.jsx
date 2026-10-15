@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useSidebarWidth } from "../hooks/useSidebarWidth.js";
 import {
   SIDEBAR_WIDTH_DEFAULT,
@@ -25,6 +25,16 @@ const BIG_STEP_PX = 64;
 export default function SidebarResizer() {
   const width = useSidebarWidth();
   const drag = useRef(null);
+
+  // Unmounted mid-drag (a mode switch by keyboard, the sidebar
+  // collapsing): no pointerup will reach this handle, so the class that
+  // turns off text selection page-wide would otherwise stay on <html>.
+  useEffect(
+    () => () => {
+      if (drag.current) document.documentElement.classList.remove("sidebar-resizing");
+    },
+    [],
+  );
 
   function onPointerDown(e) {
     if (e.button !== 0) return;

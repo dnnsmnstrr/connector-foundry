@@ -46,7 +46,15 @@ export default function ParamField({ name, value, options, min, max, catalogueDe
     return (
       <label htmlFor={inputId} className="field">
         {label}
-        <select id={inputId} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select
+          id={inputId}
+          value={value}
+          // An <option>'s value is always a string; hand back the catalogue's
+          // own option (a number for e.g. `pegs: [1, 2]`), or the .scad
+          // literal, the "differs from default" check and a saved default
+          // would all get "2" where the part expects 2.
+          onChange={(e) => onChange(options.find((o) => String(o) === e.target.value) ?? e.target.value)}
+        >
           {options.map((option) => (
             <option key={option} value={option}>
               {option}

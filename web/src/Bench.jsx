@@ -60,7 +60,7 @@ import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { deletePreset, savePreset } from "./lib/benchPresets.js";
 import { replaceBenchSession, setBenchAssembly, setBenchImportedParts } from "./lib/benchSession.js";
 import { downloadBlob } from "./lib/download.js";
-import { isEditableTarget } from "./lib/isEditableTarget.js";
+import { ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
@@ -177,21 +177,26 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // Escape backs out of whichever is up — the import flow first (it's on
   // top when both are technically "open"), then the attach-a-part picker,
   // then the name-before-export ask, then move mode, then the selection.
-  // The rest act on the selected part, and only with no modal up and the
-  // key not meant for a field: Delete/Backspace removes it (subtree and
-  // all, like the sidebar's ✕), M arms/disarms move mode, an arrow key
-  // steps it to the next open slot that way.
+  // The rest act on the selected part, and only with no modal up (the
+  // Bench's own or anyone else's), no Cmd/Ctrl/Alt held and the key not
+  // meant for a field (lib/isEditableTarget.js's ignoresShortcut()):
+  // Delete/Backspace removes it (subtree and all, like the sidebar's ✕),
+  // M arms/disarms move mode, an arrow key steps it to the next open slot
+  // that way. Escape with someone else's dialog up (Settings) is left to
+  // that dialog.
   const keyHandlerRef = useRef(null);
   keyHandlerRef.current = (e) => {
     if (e.key === "Escape") {
       if (importMode) setImportMode(null);
       else if (pendingSlot) setPendingSlot(null);
       else if (pendingExport) setPendingExport(null);
+      // Someone else's dialog (Settings) is up: Escape is for closing that.
+      else if (isBehindOpenDialog()) return;
       else if (moveMode) setMoveMode(false);
       else if (selectedNodeId) setSelectedNodeId(null);
       return;
     }
-    if (importMode || pendingSlot || pendingExport || !assembly || isEditableTarget(e.target)) return;
+    if (importMode || pendingSlot || pendingExport || !assembly || ignoresShortcut(e)) return;
     if (!selectedNodeId || !getNode(assembly, selectedNodeId)) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault(); // Backspace is "back" in some browsers
@@ -346,7 +351,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
   // Re-render the whole assembly (debounced) whenever it changes.
   useEffect(() => {
-    if (!assembly) return;
+    if (!assembly) {
+      // "Start over": drop the old bench's mesh and outside dimensions
+      // now, not when (or if) the next root's render replaces them.
+      setStlBuffer(null);
+      setStatus("idle");
+      setRenderError(null);
+      return;
+    }
     const seq = ++renderSeq.current;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -588,10 +600,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     );
   }
 
+  // compileToScad() throws on a tree it can't express (a part missing
+  // from the catalogue, say); shown where the STL exports show theirs,
+  // rather than lost as an uncaught error in an event handler.
   function downloadScad() {
-    withName((name) =>
-      downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain"),
-    );
+    withName((name) => {
+      try {
+        downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain");
+      } catch (err) {
+        setRenderError(friendlyRenderError(err.message));
+      }
+    });
   }
 
   // --- Configs and presets (lib/benchConfig.js, lib/benchPresets.js) ---
@@ -680,7 +699,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             autoFocus
             toolbar={
               <div className="bench-picker-toolbar">
-                <button className="render-button bench-import-button" onClick={() => setImportMode("root")}>
+                <button
+                  type="button"
+                  className="render-button bench-import-button"
+                  onClick={() => setImportMode("root")}
+                >
                   Import STL / STEP / 3MF…
                 </button>
                 <ConfigImportButton onFile={importConfigFile} className="render-button bench-import-button" />
@@ -734,6 +757,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               />
             </label>
             <button
+              type="button"
               className="render-button bench-reset"
               onClick={() => {
                 // Drops the imported meshes too: nothing can reference
@@ -791,6 +815,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             <div className="bench-export">
               {bodyTags(assembly).map((tag) => (
                 <button
+                  type="button"
                   key={tag}
                   className="download-button bench-export-button"
                   onClick={() => downloadBody(tag)}
@@ -798,10 +823,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   STL: {tag}
                 </button>
               ))}
-              <button className="download-button bench-export-button" onClick={downloadScad}>
+              <button type="button" className="download-button bench-export-button" onClick={downloadScad}>
                 Download .scad
               </button>
               <button
+                type="button"
                 className="download-button bench-export-button"
                 onClick={downloadConfig}
                 title="The bench setup as a file — parts, parameters, joints, rotations, and any imported meshes — to import again later"
@@ -809,6 +835,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 Download config
               </button>
               <button
+                type="button"
                 className="download-button bench-export-button layerling-button"
                 onClick={copyToLayerling}
                 disabled={layerling.copying}
@@ -956,7 +983,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             </p>
           )}
           {renderError && status !== "rendering" && (
-            <button className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
+            <button type="button" className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
               Retry preview
             </button>
           )}
@@ -985,7 +1012,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               onPick={attachChild}
               autoFocus
               toolbar={
-                <button className="render-button bench-import-button" onClick={() => setImportMode("child")}>
+                <button
+                  type="button"
+                  className="render-button bench-import-button"
+                  onClick={() => setImportMode("child")}
+                >
                   Import STL / STEP / 3MF…
                 </button>
               }

@@ -22,7 +22,7 @@ import { downloadBlob } from "./lib/download.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { groundedMesh } from "./lib/importedPart.js";
 import { setHolesDoc } from "./lib/holesSession.js";
-import { isEditableTarget } from "./lib/isEditableTarget.js";
+import { ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
@@ -175,6 +175,22 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [renderRetry, setRenderRetry] = useState(0);
   const [benchBusy, setBenchBusy] = useState(false);
   const renderSeq = useRef(0);
+  // The doc.source the mesh on screen was rendered from. While a new base
+  // renders (another model picked, a mesh flipped) the old mesh is still
+  // up, and a click on it would drill at the old model's coordinates —
+  // so surface hits and hover are ignored until the two match again.
+  // Holes being added or removed keep the source, and with it a live mesh.
+  const [shownSource, setShownSource] = useState(null);
+  // Bumped whenever the base is replaced (start(), changeBase()) or the
+  // tab unmounts, so a slow "Use the current bench" render that finishes
+  // afterwards can tell it is no longer wanted.
+  const baseRequest = useRef(0);
+  useEffect(
+    () => () => {
+      ++baseRequest.current;
+    },
+    [],
+  );
 
   // --- the mesh on screen ------------------------------------------------
   // The base alone when there are no holes (a catalogue part rendered
@@ -187,6 +203,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     if (!doc) {
       setStlBuffer(null);
       setBaseExtents(null);
+      setShownSource(null);
       return;
     }
     const seq = ++renderSeq.current;
@@ -204,6 +221,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         if (seq !== renderSeq.current) return;
         setBaseExtents(extents);
         setStlBuffer(buf);
+        setShownSource(doc.source);
         setStatus("done");
       } catch (err) {
         if (seq !== renderSeq.current) return;
@@ -320,10 +338,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     if (e.key === "Escape") {
       if (importOpen) setImportOpen(false);
       else if (repeatOpen) setRepeatOpen(false);
+      // Someone else's dialog (Settings) is up: Escape is for closing that.
+      else if (isBehindOpenDialog()) return;
       else if (selectedIds.length) setSelectedIds([]);
       return;
     }
-    if (importOpen || !doc || !selectedIds.length || isEditableTarget(e.target)) return;
+    if (importOpen || !doc || !selectedIds.length || ignoresShortcut(e)) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       deleteHoles(selectedIds);
@@ -361,6 +381,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   // --- picking a base ------------------------------------------------
   function start(source, name = null) {
+    ++baseRequest.current;
     setDoc(createHolesDoc(source, name));
     setSelectedIds([]);
     setRenderError(null);
@@ -373,7 +394,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // Centered on the grid with its bottom at z = 0 (see groundedMesh()):
   // a file saved at some corner of a print bed would otherwise sit far
   // from the grid, and a hole's coordinates would carry that offset.
-  function useImportedMesh(part) {
+  function pickImportedMesh(part) {
     start(meshSource(part.name, part.geometry, false));
     setImportOpen(false);
   }
@@ -390,19 +411,24 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   // The bench as one mesh: its "all" body, rendered through the same
   // request the Bench's own preview uses, so it is a cache hit when the
-  // Bench just showed it.
-  async function useCurrentBench() {
+  // Bench just showed it. A model picked while it renders wins: the
+  // render's result is dropped (see baseRequest) rather than replacing
+  // that model and any holes already drilled into it.
+  async function pickCurrentBench() {
     const { assembly, importedParts } = bench;
     if (!assembly) return;
-    const partsById = new Map([...catalogueById, ...importedParts]);
-    const importedFiles = new Map();
-    const scadSource = compileToScad(assembly, partsById, importedFiles);
+    const request = baseRequest.current;
     setBenchBusy(true);
     try {
+      const partsById = new Map([...catalogueById, ...importedParts]);
+      const importedFiles = new Map();
+      const scadSource = compileToScad(assembly, partsById, importedFiles);
       const buf = await renderPart({ scadSource, part: "all", importedFiles, globalOverrides });
+      if (request !== baseRequest.current) return;
       const name = benchName(assembly) ?? defaultBenchName(assembly, partsById);
       start(meshSource(name, new STLLoader().parse(buf), false), name);
     } catch (err) {
+      if (request !== baseRequest.current) return;
       setRenderError(`Couldn't render the bench: ${err.message}`);
     } finally {
       setBenchBusy(false);
@@ -417,6 +443,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       )
     )
       return;
+    ++baseRequest.current;
     setDoc(null);
     setSelectedIds([]);
   }
@@ -445,8 +472,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return { face, snap, line, point };
   }
 
+  // Whether the mesh on screen is the current base's (see shownSource).
+  const meshIsCurrent = Boolean(doc) && shownSource === doc.source;
+
   function onSurfaceHover(hit) {
-    if (!hit) {
+    if (!hit || !meshIsCurrent) {
       cancelPendingGuide();
       hoverPoint.current = null;
       setHover(null);
@@ -472,6 +502,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
 
   function onSurfaceHit(hit) {
+    if (!meshIsCurrent) return;
     const resolved = resolveHit(hit);
     if (!resolved) return;
     proposeGuideFace(resolved.face.key, true);
@@ -507,7 +538,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       pickHole(id.slice("hole:".length), modifiers.shiftKey);
       return;
     }
-    if (id.startsWith("snap:")) {
+    if (id.startsWith("snap:") && meshIsCurrent) {
       // The snap markers shown are always the guide face's.
       const candidate = guideFace?.candidates.find((c) => `snap:${c.id}` === id);
       if (candidate) placeAt(candidate.point, guideFace.normal);
@@ -600,13 +631,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     layerling.copy(holedBuffer().then((stlBuffer) => [{ name: exportName || "Holes", stlBuffer }]));
   }
 
-  function downloadScad() {
-    const throughLength = baseExtents ? Math.hypot(...baseExtents) + 2 : undefined;
-    downloadBlob(
-      holesToScad(doc, catalogueById, { throughLength, extents: baseExtents }),
-      exportFilename(exportName, "holes", ".scad"),
-      "text/plain",
-    );
+  // The extents come from the current base, as holedBuffer()'s do, not
+  // from the last render that finished: that may be the previous model's
+  // (or none yet), which would size the through holes for the wrong part.
+  async function downloadScad() {
+    try {
+      const extents = meshExtents(await baseBuffer(doc.source, catalogueById, globalOverrides));
+      downloadBlob(
+        holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, extents }),
+        exportFilename(exportName, "holes", ".scad"),
+        "text/plain",
+      );
+    } catch (err) {
+      setRenderError(err.message);
+    }
   }
 
   // --- markers -------------------------------------------------------
@@ -801,11 +839,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             autoFocus
             toolbar={
               <div className="holes-start-toolbar">
-                <button className="render-button bench-import-button" onClick={() => setImportOpen(true)}>
+                <button
+                  type="button"
+                  className="render-button bench-import-button"
+                  onClick={() => setImportOpen(true)}
+                >
                   Import STL / STEP / 3MF…
                 </button>
                 {librarySelection && (
                   <button
+                    type="button"
                     className="render-button bench-import-button"
                     onClick={() => pickCataloguePart(librarySelection.part, librarySelection.params)}
                     title="The part the Library tab is showing, with its current parameters"
@@ -815,8 +858,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 )}
                 {benchReady && (
                   <button
+                    type="button"
                     className="render-button bench-import-button"
-                    onClick={useCurrentBench}
+                    onClick={pickCurrentBench}
                     disabled={benchBusy}
                     title="The whole bench, rendered as one mesh"
                   >
@@ -828,7 +872,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           />
         </div>
         {importOpen && (
-          <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />
+          <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={pickImportedMesh} />
         )}
       </main>
     );
@@ -866,7 +910,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 onChange={(e) => setDoc((d) => setDocName(d, e.target.value))}
               />
             </label>
-            <button className="render-button bench-reset" onClick={changeBase}>
+            <button type="button" className="render-button bench-reset" onClick={changeBase}>
               Pick another model
             </button>
 
@@ -1084,6 +1128,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <h3>Export</h3>
             <div className="bench-export">
               <button
+                type="button"
                 className="download-button bench-export-button"
                 onClick={downloadStl}
                 disabled={status === "error"}
@@ -1091,6 +1136,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 Download STL
               </button>
               <button
+                type="button"
                 className="download-button bench-export-button layerling-button"
                 onClick={copyToLayerling}
                 disabled={status === "error" || layerling.copying}
@@ -1099,6 +1145,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 {layerling.label}
               </button>
               <button
+                type="button"
                 className="download-button bench-export-button"
                 onClick={downloadScad}
                 title="The base and the holes as OpenSCAD source"
@@ -1225,7 +1272,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             </p>
           )}
           {renderError && status !== "rendering" && (
-            <button className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
+            <button type="button" className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
               Retry preview
             </button>
           )}
@@ -1233,7 +1280,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       </main>
 
       {importOpen && (
-        <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={useImportedMesh} />
+        <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={pickImportedMesh} />
       )}
     </div>
   );

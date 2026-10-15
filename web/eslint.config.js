@@ -57,6 +57,9 @@ export default [
       "no-throw-literal": "error",
       "prefer-promise-reject-errors": "error",
       "no-implicit-coercion": ["error", { allow: ["!!"] }],
+      // A <button> inside a <form> submits it by default (NameBenchModal,
+      // PresetsPanel), so every button says which kind it is.
+      "react/button-has-type": "error",
     },
   },
   // Browser code: the app itself.

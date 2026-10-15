@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { clusterFace } from "../lib/faceCluster.js";
-import { isEditableTarget } from "../lib/isEditableTarget.js";
+import { ignoresShortcut } from "../lib/isEditableTarget.js";
 
 const MARKER_COLOR = 0x2ecc71;
 const MARKER_HOVER_COLOR = 0xffd23f;
@@ -403,7 +403,14 @@ export default function StlViewer({
       disposeMarkers(scene);
       disposeGuides(scene);
       disposeHighlight(scene);
+      grid.geometry.dispose();
+      grid.material.dispose();
       renderer.dispose();
+      // dispose() frees three's resources but not the WebGL context
+      // itself; browsers cap live contexts (~16), and every tab switch
+      // mounts a new viewer, so without this the oldest canvas is
+      // eventually killed with "Too many active WebGL contexts".
+      renderer.forceContextLoss();
       mount.removeChild(renderer.domElement);
       sceneRef.current = null;
     };
@@ -617,10 +624,8 @@ export default function StlViewer({
   // import, which has a viewer of its own).
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || (e.key !== "h" && e.key !== "H")) return;
-      if (isEditableTarget(e.target)) return;
-      const dialog = document.querySelector("dialog[open]");
-      if (dialog && !dialog.contains(mountRef.current)) return;
+      if (e.repeat || (e.key !== "h" && e.key !== "H")) return;
+      if (ignoresShortcut(e, mountRef.current)) return;
       setHelpersHidden((hidden) => !hidden);
     };
     window.addEventListener("keydown", onKeyDown);
