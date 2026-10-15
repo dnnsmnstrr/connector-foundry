@@ -18,6 +18,8 @@ import {
   repeatHole,
   repeatPoints,
   isPill,
+  matchSpacing,
+  STANDARD_SPACINGS,
   rotateHoles,
   slotFrame,
   slotOutline,
@@ -572,6 +574,25 @@ test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slot
   assert.equal(spec.height, 15);
   assert.equal(spec.cornerRadius, spec.width / 2);
   assert.ok(isPill(spec) && spec.depth === 0);
+});
+
+test("repeat: MOLLE openings on the rigid panel's spacing lay out molle/rigid_panel's grid", () => {
+  let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1], spec: getPreset("molle-opening").spec, presetId: "molle-opening" });
+  const rigid = STANDARD_SPACINGS.find((s) => s.id === "molle-rigid");
+  const grid = repeatHole(doc, hole.id, { pattern: "grid", columns: 2, rows: 2, spacingAcross: rigid.across, spacingUp: rigid.up, stagger: rigid.stagger });
+  assert.deepEqual(grid.doc.holes.map((h) => h.point), [[0, 0, 4], [50.8, 0, 4], [0, 50.8, 4], [50.8, 50.8, 4]]);
+  // molle/rigid_panel's default opening, which molle/insert's 38 x 25.3 boss fits.
+  const { spec } = getPreset("molle-opening");
+  assert.deepEqual([spec.width, spec.height, spec.cornerRadius, spec.depth], [38.6, 25.9, 3, 0]);
+  assert.deepEqual([getPreset("molle-slit").spec.width, getPreset("molle-slit").spec.height], [30, 5]);
+});
+
+test("a grid's spacing names the standard it matches, or none", () => {
+  assert.equal(matchSpacing({ spacingAcross: 40, spacingUp: 20, stagger: true })?.id, "skadis");
+  assert.equal(matchSpacing({ spacingAcross: 40, spacingUp: 20, stagger: false }), null);
+  assert.equal(matchSpacing({ spacingAcross: 50.8, spacingUp: 50.8, stagger: false })?.id, "molle-rigid");
+  assert.equal(matchSpacing({ spacingAcross: 38.1, spacingUp: 25.4 })?.id, "molle-slit");
+  assert.equal(matchSpacing({ spacingAcross: 10, spacingUp: 10, stagger: false }), null);
 });
 
 test("repeat: a circle filled with Skådis spacing is the board's pattern round the hole, which stays put", () => {

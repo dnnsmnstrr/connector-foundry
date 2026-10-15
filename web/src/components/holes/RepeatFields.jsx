@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { SKADIS_SPACING } from "../../lib/screwHoles.js";
+import { SKADIS_SPACING, STANDARD_SPACINGS, matchSpacing } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
@@ -56,20 +56,34 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
         </div>
       )}
       {options.pattern === "grid" && (
-        <div className="holes-repeat-actions">
+        <>
+          <label
+            className="field"
+            htmlFor={`${id}-standard`}
+            title="A system's hole pattern: Skådis is 40 mm across, 20 mm up, every other row shifted; a MOLLE rigid panel 50.8 mm both ways (with the MOLLE opening preset); a MOLLE slit panel 38.1 mm across, 25.4 mm up (with the slit preset)."
+          >
+            <span className="field-label">Standard spacing</span>
+            <select
+              id={`${id}-standard`}
+              value={matchSpacing(options)?.id ?? ""}
+              onChange={(e) => {
+                const spacing = STANDARD_SPACINGS.find((s) => s.id === e.target.value);
+                if (spacing) onChange({ spacingAcross: spacing.across, spacingUp: spacing.up, stagger: spacing.stagger });
+              }}
+            >
+              <option value="">Custom</option>
+              {STANDARD_SPACINGS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="field field-checkbox holes-through-field" htmlFor={`${id}-stagger`} title="Every other row shifted half a spacing across, the way a Skådis board has its slots.">
             <input id={`${id}-stagger`} type="checkbox" checked={options.stagger} onChange={(e) => onChange({ stagger: e.target.checked })} />
             <span className="field-label">Stagger rows</span>
           </label>
-          <button
-            type="button"
-            className="render-button holes-small-button"
-            title="Skådis spacing: 40 mm across, 20 mm up, every other row shifted 20 mm. With a Skådis slot, the part takes Skådis hooks."
-            onClick={() => onChange({ spacingAcross: SKADIS_SPACING.across, spacingUp: SKADIS_SPACING.up, stagger: true })}
-          >
-            Skådis spacing
-          </button>
-        </div>
+        </>
       )}
       {options.pattern === "circle" && (
         <>

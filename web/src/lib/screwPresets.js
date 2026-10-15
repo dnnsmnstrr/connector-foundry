@@ -64,6 +64,13 @@
 //     29.6 × 38.5 × 3.8.
 // Starting points like everything here: makers' shells differ by tenths.
 //
+// The MOLLE presets are rectangles too: a rigid panel's opening as
+// molle/rigid_panel cuts it (the nominal 1.5" × 1", 38.1 × 25.4, plus the
+// 0.5 mm a printed opening needs, so molle/insert fits it), and a
+// laser-cut panel's slit as molle/panel cuts it (30 × 5). The Repeat
+// form's standard spacings lay either out as a panel (screwHoles.js's
+// STANDARD_SPACINGS).
+//
 // The KLIPPT channel (kind "klippt", lib/klippt.scad) is cut from
 // KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
 // base gets in.
@@ -400,6 +407,8 @@ export const SCREW_PRESETS = [
   cardStand("cfexpress-a-stand", "CFexpress Type A card holder slot", "CFe A", 20, 28, 2.8),
   cardStand("cfexpress-b-stand", "CFexpress Type B / XQD card holder slot", "CFe B", 29.6, 38.5, 3.8),
   skadis("skadis-slot", "Skådis slot (5 × 15 mm)", "Slot"),
+  opening("molle-opening", "MOLLE rigid panel opening (38.6 × 25.9 mm)", "Opening", "MOLLE", 38.6, 25.9, 3),
+  opening("molle-slit", "MOLLE laser-cut panel slit (30 × 5 mm)", "Slit", "MOLLE", 30, 5, 1),
   pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
   pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),

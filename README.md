@@ -193,7 +193,9 @@ insert bores, thread-forming core holes for a machine screw straight into plasti
 (ISO 4032), wood screws and their pilots, a plain hole, a dowel, and a **BitBeam / LEGO Technic
 pin hole** — a beam's own hole (Ø4.8 with the groove a pin's tip clicks into, `lib/pinhole.scad`,
 checked against bitbeam-lib's beam), one beam (8 mm) deep with a groove at its bottom too, or through. Clearances are ISO 273 medium;
-treat every one as a starting point for your printer and measure the first print. A selected hole
+treat every one as a starting point for your printer and measure the first print. The presets are
+grouped by kind under headings that open and close (closed but for the group of the preset in use,
+and remembered), with a search box over them that matches names and groups. A selected hole
 can be edited on its own, and whatever screw was picked or edited last is what the next holes get.
 Shift-click holes — in the list, or their rings in the scene — to select several: the editor then
 shows the values they share (the rest say "mixed" until you set them) and a change applies to all
@@ -203,15 +205,21 @@ exactly where you click.
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
-staggered half a step) or a circle (count and radius round the hole's spot, the hole itself moving
+staggered half a step, or set to a **standard spacing**: Skådis, MOLLE rigid panel or MOLLE slit
+panel) or a circle (count and radius round the hole's spot, the hole itself moving
 onto the circle or staying in the middle). The copies are previewed in green; any that would miss
 the face — past its edge, into another hole — are left out and counted, and afterwards the whole
 pattern is selected to edit or delete together.
 
 A **Skådis slot** preset (a 5 × 15 mm pill, 0.2 mm wider so a printed one takes moulded hooks)
-with the grid's **Skådis spacing** (40 mm across, 20 mm up, staggered) turns any face into a Skådis
+with the grid's Skådis spacing (40 mm across, 20 mm up, staggered) turns any face into a Skådis
 board, for Skådis hooks or `skadis/peg`. A circle can be filled with the same spacing instead of a
 ring: every point of the pattern within its radius, centred on the selected slot.
+
+The **MOLLE** presets do the same for MOLLE panels of any size or shape: a rigid panel's
+**opening** (38.6 × 25.9 mm, as `molle/rigid_panel` cuts it, so `molle/insert` fits) with the MOLLE
+rigid panel spacing (50.8 mm both ways), or a laser-cut panel's **slit** (30 × 5 mm, as
+`molle/panel` cuts it) with the MOLLE slit panel spacing (38.1 mm across, 25.4 mm up).
 
 Two **tripod nut trap** presets take a 1/4"-20 or 3/8"-16 hex nut (camera and tripod-head
 threads), so any part screws onto a tripod; `camera/tripod_socket` prints the thread instead.

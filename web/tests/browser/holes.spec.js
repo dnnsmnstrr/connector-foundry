@@ -53,6 +53,13 @@ test("the Holes tab opens on 3, takes a catalogue part, and exports the base as 
 
   // The preset grid is there, M3 socket cap selected by default.
   await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveAttribute("aria-selected", "true");
+  // Groups start closed, but for the one holding the preset in effect;
+  // a heading opens its group, and it stays open.
+  const countersunk = page.getByRole("button", { name: /^Countersunk \(ISO 10642\)/ });
+  await expect(countersunk).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("option", { name: /^M4 countersunk/ })).toHaveCount(0);
+  await countersunk.click();
+  await expect(countersunk).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("option", { name: /^M4 countersunk/ }).click();
   await expect(page.getByRole("spinbutton", { name: "Diameter (mm)" })).toHaveValue("4.5");
   await expect(page.getByRole("combobox", { name: "Head" })).toHaveValue("countersink");
@@ -194,7 +201,13 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   // A connector slot is a kind of hole: picking the openConnect preset
   // turns the selected hole into one, with its own fields, cut by the
   // repo's own library in the generated source.
+  // Search finds it whichever group it is in, and opens that group.
+  const search = page.getByRole("searchbox", { name: "Search hole types" });
+  await search.fill("openconnect");
+  await expect(page.getByRole("option", { name: /^openConnect slot/ })).toHaveCount(3);
+  await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveCount(0);
   await page.getByRole("option", { name: /^openConnect slot$/ }).click();
+  await search.fill("");
   await expect(page.getByRole("combobox", { name: "Lock nub" })).toHaveValue("left");
   await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveValue("0");
   await expect(page.locator(".holes-row").first()).toContainText("1. openConnect slot");

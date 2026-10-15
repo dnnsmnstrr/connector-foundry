@@ -549,6 +549,21 @@ export const REPEAT_DEFAULTS = Object.freeze({
 // the Repeat form's "Skådis spacing" sets a grid to, and what a circle's
 // skadisFill lays out.
 export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
+
+// The Repeat form's grid presets: a system's hole pattern, for laying a
+// panel out from one hole. MOLLE rigid panels put an opening every 2"
+// both ways (PALS row pitch up, a 12.7 mm bar across: lib/molle.scad's
+// RIGID_PITCH_*); laser-cut panels a slit every 1.5" across and 1" up.
+export const STANDARD_SPACINGS = Object.freeze([
+  { id: "skadis", label: "Skådis", across: SKADIS_SPACING.across, up: SKADIS_SPACING.up, stagger: true },
+  { id: "molle-rigid", label: "MOLLE rigid panel", across: 50.8, up: 50.8, stagger: false },
+  { id: "molle-slit", label: "MOLLE slit panel", across: 38.1, up: 25.4, stagger: false },
+]);
+
+// Which of STANDARD_SPACINGS a grid's options are, or null (custom).
+export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
+  return STANDARD_SPACINGS.find((s) => s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger)) ?? null;
+}
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.
 export const REPEAT_MAX_HOLES = 100;

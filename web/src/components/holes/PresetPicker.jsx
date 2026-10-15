@@ -1,4 +1,6 @@
+import { useId, useMemo, useState } from "react";
 import { presetGroups } from "../../lib/screwPresets.js";
+import { getPresetGroupsOpen, setPresetGroupOpen } from "../../lib/uiPrefs.js";
 import ScrewIcon from "./ScrewIcon.jsx";
 
 // The screw presets as a grid of cross-section icons, grouped by kind
@@ -6,33 +8,100 @@ import ScrewIcon from "./ScrewIcon.jsx";
 // id currently in effect; picking one calls onPick(preset) and the
 // caller copies its spec into whatever it is editing (the next hole, or
 // the selected one).
+//
+// A search box over the groups filters by name, short label and group;
+// every word typed has to match. Each group's heading opens and closes
+// it. Closed by default, except the group holding the preset in effect;
+// a group opened or closed by hand stays that way (uiPrefs.js). While
+// searching, every group with a match shows open.
 export default function PresetPicker({ value, onPick }) {
+  const id = useId();
+  const [query, setQuery] = useState("");
+  const [openByHand, setOpenByHand] = useState(getPresetGroupsOpen);
+  const groups = useMemo(() => presetGroups(), []);
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = words.length
+    ? groups
+        .map(({ group, presets }) => ({ group, presets: presets.filter((preset) => matches(preset, group, words)) }))
+        .filter(({ presets }) => presets.length)
+    : groups;
+
   return (
     <div className="holes-presets">
-      {presetGroups().map(({ group, presets }) => (
-        <section key={group} className="holes-preset-group" aria-label={group}>
-          <h4>{group}</h4>
-          <div className="holes-preset-grid" role="listbox" aria-label={group}>
-            {presets.map((preset) => (
+      <input
+        type="search"
+        className="search-input holes-preset-search"
+        placeholder="Search hole types…"
+        aria-label="Search hole types"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && query) {
+            e.preventDefault();
+            e.stopPropagation();
+            setQuery("");
+          }
+        }}
+      />
+      {shown.length === 0 && (
+        <p className="muted no-results" role="status">
+          No hole types match "{query}".
+        </p>
+      )}
+      {shown.map(({ group, presets }) => {
+        const holdsValue = presets.some((preset) => preset.id === value);
+        const open = words.length > 0 || (openByHand[group] ?? holdsValue);
+        const gridId = `${id}-${slug(group)}`;
+        return (
+          <section key={group} className={open ? "holes-preset-group is-open" : "holes-preset-group"} aria-label={group}>
+            <h4>
               <button
-                key={preset.id}
                 type="button"
-                role="option"
-                aria-selected={preset.id === value}
-                className={preset.id === value ? "holes-preset-button is-active" : "holes-preset-button"}
-                onClick={() => onPick(preset)}
-                aria-label={preset.name}
-                title={`${preset.name} — ${describe(preset.spec)}`}
+                className="holes-preset-group-toggle"
+                aria-expanded={open}
+                aria-controls={gridId}
+                disabled={words.length > 0}
+                onClick={() => setOpenByHand(setPresetGroupOpen(group, !open))}
               >
-                <ScrewIcon spec={preset.spec} screw={preset.screw} />
-                <span className="holes-preset-name">{shortName(preset)}</span>
+                <span className="holes-preset-group-caret" aria-hidden="true" />
+                <span>{group}</span>
+                <span className="holes-preset-group-count">{presets.length}</span>
               </button>
-            ))}
-          </div>
-        </section>
-      ))}
+            </h4>
+            {open && (
+              <div id={gridId} className="holes-preset-grid" role="listbox" aria-label={group}>
+                {presets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="option"
+                    aria-selected={preset.id === value}
+                    className={preset.id === value ? "holes-preset-button is-active" : "holes-preset-button"}
+                    onClick={() => onPick(preset)}
+                    aria-label={preset.name}
+                    title={`${preset.name} — ${describe(preset.spec)}`}
+                  >
+                    <ScrewIcon spec={preset.spec} screw={preset.screw} />
+                    <span className="holes-preset-name">{shortName(preset)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
+}
+
+// Every word somewhere in the preset's name, short label or group.
+function matches(preset, group, words) {
+  const text = `${preset.name} ${preset.short ?? ""} ${group}`.toLowerCase();
+  return words.every((word) => text.includes(word));
+}
+
+function slug(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
 // "M3" under the icon when the group already says what kind it is; a

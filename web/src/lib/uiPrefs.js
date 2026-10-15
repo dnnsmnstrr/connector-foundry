@@ -209,3 +209,27 @@ export function subscribeHiddenLibrary(listener) {
   hiddenLibraryListeners.add(listener);
   return () => hiddenLibraryListeners.delete(listener);
 }
+
+// Which Holes preset groups are open (components/holes/PresetPicker.jsx):
+// a JSON object of group name -> true/false, only for groups the user has
+// opened or closed. A group with no entry follows the picker's default.
+const PRESET_GROUPS_OPEN_KEY = "connector-foundry.holesPresetGroupsOpen";
+
+export function getPresetGroupsOpen() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PRESET_GROUPS_OPEN_KEY) ?? "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function setPresetGroupOpen(group, open) {
+  const next = { ...getPresetGroupsOpen(), [group]: Boolean(open) };
+  try {
+    localStorage.setItem(PRESET_GROUPS_OPEN_KEY, JSON.stringify(next));
+  } catch {
+    // best-effort — see header comment
+  }
+  return next;
+}
