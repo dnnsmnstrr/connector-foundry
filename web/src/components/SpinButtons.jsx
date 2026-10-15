@@ -9,6 +9,15 @@
 //
 // Used floating over the selected Bench part in the scene, and inside
 // RotationInput next to an exact angle field.
+/**
+ * @param {{
+ *   name: string,
+ *   onRotate: (delta: number) => void,
+ *   viewedFrom?: string,
+ *   className?: string,
+ *   step?: number,
+ * }} props
+ */
 export default function SpinButtons({
   name,
   onRotate,

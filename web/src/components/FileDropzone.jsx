@@ -14,6 +14,15 @@ import { useRef, useState } from "react";
 // after each pick so the same file can be chosen again after a failed
 // attempt. `accept` is the input's own accept list; it is not enforced
 // on a drop (the caller's reader decides what it can open).
+/**
+ * @param {{
+ *   accept?: string,
+ *   onFile: (file: File) => void,
+ *   label: string,
+ *   hint?: import("react").ReactNode,
+ *   className?: string,
+ * }} props
+ */
 export default function FileDropzone({ accept, onFile, label, hint, className }) {
   const inputRef = useRef(null);
   // Nested dragenter/dragleave pairs fire as the pointer crosses the

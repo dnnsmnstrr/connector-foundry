@@ -197,7 +197,10 @@ export default function App() {
     if (sidebarCollapsed) toggleSidebar();
     let tries = 0;
     const focus = () => {
-      const box = !switching || tries > 0 ? document.querySelector(".sidebar .search-input") : null;
+      const box =
+        !switching || tries > 0
+          ? /** @type {HTMLInputElement | null} */ (document.querySelector(".sidebar .search-input"))
+          : null;
       if (box) {
         box.focus();
         box.select();
@@ -350,7 +353,10 @@ export default function App() {
           </button>
         </div>
       </nav>
-      <div className="shell-body" style={{ "--sidebar-width": `${sidebarWidth}px` }}>
+      <div
+        className="shell-body"
+        style={/** @type {import("react").CSSProperties} */ ({ "--sidebar-width": `${sidebarWidth}px` })}
+      >
         {/* Keyed by mode: a switch to another tab starts with a fresh
             boundary rather than the last mode's error. */}
         <ModeErrorBoundary key={mode} label={MODE_LABELS[mode]}>

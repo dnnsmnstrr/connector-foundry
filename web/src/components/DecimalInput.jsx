@@ -21,6 +21,17 @@ import { atLimit, parseDecimal, stepDecimal, stepSize } from "../lib/decimalInpu
 //   - The wheel, while the field has focus: ±step a tick, a tenth with
 //     Shift. Only while focused, so scrolling the sidebar past a field
 //     never changes it.
+/**
+ * The rest of the props (id, placeholder, aria-label, …) go to the <input>.
+ * @param {Omit<import("react").InputHTMLAttributes<HTMLInputElement>, "value" | "min" | "max" | "step" | "onChange"> & {
+ *   value: number | "",
+ *   min?: number | string,
+ *   max?: number | string,
+ *   step?: number | string,
+ *   onChange: (value: number) => void,
+ *   disabled?: boolean,
+ * }} props
+ */
 export default function DecimalInput({ value, min, max, step = 1, onChange, disabled, ...props }) {
   const [draft, setDraft] = useState(null);
   const inputRef = useRef(null);
@@ -122,8 +133,9 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
         autoComplete="off"
         role="spinbutton"
         aria-valuenow={isNumber ? value : undefined}
-        aria-valuemin={min}
-        aria-valuemax={max}
+        // React's types want numbers here; a numeric string renders the same attribute.
+        aria-valuemin={/** @type {number} */ (min)}
+        aria-valuemax={/** @type {number} */ (max)}
         value={draft ?? (isNumber ? String(value) : "")}
         onChange={(e) => {
           setDraft(e.target.value);

@@ -109,7 +109,9 @@ throws (private mode, quota). `benchConfig.js`'s `checkBenchConfig` is the patte
 single-key shortcut fires while typing in a field, while a dialog the event did not come from is
 open, or with a modifier key held.
 
-**React conventions.** Plain JSX, no TypeScript; components document their props in a comment.
+**React conventions.** Plain JSX, no TypeScript; components document their props in a comment
+(what each is for) and a JSDoc `@param` (their types, optional ones marked `[name]` / `name?`),
+which `tsc` checks at every call site — a new prop goes in both.
 Async work in an effect (renders, imports) must ignore stale results — a sequence counter or an
 `AbortSignal`, as Library and the Bench do — because a slow render finishing after the user moved
 on is the common bug here. Dispose what three.js allocates. `web/eslint.config.js` switches off
@@ -132,7 +134,7 @@ run `make verify`. The web app picks it up from the catalogue; try it there for 
 **Add a web lib module.** Pure logic goes in `web/src/lib/` with no React in it, gets a
 `web/tests/unit/<name>.test.js` (Node's test runner; three.js resolves because the test lives
 under `web/`), JSDoc on its exports, and a row in `web/README.md`'s module table. It is type
-checked automatically (`web/jsconfig.json` includes `src/lib`).
+checked automatically (`web/jsconfig.json` includes `src/lib`, the components and the hooks).
 
 **Add a catalogue field, a Holes preset, a joint, a setting.** Find the closest existing one with
 `grep`, follow every place it appears (YAML header, CLI, `sync-scad`, web lib, tests, docs), and

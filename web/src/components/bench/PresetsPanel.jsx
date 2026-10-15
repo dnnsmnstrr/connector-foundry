@@ -14,6 +14,18 @@ import { CONFIG_EXTENSION } from "../../lib/benchConfig.js";
 // `onLoad(preset)` / `onDelete(name)` do what they say; `error` is
 // whatever the last config load/save had to report. `emptyText` null
 // renders nothing at all for an empty list.
+/**
+ * @param {{
+ *   presets: any[],
+ *   defaultName?: string,
+ *   onSave?: (name: string) => boolean,
+ *   onLoad: (preset: any) => void,
+ *   onDelete: (name: string) => void,
+ *   onImportFile?: (file: File) => void,
+ *   error?: string | null,
+ *   emptyText?: string | null,
+ * }} props
+ */
 export default function PresetsPanel({
   presets,
   defaultName = "",
@@ -114,6 +126,7 @@ export default function PresetsPanel({
 // in a toolbar next to "Import STL…" and look like it. Hands the chosen
 // File to `onFile`; the input is cleared after each pick so the same file
 // can be chosen again after a failed load.
+/** @param {{ onFile: (file: File) => void, className?: string }} props */
 export function ConfigImportButton({ onFile, className = "bench-modal-cancel" }) {
   const fileInputRef = useRef(null);
 

@@ -99,6 +99,37 @@ const HELPER_OBJECTS = ["grid", "markers", "guides", "highlight"];
 // markers change, on hover highlight, and on resize. A viewer showing a
 // still scene costs nothing — this is the one always-visible WebGL
 // canvas in the app, so it was the app's whole idle GPU/battery cost.
+/**
+ * @typedef {number[]} Vec3 [x, y, z], model mm (callers build them with map(), so not a tuple)
+ * @typedef {{ point: Vec3, normal: Vec3, faceIndex: number, altKey: boolean, shiftKey: boolean }} SurfaceHit
+ * @typedef {{ shiftKey: boolean, altKey: boolean, metaKey: boolean, ctrlKey: boolean }} ClickModifiers
+ * @typedef {object} StlMarker
+ * @property {string} id
+ * @property {number} x
+ * @property {number} y
+ * @property {number} z
+ * @property {number} [radius]
+ * @property {number} [color]
+ * @property {"sphere" | "ring"} [shape]
+ * @property {Vec3} [normal]
+ * @property {boolean} [hitTest]
+ *
+ * @param {object} props
+ * @param {ArrayBuffer} [props.stlBuffer]
+ * @param {THREE.BufferGeometry} [props.geometry]
+ * @param {StlMarker[]} [props.markers]
+ * @param {{ a: Vec3, b: Vec3, color?: number, dashed?: boolean }[]} [props.guides]
+ * @param {{ id: string, point: Vec3, text: string }[]} [props.labels]
+ * @param {(id: string, modifiers: ClickModifiers) => void} [props.onMarkerClick]
+ * @param {boolean} [props.placingMode]
+ * @param {(point: Vec3, normal: Vec3) => void} [props.onSurfacePick]
+ * @param {(hit: SurfaceHit) => void} [props.onSurfaceHit]
+ * @param {(hit: SurfaceHit | null) => void} [props.onSurfaceHover]
+ * @param {(point: Vec3 | null) => void} [props.onModelClick]
+ * @param {{ min: Vec3, max: Vec3 } | null} [props.highlightBox]
+ * @param {Vec3 | null} [props.overlayAnchor]
+ * @param {import("react").ReactNode} [props.children]
+ */
 export default function StlViewer({
   stlBuffer,
   geometry,
@@ -239,8 +270,13 @@ export default function StlViewer({
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
     };
-    const markerGroup = () => scene.getObjectByName("markers");
-    const model = () => scene.getObjectByName("model");
+    // Typed for what this file puts under those names (the model mesh,
+    // a group of marker meshes); getObjectByName() only knows Object3D.
+    const markerGroup = () =>
+      /** @type {THREE.Group<THREE.Object3DEventMap> & { children: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] } | undefined} */ (
+        scene.getObjectByName("markers")
+      );
+    const model = () => /** @type {THREE.Mesh | undefined} */ (scene.getObjectByName("model"));
 
     // The browser fires "click" after an orbit drag too, as long as the
     // pointer went down and came up on the canvas — so remember where it
@@ -689,6 +725,7 @@ export default function StlViewer({
 }
 
 // An eye, struck through while the helpers are hidden.
+/** @param {{ closed: boolean }} props */
 function EyeIcon({ closed }) {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">

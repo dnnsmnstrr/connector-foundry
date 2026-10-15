@@ -64,9 +64,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   include), the catalogue ships as JSON, and the console no longer logs a spurious error after
   every render.
 - CI runs the desktop tests on Windows on every push, and the Pages deploy retries once.
-- Contributor and agent guide (`AGENTS.md`); Python is linted with ruff, the web libraries are
-  type-checked, `make check` runs every check that needs neither OpenSCAD nor a browser, and a
-  schema test guards `catalogue.yaml`.
+- Contributor and agent guide (`AGENTS.md`); Python is linted with ruff, the web app is
+  type-checked (libraries, workers, components with JSDoc-typed props, hooks), `make check` runs
+  every check that needs neither OpenSCAD nor a browser, and a schema test guards
+  `catalogue.yaml`.
 
 ## 0.2.1 — 2026-10-10
 

@@ -170,6 +170,19 @@ function importedDigests(importedFiles) {
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
+/**
+ * A part render passes scadFile/module/params, an assembly scadSource
+ * (with part, importedFiles); globalOverrides goes with either.
+ * @param {{
+ *   scadFile?: string,
+ *   module?: string,
+ *   params?: Record<string, any>,
+ *   scadSource?: string,
+ *   part?: string,
+ *   globalOverrides?: Record<string, any>,
+ *   importedFiles?: Iterable<[string, Uint8Array]>,
+ * }} request
+ */
 export function renderRequestKey({
   scadFile,
   module,

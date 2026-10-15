@@ -7,6 +7,9 @@ import Modal from "../Modal.jsx";
 // is benchName.js's proposal built from the parts; whatever is
 // confirmed becomes the bench's name (editable later in the sidebar)
 // and the export the user asked for goes ahead under it.
+/**
+ * @param {{ defaultName: string, onConfirm: (name: string) => void, onCancel: () => void }} props
+ */
 export default function NameBenchModal({ defaultName, onConfirm, onCancel }) {
   const [name, setName] = useState(defaultName);
   const trimmed = name.trim();

@@ -120,6 +120,14 @@ const GUIDE_SWITCH_DELAY_MS = 350;
 //
 // The document lives in lib/holesSession.js so a trip to the Bench and
 // back doesn't lose it; selection, hover and the viewer are local.
+/**
+ * @param {{
+ *   parts: any[],
+ *   sidebarCollapsed: boolean,
+ *   onToggleSidebar: () => void,
+ *   librarySelection: any,
+ * }} props
+ */
 export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librarySelection }) {
   const globalOverrides = useGlobalOverrides();
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
