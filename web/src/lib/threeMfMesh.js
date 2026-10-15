@@ -126,7 +126,8 @@ export function read3mf(buffer) {
   const group = new ThreeMFLoader().parse(buffer);
   if (!group) throw new Error("The 3MF file could not be read.");
   const bodies = bodiesFromGroup(group, unitScale(unit));
-  group.traverse((node) => {
+  group.traverse((object) => {
+    const node = /** @type {import("three").Mesh} */ (object);
     if (node.isMesh) {
       node.geometry?.dispose();
       if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose());

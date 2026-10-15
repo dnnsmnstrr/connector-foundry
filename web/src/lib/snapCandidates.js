@@ -88,7 +88,7 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
   const inset = options.inset ?? DEFAULT_CORNER_INSET_MM;
   const radius = options.radius ?? DEFAULT_CENTER_RADIUS_MM;
   const cache = cacheFor(geometry);
-  let key = cache.faceOf.get(faceIndex);
+  const key = cache.faceOf.get(faceIndex);
   let face = key !== undefined ? cache.faces.get(key) : null;
   if (!face) {
     face = buildFace(geometry, faceIndex);
@@ -512,6 +512,7 @@ function project(p, origin, u, v) {
   return [d[0] * u[0] + d[1] * u[1] + d[2] * u[2], d[0] * v[0] + d[1] * v[1] + d[2] * v[2]];
 }
 
+/** @param {number[]} uv */
 function unproject([a, b], face) {
   return [
     face.center[0] + face.u[0] * a + face.v[0] * b,

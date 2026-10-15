@@ -4,7 +4,10 @@ import { beforeEach, test } from "node:test";
 let client;
 let workers;
 let moduleId = 0;
-const tick = () => new Promise((resolve) => setImmediate(resolve));
+const tick = () =>
+  new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 const request = (size) => ({ scadFile: "parts/basics/plate.scad", module: "plate", params: { size } });
 
 beforeEach(async () => {

@@ -181,6 +181,10 @@ export function getCachedRender(request) {
 // preview unsubscribes on effect cleanup; jobs with no remaining callers
 // are removed before they can block the latest preview. Exports omit the
 // signal and survive edits, tab changes, and other preview cancellations.
+/**
+ * @param {object} request
+ * @param {{ signal?: AbortSignal }} [options]
+ */
 export function renderPart(request, { signal } = {}) {
   if (signal?.aborted) return Promise.reject(abortError());
   const cached = getCachedRender(request);

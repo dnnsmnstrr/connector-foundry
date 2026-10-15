@@ -622,6 +622,7 @@ export function repeatPoints(hole, options) {
   const int = (v, min) => Math.max(min, Math.min(REPEAT_MAX_HOLES, Math.round(Number(v) || 0)));
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const { ex, ey } = slotFrame(hole.point, hole.normal, 0);
+  /** @param {number[]} offset [across, up] on the face plane */
   const at = ([a, b]) => hole.point.map((p, i) => p + ex[i] * a + ey[i] * b);
   let offsets = [];
   let move = null;
@@ -638,7 +639,7 @@ export function repeatPoints(hole, options) {
     const r = Math.max(0, num(o.radius));
     const cell = SKADIS_SPACING.up;
     const n = Math.floor(r / cell);
-    const angle = ([a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
+    const angle = (/** @type {number[]} */ [a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
     for (let j = -n; j <= n; j++)
       for (let i = -n; i <= n; i++)
         if ((i + j) % 2 === 0 && (i || j) && Math.hypot(i, j) * cell <= r + 1e-9)
@@ -670,6 +671,7 @@ export function repeatPoints(hole, options) {
 // `skipped`. A selected hole that would move somewhere unacceptable
 // stays put. Returns the document, the ids of the whole pattern (the
 // selected hole first) and how many copies were skipped.
+/** @param {(point: number[], normal: number[]) => boolean} [accept] */
 export function repeatHole(doc, id, options, accept = () => true) {
   const hole = getHole(doc, id);
   if (!hole) return { doc, ids: [], skipped: 0 };
@@ -732,6 +734,11 @@ export function holeFootprintRadius(spec) {
 // `importedFiles`, when given, receives the mesh bytes a mesh source
 // needs mounted beside the generated file (same contract as
 // assembly.js's compileToScad()).
+/**
+ * @param {object} doc
+ * @param {Record<string, object>} partsById
+ * @param {{ throughLength?: number, extents?: number[] | null, importedFiles?: Map<string, Uint8Array> }} [options]
+ */
 export function holesToScad(doc, partsById, { throughLength, extents, importedFiles } = {}) {
   const { source, holes } = doc;
   const through = Math.max(1, throughLength ?? 1000);

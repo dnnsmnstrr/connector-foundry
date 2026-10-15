@@ -23,6 +23,8 @@
     "pretest:desktop": "npm run icon",
     "desktop:install": "node scripts/install-desktop.mjs",
     "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p jsconfig.json && tsc -p jsconfig.worker.json",
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -37,8 +39,10 @@
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
     "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.3.2",
     "electron": "^44.3.0",
     "electron-builder": "^26.15.3",
@@ -49,6 +53,7 @@
     "globals": "^17.13.0",
     "js-yaml": "^4.1.0",
     "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
     "vite": "^5.4.8"
   },
   "main": "desktop/main.cjs",

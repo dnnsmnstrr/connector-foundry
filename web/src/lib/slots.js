@@ -22,7 +22,7 @@
 // its middle prong — declares it so the markers land on the real
 // anchors. tests/test_anchors.py holds the declaration to the geometry.
 const FACE_ANCHOR_LOCAL = {
-  mount: (e, [ox, oy]) => [ox, oy, e[2] / 2],
+  mount: (e, /** @type {number[]} */ [ox, oy]) => [ox, oy, e[2] / 2],
   bot: (e, [ox, oy]) => [ox, oy, -e[2] / 2],
   xpos: (e) => [e[0] / 2, 0, 0],
   xneg: (e) => [-e[0] / 2, 0, 0],

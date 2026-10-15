@@ -154,7 +154,7 @@ test("a connector slot brings BOSL2 in itself, so it works on a mesh source", ()
 
 test("a mesh source imports its STL and hands the bytes to the caller", () => {
   const bytes = new ArrayBuffer(84);
-  let { doc } = addHole(
+  const { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "My Bracket.step", stlBytes: bytes, extents: [10, 10, 10] }),
     {
       point: [0, 0, 5],
@@ -320,7 +320,7 @@ test("a slot's frame: straight up on a vertical face, the part's Y on a level on
 });
 
 test("a slot keeps pointing the same way along a flipped mesh", () => {
-  let { doc } = addHole(
+  const { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 4] }),
     {
       point: [0, 0, 4],
@@ -409,7 +409,7 @@ test("several holes: shared fields, patched together, turned each from its own d
   const d = add(getPreset("oc-slot").spec, "oc-slot");
 
   // Two screw holes: everything but the edited head depth is shared.
-  let shared = sharedSpec(doc.holes.filter((h) => [a, b].includes(h.id)));
+  const shared = sharedSpec(doc.holes.filter((h) => [a, b].includes(h.id)));
   assert.equal(shared.kind, "screw");
   assert.deepEqual([...shared.mixed], ["headDepth"]);
   assert.equal(shared.spec.diameter, 3.4);
@@ -907,7 +907,7 @@ test("a chamfer is a 45° hull from the outline down at its depth to the outline
 });
 
 test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slots", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("skadis-slot").spec,
@@ -943,7 +943,7 @@ test("repeat: a staggered grid is a Skådis board's pattern, cut as Skådis slot
 });
 
 test("repeat: MOLLE openings on the rigid panel's spacing lay out molle/rigid_panel's grid", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("molle-opening").spec,
@@ -982,7 +982,7 @@ test("a grid's spacing names the standard it matches, or none", () => {
 });
 
 test("repeat: a circle filled with Skådis spacing is the board's pattern round the hole, which stays put", () => {
-  let { doc, hole } = addHole(plateDoc(), {
+  const { doc, hole } = addHole(plateDoc(), {
     point: [0, 0, 4],
     normal: [0, 0, 1],
     spec: getPreset("skadis-slot").spec,
