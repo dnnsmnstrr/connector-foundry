@@ -6,15 +6,18 @@
 //
 // Rigid panels have no standard: count, size, corner radius and pitch
 // of the openings are all parameters (lib/molle.scad has the defaults
-// and where they come from). Openings sit centred in cols x rows cells
-// of pitch_x by pitch_y, so a panel is exactly that size and panels butt
-// together with the grid carrying on across the joint. Mounting holes
-// for the panel itself come from the Holes tab.
+// and where they come from). The default openings are the nominal 38.1
+// x 25.4 plus RIGID_PRINT_FIT, since printed holes come out narrow: a
+// molle/insert at its defaults has 0.3 mm a side. Openings sit centred
+// in cols x rows cells of pitch_x by pitch_y, so a panel is exactly that
+// size and panels butt together with the grid carrying on across the
+// joint. Mounting holes for the panel itself come from the Holes tab.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/slots.scad>
 include <../../lib/molle.scad>
 
-module molle_rigid_panel(cols = 4, rows = 3, open_w = RIGID_OPEN_W, open_h = RIGID_OPEN_H,
+module molle_rigid_panel(cols = 4, rows = 3,
+                         open_w = RIGID_OPEN_W + RIGID_PRINT_FIT, open_h = RIGID_OPEN_H + RIGID_PRINT_FIT,
                          open_r = RIGID_OPEN_R, pitch_x = RIGID_PITCH_X, pitch_y = RIGID_PITCH_Y,
                          thickness = 4, anchor = BOTTOM, spin = 0, orient = UP) {
     assert(cols >= 1 && cols == round(cols), "cols must be a whole number, at least 1");

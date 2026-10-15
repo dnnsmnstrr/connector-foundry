@@ -107,6 +107,15 @@ RIGID_OPEN_R  = 3;
 RIGID_PITCH_X = 50.8;
 RIGID_PITCH_Y = PALS_ROW_PITCH;
 RIGID_PANEL_T = 2;      // a real panel's sheet; a printed one wants more
+// A printed panel's openings come out narrow (and its first layer
+// spreads), so molle/rigid_panel cuts them this much over nominal,
+// across and up.
+RIGID_PRINT_FIT = 0.5;
+// molle/insert's boss: a tenth under the nominal opening, so it goes into
+// real panels cut a little small too, and 0.3 mm a side clear of a
+// printed panel's opening.
+RIGID_INSERT_W = 38;
+RIGID_INSERT_H = 25.3;
 
 // One opening's outline, centred on the origin, `w` across and `h` up.
 module rigid_opening_outline(w, h, r) {

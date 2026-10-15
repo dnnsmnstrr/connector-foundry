@@ -762,7 +762,9 @@ parts:
       round and molle/insert plugs into. cols x rows openings, each open_w x
       open_h with open_r corners, centred in pitch_x x pitch_y cells: a
       panel is exactly cols x pitch_x by rows x pitch_y, so panels butt
-      together. To match a truck panel, measure its openings and the
+      together. The openings are 0.5mm over the nominal 38.1 x 25.4, since
+      printed holes come out narrow; a molle/insert at its defaults has
+      0.3mm a side. To match a truck panel, measure its openings and the
       distance between their centres. Mounting holes come from the Holes
       tab. "mount" is the back.
     anchors: [bot]
@@ -774,15 +776,15 @@ parts:
     defaults:
       cols: 4
       rows: 3
-      open_w: 38.1
-      open_h: 25.4
+      open_w: 38.6
+      open_h: 25.9
       open_r: 3
       pitch_x: 50.8
       pitch_y: 50.8
       thickness: 4
     variants:
       - name: tight-grid
-        params: { open_w: 38.1, open_h: 31.75, pitch_x: 50.8, pitch_y: 44.45 }
+        params: { open_w: 38.6, open_h: 32.25, pitch_x: 50.8, pitch_y: 44.45 }
 
   - id: molle/insert
     system: MOLLE
@@ -792,28 +794,31 @@ parts:
     confidence: parametric
     source: >-
       lib/molle.scad's rigid-panel opening: a base plate behind the panel
-      and a boss that fits the opening. Rigid panels have no standard, so
-      the opening and the panel's thickness are parameters.
+      and a boss that fits the opening, a tenth under its nominal 38.1 x
+      25.4. Rigid panels have no standard, so the boss and the panel's
+      thickness are parameters.
     source_url: https://nomadicsupply.com/dv8-offroad-universal-molle-panel-23x15-unmp-06/
     print_note: >-
-      Base down, boss up, no supports. Set open_w, open_h and open_r to your
-      panel's opening and panel_t to its thickness (2mm for a typical steel
-      panel, 4 for molle/rigid_panel's default); the boss is FIT_CLEARANCE a
-      side smaller and 0.2mm short of the panel's front, so a bolted part
-      clamps the panel. The base goes in from behind the panel. hole drills
+      Base down, boss up, no supports. boss_w x boss_h is the part that goes
+      into the opening: 38 x 25.3 by default, a tenth under a real panel's
+      nominal 1.5" x 1" and 0.3mm a side clear of molle/rigid_panel's
+      printed opening. For another panel, measure its opening and take a
+      little off. panel_t is its thickness (2mm for a typical steel panel,
+      4 for molle/rigid_panel's default); the boss stands 0.2mm short of
+      the panel's front, so a bolted part clamps the panel. The base goes in from behind the panel. hole drills
       one centre through-hole; for heat-set inserts, nut traps or a grid of
       holes, use the Holes tab on the boss face. "mount" is the boss face.
     anchors: [bot]
     minimums:
-      open_r: 0
+      boss_r: 0
       panel_t: 0.5
       margin: 1
       base: 1
       hole: 0
     defaults:
-      open_w: 38.1
-      open_h: 25.4
-      open_r: 3
+      boss_w: 38
+      boss_h: 25.3
+      boss_r: 3
       panel_t: 2
       margin: 6
       base: 3
