@@ -21,7 +21,10 @@
     "postbuild": "node scripts/desktop-notices.mjs",
     "icon": "node scripts/generate-icon.mjs",
     "pretest:desktop": "npm run icon",
-    "desktop:install": "node scripts/install-desktop.mjs"
+    "desktop:install": "node scripts/install-desktop.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "occt-import-js": "^0.0.23",
