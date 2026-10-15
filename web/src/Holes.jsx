@@ -16,15 +16,17 @@ import StlViewer from "./components/StlViewer.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useHolesSession } from "./hooks/useHolesSession.js";
+import { useRender } from "./hooks/useRender.js";
 import { benchName, compileToScad } from "./lib/assembly.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
 import { downloadBlob } from "./lib/download.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
-import { groundedMesh } from "./lib/importedPart.js";
 import { setHolesDoc } from "./lib/holesSession.js";
 import { ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
+import { faceMeasurements, holeGuides, holeMarkers, onFacePlane } from "./lib/holesOverlay.js";
+import { baseBuffer, holedRequestIfKnown, meshSource, renderHoled } from "./lib/holesRender.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
 import {
   addHole,
@@ -44,7 +46,6 @@ import {
   setHolesSpec,
   setNextSpec,
   sharedSpec,
-  slotOutline,
   sourceLabel,
   sourceStem,
   updateHole,
@@ -54,7 +55,6 @@ import {
   DEFAULT_CENTER_RADIUS_MM,
   DEFAULT_CORNER_INSET_MM,
   analyzeFace,
-  edgeDistances,
   gridPoint,
   nearestCandidate,
   nearestGuide,
@@ -65,13 +65,6 @@ import { resolveParams } from "./lib/userOverrides.js";
 // Debounce between the last hole edit and the re-render it triggers, so
 // typing a diameter doesn't compile once per keystroke.
 const RENDER_DEBOUNCE_MS = 250;
-// Marker colours: holes in the imported-badge blue, the selected one and
-// the snap point about to be used in the selection yellow, the rest of
-// a face's snap points by kind.
-const HOLE_COLOR = 0x7fa8e0;
-const SELECTED_COLOR = 0xffd23f;
-// The Repeat form's copies, before they are added.
-const REPEAT_PREVIEW_COLOR = 0x2ecc71;
 // A copy counts as on the model when a ray from this far above its spot,
 // straight down the hole's axis, meets a face turned the same way within
 // REPEAT_SURFACE_TOLERANCE_MM of the spot.
@@ -79,26 +72,6 @@ const REPEAT_PROBE_MM = 0.5;
 const REPEAT_SURFACE_TOLERANCE_MM = 0.05;
 // The probe's mesh is never drawn; one material does for every model.
 const PROBE_MATERIAL = new MeshBasicMaterial({ side: DoubleSide });
-const SNAP_COLORS = {
-  hole: 0x7fa8e0,
-  center: 0x2ecc71,
-  quarter: 0xd8d9db,
-  corner: 0xd8d9db,
-  intersection: 0x9a9ba0,
-  circle: 0xe0c07f,
-};
-// Guide lines on the hovered face: center lines solid, quarter lines
-// dashed, radials dashed and dim, the center circle in the circle
-// points' colour.
-const GUIDE_CENTER_COLOR = 0x9db4e8;
-const GUIDE_QUARTER_COLOR = 0x6b7390;
-const GUIDE_RADIAL_COLOR = 0x6b7390;
-const GUIDE_CIRCLE_COLOR = 0xb39a50;
-// Measurement lines (Option held): bright, over the guides.
-const MEASURE_COLOR = 0xf0f0f0;
-const MEASURE_LIFT_MM = 0.1;
-// Lifted off the face so the lines don't z-fight it.
-const GUIDE_LIFT_MM = 0.06;
 // How long the pointer has to rest on another face before the guide
 // lines move there — long enough that a face crossed on the way to the
 // sidebar doesn't take them with it.
@@ -176,19 +149,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [altHeld, setAltHeld] = useState(false);
   const [measurePoint, setMeasurePoint] = useState(null);
   const hoverPoint = useRef(null);
-  const [stlBuffer, setStlBuffer] = useState(null);
-  const [baseExtents, setBaseExtents] = useState(null);
-  const [status, setStatus] = useState("idle");
-  const [renderError, setRenderError] = useState(null);
-  const [renderRetry, setRenderRetry] = useState(0);
   const [benchBusy, setBenchBusy] = useState(false);
-  const renderSeq = useRef(0);
-  // The doc.source the mesh on screen was rendered from. While a new base
-  // renders (another model picked, a mesh flipped) the old mesh is still
-  // up, and a click on it would drill at the old model's coordinates —
-  // so surface hits and hover are ignored until the two match again.
-  // Holes being added or removed keep the source, and with it a live mesh.
-  const [shownSource, setShownSource] = useState(null);
   // Bumped whenever the base is replaced (start(), changeBase()) or the
   // tab unmounts, so a slow "Use the current bench" render that finishes
   // afterwards can tell it is no longer wanted.
@@ -204,52 +165,31 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // The base alone when there are no holes (a catalogue part rendered
   // standalone — a cache hit if the Library just showed it — or the
   // imported bytes as they are), else the base with the holes cut, via
-  // the generated source. The base's extents give a through hole its
-  // length and the snap radius its scale, so the holed render waits on
-  // them; after the first time that is a lookup.
-  useEffect(() => {
-    if (!doc) {
-      setStlBuffer(null);
-      setBaseExtents(null);
-      setShownSource(null);
-      return;
-    }
-    const seq = ++renderSeq.current;
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const run = async () => {
-      setStatus("rendering");
-      setRenderError(null);
-      try {
-        const base = await baseBuffer(doc.source, catalogueById, globalOverrides, signal);
-        const extents = meshExtents(base);
-        const buf = doc.holes.length
-          ? await renderPart(holedRequest(doc, catalogueById, extents, globalOverrides), { signal })
-          : base;
-        if (seq !== renderSeq.current) return;
-        setBaseExtents(extents);
-        setStlBuffer(buf);
-        setShownSource(doc.source);
-        setStatus("done");
-      } catch (err) {
-        if (seq !== renderSeq.current) return;
-        setRenderError(err.name === "AbortError" ? null : err.message);
-        setStatus(err.name === "AbortError" ? "idle" : "error");
-      }
-    };
-    // Only a real compile is worth waiting out the debounce for.
-    const cached =
-      doc.holes.length === 0 ||
-      getCachedRender(holedRequestIfKnown(doc, catalogueById, baseExtents, globalOverrides)) !== null;
-    const timer = setTimeout(run, cached ? 0 : RENDER_DEBOUNCE_MS);
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- a sequence counter, not a DOM node: bumping it is how the cleanup invalidates the render in flight
-      ++renderSeq.current;
-      clearTimeout(timer);
-      controller.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc?.source, doc?.holes, catalogueById, globalOverrides, renderRetry]);
+  // the generated source (lib/holesRender.js's renderHoled()). Only a
+  // real compile is worth waiting out the debounce for.
+  const source = doc?.source;
+  const holes = doc?.holes;
+  const renderKey = useMemo(
+    () => (source ? { source, holes, catalogueById, globalOverrides } : null),
+    [source, holes, catalogueById, globalOverrides],
+  );
+  const preview = useRender(
+    renderKey,
+    (key, signal) => renderHoled(key, key.catalogueById, key.globalOverrides, signal),
+    {
+      // `baseExtents` is the last result's (declared below): the base
+      // rarely changes between edits, so it forms the request to probe.
+      delay: (key) =>
+        key.holes.length === 0 ||
+        getCachedRender(holedRequestIfKnown(key, key.catalogueById, baseExtents, key.globalOverrides)) !==
+          null
+          ? 0
+          : RENDER_DEBOUNCE_MS,
+    },
+  );
+  const stlBuffer = preview.result?.stl ?? null;
+  const baseExtents = preview.result?.baseExtents ?? null;
+  const { status, error: renderError, setError: setRenderError } = preview;
 
   // Two geometries from one STL: the parsed one for display (flat facet
   // normals straight from the file), and a welded, indexed copy for the
@@ -480,8 +420,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return { face, snap, line, point };
   }
 
-  // Whether the mesh on screen is the current base's (see shownSource).
-  const meshIsCurrent = Boolean(doc) && shownSource === doc.source;
+  // Whether the mesh on screen was rendered from the current base. While
+  // a new base renders (another model picked, a mesh flipped) the old
+  // mesh is still up, and a click on it would drill at the old model's
+  // coordinates — so surface hits and hover are ignored until the two
+  // match again. Holes being added or removed keep the source, and with
+  // it a live mesh.
+  const meshIsCurrent = Boolean(doc) && preview.key?.source === doc.source;
 
   function onSurfaceHover(hit) {
     if (!hit || !meshIsCurrent) {
@@ -620,10 +565,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const exportName = doc ? doc.name?.trim() || sourceStem(doc.source, catalogueById) : "";
 
   async function holedBuffer() {
-    const base = await baseBuffer(doc.source, catalogueById, globalOverrides);
-    return doc.holes.length
-      ? renderPart(holedRequest(doc, catalogueById, meshExtents(base), globalOverrides))
-      : base;
+    return (await renderHoled(doc, catalogueById, globalOverrides)).stl;
   }
 
   async function downloadStl() {
@@ -664,65 +606,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return analyzeFace(geometries.topo, guideFaceKey, { inset, radius });
   }, [guideFaceKey, geometries, inset, radius]);
 
-  const markers = useMemo(() => {
-    if (!doc) return [];
-    const out = doc.holes.map((h) => ({
-      id: `hole:${h.id}`,
-      shape: "ring",
-      x: h.point[0],
-      y: h.point[1],
-      z: h.point[2],
-      normal: h.normal,
-      radius: holeFootprintRadius(h.spec) + 0.5,
-      color: selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR,
-    }));
-    // The Repeat form's copies (and where the hole itself would move).
-    if (repeatResult) {
-      for (const h of repeatResult.doc.holes) {
-        const before = doc.holes.find((x) => x.id === h.id);
-        if (before && before.point.every((v, i) => v === h.point[i])) continue;
-        out.push({
-          id: `repeat:${h.id}`,
-          shape: "ring",
-          x: h.point[0],
-          y: h.point[1],
-          z: h.point[2],
-          normal: h.normal,
-          radius: holeFootprintRadius(h.spec) + 0.5,
-          color: REPEAT_PREVIEW_COLOR,
-          hitTest: false,
-        });
-      }
-    }
-    // The spot on a guide line the click would take: a marker that
-    // follows the pointer along the line.
-    if (hover?.linePoint) {
-      out.push({
-        id: "snap:line",
-        x: hover.linePoint[0],
-        y: hover.linePoint[1],
-        z: hover.linePoint[2],
-        radius: snapDot * 1.4,
-        color: SELECTED_COLOR,
-        // Display only: it sits under the pointer, and a click there
-        // goes to the face and resolves to this same point.
-        hitTest: false,
-      });
-    }
-    const hovering = hover && guideFace && hover.faceKey === guideFace.key;
-    for (const c of (snapOn && guideFace?.candidates) || []) {
-      const active = hovering && c.id === hover.snapId;
-      out.push({
-        id: `snap:${c.id}`,
-        x: c.point[0],
-        y: c.point[1],
-        z: c.point[2],
-        radius: active ? snapDot * 1.7 : snapDot,
-        color: active ? SELECTED_COLOR : (SNAP_COLORS[c.kind] ?? SNAP_COLORS.quarter),
-      });
-    }
-    return out;
-  }, [doc, selectedIds, hover, guideFace, snapOn, snapDot, repeatResult]);
+  const markers = useMemo(
+    () => holeMarkers({ doc, selectedIds, repeatResult, hover, guideFace, snapOn, snapDot }),
+    [doc, selectedIds, hover, guideFace, snapOn, snapDot, repeatResult],
+  );
 
   // The lines across the hovered face (nothing while a hole is being
   // dragged across it in the viewer — there is no such thing yet, so:
@@ -731,44 +618,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // and an arrow the way the head travels to seat, since a ring says
   // nothing about which way a slot points. Each piece is lifted off
   // its face along the normal.
-  const guides = useMemo(() => {
-    const segments = [];
-    const lifted = (p, normal) => [
-      p[0] + normal[0] * GUIDE_LIFT_MM,
-      p[1] + normal[1] * GUIDE_LIFT_MM,
-      p[2] + normal[2] * GUIDE_LIFT_MM,
-    ];
-    for (const h of doc?.holes ?? []) {
-      const color = selectedIds.includes(h.id) ? SELECTED_COLOR : HOLE_COLOR;
-      for (const seg of slotOutline(h))
-        segments.push({ a: lifted(seg.a, h.normal), b: lifted(seg.b, h.normal), color, dashed: seg.dashed });
-    }
-    const face = snapOn ? guideFace : null;
-    if (!face) return segments;
-    const lift = (p) => lifted(p, face.normal);
-    for (const g of face.guides) {
-      if (g.kind === "circle") {
-        // The circle as a chain of short segments.
-        for (let i = 0; i + 1 < g.points.length; i++) {
-          segments.push({
-            a: lift(g.points[i]),
-            b: lift(g.points[i + 1]),
-            color: GUIDE_CIRCLE_COLOR,
-            dashed: false,
-          });
-        }
-        continue;
-      }
-      const color =
-        g.kind === "center"
-          ? GUIDE_CENTER_COLOR
-          : g.kind === "radial"
-            ? GUIDE_RADIAL_COLOR
-            : GUIDE_QUARTER_COLOR;
-      segments.push({ a: lift(g.a), b: lift(g.b), color, dashed: g.kind !== "center" });
-    }
-    return segments;
-  }, [guideFace, snapOn, doc?.holes, selectedIds]);
+  const guides = useMemo(
+    () => holeGuides({ holes: doc?.holes ?? [], selectedIds, guideFace, snapOn }),
+    [guideFace, snapOn, doc?.holes, selectedIds],
+  );
 
   const hoveredSnap = hover?.snapId
     ? { label: hover.snapLabel }
@@ -780,47 +633,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // it lies on the guide face) distances to the guide face's edges and
   // center as dimension lines and labels, plus the face's size.
   const measurements = useMemo(() => {
-    const none = { guides: [], labels: [] };
-    if (!altHeld || !guideFace) return none;
-    const face = guideFace;
-    const onPlane = (p) =>
-      Math.abs(
-        (p[0] - face.center[0]) * face.normal[0] +
-          (p[1] - face.center[1]) * face.normal[1] +
-          (p[2] - face.center[2]) * face.normal[2],
-      ) < 0.05;
-    const point = measurePoint ?? (selected && onPlane(selected.point) ? selected.point : null);
-    const lift = (p) => [
-      p[0] + face.normal[0] * MEASURE_LIFT_MM,
-      p[1] + face.normal[1] * MEASURE_LIFT_MM,
-      p[2] + face.normal[2] * MEASURE_LIFT_MM,
-    ];
-    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-    const mm = (n) => `${n.toFixed(1)} mm`;
-    const guides = [];
-    const labels = [];
-    const [w, h] = face.extent;
-    // The face's size at a corner of its bounding box, out of the way of
-    // the lines through the point.
-    const corner = face.center.map((c, i) => c + (face.u[i] * w) / 2 + (face.v[i] * h) / 2);
-    labels.push({ id: "size", point: lift(corner), text: `${mm(w).slice(0, -3)} × ${mm(h)}` });
-    if (!point || !onPlane(point)) return { guides, labels };
-    const d = edgeDistances(face, point);
-    if (!d) return { guides, labels };
-    for (const side of ["left", "right", "down", "up"]) {
-      if (d[side] < 0.05) continue;
-      guides.push({ a: lift(point), b: lift(d.ends[side]), color: MEASURE_COLOR, dashed: false });
-      labels.push({ id: side, point: lift(mid(point, d.ends[side])), text: mm(d[side]) });
-    }
-    if (d.toCenter > 0.05) {
-      guides.push({ a: lift(point), b: lift(face.center), color: MEASURE_COLOR, dashed: true });
-      labels.push({
-        id: "center",
-        point: lift(mid(point, face.center)),
-        text: `${mm(d.toCenter)} to center`,
-      });
-    }
-    return { guides, labels };
+    if (!altHeld || !guideFace) return { guides: [], labels: [] };
+    const point =
+      measurePoint ?? (selected && onFacePlane(guideFace, selected.point) ? selected.point : null);
+    return faceMeasurements(guideFace, point);
   }, [altHeld, guideFace, measurePoint, selected]);
 
   // --- start screen --------------------------------------------------
@@ -1280,7 +1096,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             </p>
           )}
           {renderError && status !== "rendering" && (
-            <button type="button" className="render-button" onClick={() => setRenderRetry((n) => n + 1)}>
+            <button type="button" className="render-button" onClick={preview.retry}>
               Retry preview
             </button>
           )}
@@ -1292,13 +1108,6 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       )}
     </div>
   );
-}
-
-// A mesh source from its validated geometry: grounded on the grid, and
-// turned over first when `flip` is set (importedPart.js's groundedMesh()).
-function meshSource(name, geometry, flip) {
-  const { stlBytes, extents } = groundedMesh(geometry, { flip });
-  return { kind: "mesh", name, geometry, flip, stlBytes, extents };
 }
 
 // Two hover records that would draw the same thing.
@@ -1313,37 +1122,4 @@ function sameHover(a, b) {
 // as 0 (a snapped coordinate can come out as a negative zero).
 function formatPoint(point) {
   return point.map((n) => (Math.round(n * 10) / 10 || 0).toFixed(1)).join(", ");
-}
-
-// The base model's STL: a catalogue part rendered on its own (cached
-// by openscad-client), or a mesh source's own bytes.
-function baseBuffer(source, catalogueById, globalOverrides, signal) {
-  if (source.kind === "mesh") return Promise.resolve(source.stlBytes);
-  const part = catalogueById.get(source.partId);
-  if (!part) return Promise.reject(new Error(`Unknown catalogue part ${source.partId}`));
-  return renderPart(
-    { scadFile: part.file, module: part.module, params: source.params, globalOverrides },
-    { signal },
-  );
-}
-
-function holedRequest(doc, catalogueById, extents, globalOverrides) {
-  const importedFiles = new Map();
-  const scadSource = holesToScad(doc, catalogueById, {
-    throughLength: Math.hypot(...extents) + 2,
-    extents,
-    importedFiles,
-  });
-  return { scadSource, importedFiles, globalOverrides };
-}
-
-// For the cache probe before debouncing: without the base's extents the
-// request can't be formed yet, and an impossible one is never cached.
-function holedRequestIfKnown(doc, catalogueById, extents, globalOverrides) {
-  if (!extents) return { scadSource: "\0unknown" };
-  try {
-    return holedRequest(doc, catalogueById, extents, globalOverrides);
-  } catch {
-    return { scadSource: "\0unknown" };
-  }
 }
