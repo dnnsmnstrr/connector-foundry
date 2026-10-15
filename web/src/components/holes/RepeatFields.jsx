@@ -14,8 +14,23 @@ const PATTERNS = [
   { value: "circle", label: "Circle" },
 ];
 
+/**
+ * @param {{
+ *   options: Record<string, any>,
+ *   onChange: (patch: Record<string, any>) => void,
+ *   placed: number,
+ *   skipped: number,
+ *   onApply: () => void,
+ *   onCancel: () => void,
+ * }} props
+ */
 export default function RepeatFields({ options, onChange, placed, skipped, onApply, onCancel }) {
   const id = useId();
+  /**
+   * @param {string} key
+   * @param {string} label
+   * @param {{ min?: number | string, step?: number | string, title?: string }} [field]
+   */
   const number = (key, label, { min, step = 1, title } = {}) => (
     <label className="field" htmlFor={`${id}-${key}`} title={title}>
       <span className="field-label">{label}</span>

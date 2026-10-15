@@ -15,6 +15,7 @@ const CX = SIZE / 2;
 // Material shows this much below a blind hole's floor at most.
 const MAX_SHOWN_DEPTH = BOTTOM_Y - SURFACE_Y - 4;
 
+/** @param {{ spec: Record<string, any>, screw?: Record<string, any>, title?: string, className?: string }} props */
 export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "openconnect" || spec.kind === "multiconnect") {
     return <SlotIcon spec={spec} title={title} className={className} />;
@@ -292,6 +293,7 @@ const SLOT_PROFILES = {
 };
 const SLOT_DEPTH_SCALE = 4;
 
+/** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function SlotIcon({ spec, title, className }) {
   const p = SLOT_PROFILES[spec.kind];
   const s = 30 / p.snap;
@@ -369,6 +371,7 @@ function SlotIcon({ spec, title, className }) {
 // the threaded shank, and the head (an openConnect head's width) on the
 // surface, a coin slot in its face. To scale across, its depth as cut
 // (6.8 mm of screw, whatever the hole's own depth).
+/** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ThreadIcon({ spec, title, className }) {
   const s = 30 / 17;
   const px = (mm) => mm * s;
@@ -426,6 +429,7 @@ function ThreadIcon({ spec, title, className }) {
 // rectangle and a round hole would look the same: the material as a
 // square with the shape cut out of it, to scale (a rectangle as it is
 // turned, so a 10 × 20 stands up), the widest side ~30px.
+/** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ShapeIcon({ spec, title, className }) {
   const plan =
     spec.kind === "cylinder"
@@ -470,6 +474,7 @@ function ShapeIcon({ spec, title, className }) {
 // A 2020 socket from above: the rail's profile standing in it — the
 // square with its four slot mouths and centre bore — and, when keyed,
 // the material keys reaching into those mouths. To scale, ~30px across.
+/** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ExtrusionIcon({ spec, title, className }) {
   const s = 30 / 20;
   const cy = SIZE / 2;
@@ -549,6 +554,7 @@ function ExtrusionIcon({ spec, title, className }) {
 // notch either side, 0.8 mm in from the entry and, blind, from the
 // bottom), and a Technic pin in it — its collar on the surface, its
 // slit half down the bore. To scale, one beam (8 mm) deep.
+/** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function PinholeIcon({ spec, title, className }) {
   const s = 3;
   const boreW = 4.8 * s;
@@ -595,6 +601,7 @@ function PinholeIcon({ spec, title, className }) {
 // through them to the wall it is screwed to (above the surface). To
 // scale across (25mm channel, 17.5mm between the lips); the depths drawn
 // three times over, as the slots' are.
+/** @param {{ title?: string, className?: string }} props */
 function KlipptIcon({ title, className }) {
   const s = 30 / 25;
   const pz = (mm) => mm * s * 3;
@@ -647,6 +654,7 @@ function KlipptIcon({ title, className }) {
 // in it, its base on the surface and its rail under the lips. To scale across (the lips 24.8mm
 // apart, the undercut 30.8mm, the Outie's base 26.5mm); the depths drawn
 // twice over.
+/** @param {{ title?: string, className?: string }} props */
 function DeckMateIcon({ title, className }) {
   const s = 36 / 31;
   const pz = (mm) => mm * s * 2;

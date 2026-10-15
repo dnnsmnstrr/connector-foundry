@@ -53,6 +53,13 @@ function formatMm(n) {
 // placing more and picking one is allowed. `mode` "mesh" (the Holes
 // tab) wants the validated mesh and nothing else: no slots are placed,
 // and the flow ends right after the gate with onConfirm(part).
+/**
+ * @param {{
+ *   mode: "root" | "child" | "mesh",
+ *   onCancel: () => void,
+ *   onConfirm: (part: any, anchor?: string | null) => void,
+ * }} props
+ */
 export default function ImportFlow({ mode, onCancel, onConfirm }) {
   const [stage, setStage] = useState("pick"); // pick | reading | bodies | validating | rejected | placing | ready
   const [readingWhat, setReadingWhat] = useState("STEP");

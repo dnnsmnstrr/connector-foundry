@@ -14,6 +14,14 @@ import { useId, useLayoutEffect, useRef } from "react";
 // state, so the two agree. On open, focus goes to whatever is marked
 // data-autofocus (the part search box), else to the panel itself so a
 // screen reader lands inside the dialog without popping a keyboard.
+/**
+ * @param {{
+ *   onClose: () => void,
+ *   className?: string,
+ *   title: import("react").ReactNode,
+ *   children: import("react").ReactNode,
+ * }} props
+ */
 export default function Modal({ onClose, className, title, children }) {
   const dialogRef = useRef(null);
   const panelRef = useRef(null);

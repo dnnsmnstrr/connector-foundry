@@ -121,6 +121,9 @@ const ARROW_DIRECTIONS = {
   ArrowDown: [0, -1],
 };
 
+/**
+ * @param {{ parts: any[], sidebarCollapsed: boolean, onToggleSidebar: () => void }} props
+ */
 export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const globalOverrides = useGlobalOverrides();
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
@@ -276,7 +279,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         else if (result.reason?.name !== "AbortError")
           console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
       }
-      setNodeExtents(new Map(entries));
+      setNodeExtents(new Map(/** @type {[string, any][]} */ (entries)));
     };
     const allCached = allNodes.every((n) => {
       const part = partsById.get(n.partId);

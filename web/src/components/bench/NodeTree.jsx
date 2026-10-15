@@ -24,6 +24,17 @@ import RotationInput from "../RotationInput.jsx";
 // twin of those buttons: type any angle, or step by 90 with the arrows.
 // "Offset" moves the part along the mating axis, "Shift X / Y" across
 // it (assembly.js's `overlap` and `shift`).
+/**
+ * @param {{
+ *   assembly: any,
+ *   partsById: Record<string, any>,
+ *   nodeExtents: any,
+ *   nodeId: string,
+ *   actions: Record<string, (...args: any[]) => any>,
+ *   selectedId: string | null,
+ *   canAttach: boolean,
+ * }} props
+ */
 export default function NodeTree({
   assembly,
   partsById,

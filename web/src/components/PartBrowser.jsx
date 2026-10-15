@@ -22,6 +22,15 @@ import { groupBySystem, listedParts, matchesSearch, resolveSystemOrder } from ".
 // entries it marks `hidden` itself and minus whatever the user hid in
 // Settings ("Part list"), live through useHiddenLibrary() — all of which
 // stay in `parts` for the code that looks parts up by id.
+/**
+ * @param {{
+ *   parts: any[],
+ *   activeId?: string | null,
+ *   onPick: (part: any) => void,
+ *   toolbar?: import("react").ReactNode,
+ *   autoFocus?: boolean,
+ * }} props `parts` are catalogue.json's entries (an imported part too, in the Bench)
+ */
 export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocus = false }) {
   const [search, setSearch] = useState("");
   const savedOrder = useSystemOrder();

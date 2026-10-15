@@ -32,6 +32,13 @@ import Modal from "./Modal.jsx";
 // which systems and parts are listed at all. Below them, a backup of
 // all of it plus the bench presets and saved part defaults
 // (lib/settingsBackup.js).
+/**
+ * @param {{
+ *   parts: any[],
+ *   globalDefaults: Record<string, any> | null,
+ *   onClose: () => void,
+ * }} props
+ */
 export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);

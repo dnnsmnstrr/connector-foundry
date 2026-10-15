@@ -5,6 +5,7 @@ import { useId } from "react";
 // paragraph under it. A real button so it can be focused; the text is
 // its accessible description, and also a plain `title` for whatever
 // doesn't show the styled tip.
+/** @param {{ text: string, label?: string }} props */
 export default function InfoTip({ text, label = "More information" }) {
   const id = useId();
   return (

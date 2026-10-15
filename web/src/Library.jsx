@@ -28,6 +28,17 @@ const PARAM_RENDER_DELAY_MS = 400;
 // `initialSelection` is that same record handed back on remount, so a
 // round trip through the Bench comes back to the part (and parameter
 // edits) that were showing, not to the first part in the catalogue.
+/**
+ * @param {{
+ *   parts: any[],
+ *   onOpenInBench: (...args: any[]) => void,
+ *   onAddHoles: (...args: any[]) => void,
+ *   onSelectionChange: (...args: any[]) => void,
+ *   initialSelection: any,
+ *   sidebarCollapsed: boolean,
+ *   onToggleSidebar: () => void,
+ * }} props
+ */
 export default function Library({
   parts,
   onOpenInBench,

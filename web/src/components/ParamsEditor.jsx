@@ -13,6 +13,17 @@ import ParamField from "./ParamField.jsx";
 // `params` is the caller's state; `onChange` gets the whole next object.
 // `allowSavedDefaults` is off for an imported part: it has no catalogue
 // defaults, and no stable id to save an override under.
+/**
+ * @param {{
+ *   part: any,
+ *   params: Record<string, any>,
+ *   onChange: (params: Record<string, any>) => void,
+ *   emptyText?: string,
+ *   allowSavedDefaults?: boolean,
+ *   showSavedNote?: boolean,
+ *   className?: string,
+ * }} props
+ */
 export default function ParamsEditor({
   part,
   params,

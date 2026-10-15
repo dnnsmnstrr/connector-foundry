@@ -4,6 +4,7 @@
 // screen it's rendered in. The chevron is the desktop face (the sidebar
 // is a column there); on a narrow screen the sidebar stacks above the
 // workspace, so the text label shows instead (styles.css swaps them).
+/** @param {{ collapsed: boolean, onToggle: () => void }} props */
 export default function SidebarToggle({ collapsed, onToggle }) {
   const label = collapsed ? "Show sidebar" : "Hide sidebar";
   return (

@@ -429,6 +429,11 @@ function holeNormal(normal) {
   return unit(v);
 }
 
+/**
+ * @param {any} doc
+ * @param {{ point: number[], normal: number[], spec?: object, presetId?: string | null }} hole
+ *   `spec` and `presetId` default to the document's next-hole ones
+ */
 export function addHole(doc, { point, normal, spec, presetId }) {
   // The counter is module state; a document can outlive it (a dev-server
   // hot reload of this module resets it under an open document), and two
@@ -627,6 +632,7 @@ export const STANDARD_SPACINGS = Object.freeze([
 ]);
 
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom).
+/** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean }} options */
 export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
   return (
     STANDARD_SPACINGS.find(

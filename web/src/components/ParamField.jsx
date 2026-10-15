@@ -12,6 +12,18 @@ import DecimalInput from "./DecimalInput.jsx";
 // a value typed past one is brought back to it when the field loses
 // focus — not on every keystroke, which would turn the "1" of a "10"
 // being typed into the minimum. Decimals take a comma or a period.
+/**
+ * @param {{
+ *   name: string,
+ *   value: any,
+ *   options?: any[],
+ *   min?: number | string,
+ *   max?: number | string,
+ *   catalogueDefault?: any,
+ *   onChange: (value: any) => void,
+ *   onReset?: () => void,
+ * }} props
+ */
 export default function ParamField({ name, value, options, min, max, catalogueDefault, onChange, onReset }) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.

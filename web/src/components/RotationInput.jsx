@@ -19,6 +19,18 @@ import SpinButtons from "./SpinButtons.jsx";
 //   placeholder shown when `value` is "" — "mixed", for several things
 //              that point different ways (the buttons still turn each
 //              from its own angle)
+/**
+ * @param {{
+ *   value: number | "",
+ *   onChange: (degrees: number) => void,
+ *   onRotate: (delta: number) => void,
+ *   name: string,
+ *   viewedFrom?: string,
+ *   id?: string,
+ *   placeholder?: string,
+ *   step?: number,
+ * }} props
+ */
 export default function RotationInput({
   value,
   onChange,
