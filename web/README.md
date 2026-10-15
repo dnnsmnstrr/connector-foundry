@@ -8,12 +8,14 @@ running in a Web Worker.
 ## How it works
 
 1. `npm run sync-scad` (runs automatically before `dev`/`build`) bundles every `.scad` file the
-   parts reach into — `lib`, `parts`, `assemblies`, and the vendored upstreams (`SOURCE_DIRS` in
-   `scripts/sync-scad.mjs`, narrowed to the subtrees actually used) — into `public/scad-bundle.json`,
+   parts reach into — `lib`, `parts`, `assemblies` (`ROOT_DIRS` in `scripts/sync-scad.mjs`), plus
+   whatever those `include`/`use`, followed transitively into the vendored upstreams — into
+   `public/scad-bundle.json`,
    and parses `catalogue.yaml` into `public/catalogue.json`. This is the only "build step" that touches the
-   OpenSCAD sources — the app never transpiles or reimplements them. A source directory with no
-   `.scad` files in it (a submodule that was never checked out) is reported, since the symptom
-   in the browser is otherwise just an unhelpful "can't open include" on the parts that need it.
+   OpenSCAD sources — the app never transpiles or reimplements them.
+   An included file that does not exist (a submodule that was never checked out) is reported,
+   since the symptom in the browser is otherwise just an unhelpful "can't open include" on the
+   parts that need it.
    A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
    under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
    relative `import()` resolves in the browser exactly as it does on disk.
