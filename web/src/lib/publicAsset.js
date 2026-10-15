@@ -13,6 +13,7 @@ export function publicUrl(name) {
 // nowhere near the cause — so check the status here and name the file.
 export async function fetchPublic(name) {
   const res = await fetch(publicUrl(name));
-  if (!res.ok) throw new Error(`Could not load ${name} (HTTP ${res.status}) — has \`npm run sync-scad\` run?`);
+  if (!res.ok)
+    throw new Error(`Could not load ${name} (HTTP ${res.status}) — has \`npm run sync-scad\` run?`);
   return res;
 }

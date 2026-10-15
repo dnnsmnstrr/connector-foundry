@@ -10,7 +10,16 @@ import { make3mf } from "../fixtures/threeMf.js";
 const cube = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4)), { binary: true });
 const cubeBytes = [...new Uint8Array(cube.buffer, cube.byteOffset, cube.byteLength)];
 const parts = [
-  { id: "basics/plate", name: "Flat plate", system: "Basics", confidence: "exact", file: "parts/basics/plate.scad", module: "basics_plate", defaults: { w: 40, d: 40, t: 4, r: 3 }, anchors: ["bot"] },
+  {
+    id: "basics/plate",
+    name: "Flat plate",
+    system: "Basics",
+    confidence: "exact",
+    file: "parts/basics/plate.scad",
+    module: "basics_plate",
+    defaults: { w: 40, d: 40, t: 4, r: 3 },
+    anchors: ["bot"],
+  },
 ];
 
 async function catalogue(page) {
@@ -18,16 +27,21 @@ async function catalogue(page) {
 }
 
 async function mockWorker(page) {
-  await page.addInitScript(({ bytes }) => {
-    window.__renders = { jobs: [] };
-    window.Worker = class {
-      postMessage(request) {
-        window.__renders.jobs.push({ request });
-        queueMicrotask(() => this.onmessage({ data: { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer } }));
-      }
-      terminate() {}
-    };
-  }, { bytes: cubeBytes });
+  await page.addInitScript(
+    ({ bytes }) => {
+      window.__renders = { jobs: [] };
+      window.Worker = class {
+        postMessage(request) {
+          window.__renders.jobs.push({ request });
+          queueMicrotask(() =>
+            this.onmessage({ data: { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer } }),
+          );
+        }
+        terminate() {}
+      };
+    },
+    { bytes: cubeBytes },
+  );
 }
 
 const jobs = (page) => page.evaluate(() => window.__renders.jobs.map((j) => j.request));
@@ -91,7 +105,10 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
   await expect.poll(async () => (await jobs(page)).at(-1)?.params?.w).toBe(55);
   // Nothing drilled yet, so a second hand-over replaces the base without asking.
   let asked = false;
-  page.on("dialog", (dialog) => { asked = true; dialog.dismiss(); });
+  page.on("dialog", (dialog) => {
+    asked = true;
+    dialog.dismiss();
+  });
   await page.keyboard.press("1");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
   await expect(page).toHaveURL(/mode=holes/);
@@ -168,7 +185,10 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   // what they share, and one Delete removes them all.
   const lastJob = async () => (await jobs(page)).at(-1);
   await page.locator(".holes-row-main").nth(0).click();
-  await page.locator(".holes-row-main").nth(1).click({ modifiers: ["Shift"] });
+  await page
+    .locator(".holes-row-main")
+    .nth(1)
+    .click({ modifiers: ["Shift"] });
   await expect(page.getByRole("heading", { name: "2 holes" })).toBeVisible();
   await expect(page.locator(".holes-row.is-selected")).toHaveCount(2);
   await expect(page.getByText("2 holes selected")).toBeVisible();
@@ -178,7 +198,10 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   expect((await lastJob()).scadSource.match(/cylinder\(d = 6,/g)).toHaveLength(2);
   // Shift-click takes one back out; Select all puts it back, and has
   // nothing left to do once everything is selected.
-  await page.locator(".holes-row-main").nth(1).click({ modifiers: ["Shift"] });
+  await page
+    .locator(".holes-row-main")
+    .nth(1)
+    .click({ modifiers: ["Shift"] });
   await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
   const selectAll = page.getByRole("button", { name: "Select all" });
   await expect(selectAll).toBeEnabled();
@@ -214,7 +237,9 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await expect.poll(async () => (await lastJob()).scadSource).toContain("oc_slot(");
   const slotted = (await lastJob()).scadSource;
   expect(slotted).toContain("use <../lib/openconnect.scad>");
-  expect(slotted).toContain('oc_slot(lock = "left", side_clearance = 0.1, depth_clearance = 0.1, overshoot = 1);');
+  expect(slotted).toContain(
+    'oc_slot(lock = "left", side_clearance = 0.1, depth_clearance = 0.1, overshoot = 1);',
+  );
   expect(slotted).not.toContain("cylinder(");
 
   // Its direction turns with the same quarter-turn buttons as a Bench
@@ -245,19 +270,26 @@ test("a click on a face drills a snapped hole and the render carries it", async 
 const detailed = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4, 20, 20, 1)), { binary: true });
 const detailedBytes = [...new Uint8Array(detailed.buffer, detailed.byteOffset, detailed.byteLength)];
 
-test("deleting a hole while the guide lines are on the holed mesh doesn't crash the tab", async ({ page }) => {
+test("deleting a hole while the guide lines are on the holed mesh doesn't crash the tab", async ({
+  page,
+}) => {
   await catalogue(page);
-  await page.addInitScript(({ plain, holed }) => {
-    window.__renders = { jobs: [] };
-    window.Worker = class {
-      postMessage(request) {
-        window.__renders.jobs.push({ request });
-        const bytes = request.scadSource?.includes("difference()") ? holed : plain;
-        queueMicrotask(() => this.onmessage({ data: { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer } }));
-      }
-      terminate() {}
-    };
-  }, { plain: cubeBytes, holed: detailedBytes });
+  await page.addInitScript(
+    ({ plain, holed }) => {
+      window.__renders = { jobs: [] };
+      window.Worker = class {
+        postMessage(request) {
+          window.__renders.jobs.push({ request });
+          const bytes = request.scadSource?.includes("difference()") ? holed : plain;
+          queueMicrotask(() =>
+            this.onmessage({ data: { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer } }),
+          );
+        }
+        terminate() {}
+      };
+    },
+    { plain: cubeBytes, holed: detailedBytes },
+  );
   const errors = [];
   page.on("pageerror", (err) => errors.push(err.message));
   await page.goto("/#mode=holes");
@@ -305,8 +337,10 @@ test("an imported mesh is drilled through import() with its bytes mounted alongs
   await page.goto("/#mode=holes");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
-  await page.locator('input[type=file]').click();
-  await (await chooser).setFiles({ name: "bracket.stl", mimeType: "model/stl", buffer: Buffer.from(cubeBytes) });
+  await page.locator("input[type=file]").click();
+  await (
+    await chooser
+  ).setFiles({ name: "bracket.stl", mimeType: "model/stl", buffer: Buffer.from(cubeBytes) });
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
   await dialog.getByRole("button", { name: "Use this mesh", exact: true }).click();
@@ -320,7 +354,9 @@ test("an imported mesh is drilled through import() with its bytes mounted alongs
   const request = (await jobs(page))[0];
   expect(request.scadSource).toContain('import("imports/bracket.stl");');
   // A Map doesn't survive page.evaluate's serialisation; ask in the page.
-  expect(await page.evaluate(() => [...window.__renders.jobs[0].request.importedFiles.keys()])).toEqual(["imports/bracket.stl"]);
+  expect(await page.evaluate(() => [...window.__renders.jobs[0].request.importedFiles.keys()])).toEqual([
+    "imports/bracket.stl",
+  ]);
   const saved = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download .scad", exact: true }).click();
   expect((await saved).suggestedFilename()).toBe("bracket_holes.scad");
@@ -332,9 +368,14 @@ test("a 3MF is unpacked, scaled by its unit and grounded on the grid", async ({ 
   await page.goto("/#mode=holes");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
-  await page.locator('input[type=file]').click();
+  await page.locator("input[type=file]").click();
   // A 1 x 1 x 0.4 cm box, placed 5 cm off the origin by the build item.
-  const bytes = make3mf({ unit: "centimeter", size: [1, 1, 0.4], name: "Lid", placements: [[1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 5, 2]] });
+  const bytes = make3mf({
+    unit: "centimeter",
+    size: [1, 1, 0.4],
+    name: "Lid",
+    placements: [[1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 5, 2]],
+  });
   await (await chooser).setFiles({ name: "lid.3mf", mimeType: "model/3mf", buffer: Buffer.from(bytes) });
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
@@ -348,7 +389,10 @@ test("a 3MF is unpacked, scaled by its unit and grounded on the grid", async ({ 
   // sits at z = 4 within the 10 mm footprint around the origin.
   await page.locator(".bench-viewer canvas").click();
   const meta = await page.locator(".holes-row-meta").first().textContent();
-  const [x, y, z] = meta.match(/\[(.*)\]/)[1].split(", ").map(Number);
+  const [x, y, z] = meta
+    .match(/\[(.*)\]/)[1]
+    .split(", ")
+    .map(Number);
   expect(Math.abs(x)).toBeLessThanOrEqual(5);
   expect(Math.abs(y)).toBeLessThanOrEqual(5);
   expect(z).toBe(4);

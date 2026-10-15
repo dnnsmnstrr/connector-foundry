@@ -14,13 +14,27 @@ import { CONFIG_EXTENSION } from "../../lib/benchConfig.js";
 // `onLoad(preset)` / `onDelete(name)` do what they say; `error` is
 // whatever the last config load/save had to report. `emptyText` null
 // renders nothing at all for an empty list.
-export default function PresetsPanel({ presets, defaultName = "", onSave, onLoad, onDelete, onImportFile, error, emptyText }) {
+export default function PresetsPanel({
+  presets,
+  defaultName = "",
+  onSave,
+  onLoad,
+  onDelete,
+  onImportFile,
+  error,
+  emptyText,
+}) {
   const [name, setName] = useState(defaultName);
   const trimmed = name.trim();
-  const replaces = trimmed !== "" && presets.some((p) => p.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0);
-  const empty = emptyText === undefined
-    ? (onSave ? "No presets yet — name the current bench above to keep it." : "No saved presets yet.")
-    : emptyText;
+  const replaces =
+    trimmed !== "" &&
+    presets.some((p) => p.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0);
+  const empty =
+    emptyText === undefined
+      ? onSave
+        ? "No presets yet — name the current bench above to keep it."
+        : "No saved presets yet."
+      : emptyText;
 
   function submit(e) {
     e.preventDefault();
@@ -43,7 +57,11 @@ export default function PresetsPanel({ presets, defaultName = "", onSave, onLoad
             type="submit"
             className="render-button bench-preset-save-button"
             disabled={trimmed === ""}
-            title={replaces ? `Replace the saved preset "${trimmed}" with the current bench` : "Save the current bench as a preset in this browser"}
+            title={
+              replaces
+                ? `Replace the saved preset "${trimmed}" with the current bench`
+                : "Save the current bench as a preset in this browser"
+            }
           >
             {replaces ? "Replace" : "Save"}
           </button>
@@ -79,7 +97,9 @@ export default function PresetsPanel({ presets, defaultName = "", onSave, onLoad
         </ul>
       )}
 
-      {onImportFile && <ConfigImportButton onFile={onImportFile} className="bench-modal-cancel bench-config-import" />}
+      {onImportFile && (
+        <ConfigImportButton onFile={onImportFile} className="bench-modal-cancel bench-config-import" />
+      )}
 
       {error && (
         <p className="error-text bench-config-error" role="alert">
@@ -132,8 +152,9 @@ function describePreset(preset) {
   const count = 1 + (preset.config?.nodes?.length ?? 0);
   const parts = `${count} part${count === 1 ? "" : "s"}`;
   const date = preset.savedAt ? new Date(preset.savedAt) : null;
-  const when = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
-    : null;
+  const when =
+    date && !Number.isNaN(date.getTime())
+      ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+      : null;
   return when ? `${parts} · ${when}` : parts;
 }

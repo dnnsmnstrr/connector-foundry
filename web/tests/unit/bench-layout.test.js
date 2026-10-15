@@ -33,5 +33,8 @@ test("sceneMarkers keeps a single or even set of slots the same size", () => {
     { name: "left", point: [-5, 0, 2] },
     { name: "right", point: [5, 0, 2] },
   ]);
-  assert.deepEqual(evenMarkers.map((marker) => marker.radius), [undefined, undefined]);
+  assert.deepEqual(
+    evenMarkers.map((marker) => marker.radius),
+    [undefined, undefined],
+  );
 });

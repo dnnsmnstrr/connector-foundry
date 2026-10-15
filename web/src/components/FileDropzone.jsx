@@ -58,9 +58,29 @@ export default function FileDropzone({ accept, onFile, label, hint, className })
 
   const classes = ["dropzone", over ? "is-over" : "", className ?? ""].filter(Boolean).join(" ");
   return (
-    <div className={classes} onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
-      <input ref={inputRef} type="file" accept={accept} className="dropzone-input" aria-label={label} onChange={onChange} />
-      <svg className="dropzone-icon" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+    <div
+      className={classes}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="dropzone-input"
+        aria-label={label}
+        onChange={onChange}
+      />
+      <svg
+        className="dropzone-icon"
+        viewBox="0 0 24 24"
+        width="28"
+        height="28"
+        aria-hidden="true"
+        focusable="false"
+      >
         <path
           fill="none"
           stroke="currentColor"

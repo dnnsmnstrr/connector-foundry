@@ -57,7 +57,9 @@ export function savePreset(name, config) {
   const trimmed = String(name ?? "").trim();
   if (!trimmed) return "Give the preset a name first.";
   const entry = { name: trimmed, savedAt: new Date().toISOString(), config };
-  const rest = listPresets().filter((p) => p.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) !== 0);
+  const rest = listPresets().filter(
+    (p) => p.name.localeCompare(trimmed, undefined, { sensitivity: "base" }) !== 0,
+  );
   return commit([...rest, entry]);
 }
 
@@ -75,10 +77,16 @@ export function subscribePresets(listener) {
 }
 
 function storageErrorMessage(err) {
-  const quota = err?.name === "QuotaExceededError" || err?.name === "NS_ERROR_DOM_QUOTA_REACHED" || err?.code === 22 || err?.code === 1014;
+  const quota =
+    err?.name === "QuotaExceededError" ||
+    err?.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    err?.code === 22 ||
+    err?.code === 1014;
   if (quota) {
-    return "Browser storage is full — a preset embeds its imported STL meshes, and this one doesn't fit. " +
-      "Download it as a config file instead, or delete a preset to make room.";
+    return (
+      "Browser storage is full — a preset embeds its imported STL meshes, and this one doesn't fit. " +
+      "Download it as a config file instead, or delete a preset to make room."
+    );
   }
   return "This browser isn't letting the app save presets (private window, or storage blocked).";
 }

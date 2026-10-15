@@ -102,7 +102,7 @@ export function restoreBenchFromUrl(catalogueById) {
   if (missing.length) {
     throw new Error(
       "This bench uses an imported STL that is only kept in the tab it was uploaded in, so it can't be " +
-        "rebuilt here. Open it in that tab, or move it with \"Download config\" / \"Import config…\", which carries the mesh.",
+        'rebuilt here. Open it in that tab, or move it with "Download config" / "Import config…", which carries the mesh.',
     );
   }
   const doc = { format: CONFIG_FORMAT, version: CONFIG_VERSION, root: tree.root, nodes, imports };

@@ -3,7 +3,13 @@ import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
 import { groupBySystem, resolveSystemOrder } from "../lib/catalogueUtils.js";
 import { downloadBlob } from "../lib/download.js";
 import { getHolesSession } from "../lib/holesSession.js";
-import { SETTINGS_EXTENSION, applySettings, exportSettings, parseSettings, settingsToJson } from "../lib/settingsBackup.js";
+import {
+  SETTINGS_EXTENSION,
+  applySettings,
+  exportSettings,
+  parseSettings,
+  settingsToJson,
+} from "../lib/settingsBackup.js";
 import {
   getBenchFollowsLibrary,
   getSystemOrder,
@@ -163,7 +169,12 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
       <label className="field has-info-tip">
         <span className="field-label">
           {detail !== detailDefault && (
-            <span className="field-differs" role="img" aria-label={`Differs from catalogue default ${detailDefault}`} title={`Catalogue default: ${detailDefault}`} />
+            <span
+              className="field-differs"
+              role="img"
+              aria-label={`Differs from catalogue default ${detailDefault}`}
+              title={`Catalogue default: ${detailDefault}`}
+            />
           )}
           Circle detail
           <InfoTip
@@ -180,7 +191,11 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
 
       <h4 className="settings-section">Bench</h4>
       <label className="field field-checkbox has-info-tip">
-        <input type="checkbox" checked={benchFollows} onChange={(e) => toggleBenchFollows(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={benchFollows}
+          onChange={(e) => toggleBenchFollows(e.target.checked)}
+        />
         <span className="field-label">
           Start an empty Bench with the Library's part
           <InfoTip
@@ -205,63 +220,63 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
             ? systemParts.length
             : systemParts.filter((p) => hiddenPartIds.has(p.id)).length;
           return (
-          <li key={system} className={systemHidden ? "settings-order-row is-hidden" : "settings-order-row"}>
-            <div className="settings-system">
-              <label className="settings-system-toggle">
-                <input
-                  type="checkbox"
-                  checked={!systemHidden}
-                  onChange={(e) => setSystemHidden(system, !e.target.checked)}
-                  aria-label={`Show ${system} in the part lists`}
-                />
-                <span>{system}</span>
-              </label>
-              {systemParts.length > 0 && (
-                <details className="settings-parts">
-                  <summary>
-                    {systemParts.length} part{systemParts.length === 1 ? "" : "s"}
-                    {hiddenHere > 0 && <span className="muted">, {hiddenHere} hidden</span>}
-                  </summary>
-                  <ul className="settings-part-list">
-                    {systemParts.map((part) => (
-                      <li key={part.id}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={!systemHidden && !hiddenPartIds.has(part.id)}
-                            disabled={systemHidden}
-                            onChange={(e) => setPartHidden(part.id, !e.target.checked)}
-                            aria-label={`Show ${part.name} in the part lists`}
-                          />
-                          <span>{part.name}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </div>
-            <span className="settings-order-actions">
-              <button
-                type="button"
-                aria-label={`Move ${system} up`}
-                title="Move up"
-                disabled={index === 0}
-                onClick={() => moveSystem(index, -1)}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                aria-label={`Move ${system} down`}
-                title="Move down"
-                disabled={index === systemOrder.length - 1}
-                onClick={() => moveSystem(index, 1)}
-              >
-                ▼
-              </button>
-            </span>
-          </li>
+            <li key={system} className={systemHidden ? "settings-order-row is-hidden" : "settings-order-row"}>
+              <div className="settings-system">
+                <label className="settings-system-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!systemHidden}
+                    onChange={(e) => setSystemHidden(system, !e.target.checked)}
+                    aria-label={`Show ${system} in the part lists`}
+                  />
+                  <span>{system}</span>
+                </label>
+                {systemParts.length > 0 && (
+                  <details className="settings-parts">
+                    <summary>
+                      {systemParts.length} part{systemParts.length === 1 ? "" : "s"}
+                      {hiddenHere > 0 && <span className="muted">, {hiddenHere} hidden</span>}
+                    </summary>
+                    <ul className="settings-part-list">
+                      {systemParts.map((part) => (
+                        <li key={part.id}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={!systemHidden && !hiddenPartIds.has(part.id)}
+                              disabled={systemHidden}
+                              onChange={(e) => setPartHidden(part.id, !e.target.checked)}
+                              aria-label={`Show ${part.name} in the part lists`}
+                            />
+                            <span>{part.name}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+              <span className="settings-order-actions">
+                <button
+                  type="button"
+                  aria-label={`Move ${system} up`}
+                  title="Move up"
+                  disabled={index === 0}
+                  onClick={() => moveSystem(index, -1)}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Move ${system} down`}
+                  title="Move down"
+                  disabled={index === systemOrder.length - 1}
+                  onClick={() => moveSystem(index, 1)}
+                >
+                  ▼
+                </button>
+              </span>
+            </li>
           );
         })}
       </ol>
@@ -278,7 +293,11 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
         {hiddenCount > 0 && (
           <>
             {" "}
-            <button type="button" className="field-reset settings-order-reset" onClick={() => setHiddenLibrary({})}>
+            <button
+              type="button"
+              className="field-reset settings-order-reset"
+              onClick={() => setHiddenLibrary({})}
+            >
               ↺ Show all {hiddenCount} hidden part{hiddenCount === 1 ? "" : "s"}
             </button>
           </>

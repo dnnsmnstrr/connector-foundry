@@ -38,7 +38,9 @@ export function buildTopology(indexArray, vertexCount) {
   };
 
   for (let t = 0; t < triCount; t++) {
-    const a = indexArray[3 * t], b = indexArray[3 * t + 1], c = indexArray[3 * t + 2];
+    const a = indexArray[3 * t],
+      b = indexArray[3 * t + 1],
+      c = indexArray[3 * t + 2];
     faces[t] = [a, b, c];
     record(edgeKey(a, b), t, a, b);
     record(edgeKey(b, c), t, b, c);
@@ -89,7 +91,9 @@ export function triangleNeighbors(indexArray, vertexCount) {
   };
 
   for (let t = 0; t < triCount; t++) {
-    const a = indexArray[3 * t], b = indexArray[3 * t + 1], c = indexArray[3 * t + 2];
+    const a = indexArray[3 * t],
+      b = indexArray[3 * t + 1],
+      c = indexArray[3 * t + 2];
     link(edgeKey(a, b), t);
     link(edgeKey(b, c), t);
     link(edgeKey(c, a), t);

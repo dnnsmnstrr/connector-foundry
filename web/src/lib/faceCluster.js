@@ -47,7 +47,9 @@ function neighborsFor(geometry) {
   return neighbors;
 }
 
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+const _a = new THREE.Vector3(),
+  _b = new THREE.Vector3(),
+  _c = new THREE.Vector3();
 
 function loadTriangle(position, index, t) {
   _a.fromBufferAttribute(position, index.getX(3 * t));
@@ -62,7 +64,11 @@ function triNormal(position, index, t, out) {
 
 function triCentroid(position, index, t, out) {
   loadTriangle(position, index, t);
-  return out.copy(_a).add(_b).add(_c).multiplyScalar(1 / 3);
+  return out
+    .copy(_a)
+    .add(_b)
+    .add(_c)
+    .multiplyScalar(1 / 3);
 }
 
 // `geometry`: indexed BufferGeometry (validateAndRepair()'s output).
@@ -108,7 +114,10 @@ export function clusterFace(geometry, faceIndex, options = {}) {
   const u = arbitrary.cross(up).normalize();
   const v = up.clone().cross(u).normalize();
 
-  let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+  let minU = Infinity,
+    maxU = -Infinity,
+    minV = Infinity,
+    maxV = -Infinity;
   const seenVerts = new Set();
   const p = new THREE.Vector3();
   for (const t of visited) {

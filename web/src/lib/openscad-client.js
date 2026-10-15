@@ -100,7 +100,10 @@ function pump() {
   active = job;
   job.timer = setTimeout(() => {
     stopWorker();
-    finish(job, new Error("OpenSCAD render timed out after 2 minutes. Try simpler parameters or render again."));
+    finish(
+      job,
+      new Error("OpenSCAD render timed out after 2 minutes. Try simpler parameters or render again."),
+    );
   }, RENDER_TIMEOUT_MS);
   try {
     // Clone imported buffers: exports and later previews still need them.

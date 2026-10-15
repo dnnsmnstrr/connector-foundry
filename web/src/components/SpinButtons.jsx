@@ -9,7 +9,13 @@
 //
 // Used floating over the selected Bench part in the scene, and inside
 // RotationInput next to an exact angle field.
-export default function SpinButtons({ name, onRotate, viewedFrom = "above the slot", className = "", step = 90 }) {
+export default function SpinButtons({
+  name,
+  onRotate,
+  viewedFrom = "above the slot",
+  className = "",
+  step = 90,
+}) {
   return (
     <span className={`spin-buttons ${className}`.trim()} role="group" aria-label={`Rotate ${name}`}>
       <button

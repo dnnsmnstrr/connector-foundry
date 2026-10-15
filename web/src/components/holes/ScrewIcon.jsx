@@ -20,7 +20,8 @@ export default function ScrewIcon({ spec, screw, title, className }) {
     return <SlotIcon spec={spec} title={title} className={className} />;
   }
   if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
-  if (spec.kind === "cylinder" || spec.kind === "rectangle") return <ShapeIcon spec={spec} title={title} className={className} />;
+  if (spec.kind === "cylinder" || spec.kind === "rectangle")
+    return <ShapeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "klippt") return <KlipptIcon title={title} className={className} />;
@@ -32,9 +33,10 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   const holeFloorY = through ? BOTTOM_Y + 1 : SURFACE_Y + Math.min(px(spec.depth), MAX_SHOWN_DEPTH);
   const pocketDepth = spec.head === "none" ? 0 : Math.min(px(spec.headDepth), MAX_SHOWN_DEPTH - 4);
   const pocketW = px(spec.headDiameter);
-  const coneH = spec.head === "countersink" && spec.headDiameter > spec.diameter
-    ? ((spec.headDiameter - spec.diameter) / 2 / Math.tan(((spec.sinkAngle / 2) * Math.PI) / 180)) * s
-    : 0;
+  const coneH =
+    spec.head === "countersink" && spec.headDiameter > spec.diameter
+      ? ((spec.headDiameter - spec.diameter) / 2 / Math.tan(((spec.sinkAngle / 2) * Math.PI) / 180)) * s
+      : 0;
 
   const cut = [];
   cut.push(rect(CX - shankW / 2, SURFACE_Y - 1, shankW, holeFloorY - SURFACE_Y + 1));
@@ -53,7 +55,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
     );
   }
 
-  const fastener = drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, coneH });
+  const fastener = drawFastener({ screw, spec, px, through, holeFloorY, pocketDepth, coneH });
 
   return (
     <svg
@@ -79,7 +81,13 @@ export default function ScrewIcon({ spec, screw, title, className }) {
 // px per mm so the widest thing in the picture fits in ~30px, never
 // more than 4 px/mm (an M2 would otherwise be a sliver next to an M6).
 function scaleFor(spec, screw) {
-  const widest = Math.max(spec.headDiameter || 0, spec.diameter, screw?.headDiameter || 0, (screw?.nominal || 0) * 1.3, 3);
+  const widest = Math.max(
+    spec.headDiameter || 0,
+    spec.diameter,
+    screw?.headDiameter || 0,
+    (screw?.nominal || 0) * 1.3,
+    3,
+  );
   return Math.min(4, 30 / widest);
 }
 
@@ -88,19 +96,23 @@ function rect(x, y, w, h, extra = {}) {
 }
 
 function polygon(points, extra = {}) {
-  return <polygon key={points.flat().join(",")} points={points.map((p) => p.join(",")).join(" ")} {...extra} />;
+  return (
+    <polygon key={points.flat().join(",")} points={points.map((p) => p.join(",")).join(" ")} {...extra} />
+  );
 }
 
 // Short slanted lines across a shank: the thread.
 function threads(x, y0, y1, w, pitch = 2.4) {
   const lines = [];
   for (let y = y0 + 1.5; y < y1 - 0.5; y += pitch) {
-    lines.push(<line key={y} x1={x + 0.6} y1={y + 0.7} x2={x + w - 0.6} y2={y - 0.7} className="screw-icon-thread" />);
+    lines.push(
+      <line key={y} x1={x + 0.6} y1={y + 0.7} x2={x + w - 0.6} y2={y - 0.7} className="screw-icon-thread" />,
+    );
   }
   return lines;
 }
 
-function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, coneH }) {
+function drawFastener({ screw, spec, px, through, holeFloorY, pocketDepth, coneH }) {
   if (!screw || screw.style === "none") return null;
   const parts = [];
   const nominalW = Math.max(1.5, px(screw.nominal));
@@ -202,8 +214,26 @@ function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, co
       parts.push(rect(CX - outerW / 2, SURFACE_Y, outerW, len, { rx: 0.6 }));
       parts.push(rect(CX - innerW / 2, SURFACE_Y - 0.5, innerW, len + 1, { className: "screw-icon-socket" }));
       for (let y = SURFACE_Y + 2; y < SURFACE_Y + len - 1; y += 2.6) {
-        parts.push(<line key={`kl${y}`} x1={CX - outerW / 2} y1={y} x2={CX - outerW / 2 + 1.6} y2={y + 1.1} className="screw-icon-thread" />);
-        parts.push(<line key={`kr${y}`} x1={CX + outerW / 2} y1={y} x2={CX + outerW / 2 - 1.6} y2={y + 1.1} className="screw-icon-thread" />);
+        parts.push(
+          <line
+            key={`kl${y}`}
+            x1={CX - outerW / 2}
+            y1={y}
+            x2={CX - outerW / 2 + 1.6}
+            y2={y + 1.1}
+            className="screw-icon-thread"
+          />,
+        );
+        parts.push(
+          <line
+            key={`kr${y}`}
+            x1={CX + outerW / 2}
+            y1={y}
+            x2={CX + outerW / 2 - 1.6}
+            y2={y + 1.1}
+            className="screw-icon-thread"
+          />,
+        );
       }
       break;
     }
@@ -219,7 +249,11 @@ function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, co
       break;
     }
     case "pin": {
-      parts.push(rect(CX - nominalW / 2, SURFACE_Y - 5, nominalW, Math.min(holeFloorY, BOTTOM_Y) - SURFACE_Y + 4, { rx: 1 }));
+      parts.push(
+        rect(CX - nominalW / 2, SURFACE_Y - 5, nominalW, Math.min(holeFloorY, BOTTOM_Y) - SURFACE_Y + 4, {
+          rx: 1,
+        }),
+      );
       break;
     }
     default:
@@ -237,8 +271,24 @@ function drawFastener({ screw, spec, s, px, through, holeFloorY, pocketDepth, co
 const SLOT_PROFILES = {
   // [slit width, pocket width, slit depth, taper depth, pocket depth]
   // of the cut, then of the head.
-  openconnect: { slit: 14.4, pocket: 17.2, slitD: 0.56, taperD: 1.4, pocketD: 0.74, head: { neck: 14.2, disc: 17, neckH: 0.6, taperH: 1.4, discH: 0.6 }, snap: 24.8 },
-  multiconnect: { slit: 15.3, pocket: 20.3, slitD: 0.44, taperD: 2.5, pocketD: 1.21, head: { neck: 15, disc: 20, neckH: 0.5, taperH: 2.5, discH: 1 }, snap: 24.8 },
+  openconnect: {
+    slit: 14.4,
+    pocket: 17.2,
+    slitD: 0.56,
+    taperD: 1.4,
+    pocketD: 0.74,
+    head: { neck: 14.2, disc: 17, neckH: 0.6, taperH: 1.4, discH: 0.6 },
+    snap: 24.8,
+  },
+  multiconnect: {
+    slit: 15.3,
+    pocket: 20.3,
+    slitD: 0.44,
+    taperD: 2.5,
+    pocketD: 1.21,
+    head: { neck: 15, disc: 20, neckH: 0.5, taperH: 2.5, discH: 1 },
+    snap: 24.8,
+  },
 };
 const SLOT_DEPTH_SCALE = 4;
 
@@ -306,7 +356,9 @@ function SlotIcon({ spec, title, className }) {
         {/* The snap the head stands on, outside the surface. */}
         <rect x={CX - px(p.snap) / 2} y={SURFACE_Y - 8} width={px(p.snap)} height={5.5} rx="0.8" />
         {head}
-        {spec.kind === "multiconnect" && <rect x={CX - 1} y={floorY - 1.8} width={2} height={1.2} className="screw-icon-socket" />}
+        {spec.kind === "multiconnect" && (
+          <rect x={CX - 1} y={floorY - 1.8} width={2} height={1.2} className="screw-icon-socket" />
+        )}
       </g>
     </svg>
   );
@@ -333,7 +385,14 @@ function ThreadIcon({ spec, title, className }) {
     const wall = CX + (side * boreW) / 2;
     const tip = wall - side * px(1);
     for (let y = SURFACE_Y + (side > 0 ? pitch / 2 : 0) + 0.6; y + pitch * 0.6 < floorY; y += pitch) {
-      ridges.push(polygon([[wall, y], [tip, y + pitch * 0.25], [tip, y + pitch * 0.35], [wall, y + pitch * 0.6]]));
+      ridges.push(
+        polygon([
+          [wall, y],
+          [tip, y + pitch * 0.25],
+          [tip, y + pitch * 0.35],
+          [wall, y + pitch * 0.6],
+        ]),
+      );
     }
   }
   const headH = px(2.6);
@@ -371,7 +430,12 @@ function ShapeIcon({ spec, title, className }) {
   const plan =
     spec.kind === "cylinder"
       ? { w: spec.diameter, h: spec.diameter, r: spec.diameter / 2, spin: 0 }
-      : { w: spec.width, h: spec.height, r: Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2), spin: spec.spin };
+      : {
+          w: spec.width,
+          h: spec.height,
+          r: Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2),
+          spin: spec.spin,
+        };
   const s = 30 / Math.max(plan.w, plan.h, 1);
   const cy = SIZE / 2;
   return (
@@ -429,7 +493,15 @@ function ExtrusionIcon({ spec, title, className }) {
   ];
   const rail = [];
   for (let q = 0; q < 4; q++) {
-    for (const [x, y] of quarter) rail.push([[x, y], [-y, x], [-x, -y], [y, -x]][q]);
+    for (const [x, y] of quarter)
+      rail.push(
+        [
+          [x, y],
+          [-y, x],
+          [-x, -y],
+          [y, -x],
+        ][q],
+      );
   }
   const at = (points) => points.map(([x, y]) => `${CX + x},${cy - y}`).join(" ");
   return (
@@ -453,7 +525,14 @@ function ExtrusionIcon({ spec, title, className }) {
         {spec.keys && (
           <g className="screw-icon-material">
             {[0, 90, 180, 270].map((a) => (
-              <rect key={a} x={CX + half - reach} y={cy - mouth + 0.5} width={reach + 1.2} height={2 * mouth - 1} transform={`rotate(${a} ${CX} ${cy})`} />
+              <rect
+                key={a}
+                x={CX + half - reach}
+                y={cy - mouth + 0.5}
+                width={reach + 1.2}
+                height={2 * mouth - 1}
+                transform={`rotate(${a} ${CX} ${cy})`}
+              />
             ))}
           </g>
         )}
@@ -502,7 +581,9 @@ function PinholeIcon({ spec, title, className }) {
         {rect(CX - pinW / 2, SURFACE_Y, pinW, pinBottom - SURFACE_Y, { rx: 1 })}
         {rect(CX - (6.2 * s) / 2, SURFACE_Y - 2.4, 6.2 * s, 2.4, { rx: 0.6 })}
         {rect(CX - pinW / 2, SURFACE_Y - 9, pinW, 6.6, { rx: 1 })}
-        {rect(CX - 0.8, SURFACE_Y + (pinBottom - SURFACE_Y) / 2, 1.6, (pinBottom - SURFACE_Y) / 2, { className: "screw-icon-socket" })}
+        {rect(CX - 0.8, SURFACE_Y + (pinBottom - SURFACE_Y) / 2, 1.6, (pinBottom - SURFACE_Y) / 2, {
+          className: "screw-icon-socket",
+        })}
       </g>
     </svg>
   );

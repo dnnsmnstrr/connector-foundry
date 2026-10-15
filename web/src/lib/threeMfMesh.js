@@ -78,9 +78,7 @@ export function bodiesFromGroup(group, scale = 1) {
     if (!node.isMesh) return;
     const position = node.geometry?.getAttribute("position");
     if (!position || position.count < 3) return;
-    const source = node.geometry.index
-      ? expandIndexed(position, node.geometry.index)
-      : position;
+    const source = node.geometry.index ? expandIndexed(position, node.geometry.index) : position;
     const count = source.count;
     const positions = new Float32Array(count * 3);
     const box = new THREE.Box3();

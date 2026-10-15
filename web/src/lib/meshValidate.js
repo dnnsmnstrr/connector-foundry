@@ -27,7 +27,9 @@ const MIN_COMPONENT_AREA_MM2 = 1e-6;
 // Scratch vectors for the per-triangle loops: an uploaded scan can run
 // to hundreds of thousands of faces, and allocating three Vector3s per
 // face was most of the cost of the area and volume passes.
-const _v0 = new THREE.Vector3(), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+const _v0 = new THREE.Vector3(),
+  _v1 = new THREE.Vector3(),
+  _v2 = new THREE.Vector3();
 
 function triangleArea(position, a, b, c) {
   _v0.fromBufferAttribute(position, a);
@@ -80,7 +82,8 @@ function analyzeEdges(edgeMap) {
     if (occurrences.length === 1) openEdges++;
     else if (occurrences.length > 2) nonManifoldEdges++;
     else {
-      const d0 = occurrences[0].dir, d1 = occurrences[1].dir;
+      const d0 = occurrences[0].dir,
+        d1 = occurrences[1].dir;
       const consistent = d0[0] === d1[1] && d0[1] === d1[0];
       if (!consistent) inconsistentEdges++;
     }
@@ -92,9 +95,11 @@ function analyzeEdges(edgeMap) {
 // face's CURRENT index order, since faces get flipped in place below and
 // the direction recorded at topology-build time may be stale.
 function traversesForward(face, v1, v2) {
-  return (face[0] === v1 && face[1] === v2) ||
+  return (
+    (face[0] === v1 && face[1] === v2) ||
     (face[1] === v1 && face[2] === v2) ||
-    (face[2] === v1 && face[0] === v2);
+    (face[2] === v1 && face[0] === v2)
+  );
 }
 
 function flipFace(face) {
@@ -180,7 +185,11 @@ export function validateAndRepair(rawGeometry) {
   stripped.deleteAttribute("uv");
   const geometry = mergeVertices(stripped, WELD_TOLERANCE_MM);
   if (!geometry.index) {
-    return { geometry, ok: false, report: ["Mesh has no triangles after welding — empty or degenerate file."] };
+    return {
+      geometry,
+      ok: false,
+      report: ["Mesh has no triangles after welding — empty or degenerate file."],
+    };
   }
 
   const position = geometry.attributes.position;
@@ -248,16 +257,24 @@ export function validateAndRepair(rawGeometry) {
   });
 
   if (openEdges > 0) {
-    report.push(`${openEdges} open edge(s) remain — this mesh has an actual hole, not just an export artifact. Welding and winding repair can't fix a real hole.`);
+    report.push(
+      `${openEdges} open edge(s) remain — this mesh has an actual hole, not just an export artifact. Welding and winding repair can't fix a real hole.`,
+    );
   }
   if (nonManifoldEdges > 0) {
-    report.push(`${nonManifoldEdges} non-manifold edge(s) remain — an edge shared by 3+ faces (a T-junction or self-intersection).`);
+    report.push(
+      `${nonManifoldEdges} non-manifold edge(s) remain — an edge shared by 3+ faces (a T-junction or self-intersection).`,
+    );
   }
   if (inconsistentEdges > 0) {
-    report.push(`${inconsistentEdges} edge(s) still have inconsistent winding after repair — likely tangled with a non-manifold region above.`);
+    report.push(
+      `${inconsistentEdges} edge(s) still have inconsistent winding after repair — likely tangled with a non-manifold region above.`,
+    );
   }
   if (solidComponents.length > 1) {
-    report.push(`${solidComponents.length} disconnected solids in one file — is this really one part, or several?`);
+    report.push(
+      `${solidComponents.length} disconnected solids in one file — is this really one part, or several?`,
+    );
   }
   if (solidComponents.length === 0) {
     report.push("No solid geometry found.");
@@ -269,7 +286,8 @@ export function validateAndRepair(rawGeometry) {
   const extents = [max.x - min.x, max.y - min.y, max.z - min.z];
   const center = [(min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2];
 
-  const ok = openEdges === 0 && nonManifoldEdges === 0 && inconsistentEdges === 0 && solidComponents.length === 1;
+  const ok =
+    openEdges === 0 && nonManifoldEdges === 0 && inconsistentEdges === 0 && solidComponents.length === 1;
   if (ok && report.length === 0) report.push("Clean — watertight, single solid, no repairs needed.");
   else if (ok) report.push("Passed after repair.");
 

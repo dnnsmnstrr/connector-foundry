@@ -19,10 +19,27 @@ import SpinButtons from "./SpinButtons.jsx";
 //   placeholder shown when `value` is "" — "mixed", for several things
 //              that point different ways (the buttons still turn each
 //              from its own angle)
-export default function RotationInput({ value, onChange, onRotate, name, viewedFrom, id, placeholder, step = 90 }) {
+export default function RotationInput({
+  value,
+  onChange,
+  onRotate,
+  name,
+  viewedFrom,
+  id,
+  placeholder,
+  step = 90,
+}) {
   return (
     <span className="rotation-controls">
-      <DecimalInput id={id} step={step} min="-360" max="360" value={value} placeholder={placeholder} onChange={onChange} />
+      <DecimalInput
+        id={id}
+        step={step}
+        min="-360"
+        max="360"
+        value={value}
+        placeholder={placeholder}
+        onChange={onChange}
+      />
       <SpinButtons name={name} onRotate={onRotate} viewedFrom={viewedFrom} step={step} />
     </span>
   );

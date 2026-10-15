@@ -12,9 +12,15 @@ beforeEach(async () => {
   globalThis.Worker = class {
     messages = [];
     terminated = false;
-    constructor() { workers.push(this); }
-    postMessage(message) { this.messages.push(message); }
-    terminate() { this.terminated = true; }
+    constructor() {
+      workers.push(this);
+    }
+    postMessage(message) {
+      this.messages.push(message);
+    }
+    terminate() {
+      this.terminated = true;
+    }
     result(stl = new ArrayBuffer(12)) {
       this.onmessage({ data: { id: this.messages.at(-1).id, type: "result", stl } });
       return stl;
@@ -54,7 +60,10 @@ test("drops obsolete queued previews without cancelling an export", async () => 
   workers[0].result();
   await exported;
   await tick();
-  assert.deepEqual(workers[0].messages.map((m) => m.params.size), [1, 3]);
+  assert.deepEqual(
+    workers[0].messages.map((m) => m.params.size),
+    [1, 3],
+  );
   workers[0].result();
   await latest;
   await rejected;
@@ -106,7 +115,10 @@ test("a worker crash fails the active job and resumes queued exports on a fresh 
 
 test("a timeout terminates only the active job and allows retry", async (t) => {
   const deadlines = [];
-  t.mock.method(globalThis, "setTimeout", (fn, ms) => { deadlines.push({ fn, ms }); return 0; });
+  t.mock.method(globalThis, "setTimeout", (fn, ms) => {
+    deadlines.push({ fn, ms });
+    return 0;
+  });
   const first = client.renderPart(request(1));
   const rejected = assert.rejects(first, /timed out/);
   const next = client.renderPart(request(2));
@@ -144,7 +156,9 @@ test("a rejected postMessage does not strand queued jobs", async () => {
   workers[0].result();
   // The first message has already succeeded; exercise the next post.
   await first;
-  workers[0].postMessage = () => { throw new Error("clone failed"); };
+  workers[0].postMessage = () => {
+    throw new Error("clone failed");
+  };
   const bad = assert.rejects(client.renderPart(request(2)), /clone failed/);
   const good = client.renderPart(request(3));
   await tick();

@@ -104,9 +104,11 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
     stopRepeat();
     const delta = direction * stepSize(step, "button", e.shiftKey);
     stepRef.current(delta);
-    repeat.current = { timer: setTimeout(() => {
-      repeat.current.interval = setInterval(() => stepRef.current(delta), REPEAT_EVERY_MS);
-    }, REPEAT_AFTER_MS) };
+    repeat.current = {
+      timer: setTimeout(() => {
+        repeat.current.interval = setInterval(() => stepRef.current(delta), REPEAT_EVERY_MS);
+      }, REPEAT_AFTER_MS),
+    };
   };
 
   return (

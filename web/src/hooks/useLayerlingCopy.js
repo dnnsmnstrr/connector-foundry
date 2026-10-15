@@ -7,7 +7,8 @@ const LABELS = {
   copied: "Copied — paste in Layerling",
 };
 
-export const LAYERLING_COPY_TITLE = "Copies the model so Ctrl/⌘+V in Layerling (layerling.com) pastes it as an editable mesh";
+export const LAYERLING_COPY_TITLE =
+  "Copies the model so Ctrl/⌘+V in Layerling (layerling.com) pastes it as an editable mesh";
 
 // State for a "Copy for Layerling" button: `copy(bodiesPromise)` must be
 // called straight from the click (see copyForLayerling()); the label
@@ -27,7 +28,11 @@ export function useLayerlingCopy(onError) {
       },
       (err) => {
         setState("idle");
-        onError(err.name === "NotAllowedError" ? "The browser did not allow copying to the clipboard." : err.message);
+        onError(
+          err.name === "NotAllowedError"
+            ? "The browser did not allow copying to the clipboard."
+            : err.message,
+        );
       },
     );
   }

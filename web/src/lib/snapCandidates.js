@@ -120,8 +120,14 @@ function buildFace(geometry, faceIndex) {
   const directed = new Set(); // "a>b"
   const edges = [];
   for (const t of triangles) {
-    const a = index.getX(3 * t), b = index.getX(3 * t + 1), c = index.getX(3 * t + 2);
-    for (const [from, to] of [[a, b], [b, c], [c, a]]) {
+    const a = index.getX(3 * t),
+      b = index.getX(3 * t + 1),
+      c = index.getX(3 * t + 2);
+    for (const [from, to] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ]) {
       directed.add(`${from}>${to}`);
       edges.push([from, to]);
     }
@@ -155,7 +161,14 @@ function buildFace(geometry, faceIndex) {
     const area = signedArea(simplified.map((s) => s.uv));
     const centroid = averagePoint(simplified.map((s) => s.p));
     const radius = Math.max(...simplified.map((s) => distance(s.p, centroid)));
-    return { points: simplified.map((s) => s.p), uv: simplified.map((s) => s.uv), area, center: centroid, radius, outer: false };
+    return {
+      points: simplified.map((s) => s.p),
+      uv: simplified.map((s) => s.uv),
+      area,
+      center: centroid,
+      radius,
+      outer: false,
+    };
   });
   // Largest loop is the outline; it should be CCW (positive area) on a
   // consistently wound mesh, but go by size so a mirrored mesh still
@@ -212,7 +225,8 @@ function buildGuides(face, corners, radius) {
   if (!outer) return [];
   const [w, h] = face.extent;
   const guides = [];
-  const line = (kind, auv, buv) => guides.push({ kind, a: unproject(auv, face), b: unproject(buv, face), auv, buv });
+  const line = (kind, auv, buv) =>
+    guides.push({ kind, a: unproject(auv, face), b: unproject(buv, face), auv, buv });
   const axisLine = (kind, axis, offset) => {
     for (const [t0, t1] of clipLine(outer.uv, axis, offset)) {
       line(kind, axis === "u" ? [offset, t0] : [t0, offset], axis === "u" ? [offset, t1] : [t1, offset]);
@@ -293,21 +307,36 @@ function buildCandidates(face, corners, radius) {
 
   // The center of each quadrant of the face's bounding box — four
   // screws spread over a plate.
-  for (const [su, sv] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) {
+  for (const [su, sv] of [
+    [1, 1],
+    [-1, 1],
+    [-1, -1],
+    [1, -1],
+  ]) {
     pushUv("quarter", [(su * w) / 4, (sv * h) / 4], "quadrant center");
   }
 
   // Where a center line crosses a quarter line: halfway out along each
   // axis. (Quarter × quarter is the quadrant center above, center ×
   // center the face center.)
-  for (const q of [[w / 4, 0], [-w / 4, 0], [0, h / 4], [0, -h / 4]]) {
+  for (const q of [
+    [w / 4, 0],
+    [-w / 4, 0],
+    [0, h / 4],
+    [0, -h / 4],
+  ]) {
     pushUv("intersection", q, "center line × quarter line");
   }
 
   // Around the center circle: where it meets the center lines and each
   // radial — a bolt circle of up to eight.
   if (radius > 0) {
-    for (const q of [[radius, 0], [-radius, 0], [0, radius], [0, -radius]]) {
+    for (const q of [
+      [radius, 0],
+      [-radius, 0],
+      [0, radius],
+      [0, -radius],
+    ]) {
       pushUv("circle", q, "center circle × center line");
     }
     for (const c of corners) {
@@ -396,7 +425,8 @@ export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
   const p = project(point, face.center, face.u, face.v);
   let best = null;
   const consider = (guide, d, uv, label) => {
-    if (d < (best ? best.distance : maxDistance)) best = { guide, distance: d, point: unproject(uv, face), label };
+    if (d < (best ? best.distance : maxDistance))
+      best = { guide, distance: d, point: unproject(uv, face), label };
   };
   for (const guide of face.guides) {
     if (guide.kind === "circle") {
@@ -405,7 +435,12 @@ export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
       const d = Math.abs(r - guide.radius);
       const step = (CIRCLE_STEP_DEG * Math.PI) / 180;
       const angle = Math.round(Math.atan2(p[1], p[0]) / step) * step;
-      consider(guide, d, [guide.radius * Math.cos(angle), guide.radius * Math.sin(angle)], "on the center circle");
+      consider(
+        guide,
+        d,
+        [guide.radius * Math.cos(angle), guide.radius * Math.sin(angle)],
+        "on the center circle",
+      );
       continue;
     }
     const { auv: a, buv: b } = guide;
@@ -419,7 +454,10 @@ export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
     const d = Math.hypot(p[0] - foot[0], p[1] - foot[1]);
     const centerAlong = -(a[0] * dir[0] + a[1] * dir[1]);
     const snapped = Math.min(Math.max(centerAlong + Math.round((along - centerAlong) / grid) * grid, 0), len);
-    const label = { center: "on the center line", quarter: "on a quarter line", radial: "on a radial line" }[guide.kind] ?? "on a guide line";
+    const label =
+      { center: "on the center line", quarter: "on a quarter line", radial: "on a radial line" }[
+        guide.kind
+      ] ?? "on a guide line";
     consider(guide, d, [a[0] + dir[0] * snapped, a[1] + dir[1] * snapped], label);
   }
   return best;

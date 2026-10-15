@@ -116,6 +116,7 @@ export default function Library({
     setParams(initial);
     doRender(initial);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a sequence counter, not a DOM node: bumping it is how the cleanup invalidates the render in flight
       ++renderSeq.current;
       clearTimeout(paramRenderTimer.current);
       previewController.current?.abort();
@@ -137,9 +138,14 @@ export default function Library({
     if (selected) onSelectionChange?.({ part: selected, params });
   }, [selected, params, onSelectionChange]);
 
-  const currentKey = selected && renderRequestKey({
-    scadFile: selected.file, module: selected.module, params, globalOverrides,
-  });
+  const currentKey =
+    selected &&
+    renderRequestKey({
+      scadFile: selected.file,
+      module: selected.module,
+      params,
+      globalOverrides,
+    });
   const canDownload = status === "done" && rendered?.key === currentKey;
   const dimensions = useMemo(
     () => (canDownload && stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
@@ -180,7 +186,9 @@ export default function Library({
     <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
       <aside className="sidebar">
         <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
-        {!sidebarCollapsed && <PartBrowser parts={parts} activeId={selectedId} onPick={(part) => setSelectedId(part.id)} />}
+        {!sidebarCollapsed && (
+          <PartBrowser parts={parts} activeId={selectedId} onPick={(part) => setSelectedId(part.id)} />
+        )}
       </aside>
       {!sidebarCollapsed && <SidebarResizer />}
 
@@ -195,7 +203,10 @@ export default function Library({
                     (dimensions is null until it lands), so the form and the
                     viewer below don't jump up and back on every edit. */}
                 {dimensions ? (
-                  <p className="outside-dimensions" aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}>
+                  <p
+                    className="outside-dimensions"
+                    aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+                  >
                     Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
                   </p>
                 ) : (
@@ -271,7 +282,12 @@ export default function Library({
                 )}
                 {stlBuffer && (
                   <div className="viewer-actions">
-                    <button className="download-button layerling-button" onClick={copyToLayerling} disabled={!canDownload || layerling.copying} title={LAYERLING_COPY_TITLE}>
+                    <button
+                      className="download-button layerling-button"
+                      onClick={copyToLayerling}
+                      disabled={!canDownload || layerling.copying}
+                      title={LAYERLING_COPY_TITLE}
+                    >
                       {layerling.label}
                     </button>
                     <button className="download-button" onClick={downloadStl} disabled={!canDownload}>

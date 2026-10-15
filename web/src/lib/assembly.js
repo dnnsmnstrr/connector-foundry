@@ -129,9 +129,33 @@ export function occupiedSlotNames(assembly, parentId) {
 // same "nothing happened" answer moveChild() gives for a move that isn't
 // one. The Bench checks canAttach() before offering a slot, so this is
 // the backstop, not the UI.
-export function addChild(assembly, { parentId, partId, params, slotName, joint = "fused", childAnchor = "mount", overlap = 0, spin = 0, shift = [0, 0] }) {
+export function addChild(
+  assembly,
+  {
+    parentId,
+    partId,
+    params,
+    slotName,
+    joint = "fused",
+    childAnchor = "mount",
+    overlap = 0,
+    spin = 0,
+    shift = [0, 0],
+  },
+) {
   if (!canAttach(assembly)) return assembly;
-  const child = { id: allocateChildId(), parentId, partId, params: { ...params }, slotName, joint, childAnchor, overlap, spin, shift: normalizeShift(shift) };
+  const child = {
+    id: allocateChildId(),
+    parentId,
+    partId,
+    params: { ...params },
+    slotName,
+    joint,
+    childAnchor,
+    overlap,
+    spin,
+    shift: normalizeShift(shift),
+  };
   return { ...assembly, nodes: [...assembly.nodes, child] };
 }
 
@@ -330,7 +354,9 @@ function importedModuleSource(part) {
   const [ex, ey, ez] = part.extents;
   const [cx, cy, cz] = part.center;
   const anchors = part.anchors
-    .map((a) => `named_anchor(${JSON.stringify(a.name)}, [${a.point.join(", ")}], [${a.normal.join(", ")}], 0)`)
+    .map(
+      (a) => `named_anchor(${JSON.stringify(a.name)}, [${a.point.join(", ")}], [${a.normal.join(", ")}], 0)`,
+    )
     .join(",\n        ");
   return [
     `module ${name}(anchor = BOTTOM, spin = 0, orient = UP) {`,
@@ -482,11 +508,13 @@ function partCall(ctx, nodeId, part, params) {
 // whatever it's attached to and its own further children alike.
 function emitChildren(ctx, nodeId, hide, indent) {
   return childrenOf(ctx.assembly, nodeId)
-    .map((child) => (child.joint === "fused"
-      ? emitFusedChild(ctx, child, hide, indent)
-      : child.joint === "screwed"
-        ? emitScrewedChild(ctx, child, hide, indent)
-        : emitJointChild(ctx, child, hide, indent)))
+    .map((child) =>
+      child.joint === "fused"
+        ? emitFusedChild(ctx, child, hide, indent)
+        : child.joint === "screwed"
+          ? emitScrewedChild(ctx, child, hide, indent)
+          : emitJointChild(ctx, child, hide, indent),
+    )
     .join("\n");
 }
 
@@ -527,21 +555,32 @@ function emitScrewedChild(ctx, child, hide, indent) {
   };
 
   if (childHas && parentHas) {
-    return dispatchBlock(ctx, child.id,
-      (unitHide) => childUnit(`attach("${child.slotName}", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
-      indent);
+    return dispatchBlock(
+      ctx,
+      child.id,
+      (unitHide) =>
+        childUnit(`attach("${child.slotName}", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
+      indent,
+    );
   }
   if (parentHas) {
-    return dispatchBlock(ctx, child.id,
-      (unitHide) => `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() `
-        + childUnit(`attach("mount", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
-      indent);
+    return dispatchBlock(
+      ctx,
+      child.id,
+      (unitHide) =>
+        `attach("${child.slotName}", "seat") ${hidden(unitHide)}${flange}() ` +
+        childUnit(`attach("mount", "${child.childAnchor}"${mate})`, unitHide, indent + "    "),
+      indent,
+    );
   }
   return [
     `${indent}attach("${child.slotName}", "mount") ${hidden(hide)}${flange}() {`,
-    dispatchBlock(ctx, child.id,
+    dispatchBlock(
+      ctx,
+      child.id,
       (unitHide) => childUnit(`attach("seat", "${child.childAnchor}"${mate})`, unitHide, indent + "        "),
-      indent + "    "),
+      indent + "    ",
+    ),
     `${indent}}`,
   ].join("\n");
 }
@@ -567,9 +606,12 @@ function emitJointChild(ctx, child, hide, indent) {
   const childPart = ctx.partsById.get(child.partId);
   const call = `${shiftArg(child)}${partCall(ctx, child.id, childPart, child.params)}`;
   const mate = mateArgs(child);
-  const [flangeA, flangeB] = child.joint === "bolted" ? ["bolted_flange_a", "bolted_flange_b"]
-    : child.joint === "snap" ? ["snap_flange_a", "snap_flange_b"]
-    : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
+  const [flangeA, flangeB] =
+    child.joint === "bolted"
+      ? ["bolted_flange_a", "bolted_flange_b"]
+      : child.joint === "snap"
+        ? ["snap_flange_a", "snap_flange_b"]
+        : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
 
   const childUnit = (unitHide) => {
     const grandkids = emitChildren(ctx, child.id, unitHide, indent + "            ");
@@ -641,7 +683,8 @@ export function compileToScad(assembly, partsById, importedFiles) {
   const needsPin = assembly.nodes.some((c) => c.joint === "pin");
   if (needsPin) {
     const pin = partsById.get("bitbeam/pin");
-    if (!pin) throw new Error('A pin joint needs the catalogue part "bitbeam/pin", which is not in this catalogue.');
+    if (!pin)
+      throw new Error('A pin joint needs the catalogue part "bitbeam/pin", which is not in this catalogue.');
     includes.add(`include <../${pin.file}>`);
   }
 

@@ -173,7 +173,14 @@ async function renderOne({ id, scadFile, module, params, scadSource, part, impor
     // downloads faster. Vertices are float32 either way — OpenSCAD writes
     // its ASCII STL from the same single-precision values — so bounding
     // boxes and slot positions are bit-identical between the two.
-    const rc = os.callMain([mainPath, "-o", "/output.stl", "--export-format=binstl", "--backend=Manifold", ...extraArgs]);
+    const rc = os.callMain([
+      mainPath,
+      "-o",
+      "/output.stl",
+      "--export-format=binstl",
+      "--backend=Manifold",
+      ...extraArgs,
+    ]);
     if (rc !== 0) {
       throw new Error("OpenSCAD render failed — check the parameters (see worker console for details)");
     }

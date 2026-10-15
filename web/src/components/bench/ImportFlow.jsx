@@ -10,7 +10,13 @@ import {
 } from "../../lib/importedPart.js";
 import { validateAndRepair } from "../../lib/meshValidate.js";
 import { tessellateStep } from "../../lib/stepImport.js";
-import { MESH_FILE_ACCEPT, bodyLabels, geometryFromBodies, isStepFilename, looksLikeStep } from "../../lib/stepMesh.js";
+import {
+  MESH_FILE_ACCEPT,
+  bodyLabels,
+  geometryFromBodies,
+  isStepFilename,
+  looksLikeStep,
+} from "../../lib/stepMesh.js";
 import { is3mfFilename, looksLikeZip, read3mf } from "../../lib/threeMfMesh.js";
 import FileDropzone from "../FileDropzone.jsx";
 import Modal from "../Modal.jsx";
@@ -85,7 +91,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       // Several bodies (an assembly, or a part modelled as separate
       // solids): the gate below refuses more than one disconnected
       // solid, so let the user pick before it gets the chance to.
-      const useBodies = (read) => {
+      const acceptBodies = (read) => {
         if (read.length === 0) reject(["No mesh found in this file."]);
         else if (read.length === 1) validate(geometryFromBodies(read), file.name);
         else {
@@ -96,11 +102,11 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       if (isStepFilename(file.name) || looksLikeStep(buffer)) {
         setReadingWhat("STEP");
         setStage("reading");
-        useBodies(await tessellateStep(buffer));
+        acceptBodies(await tessellateStep(buffer));
       } else if (is3mfFilename(file.name) || looksLikeZip(buffer)) {
         setReadingWhat("3MF");
         setStage("reading");
-        useBodies(read3mf(buffer));
+        acceptBodies(read3mf(buffer));
       } else {
         setStage("validating");
         validate(new STLLoader().parse(buffer), file.name);
@@ -152,15 +158,18 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
     <Modal
       onClose={onCancel}
       className="bench-import-modal"
-      title={mode === "mesh" ? "Import a mesh" : `Import a mesh ${mode === "root" ? "as base part" : "to attach here"}`}
+      title={
+        mode === "mesh"
+          ? "Import a mesh"
+          : `Import a mesh ${mode === "root" ? "as base part" : "to attach here"}`
+      }
     >
-
       {stage === "pick" && (
         <>
           <p className="muted">
-            STL, STEP (.step / .stp) or 3MF. An STL is used as it is; a STEP file is converted to a mesh and a 3MF
-            unpacked (and scaled to millimetres) here in your browser. Either way your file stays local to this
-            session: it's never uploaded anywhere or saved into this repo.
+            STL, STEP (.step / .stp) or 3MF. An STL is used as it is; a STEP file is converted to a mesh and a
+            3MF unpacked (and scaled to millimetres) here in your browser. Either way your file stays local to
+            this session: it's never uploaded anywhere or saved into this repo.
           </p>
           <FileDropzone
             accept={MESH_FILE_ACCEPT}
@@ -174,15 +183,16 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
 
       {stage === "reading" && (
         <p className="muted" role="status">
-          Reading {readingWhat} geometry…{readingWhat === "STEP" && " The first STEP import also loads the converter (about 8 MB)."}
+          Reading {readingWhat} geometry…
+          {readingWhat === "STEP" && " The first STEP import also loads the converter (about 8 MB)."}
         </p>
       )}
 
       {stage === "bodies" && bodies && (
         <>
           <p className="muted">
-            This file holds {bodies.length} bodies. A Bench part is one solid, so pick the body to import — or take
-            them all as one mesh if they are the pieces of a single part.
+            This file holds {bodies.length} bodies. A Bench part is one solid, so pick the body to import — or
+            take them all as one mesh if they are the pieces of a single part.
           </p>
           <ul className="bench-slot-list bench-body-list">
             <li>
@@ -256,8 +266,8 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             ))}
           </ul>
           <p className="muted">
-            {part.name}: {part.extents.map(formatMm).join(" × ")} mm. The validated mesh is what gets drilled; your
-            file itself is never changed.
+            {part.name}: {part.extents.map(formatMm).join(" × ")} mm. The validated mesh is what gets drilled;
+            your file itself is never changed.
           </p>
           <div className="bench-import-actions">
             <button className="render-button" onClick={() => onConfirm(part)}>
@@ -275,8 +285,9 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             ))}
           </ul>
           <p className="muted">
-            Click anywhere on a flat face to place a slot there — it centers on that whole surface automatically
-            (not just the exact pixel you clicked), using the face's own normal as the mating direction.
+            Click anywhere on a flat face to place a slot there — it centers on that whole surface
+            automatically (not just the exact pixel you clicked), using the face's own normal as the mating
+            direction.
           </p>
           <div className="bench-import-viewer">
             <StlViewer geometry={part.geometry} markers={markers} placingMode onSurfacePick={placeSlot} />
@@ -311,7 +322,9 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
             <button
               className="render-button"
               disabled={part.anchors.length === 0}
-              onClick={() => onConfirm(part, mode === "child" ? (selectedAnchor ?? part.anchors[0].name) : null)}
+              onClick={() =>
+                onConfirm(part, mode === "child" ? (selectedAnchor ?? part.anchors[0].name) : null)
+              }
             >
               {mode === "root" ? "Use as base part" : "Attach here"}
             </button>

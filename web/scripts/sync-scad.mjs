@@ -180,7 +180,9 @@ function collect() {
     // tell.
     console.warn(
       `sync-scad: ${rel} is included but does not exist` +
-        (isVendored(rel) ? " — submodule not checked out? Run `git submodule update --init --recursive`." : ""),
+        (isVendored(rel)
+          ? " — submodule not checked out? Run `git submodule update --init --recursive`."
+          : ""),
     );
   }
   return { files, assets };

@@ -144,7 +144,18 @@ const OVERSHOOT_MM = 1;
 // Facets on a round cutter. 64 keeps an M3 hole round to ~0.01 mm.
 const ROUND_FN = 64;
 
-export const HOLE_KINDS = ["screw", "openconnect", "multiconnect", "thread", "cylinder", "rectangle", "extrusion", "pinhole", "klippt", "deckmate"];
+export const HOLE_KINDS = [
+  "screw",
+  "openconnect",
+  "multiconnect",
+  "thread",
+  "cylinder",
+  "rectangle",
+  "extrusion",
+  "pinhole",
+  "klippt",
+  "deckmate",
+];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -200,7 +211,15 @@ export const KLIPPT = Object.freeze({
 // on out past it at either side for the ends of the Outie's rail. `seat`
 // is how far the Outie slides from where it goes in to where it seats.
 // Drawing only; the cut is the library's.
-export const DECKMATE = Object.freeze({ half: 17.84, radius: 6.45, notchHalf: 7, notchOut: 18.84, depth: 3.25, seat: 2, extraDepth: 0.3 });
+export const DECKMATE = Object.freeze({
+  half: 17.84,
+  radius: 6.45,
+  notchHalf: 7,
+  notchOut: 18.84,
+  depth: 3.25,
+  seat: 2,
+  extraDepth: 0.3,
+});
 
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
 // BITBEAM_UNIT, lib/pinhole.scad's groove), for the viewer and the icon.
@@ -210,7 +229,13 @@ export const PINHOLE = Object.freeze({ diameter: 4.8, grooveDiameter: 5, unit: 8
 // and EX_LIP_T + EX_CHANNEL_D, the keys' reach in from the face), for the
 // viewer's outline. Drawing only; the cut is lib/exsocket.scad's.
 // `boltDiameter` is ex_socket()'s M5 clearance hole (ISO 273 medium).
-export const EXTRUSION = Object.freeze({ profile: 20, slotOpen: 6.2, keyReach: 3.8, clearance: 0.15, boltDiameter: 5.5 });
+export const EXTRUSION = Object.freeze({
+  profile: 20,
+  slotOpen: 6.2,
+  keyReach: 3.8,
+  clearance: 0.15,
+  boltDiameter: 5.5,
+});
 
 // The thread's numbers (lib/constants.scad's OG_THREAD_*, OG_SNAP_H_*):
 // its diameter before clearance, and how long a screw's thread is — a
@@ -267,7 +292,11 @@ export function teardropUp(normal) {
 }
 
 export function isPill(spec) {
-  return spec.kind === "rectangle" && spec.cornerRadius > 0 && spec.cornerRadius >= Math.min(spec.width, spec.height) / 2 - 1e-9;
+  return (
+    spec.kind === "rectangle" &&
+    spec.cornerRadius > 0 &&
+    spec.cornerRadius >= Math.min(spec.width, spec.height) / 2 - 1e-9
+  );
 }
 
 export function normalizeSpec(spec) {
@@ -311,7 +340,12 @@ export function normalizeSpec(spec) {
       spin: normalizeSpin(spec?.spin),
     };
   }
-  if (kind === "deckmate") return { kind, extraDepth: Math.min(2, n(spec?.extraDepth, DECKMATE.extraDepth)), spin: normalizeSpin(spec?.spin) };
+  if (kind === "deckmate")
+    return {
+      kind,
+      extraDepth: Math.min(2, n(spec?.extraDepth, DECKMATE.extraDepth)),
+      spin: normalizeSpin(spec?.spin),
+    };
   if (kind === "pinhole") {
     return {
       kind,
@@ -431,7 +465,9 @@ export function patchHoles(doc, ids, patch) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => (targets.has(h.id) ? { ...h, spec: normalizeSpec({ ...h.spec, ...patch }) } : h)),
+    holes: doc.holes.map((h) =>
+      targets.has(h.id) ? { ...h, spec: normalizeSpec({ ...h.spec, ...patch }) } : h,
+    ),
   };
 }
 
@@ -442,7 +478,11 @@ export function rotateHoles(doc, ids, delta) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => (targets.has(h.id) && hasDirection(h.spec) ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) } : h)),
+    holes: doc.holes.map((h) =>
+      targets.has(h.id) && hasDirection(h.spec)
+        ? { ...h, spec: normalizeSpec({ ...h.spec, spin: h.spec.spin + delta }) }
+        : h,
+    ),
   };
 }
 
@@ -454,7 +494,9 @@ export function setHolesSpec(doc, ids, presetSpec, presetId) {
   const targets = new Set(ids);
   return {
     ...doc,
-    holes: doc.holes.map((h) => (targets.has(h.id) ? { ...h, spec: normalizeSpec(presetSpecFor(h.spec, presetSpec)), presetId } : h)),
+    holes: doc.holes.map((h) =>
+      targets.has(h.id) ? { ...h, spec: normalizeSpec(presetSpecFor(h.spec, presetSpec)), presetId } : h,
+    ),
   };
 }
 
@@ -562,7 +604,11 @@ export const STANDARD_SPACINGS = Object.freeze([
 
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom).
 export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
-  return STANDARD_SPACINGS.find((s) => s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger)) ?? null;
+  return (
+    STANDARD_SPACINGS.find(
+      (s) => s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger),
+    ) ?? null
+  );
 }
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.
@@ -583,7 +629,9 @@ export function repeatPoints(hole, options) {
     const cols = int(o.columns, 1);
     const rows = int(o.rows, 1);
     const shift = (j) => (o.stagger && j % 2 ? num(o.spacingAcross) / 2 : 0);
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
+    for (let j = 0; j < rows; j++)
+      for (let i = 0; i < cols; i++)
+        if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
   } else if (o.pattern === "circle" && o.skadisFill) {
     // The checkerboard's points within the radius, nearest first, then
     // round from straight up (as a ring starts), the hole itself on one.
@@ -593,7 +641,8 @@ export function repeatPoints(hole, options) {
     const angle = ([a, b]) => (Math.atan2(a, b) + 2 * Math.PI) % (2 * Math.PI);
     for (let j = -n; j <= n; j++)
       for (let i = -n; i <= n; i++)
-        if ((i + j) % 2 === 0 && (i || j) && Math.hypot(i, j) * cell <= r + 1e-9) offsets.push([i * cell, j * cell]);
+        if ((i + j) % 2 === 0 && (i || j) && Math.hypot(i, j) * cell <= r + 1e-9)
+          offsets.push([i * cell, j * cell]);
     offsets.sort((p, q) => Math.hypot(...p) - Math.hypot(...q) || angle(p) - angle(q));
   } else if (o.pattern === "circle") {
     const n = int(o.circleCount, 2);
@@ -686,7 +735,10 @@ export function holeFootprintRadius(spec) {
 export function holesToScad(doc, partsById, { throughLength, extents, importedFiles } = {}) {
   const { source, holes } = doc;
   const through = Math.max(1, throughLength ?? 1000);
-  const lines = ["// Generated by Connector Foundry — Holes tab.", `// ${holes.length} hole${holes.length === 1 ? "" : "s"} on ${sourceLabel(source, partsById)}.`];
+  const lines = [
+    "// Generated by Connector Foundry — Holes tab.",
+    `// ${holes.length} hole${holes.length === 1 ? "" : "s"} on ${sourceLabel(source, partsById)}.`,
+  ];
 
   let base;
   if (source.kind === "catalogue") {
@@ -777,9 +829,11 @@ export function holeLabel(hole, presetName = null) {
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
   if (s.kind === "pinhole") return `BitBeam pin hole ${depth}`;
-  if (s.kind === "klippt") return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  if (s.kind === "klippt")
+    return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "deckmate") return `DeckMate socket${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
-  if (s.kind === "extrusion") return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  if (s.kind === "extrusion")
+    return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
     const bits = [`${isPill(s) ? "Pill" : "Rectangle"} ${fmt(s.width)}×${fmt(s.height)}`];
     if (s.cornerRadius > 0 && !isPill(s)) bits.push(`r${fmt(s.cornerRadius)}`);
@@ -800,7 +854,8 @@ export function holeLabel(hole, presetName = null) {
 // screw hole goes, which way a slot points (a thread, a rectangle: both).
 export function holeMeta(hole) {
   const s = hole.spec;
-  if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion") return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
+  if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion")
+    return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s) || s.kind === "klippt" || s.kind === "deckmate") return `turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
@@ -812,20 +867,28 @@ export function cutterLines(hole, throughLength, extents = null) {
   const body = [];
   let m;
   if (s.kind === "openconnect") {
-    body.push(`oc_slot(lock = ${JSON.stringify(s.lock)}, side_clearance = ${fmt(s.sideClearance)}, depth_clearance = ${fmt(s.depthClearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(
+      `oc_slot(lock = ${JSON.stringify(s.lock)}, side_clearance = ${fmt(s.sideClearance)}, depth_clearance = ${fmt(s.depthClearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+    );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "multiconnect") {
     // An on-ramp every openGrid cell is lib/multiconnect.scad's
     // ramp_spacing (OG_PITCH there; restated here, since the generated
     // file only `use`s that library and can't see its constants).
     const ramps = s.onRamp && s.rampEvery ? `, ramp_spacing = ${RAMP_SPACING_MM}` : "";
-    body.push(`mc_slot(length = ${fmt(s.length)}, on_ramp = ${s.onRamp}, detent = ${s.detent}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)}${ramps});`);
+    body.push(
+      `mc_slot(length = ${fmt(s.length)}, on_ramp = ${s.onRamp}, detent = ${s.detent}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)}${ramps});`,
+    );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "thread") {
     // In the slot's frame, so the thread starts where a screwed-in
     // head ends up pointing the slot's +Y.
-    const through = extents ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM) : throughLength;
-    body.push(`og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    const through = extents
+      ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM)
+      : throughLength;
+    body.push(
+      `og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+    );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "extrusion") {
     const depth = s.depth > 0 ? s.depth : throughLength;
@@ -833,12 +896,18 @@ export function cutterLines(hole, throughLength, extents = null) {
     // through hole does.
     // A teardrop points world up, which in the socket's own frame (turned
     // by its spin) is the spin turned back.
-    const bolt = hasBolt(s) ? `, bolt = ${fmt(throughLength)}${s.teardrop && teardropUp(hole.normal) ? `, teardrop = ${fmt(-s.spin)}` : ""}` : "";
+    const bolt = hasBolt(s)
+      ? `, bolt = ${fmt(throughLength)}${s.teardrop && teardropUp(hole.normal) ? `, teardrop = ${fmt(-s.spin)}` : ""}`
+      : "";
     const chamfer = s.chamfer > 0 ? `, chamfer = ${fmt(s.chamfer)}` : "";
-    body.push(`ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(
+      `ex_socket(depth = ${fmt(depth)}, clearance = ${fmt(s.clearance)}, keys = ${s.keys}${bolt}${chamfer}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+    );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "klippt") {
-    body.push(`klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(
+      `klippt_channel(pocket = ${s.pocket}, runout = ${s.pocket ? 0 : fmt(s.runout)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+    );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "deckmate") {
     body.push(`deckmate_socket(extra_depth = ${fmt(s.extraDepth)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
@@ -848,13 +917,21 @@ export function cutterLines(hole, throughLength, extents = null) {
     // far face has. A teardrop points along the upright frame's +Y.
     const teardrop = s.teardrop && teardropUp(hole.normal);
     const blind = s.depth > 0;
-    body.push(`bb_pinhole(depth = ${fmt(blind ? s.depth : throughLength)}, far_groove = ${blind}${teardrop ? ", teardrop = 0" : ""}, overshoot = ${fmt(OVERSHOOT_MM)});`);
+    body.push(
+      `bb_pinhole(depth = ${fmt(blind ? s.depth : throughLength)}, far_groove = ${blind}${teardrop ? ", teardrop = 0" : ""}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+    );
     m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   } else if (s.kind === "cylinder") {
     const depth = s.depth > 0 ? s.depth : throughLength;
     const teardrop = s.teardrop && teardropUp(hole.normal);
-    if (teardrop || s.chamfer > 0) body.push(...prism(teardrop ? teardrop2d(s.diameter) : `circle(d = ${fmt(s.diameter)});`, depth, s.chamfer));
-    else body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
+    if (teardrop || s.chamfer > 0)
+      body.push(
+        ...prism(teardrop ? teardrop2d(s.diameter) : `circle(d = ${fmt(s.diameter)});`, depth, s.chamfer),
+      );
+    else
+      body.push(
+        `translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`,
+      );
     // A teardrop's point is the frame's +Y: the face's up (slotFrame()).
     m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   } else if (s.kind === "rectangle") {
@@ -878,24 +955,32 @@ export function cutterLines(hole, throughLength, extents = null) {
     // leans in at its angle.)
     const teardrop = s.teardrop && teardropUp(hole.normal);
     if (teardrop) body.push(...prism(teardrop2d(s.diameter), depth, 0));
-    else body.push(`translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`);
+    else
+      body.push(
+        `translate([0, 0, ${fmt(-depth)}]) cylinder(d = ${fmt(s.diameter)}, h = ${fmt(depth + OVERSHOOT_MM)});`,
+      );
     if (s.head === "counterbore" && s.headDiameter > 0 && s.headDepth > 0) {
       if (teardrop) body.push(...prism(teardrop2d(s.headDiameter), s.headDepth, 0));
-      else body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`);
+      else
+        body.push(
+          `translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`,
+        );
     } else if (s.head === "hex" && s.headDiameter > 0 && s.headDepth > 0) {
-      body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) ${teardrop ? "rotate([0, 0, 90]) " : ""}cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)}, $fn = 6);`);
+      body.push(
+        `translate([0, 0, ${fmt(-s.headDepth)}]) ${teardrop ? "rotate([0, 0, 90]) " : ""}cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)}, $fn = 6);`,
+      );
     } else if (s.head === "countersink" && s.headDiameter > s.diameter) {
       const cone = countersinkConeHeight(s);
-      body.push(`translate([0, 0, ${fmt(-s.headDepth - cone)}]) cylinder(d1 = ${fmt(s.diameter)}, d2 = ${fmt(s.headDiameter)}, h = ${fmt(cone)});`);
-      body.push(`translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`);
+      body.push(
+        `translate([0, 0, ${fmt(-s.headDepth - cone)}]) cylinder(d1 = ${fmt(s.diameter)}, d2 = ${fmt(s.headDiameter)}, h = ${fmt(cone)});`,
+      );
+      body.push(
+        `translate([0, 0, ${fmt(-s.headDepth)}]) cylinder(d = ${fmt(s.headDiameter)}, h = ${fmt(s.headDepth + OVERSHOOT_MM)});`,
+      );
     }
     m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   }
-  return [
-    `multmatrix(${m}) {`,
-    ...body.map((l) => `    ${l}`),
-    "}",
-  ];
+  return [`multmatrix(${m}) {`, ...body.map((l) => `    ${l}`), "}"];
 }
 
 // A 2D outline (an OpenSCAD statement) cut `depth` down from the
@@ -904,7 +989,9 @@ export function cutterLines(hole, throughLength, extents = null) {
 // chamfer at the surface. The outlines here are all convex, so the hull
 // is the bevel.
 function prism(outline, depth, chamfer) {
-  const lines = [`translate([0, 0, ${fmt(-depth)}]) linear_extrude(height = ${fmt(depth + OVERSHOOT_MM)}) ${outline}`];
+  const lines = [
+    `translate([0, 0, ${fmt(-depth)}]) linear_extrude(height = ${fmt(depth + OVERSHOOT_MM)}) ${outline}`,
+  ];
   if (chamfer > 0) {
     const c = Math.min(chamfer, depth);
     lines.push(
@@ -986,7 +1073,11 @@ export function planeBasis(normal) {
 export function slotFrame(point, normal, spin = 0) {
   const n = unit(normal);
   let up = null;
-  for (const candidate of [[0, 0, 1], [0, 1, 0], [1, 0, 0]]) {
+  for (const candidate of [
+    [0, 0, 1],
+    [0, 1, 0],
+    [1, 0, 0],
+  ]) {
     const along = dot(candidate, n);
     const inPlane = [candidate[0] - along * n[0], candidate[1] - along * n[1], candidate[2] - along * n[2]];
     if (Math.hypot(...inPlane) > 0.5) {
@@ -1013,7 +1104,11 @@ export function slotOutline(hole) {
   const s = hole.spec;
   if (!hasDirection(s)) return [];
   const { ex, ey } = slotFrame(hole.point, hole.normal, s.spin);
-  const to3 = ([x, y]) => [hole.point[0] + ex[0] * x + ey[0] * y, hole.point[1] + ex[1] * x + ey[1] * y, hole.point[2] + ex[2] * x + ey[2] * y];
+  const to3 = ([x, y]) => [
+    hole.point[0] + ex[0] * x + ey[0] * y,
+    hole.point[1] + ex[1] * x + ey[1] * y,
+    hole.point[2] + ex[2] * x + ey[2] * y,
+  ];
   const segments = [];
   const loop = (points, dashed = false) => {
     for (let i = 0; i < points.length; i++) {
@@ -1021,7 +1116,8 @@ export function slotOutline(hole) {
     }
   };
   const polyline = (points, dashed = false) => {
-    for (let i = 0; i + 1 < points.length; i++) segments.push({ a: to3(points[i]), b: to3(points[i + 1]), dashed });
+    for (let i = 0; i + 1 < points.length; i++)
+      segments.push({ a: to3(points[i]), b: to3(points[i + 1]), dashed });
   };
   const arc = (cx, cy, r, from, to, steps = 24) => {
     const out = [];
@@ -1042,7 +1138,13 @@ export function slotOutline(hole) {
         ...arc(-a, -b, r, Math.PI, (3 * Math.PI) / 2, 8),
         ...arc(a, -b, r, (3 * Math.PI) / 2, 2 * Math.PI, 8),
       ]);
-    } else loop([[-a, -b], [a, -b], [a, b], [-a, b]]);
+    } else
+      loop([
+        [-a, -b],
+        [a, -b],
+        [a, b],
+        [-a, b],
+      ]);
     return segments;
   }
   if (s.kind === "klippt") {
@@ -1053,11 +1155,45 @@ export function slotOutline(hole) {
     // The clearance moves each side out.
     const left = k.left - s.clearance;
     const right = k.right + s.clearance;
-    loop([[left, -k.half], [right, -k.half], [right, k.half], [p, k.half], [p, p], [-p, p], [-p, k.half], [left, k.half]]);
-    if (s.pocket) loop([[-p, -k.half - k.pocket], [p, -k.half - k.pocket], [p, -k.half], [-p, -k.half]], true);
-    else loop([[-k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half - s.runout], [k.gap / 2, -k.half], [-k.gap / 2, -k.half]], true);
-    polyline([[0, -3], [0, 5]]);
-    polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
+    loop([
+      [left, -k.half],
+      [right, -k.half],
+      [right, k.half],
+      [p, k.half],
+      [p, p],
+      [-p, p],
+      [-p, k.half],
+      [left, k.half],
+    ]);
+    if (s.pocket)
+      loop(
+        [
+          [-p, -k.half - k.pocket],
+          [p, -k.half - k.pocket],
+          [p, -k.half],
+          [-p, -k.half],
+        ],
+        true,
+      );
+    else
+      loop(
+        [
+          [-k.gap / 2, -k.half - s.runout],
+          [k.gap / 2, -k.half - s.runout],
+          [k.gap / 2, -k.half],
+          [-k.gap / 2, -k.half],
+        ],
+        true,
+      );
+    polyline([
+      [0, -3],
+      [0, 5],
+    ]);
+    polyline([
+      [-1.8, 3.2],
+      [0, 5],
+      [1.8, 3.2],
+    ]);
     return segments;
   }
   if (s.kind === "deckmate") {
@@ -1066,14 +1202,40 @@ export function slotOutline(hole) {
     const d = DECKMATE;
     const a = d.half - d.radius;
     const points = [];
-    for (const [cx, cy, from] of [[a, a, 0], [-a, a, 0.5], [-a, -a, 1], [a, -a, 1.5]]) points.push(...arc(cx, cy, d.radius, from * Math.PI, (from + 0.5) * Math.PI, 8));
+    for (const [cx, cy, from] of [
+      [a, a, 0],
+      [-a, a, 0.5],
+      [-a, -a, 1],
+      [a, -a, 1.5],
+    ])
+      points.push(...arc(cx, cy, d.radius, from * Math.PI, (from + 0.5) * Math.PI, 8));
     // Into the +X side's straight run, before the first corner: the
     // notch, then the -X one in its place halfway round.
-    const notch = (sx) => (sx > 0 ? [[d.half, -d.notchHalf], [d.notchOut, -d.notchHalf], [d.notchOut, d.notchHalf], [d.half, d.notchHalf]] : [[-d.half, d.notchHalf], [-d.notchOut, d.notchHalf], [-d.notchOut, -d.notchHalf], [-d.half, -d.notchHalf]]);
+    const notch = (sx) =>
+      sx > 0
+        ? [
+            [d.half, -d.notchHalf],
+            [d.notchOut, -d.notchHalf],
+            [d.notchOut, d.notchHalf],
+            [d.half, d.notchHalf],
+          ]
+        : [
+            [-d.half, d.notchHalf],
+            [-d.notchOut, d.notchHalf],
+            [-d.notchOut, -d.notchHalf],
+            [-d.half, -d.notchHalf],
+          ];
     const half = points.length / 2;
     loop([...notch(1), ...points.slice(0, half), ...notch(-1), ...points.slice(half)]);
-    polyline([[0, -3], [0, 5]]);
-    polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
+    polyline([
+      [0, -3],
+      [0, 5],
+    ]);
+    polyline([
+      [-1.8, 3.2],
+      [0, 5],
+      [1.8, 3.2],
+    ]);
     return segments;
   }
   if (s.kind === "extrusion") {
@@ -1084,8 +1246,22 @@ export function slotOutline(hole) {
     const inner = EXTRUSION.profile / 2 - EXTRUSION.keyReach;
     const side = [];
     for (let q = 0; q < 4; q++) {
-      const turn = ([x, y]) => [[x, y], [-y, x], [-x, -y], [y, -x]][q];
-      const points = s.keys ? [[h, -h], [h, -k], [inner, -k], [inner, k], [h, k]] : [[h, -h]];
+      const turn = ([x, y]) =>
+        [
+          [x, y],
+          [-y, x],
+          [-x, -y],
+          [y, -x],
+        ][q];
+      const points = s.keys
+        ? [
+            [h, -h],
+            [h, -k],
+            [inner, -k],
+            [inner, k],
+            [h, k],
+          ]
+        : [[h, -h]];
       side.push(...points.map(turn));
     }
     loop(side);
@@ -1105,7 +1281,15 @@ export function slotOutline(hole) {
       [-f.halfWidth, f.top - f.chamfer],
     ]);
     const e = f.entry;
-    loop([[e.left, e.bottom], [e.right, e.bottom], [e.right, e.top], [e.left, e.top]], true);
+    loop(
+      [
+        [e.left, e.bottom],
+        [e.right, e.bottom],
+        [e.right, e.top],
+        [e.left, e.top],
+      ],
+      true,
+    );
   } else {
     const f = MULTICONNECT_FOOTPRINT;
     const r = f.radius + s.clearance;
@@ -1113,13 +1297,29 @@ export function slotOutline(hole) {
     polyline([[r, -s.length], [r, 0], ...arc(0, 0, r, 0, Math.PI), [-r, 0], [-r, -s.length]]);
     if (s.onRamp) {
       // Every RAMP_SPACING_MM down the channel too, as mc_slot() cuts them.
-      const ys = s.rampEvery ? Array.from({ length: Math.ceil(s.length / RAMP_SPACING_MM - 1e-6) - 1 }, (_, i) => (i + 1) * RAMP_SPACING_MM) : [];
+      const ys = s.rampEvery
+        ? Array.from(
+            { length: Math.ceil(s.length / RAMP_SPACING_MM - 1e-6) - 1 },
+            (_, i) => (i + 1) * RAMP_SPACING_MM,
+          )
+        : [];
       for (const y of [...ys, s.length]) loop(arc(0, -y, f.onRamp + s.clearance, 0, 2 * Math.PI, 36), true);
-    } else polyline([[-r, -s.length], [r, -s.length]]);
+    } else
+      polyline([
+        [-r, -s.length],
+        [r, -s.length],
+      ]);
   }
   // The arrow: from the slot's origin toward +Y.
-  polyline([[0, -3], [0, 5]]);
-  polyline([[-1.8, 3.2], [0, 5], [1.8, 3.2]]);
+  polyline([
+    [0, -3],
+    [0, 5],
+  ]);
+  polyline([
+    [-1.8, 3.2],
+    [0, 5],
+    [1.8, 3.2],
+  ]);
   return segments;
 }
 
