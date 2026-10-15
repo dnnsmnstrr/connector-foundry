@@ -4,16 +4,25 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run CI on a branch without opening a pull request.
+  workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: ubuntu-latest becomes Ubuntu 26.04 on
+    # 2026-10-19, and the apt list below names 24.04's package names for
+    # the graphics stack the OpenSCAD AppImage links against. Before
+    # moving to ubuntu-26.04, re-check that list (libglu1-mesa and the
+    # libxcb-* names are the usual casualties), that the AppImage's
+    # bundled Qt still starts against the newer glibc/Mesa, and that
+    # `openscad --version` passes the ldd check in the install step.
+    runs-on: ubuntu-24.04
     env:
       # OpenSCAD initialises Qt even for a command-line export, and the
       # runner has no display.
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -78,7 +87,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -113,13 +122,13 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The bundler reads vendor/ — the browser compiles the same
           # upstream sources the CLI does.
           submodules: recursive
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -129,9 +138,46 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-test-results
           path: web/test-results/
+          retention-days: 7
+
+  # The desktop tests had never run on Windows before a release tag until
+  # v0.2.0's first tag failed there. This runs them on every push and PR,
+  # without the packaging desktop.yml does: the Electron test launches the
+  # development entry (desktop/main.cjs), which serves the built dist/.
+  web-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      # Fetch the Electron binary; desktop.yml does the same.
+      - run: node node_modules/electron/install.js
+      - run: npm test
+      # main.cjs serves ../dist, so the desktop test needs a build first.
+      # pretest:desktop generates the icon.
+      - run: npm run build
+      - run: npm run test:desktop
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: desktop-test-results-windows-ci
+          path: web/test-results/
+          if-no-files-found: ignore
           retention-days: 7
