@@ -946,8 +946,16 @@ test("the header's hint keeps two lines, so selecting holes never moves the view
   await look();
   const box = await canvas.boundingBox();
   const second = { x: box.x + box.width / 2, y: box.y + box.height / 2 + 30 };
-  await page.mouse.move(second.x, second.y);
-  await expect(page.locator(".holes-snap-hint")).toContainText("Snap:");
+  // The drilled hole's render replaces the mesh, and with it the face under
+  // the pointer (its triangles are renumbered): hover once that render is
+  // in, and again until the hint is up — a pointer that stays put gets no
+  // second pointermove.
+  await expect.poll(async () => (await jobs(page)).length).toBeGreaterThanOrEqual(2);
+  await expect(async () => {
+    await page.mouse.move(second.x, second.y - 2);
+    await page.mouse.move(second.x, second.y);
+    await expect(page.locator(".holes-snap-hint")).toContainText("Snap:", { timeout: 500 });
+  }).toPass();
   await page.mouse.click(second.x, second.y);
   await expect(page.locator(".holes-row")).toHaveCount(2);
   await page.getByRole("button", { name: "Select all", exact: true }).click();
