@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useFileDrop } from "../hooks/useFileDrop.js";
 
 // A file picker that is also a drop target: a dashed panel with an icon
 // and a line of text, which opens the native chooser on click and takes
@@ -7,8 +7,9 @@ import { useRef, useState } from "react";
 // is a plain click on the input (no JS needed to open the chooser),
 // Tab lands on it (the panel shows the focus ring via :focus-within),
 // screen readers get a labelled file input, and a test can still find
-// and click `input[type=file]`. Drops are handled on the panel: the
-// default is prevented so the browser doesn't navigate to the file.
+// and click `input[type=file]`. Drops are handled on the panel
+// (hooks/useFileDrop.js): the default is prevented so the browser doesn't
+// navigate to the file.
 //
 // `onFile(file)` gets the chosen or dropped File; the input is cleared
 // after each pick so the same file can be chosen again after a failed
@@ -24,64 +25,19 @@ import { useRef, useState } from "react";
  * }} props
  */
 export default function FileDropzone({ accept, onFile, label, hint, className }) {
-  const inputRef = useRef(null);
-  // Nested dragenter/dragleave pairs fire as the pointer crosses the
-  // panel's children; a counter keeps the highlight on until the last
-  // leave.
-  const depth = useRef(0);
-  const [over, setOver] = useState(false);
-
-  function take(file) {
-    if (file) onFile(file);
-  }
+  const drop = useFileDrop(onFile);
 
   function onChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    take(file);
+    if (file) onFile(file);
   }
 
-  function onDragEnter(event) {
-    event.preventDefault();
-    depth.current += 1;
-    setOver(true);
-  }
-
-  function onDragOver(event) {
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-  }
-
-  function onDragLeave(event) {
-    event.preventDefault();
-    depth.current = Math.max(0, depth.current - 1);
-    if (depth.current === 0) setOver(false);
-  }
-
-  function onDrop(event) {
-    event.preventDefault();
-    depth.current = 0;
-    setOver(false);
-    take(event.dataTransfer?.files?.[0]);
-  }
-
+  const over = drop.over;
   const classes = ["dropzone", over ? "is-over" : "", className ?? ""].filter(Boolean).join(" ");
   return (
-    <div
-      className={classes}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="dropzone-input"
-        aria-label={label}
-        onChange={onChange}
-      />
+    <div className={classes} {...drop.handlers}>
+      <input type="file" accept={accept} className="dropzone-input" aria-label={label} onChange={onChange} />
       <svg
         className="dropzone-icon"
         viewBox="0 0 24 24"

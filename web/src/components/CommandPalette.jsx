@@ -1,5 +1,6 @@
 import { Component, Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useRegistryVersion } from "../hooks/useCommands.js";
+import { useFileDrop } from "../hooks/useFileDrop.js";
 import { SECTION_ORDER } from "../lib/commandCatalog.js";
 import { browseSections, commandRegistry, matchRanges, rankCommands } from "../lib/commands.js";
 import {
@@ -195,6 +196,14 @@ export default function CommandPalette({
   }, [depth, stack]);
 
   // --- What to list ------------------------------------------------------
+  // A model file dropped anywhere on the palette, backdrop included: what
+  // its root page does with one (a part picker imports it; the global
+  // palette asks the mounted tab), on whichever list is showing. Run like
+  // a command — the palette closes first — so the import flow it opens is
+  // never a second modal dialog.
+  const dropTarget = page.drop?.() ?? null;
+  const fileDrop = useFileDrop(dropTarget ? (file) => finish("run", () => dropTarget.onFile(file)) : null);
+
   const recents = getCommandRecents();
   const own = ownItems(current);
   const searching = query.trim() !== "";
@@ -403,14 +412,20 @@ export default function CommandPalette({
   return (
     <dialog
       ref={dialogRef}
-      className={className ? `command-palette ${className}` : "command-palette"}
+      className={["command-palette", className, fileDrop.over && "is-drop-over"].filter(Boolean).join(" ")}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
+      {...fileDrop.handlers}
       onClick={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div ref={panelRef} className="command-palette-panel" tabIndex={-1}>
+        {fileDrop.over && (
+          <div className="command-palette-drop" aria-hidden="true">
+            {dropTarget.label}
+          </div>
+        )}
         <div className="command-palette-header">
           {depth > 0 && (
             <button type="button" className="command-palette-back" onClick={pop} aria-label="Back">

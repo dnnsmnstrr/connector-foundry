@@ -6,7 +6,8 @@ The web app's Bench tab is a visual editor. Pick a base part, click a slot marke
 with a joint, repeat. Both pickers float over the workspace — "Start a bench" over an empty tab,
 "Attach to …" over the scene, with the joint beside the search — and are the command palette's
 lists: type a few letters of a part, a preset or a command, `Enter` picks, `Esc` puts the picker
-away and Cmd/Ctrl+K brings it back. Cmd/Ctrl+K on a bench also lists what the sidebar and the
+away and Cmd/Ctrl+K brings it back. Drop an STL, STEP or 3MF file on either picker, or on the empty
+tab, to import it there. Cmd/Ctrl+K on a bench also lists what the sidebar and the
 scene's buttons do (Attach a part…, the exports, Start over, the selected part's Move, turn,
 crop and remove). A part that still has an open anchor after attaching (a Basics plate, any
 grid) offers it as a new marker, so assemblies stack. A bench takes up to three attached parts. Each

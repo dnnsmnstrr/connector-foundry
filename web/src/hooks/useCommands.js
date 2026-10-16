@@ -45,6 +45,28 @@ export function useCommandHome(open, registry = commandRegistry) {
 }
 
 /**
+ * While `target` is set, a file dropped on the global palette goes to it:
+ * the Bench and Holes import a model with it. The latest `target` is read
+ * at the drop, through a ref, so its closure is this render's.
+ * @param {import("../lib/commands.js").CommandDrop | null} target
+ * @param {import("../lib/commands.js").CommandRegistry} [registry]
+ */
+export function useCommandDrop(target, registry = commandRegistry) {
+  const targetRef = useRef(target);
+  targetRef.current = target;
+  const active = Boolean(target);
+  useEffect(() => {
+    if (!active) return undefined;
+    return registry.setDropTarget({
+      get label() {
+        return targetRef.current?.label ?? "";
+      },
+      onFile: (file) => targetRef.current?.onFile(file),
+    });
+  }, [active, registry]);
+}
+
+/**
  * Re-renders the caller when the registry changes (a source mounted or
  * unmounted, or re-rendered) — for the open palette.
  * @param {import("../lib/commands.js").CommandRegistry} [registry]

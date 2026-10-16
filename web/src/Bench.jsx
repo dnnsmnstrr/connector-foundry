@@ -42,7 +42,8 @@ import { useBenchHistory } from "./hooks/useBenchHistory.js";
 import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
-import { useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -205,6 +206,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
+  // A model file the user already gave the import flow — dropped on a part
+  // picker, the empty tab or the palette — which it reads as it opens.
+  const [importFile, setImportFile] = useState(null);
   // An export waiting for the bench to be named: the function to run with
   // the name, once NameBenchModal has one (see withName()). Null otherwise.
   const [pendingExport, setPendingExport] = useState(null);
@@ -291,7 +295,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   keyHandlerRef.current = (e) => {
     if (e.defaultPrevented) return;
     if (e.key === "Escape") {
-      if (importMode) setImportMode(null);
+      if (importMode) endImport();
       else if (pendingSlot) setPendingSlot(null);
       else if (pendingExport) setPendingExport(null);
       // Someone else's dialog (Settings) is up: Escape is for closing that.
@@ -778,16 +782,33 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setImportedParts((m) => new Map(m).set(importedPart.id, importedPart));
   }
 
+  // The import flow, for a base part ("root") or a part on the pending
+  // slot ("child"), opened on a file the user dropped, or on its own
+  // chooser.
+  /** @param {"root" | "child"} mode @param {File | null} [file] */
+  function startImport(mode, file = null) {
+    setImportFile(file);
+    setImportMode(mode);
+  }
+
+  function endImport() {
+    setImportMode(null);
+    setImportFile(null);
+  }
+
   function confirmRootImport(importedPart) {
     registerImport(importedPart);
     pickRoot(importedPart);
-    setImportMode(null);
+    // A bench replaced by one on a dropped model: nothing of the old one
+    // stays selected.
+    selectNode(null);
+    endImport();
   }
 
   function confirmChildImport(importedPart, anchorName) {
     registerImport(importedPart);
     attachPending(importedPart.id, {}, anchorName);
-    setImportMode(null);
+    endImport();
   }
 
   // Every selection change goes through here so an armed "Move" never
@@ -1012,7 +1033,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       loadBenchConfig(doc, catalogueById, label);
       selectNode(null);
       setPendingSlot(null);
-      setImportMode(null);
+      endImport();
       setConfigError(null);
     } catch (err) {
       setConfigError(`Couldn't load ${what}: ${err.message}`);
@@ -1119,6 +1140,19 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const startPickerOpen = !assembly && !importMode && pickerDismissedFor !== session;
   const reopenStartPicker = () => setPickerDismissedFor(null);
   useCommandHome(!assembly && !importMode && !startPickerOpen ? reopenStartPicker : null);
+
+  // A model file dropped on the empty tab (its picker put away) starts a
+  // bench on it, as the picker's own drop does; one dropped on the global
+  // palette starts a new bench on it over a running one — after asking,
+  // and undoably, as Open in Bench replaces one.
+  const emptyDrop = useFileDrop(!assembly && !importMode ? (file) => startImport("root", file) : null);
+  useCommandDrop({
+    label: assembly ? "Drop to start a new bench on this model" : "Drop to import it as the base part",
+    onFile: (file) => {
+      if (assembly && !window.confirm(`Replace the current bench with a new one on "${file.name}"?`)) return;
+      startImport("root", file);
+    },
+  });
 
   // The palette's Bench commands (hooks/useCommands.js): what the
   // sidebar's buttons, the scene's pills and the Bench's keys do, for the
@@ -1236,6 +1270,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       note: 'Pick a base part with slots — a Gridfinity base or an openGrid board are good starting points — or type "import" for a model or a config of your own.',
       error: shownError,
       searchCommands: true,
+      drop: () => ({
+        label: "Drop to import it as the base part",
+        onFile: (file) => startImport("root", file),
+      }),
       items: () => [
         ...historyCommands("History"),
         ...presetCommands(),
@@ -1245,7 +1283,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           title: "Import STL / STEP / 3MF…",
           section: "Import",
           keywords: ["mesh", "file", "own model"],
-          actions: [{ title: "Import", run: () => setImportMode("root") }],
+          actions: [{ title: "Import", run: () => startImport("root") }],
         },
         builtin("bench.importConfig", {
           section: "Import",
@@ -1257,12 +1295,23 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     // the way back from Start over (an undone first part too) where the
     // user is looking, not only behind Cmd/Ctrl+Z.
     return (
-      <main className="bench-empty">
+      <main className={emptyDrop.over ? "bench-empty is-drop-over" : "bench-empty"} {...emptyDrop.handlers}>
+        {emptyDrop.over && (
+          <div className="bench-empty-drop" aria-hidden="true">
+            Drop to import it as the base part
+          </div>
+        )}
         <div className="bench-empty-card">
           <p className="bench-empty-lead">No base part yet.</p>
-          <button type="button" className="render-button" onClick={reopenStartPicker}>
-            Choose a base part… <kbd className="shortcut-hint">{chordText(["Mod", "K"])}</kbd>
-          </button>
+          <div className="bench-empty-actions">
+            <button type="button" className="render-button" onClick={reopenStartPicker}>
+              Choose a base part… <kbd className="shortcut-hint">{chordText(["Mod", "K"])}</kbd>
+            </button>
+            <button type="button" className="render-button" onClick={() => startImport("root")}>
+              Import STL / STEP / 3MF…
+            </button>
+          </div>
+          <p className="muted">Or drop a model file here to start a bench on it.</p>
           {(history.canUndo || history.canRedo) && (
             <div className="bench-empty-history">
               <UndoRedoButtons
@@ -1294,7 +1343,12 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           />
         )}
         {importMode === "root" && (
-          <ImportFlow mode="root" onCancel={() => setImportMode(null)} onConfirm={confirmRootImport} />
+          <ImportFlow
+            mode="root"
+            initialFile={importFile}
+            onCancel={endImport}
+            onConfirm={confirmRootImport}
+          />
         )}
       </main>
     );
@@ -1681,6 +1735,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 <JointSelect value={pendingJoint} onChange={setPendingJoint} />
               </label>
             ),
+            drop: () => ({
+              label: "Drop to import it and attach it here",
+              onFile: (file) => startImport("child", file),
+            }),
             note: screwedNeedsPatternedChild
               ? `Screwed joins through a part's own screw holes, so only parts that carry a pattern are listed here — a flange with matching heat-set insert bores is generated on the ${pendingParentPart.name} side.`
               : null,
@@ -1691,7 +1749,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 title: "Import STL / STEP / 3MF…",
                 section: "Import",
                 keywords: ["mesh", "file", "own model"],
-                actions: [{ title: "Import", run: () => setImportMode("child") }],
+                actions: [{ title: "Import", run: () => startImport("child") }],
               },
             ],
           }}
@@ -1703,8 +1761,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         />
       )}
 
+      {importMode === "root" && (
+        <ImportFlow mode="root" initialFile={importFile} onCancel={endImport} onConfirm={confirmRootImport} />
+      )}
       {pendingSlot && importMode === "child" && (
-        <ImportFlow mode="child" onCancel={() => setImportMode(null)} onConfirm={confirmChildImport} />
+        <ImportFlow
+          mode="child"
+          initialFile={importFile}
+          onCancel={endImport}
+          onConfirm={confirmChildImport}
+        />
       )}
 
       {pendingExport && (

@@ -69,7 +69,8 @@ const MODE_LABELS = { library: "the Library", bench: "the Bench", holes: "Holes"
 const PALETTE_KEYS = chordText(["Mod", "K"]);
 
 // The global palette's list: every command the mounted sources offer
-// (hooks/useCommands.js), recent ones first.
+// (hooks/useCommands.js), recent ones first; a model file dropped on it goes
+// to the mounted tab (useCommandDrop() — the Bench and Holes), or nowhere.
 /** @type {import("./lib/commands.js").CommandPage} */
 const ROOT_PAGE = {
   id: "root",
@@ -78,6 +79,7 @@ const ROOT_PAGE = {
   placeholder: "Search for a command, a part, a setting…",
   browse: "recent",
   items: () => commandRegistry.collect(),
+  drop: () => commandRegistry.dropTarget(),
 };
 
 // The palette has closed by the time a command runs, so a problem it

@@ -22,7 +22,8 @@ import { useHolesHistory } from "./hooks/useHolesHistory.js";
 import { useHolesSession } from "./hooks/useHolesSession.js";
 import { useRender } from "./hooks/useRender.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
-import { useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -156,6 +157,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const bench = useBenchSession();
 
   const [importOpen, setImportOpen] = useState(false);
+  // A model file the user already gave the import flow — dropped on the
+  // start picker, the empty tab or the palette — which it reads as it opens.
+  const [importFile, setImportFile] = useState(null);
   // The selected holes, by id, in the order they were picked: one by a
   // plain click, more with Shift-click (in the list, on a hole's ring,
   // or on a face spot that already has a hole).
@@ -342,7 +346,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const keyHandlerRef = useRef(null);
   keyHandlerRef.current = (e) => {
     if (e.key === "Escape") {
-      if (importOpen) setImportOpen(false);
+      if (importOpen) endImport();
       else if (repeatOpen) setRepeatOpen(false);
       // Someone else's dialog (Settings) is up: Escape is for closing that.
       else if (isBehindOpenDialog()) return;
@@ -410,7 +414,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // from the grid, and a hole's coordinates would carry that offset.
   function pickImportedMesh(part) {
     start(meshSource(part.name, part.geometry, false));
+    endImport();
+  }
+
+  // The import flow, opened on a file the user dropped, or on its own
+  // chooser.
+  /** @param {File | null} [file] */
+  function startImport(file = null) {
+    setImportFile(file);
+    setImportOpen(true);
+  }
+
+  function endImport() {
     setImportOpen(false);
+    setImportFile(null);
   }
 
   // Turn a mesh source over (or back). The holes go with it, so they
@@ -1016,6 +1033,26 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const reopenStartPicker = () => setPickerDismissedFor(null);
   useCommandHome(!doc && !importOpen && !startPickerOpen ? reopenStartPicker : null);
 
+  // A model file dropped on the empty tab (its picker put away) is the
+  // model, as the picker's own drop makes it; one dropped on the global
+  // palette replaces the model in use — after asking when it has holes,
+  // and undoably, as "Pick another model" does.
+  const emptyDrop = useFileDrop(!doc && !importOpen ? startImport : null);
+  useCommandDrop({
+    label: doc ? "Drop to drill holes in this model instead" : "Drop to drill holes in it",
+    onFile: (file) => {
+      const count = doc?.holes.length ?? 0;
+      if (
+        count &&
+        !window.confirm(
+          `Drill into "${file.name}" instead? The ${count} hole${count === 1 ? "" : "s"} on this model will be dropped.`,
+        )
+      )
+        return;
+      startImport(file);
+    },
+  });
+
   useCommands("holes", () => {
     const undoRedo = historyCommands();
     if (!doc) return undoRedo;
@@ -1092,6 +1129,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       note: 'Pick a model to put screw holes into — a catalogue part, the bench as it stands, or type "import" for a mesh of your own.',
       error: renderError,
       searchCommands: true,
+      drop: () => ({ label: "Drop to drill holes in it", onFile: startImport }),
       items: () => [
         ...historyCommands("History"),
         librarySelection && {
@@ -1130,7 +1168,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           title: "Import STL / STEP / 3MF…",
           section: "Import",
           keywords: ["mesh", "file", "own model"],
-          actions: [{ title: "Import", run: () => setImportOpen(true) }],
+          actions: [{ title: "Import", run: () => startImport() }],
         },
       ],
     };
@@ -1139,7 +1177,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     // model it dropped comes back with its holes), and an undone "pick a
     // model" lands here with only a redo to offer, so both are here too.
     return (
-      <main className="bench-empty holes-empty">
+      <main
+        className={emptyDrop.over ? "bench-empty holes-empty is-drop-over" : "bench-empty holes-empty"}
+        {...emptyDrop.handlers}
+      >
+        {emptyDrop.over && (
+          <div className="bench-empty-drop" aria-hidden="true">
+            Drop to drill holes in it
+          </div>
+        )}
         <div className="bench-empty-card">
           <p className="bench-empty-lead">No model yet.</p>
           <p className="muted">
@@ -1148,9 +1194,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             holes already in it, a set-in point at each corner, and the guide lines drawn across it — center
             and quarter lines, a radial to each corner, and a circle of the radius you choose.
           </p>
-          <button type="button" className="render-button" onClick={reopenStartPicker}>
-            Choose a model… <kbd className="shortcut-hint">{chordText(["Mod", "K"])}</kbd>
-          </button>
+          <div className="bench-empty-actions">
+            <button type="button" className="render-button" onClick={reopenStartPicker}>
+              Choose a model… <kbd className="shortcut-hint">{chordText(["Mod", "K"])}</kbd>
+            </button>
+            <button type="button" className="render-button" onClick={() => startImport()}>
+              Import STL / STEP / 3MF…
+            </button>
+          </div>
+          <p className="muted">Or drop a model file here to drill into it.</p>
           {(history.canUndo || history.canRedo) && (
             <div className="bench-empty-history">
               <UndoRedoButtons
@@ -1183,7 +1235,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           />
         )}
         {importOpen && (
-          <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={pickImportedMesh} />
+          <ImportFlow
+            mode="mesh"
+            initialFile={importFile}
+            onCancel={endImport}
+            onConfirm={pickImportedMesh}
+          />
         )}
       </main>
     );
@@ -1628,7 +1685,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       </main>
 
       {importOpen && (
-        <ImportFlow mode="mesh" onCancel={() => setImportOpen(false)} onConfirm={pickImportedMesh} />
+        <ImportFlow mode="mesh" initialFile={importFile} onCancel={endImport} onConfirm={pickImportedMesh} />
       )}
     </div>
   );

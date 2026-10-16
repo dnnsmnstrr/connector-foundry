@@ -63,11 +63,19 @@
  * @property {boolean} [searchCommands] a typed query also searches the registry, listed
  *   under "Commands" — so a picker that opens on its own still reaches the rest of the app
  * @property {string} [emptyText] what to say when nothing matches
+ * @property {() => CommandDrop | null} [drop] what a model file dropped on the palette does
+ *   (a part picker imports it), or null for nothing
  * @property {"recent"} [browse] the empty query lists recent commands first and orders the
  *   sections by commandCatalog.js's SECTION_ORDER (the global palette); otherwise the items
  *   are listed as given, under their sections in order of appearance (a picker)
  */
 /** @typedef {{ title: string | null, items: Command[] }} CommandSection */
+/**
+ * @typedef {object} CommandDrop
+ * @property {string} label what a drop does, shown while a file is over the palette
+ *   ("Drop to import it as the base part")
+ * @property {(file: File) => void} onFile
+ */
 
 /**
  * The registry the palette collects from. Sources register a getter, not a
@@ -84,6 +92,8 @@ export function createCommandRegistry() {
   let home = null;
   /** @type {{ token: object, open: (id: string) => void } | null} */
   let opener = null;
+  /** @type {{ token: object, target: CommandDrop } | null} */
+  let dropTarget = null;
   // The user's aliases and hotkeys for commands they didn't write
   // (userCommands.js's bindings), by command id.
   /** @type {ReadonlyMap<string, { alias?: string, hotkey?: string }>} */
@@ -208,6 +218,24 @@ export function createCommandRegistry() {
     },
     home() {
       return home?.open ?? null;
+    },
+
+    /**
+     * What a file dropped on the global palette does — the mounted tab's
+     * (the Bench starts a bench from it, Holes drills into it). Returns the
+     * unset; the latest set wins, and an older unset leaves a newer one
+     * alone.
+     * @param {CommandDrop} target
+     */
+    setDropTarget(target) {
+      const token = {};
+      dropTarget = { token, target };
+      return () => {
+        if (dropTarget?.token === token) dropTarget = null;
+      };
+    },
+    dropTarget() {
+      return dropTarget?.target ?? null;
     },
 
     /**

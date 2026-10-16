@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
   addAnchor,
@@ -53,14 +53,19 @@ function formatMm(n) {
 // placing more and picking one is allowed. `mode` "mesh" (the Holes
 // tab) wants the validated mesh and nothing else: no slots are placed,
 // and the flow ends right after the gate with onConfirm(part).
+//
+// `initialFile` is a file the user already gave — dropped on a part picker
+// or an empty tab — read as soon as the flow opens, as if it had been
+// chosen in it.
 /**
  * @param {{
  *   mode: "root" | "child" | "mesh",
  *   onCancel: () => void,
  *   onConfirm: (part: any, anchor?: string | null) => void,
+ *   initialFile?: File | null,
  * }} props
  */
-export default function ImportFlow({ mode, onCancel, onConfirm }) {
+export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = null }) {
   const [stage, setStage] = useState("pick"); // pick | reading | bodies | validating | rejected | placing | ready
   const [readingWhat, setReadingWhat] = useState("STEP");
   const [fileName, setFileName] = useState(null);
@@ -130,6 +135,17 @@ export default function ImportFlow({ mode, onCancel, onConfirm }) {
       if (current()) reject([`Couldn't read this file: ${err.message}`]);
     }
   }
+
+  // Read once, not again on StrictMode's second run of the effect (the
+  // ref outlives it): a second read would only race the first.
+  const readInitial = useRef(null);
+  useEffect(() => {
+    if (!initialFile || readInitial.current === initialFile) return;
+    readInitial.current = initialFile;
+    handleFile(initialFile);
+    // handleFile() closes over nothing that changes while the flow is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFile]);
 
   function acceptPickedBodies() {
     const chosen = bodyChoice === ALL_BODIES ? bodies : [bodies[Number(bodyChoice)]];

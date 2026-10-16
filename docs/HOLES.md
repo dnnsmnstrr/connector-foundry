@@ -6,7 +6,8 @@ The web app's Holes tab puts screw holes into a model. For custom Gridfinity sto
 `gridfinity/bin` with `filled` on: a bin solid up to its stacking lip, whose flat top takes any
 cavity cut below — a tool's outline from rounded rectangles, magnet pockets, a 2020 socket. Start —
 in the picker that floats over the empty tab, the command palette's list (`Esc` puts it away,
-Cmd/Ctrl+K brings it back) — from a catalogue part (its
+Cmd/Ctrl+K brings it back; a model file dropped on it or on the empty tab is imported) — from a
+catalogue part (its
 parameters stay editable under a toggle in the sidebar while you work), a mesh of your own (STL, STEP or 3MF), or the
 bench as it stands, then click a face: the
 hole snaps to that face's significant points — its center, the center of each quadrant, the

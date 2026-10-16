@@ -124,7 +124,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views, Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench root): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
-| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler |
+| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/lib/benchResize.js` | The Bench root's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, and whether a node's measured extents still belong to its parameters |
@@ -222,6 +222,14 @@ screen.
   its search also ranks the app's commands under "Commands", so an empty tab still reaches the
   rest of the app; until something is typed, Cmd/Ctrl+Z in it is the tab's undo
   (`pickerUndoKey()`), so Start over then Cmd+Z brings the bench back at once.
+  **A model file dropped** anywhere on a palette, backdrop included, goes to its root page's
+  `drop` (`hooks/useFileDrop.js`, which also keeps the browser from opening a dropped file in
+  place of the app): the start pickers and the attach picker open their import flow on it
+  (`ImportFlow`'s `initialFile`, read as the flow opens), and the global palette hands it to the
+  mounted tab (`useCommandDrop()`) — the Bench starts a new bench on it, Holes drills into it,
+  each after asking when there is work to lose, and undoably; the Library takes none. The empty
+  Bench and Holes tabs behind the pickers are drop targets too, with an Import button beside
+  "Choose a part…".
   **User commands** (`lib/userCommands.js`) are the architecture for the user's own: a
   validated store under `connector-foundry.userCommands` of commands — an action `kind`
   (`open-part` with parameters and a target tab, `bench-preset`, `hole-preset`, `link`, `view`,

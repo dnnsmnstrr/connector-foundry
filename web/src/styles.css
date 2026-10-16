@@ -1256,6 +1256,34 @@ a.mode-tab {
   margin-left: 0.5rem;
 }
 
+.bench-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The empty tab is a drop target for a model file (hooks/useFileDrop.js):
+   the whole area, outlined while one is over it, with what the drop does. */
+.bench-empty {
+  position: relative;
+}
+
+.bench-empty-drop {
+  position: absolute;
+  inset: 1rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #6b84e8;
+  border-radius: 12px;
+  background: rgba(30, 35, 51, 0.88);
+  color: #cdd7f5;
+  font-size: 1.05rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 /* Undo and Redo on the empty tab, after Start over (or an undone first
    part): the buttons, and what Undo brings back. */
 .bench-empty-history {
@@ -2076,11 +2104,36 @@ a.mode-tab {
 }
 
 .command-palette-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   min-height: 0;
   outline: none;
+}
+
+/* A model file being dragged over a palette that takes one: what the drop
+   will do, over the list (hooks/useFileDrop.js). */
+.command-palette.is-drop-over {
+  border-color: #6b84e8;
+}
+
+.command-palette-drop {
+  position: absolute;
+  inset: 0.5rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  border: 2px dashed #6b84e8;
+  border-radius: 9px;
+  background: rgba(23, 24, 27, 0.92);
+  color: #cdd7f5;
+  font-size: 0.95rem;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .command-palette-header {

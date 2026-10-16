@@ -437,3 +437,133 @@ test("the user's own commands: listed first, found by alias, run by hotkey", asy
   await expect(page.locator(".bench-sidebar")).toContainText("Round post");
   expect(await page.evaluate(() => location.hash)).toContain("mode=bench");
 });
+
+// A model file dragged from the desktop and dropped on `target`: the
+// events a real drag fires, carrying the cube as an STL.
+async function dropModel(page, target, name = "cube.stl") {
+  const dataTransfer = await page.evaluateHandle(
+    ({ bytes, name }) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array(bytes)], name, { type: "model/stl" }));
+      return dt;
+    },
+    { bytes: cubeBytes, name },
+  );
+  await target.dispatchEvent("dragenter", { dataTransfer });
+  await target.dispatchEvent("dragover", { dataTransfer });
+  return {
+    drop: () => target.dispatchEvent("drop", { dataTransfer }),
+  };
+}
+
+test("a model dropped on the Bench's start picker is imported as the base part", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/#mode=bench");
+  await expect(page.getByRole("heading", { name: "Start a bench" })).toBeVisible();
+  const dragged = await dropModel(page, palette(page));
+  await expect(palette(page).locator(".command-palette-drop")).toHaveText(
+    "Drop to import it as the base part",
+  );
+  await dragged.drop();
+  // The import flow takes the picker's place, already reading the file.
+  await expect(palette(page)).toHaveCount(0);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCount(1);
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Use as base part", exact: true })).toBeVisible();
+  // Cancelled, the picker comes back, and nothing of the file stays.
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Start a bench" })).toBeVisible();
+  await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
+  await expect(page.getByRole("dialog").getByText("Clean — watertight")).toHaveCount(0);
+});
+
+test("the empty tabs take a dropped model once their picker is put away", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/#mode=holes");
+  await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(palette(page)).toHaveCount(0);
+  const empty = page.locator(".bench-empty");
+  const dragged = await dropModel(page, empty, "bracket.stl");
+  await expect(empty.locator(".bench-empty-drop")).toHaveText("Drop to drill holes in it");
+  await dragged.drop();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Use this mesh", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "bracket.stl", exact: true })).toBeVisible();
+
+  // The Bench's empty tab too.
+  await page.getByTitle("Bench (2)").click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^Choose a base part…/ })).toBeVisible();
+  await (await dropModel(page, page.locator(".bench-empty"))).drop();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Use as base part", exact: true }),
+  ).toBeVisible();
+});
+
+test("a model dropped on the palette over a model in Holes replaces it", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
+  await openPalette(page);
+  const dragged = await dropModel(page, palette(page), "lid.stl");
+  await expect(palette(page).locator(".command-palette-drop")).toHaveText(
+    "Drop to drill holes in this model instead",
+  );
+  await dragged.drop();
+  await expect(palette(page)).toHaveCount(0);
+  await page.getByRole("dialog").getByRole("button", { name: "Use this mesh", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "lid.stl", exact: true })).toBeVisible();
+  // Undoable, as Pick another model is.
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
+});
+
+test("the Library's palette refuses a dropped file rather than opening it", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
+  await openPalette(page);
+  const dragged = await dropModel(page, palette(page));
+  await expect(palette(page).locator(".command-palette-drop")).toHaveCount(0);
+  await dragged.drop();
+  await expect(palette(page)).toHaveCount(1);
+  expect(page.url()).toMatch(/^http:\/\/127\.0\.0\.1:4175\//);
+});
+
+test("a model dropped on the attach picker is imported to attach on that slot", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/#mode=bench");
+  await importConfig(page, {
+    format: "connector-foundry/bench",
+    version: 1,
+    name: "bench",
+    root: { partId: "opengrid/board", params: { cells_x: 2, cells_y: 2, variant: "full" } },
+    nodes: [],
+    imports: [],
+  });
+  await expect(page.getByRole("heading", { name: "Attached (0 of 3)" })).toBeVisible();
+  await openPalette(page);
+  await commandSearch(page).fill("attach");
+  await expect(rows(page).first()).toHaveAccessibleName("Attach a part…");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: /^Attach to mount_/ })).toBeVisible();
+  const dragged = await dropModel(page, palette(page));
+  await expect(palette(page).locator(".command-palette-drop")).toHaveText(
+    "Drop to import it and attach it here",
+  );
+  await dragged.drop();
+  await expect(palette(page)).toHaveCount(0);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Clean — watertight, single solid, no repairs needed.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Attach here", exact: true })).toBeVisible();
+});

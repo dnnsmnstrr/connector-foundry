@@ -22,6 +22,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   instead of a page of their own. `Esc` puts one away and `Cmd/Ctrl+K` brings it back; typing in
   it finds the app's other commands too. Attaching keeps the slot you clicked in view, with the
   joint beside the search.
+- **Drop a model file to import it**: an STL, STEP or 3MF dropped on a part picker is imported
+  there — as the base part, onto the slot being attached to, or as the model to drill. The empty
+  Bench and Holes tabs take a dropped file too, and so does `Cmd/Ctrl+K` over a running bench or
+  a model in Holes, which starts again on the file (it asks first, and Undo goes back).
 - **Your own commands and hotkeys** — a part with your parameters in a tab, a bench preset, a
   hole type, a link — can be added to an exported settings file by hand, with an alias to type
   and a Cmd/Ctrl+Shift hotkey; an editor for them will follow. See the web app's README.
