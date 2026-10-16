@@ -40,7 +40,7 @@ import {
 } from "./lib/commandCatalog.js";
 import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
 import { commandRegistry } from "./lib/commands.js";
-import { hasCommandModifier, ignoresShortcut } from "./lib/isEditableTarget.js";
+import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isEditableTarget.js";
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
 import { chordText } from "./lib/shortcuts.js";
@@ -373,8 +373,10 @@ export default function App() {
       }
       // "?" again puts the sheet away, as in most apps with one. It comes
       // before the check below because that one ignores every key while a
-      // dialog — this one — is open.
-      if (e.key === "?" && shortcutsOpen) {
+      // dialog — this one — is open; but not from the sheet's search box,
+      // where it is a character (ShortcutsModal takes its own "?" there
+      // while the box is empty).
+      if (e.key === "?" && shortcutsOpen && !isEditableTarget(e.target)) {
         e.preventDefault();
         setShortcutsOpen(false);
         return;
@@ -664,16 +666,6 @@ export default function App() {
           </a>
           <button
             type="button"
-            className="mode-tab shortcuts-tab"
-            onClick={() => setShortcutsOpen(true)}
-            aria-label="Keyboard shortcuts"
-            aria-haspopup="dialog"
-            title="Keyboard shortcuts (?)"
-          >
-            <span aria-hidden="true">?</span>
-          </button>
-          <button
-            type="button"
             className="mode-tab settings-tab"
             onClick={() => setSettingsOpen(true)}
             aria-label="Settings"
@@ -712,7 +704,15 @@ export default function App() {
         </ModeErrorBoundary>
       </ShellBody>
       {settingsOpen && (
-        <SettingsModal parts={parts} globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal
+          parts={parts}
+          globalDefaults={globalDefaults}
+          onClose={() => setSettingsOpen(false)}
+          onShowShortcuts={() => {
+            setSettingsOpen(false);
+            setShortcutsOpen(true);
+          }}
+        />
       )}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       <CommandHud />

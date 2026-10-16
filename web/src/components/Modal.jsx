@@ -6,7 +6,10 @@ import { useId, useLayoutEffect, useRef } from "react";
 // behind it is inert, Tab stays inside, and focus goes back to whatever
 // opened it when it closes.
 //
-// `title` renders the heading the dialog is labelled by. Clicking the
+// `title` renders the heading the dialog is labelled by; `actions`, what
+// goes beside it at the top right (Settings' Keyboard shortcuts button,
+// the shortcuts sheet's search).
+// Clicking the
 // backdrop closes (the click lands on the <dialog> itself; anything inside
 // the padded panel has a different target). Escape arrives as the
 // native "cancel" event and is routed to onClose as well — the window
@@ -19,10 +22,11 @@ import { useId, useLayoutEffect, useRef } from "react";
  *   onClose: () => void,
  *   className?: string,
  *   title: import("react").ReactNode,
+ *   actions?: import("react").ReactNode,
  *   children: import("react").ReactNode,
  * }} props
  */
-export default function Modal({ onClose, className, title, children }) {
+export default function Modal({ onClose, className, title, actions, children }) {
   const dialogRef = useRef(null);
   const panelRef = useRef(null);
   const titleId = useId();
@@ -57,7 +61,14 @@ export default function Modal({ onClose, className, title, children }) {
       }}
     >
       <div ref={panelRef} className="bench-modal-panel" tabIndex={-1}>
-        <h3 id={titleId}>{title}</h3>
+        {actions ? (
+          <div className="bench-modal-header">
+            <h3 id={titleId}>{title}</h3>
+            <div className="bench-modal-actions">{actions}</div>
+          </div>
+        ) : (
+          <h3 id={titleId}>{title}</h3>
+        )}
         {children}
       </div>
     </dialog>

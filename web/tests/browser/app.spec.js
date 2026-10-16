@@ -615,19 +615,47 @@ test("? opens the shortcuts sheet and puts it away again; in a field it is a cha
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
 
-  // Opened from the nav's "?" button, focus goes back to the button
-  // however the sheet is closed.
-  const button = page.getByRole("button", { name: "Keyboard shortcuts" });
-  await button.click();
+  // Settings has it at the top right: the sheet takes Settings' place,
+  // and focus goes back to the nav's Settings button however it is closed.
+  const settingsButton = page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: "Settings" });
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  const fromSettings = settings.getByRole("button", { name: /^Keyboard shortcuts/ });
+  await settingsButton.click();
+  await fromSettings.click();
   await expect(sheet).toBeVisible();
+  await expect(settings).toHaveCount(0);
   await page.keyboard.press("?");
   await expect(sheet).toHaveCount(0);
-  await expect(button).toBeFocused();
-  await button.click();
+  await expect(settingsButton).toBeFocused();
+  await settingsButton.click();
+  await fromSettings.click();
   await expect(sheet).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
-  await expect(button).toBeFocused();
+  await expect(settingsButton).toBeFocused();
+
+  // Searchable: the rows with every word typed, in their text, keys or
+  // section. Typed into, "?" is a character there, and Esc clears the
+  // search before it closes the sheet.
+  await page.keyboard.press("?");
+  const sheetSearch = sheet.getByRole("searchbox", { name: "Search shortcuts" });
+  await expect(sheetSearch).toBeFocused();
+  await sheetSearch.fill("redo");
+  await expect(sheet.locator(".shortcuts-row")).toHaveCount(1);
+  await expect(sheet.locator(".shortcuts-row")).toContainText("Redo");
+  await sheetSearch.fill("bench delete");
+  await expect(sheet.locator(".shortcuts-list")).toHaveCount(1);
+  await expect(sheet.getByRole("heading", { name: "Bench", exact: true })).toBeVisible();
+  await sheetSearch.press("Shift+Slash");
+  await expect(sheetSearch).toHaveValue("bench delete?");
+  await expect(sheet.getByText('No shortcuts match "bench delete?".')).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheetSearch).toHaveValue("");
+  await expect(sheet.locator(".shortcuts-list")).toHaveCount(8);
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
 
   // Typed into the part search, "?" is a character, and "/" from the
   // page still goes to the search, not the sheet.
@@ -644,7 +672,6 @@ test("? opens the shortcuts sheet and puts it away again; in a field it is a cha
   // guard): no sheet opens over the dialog.
   await search.blur();
   await page.keyboard.press("s");
-  const settings = page.getByRole("dialog", { name: "Settings" });
   await expect(settings).toBeVisible();
   await page.keyboard.press("Shift+Slash");
   await expect(sheet).toHaveCount(0);

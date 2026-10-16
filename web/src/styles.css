@@ -1918,6 +1918,50 @@ a.mode-tab {
   padding-right: 0.5rem;
 }
 
+/* A dialog's title with a button or two at its right (Modal.jsx's
+   `actions`: Settings' Keyboard shortcuts). */
+.bench-modal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.bench-modal-header h3 {
+  margin: 0;
+}
+
+.bench-modal-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.bench-modal-header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid #33343a;
+  border-radius: 6px;
+  color: #b8b9bd;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+}
+
+.bench-modal-header-button:hover {
+  background: #202126;
+  color: #e6e6e6;
+}
+
+.bench-modal-header-button .shortcut-hint {
+  margin-left: 0;
+}
+
 .settings-section {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -2495,8 +2539,8 @@ a.mode-tab {
 }
 
 /* ---------------------------------------------------------------------
-   Keyboard shortcuts: the nav's "?" button (App.jsx) and the sheet it
-   opens (components/ShortcutsModal.jsx, from lib/shortcuts.js). The sheet
+   Keyboard shortcuts: the sheet `?` opens (components/ShortcutsModal.jsx,
+   from lib/shortcuts.js), from the key, Settings or the palette. The sheet
    is wider than the other dialogs because each row puts a chord like
    "⇧ Shift + ⌘ Cmd + Z" beside its text; every row splits 2:3, so the key
    column lines up across the sections, and a long chord wraps between its
@@ -2504,6 +2548,14 @@ a.mode-tab {
    ------------------------------------------------------------------- */
 .shortcuts-modal {
   width: min(560px, 100vw - 2rem);
+}
+
+/* Beside the title, at the top right; on a narrow screen it drops under
+   it (the header wraps) rather than squeezing the title. */
+.shortcuts-search {
+  flex: 0 1 15rem;
+  min-width: 10rem;
+  margin: 0;
 }
 
 .shortcuts-list {
@@ -2580,29 +2632,6 @@ a.mode-tab {
   .shortcuts-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.2rem;
-  }
-}
-
-/* A narrow window: the gear beside it goes icon-only and grows (in the
-   narrow-screen block further down), and the "?" grows with it so the two
-   read as a pair. `.mode-tab.shortcuts-tab`, one class more than that
-   block's `.mode-tab` padding, which would otherwise win by coming later. */
-@media (max-width: 768px) {
-  :root:not(.desktop) .mode-tab.shortcuts-tab {
-    font-size: 1.05rem;
-    padding: 0.3rem 0.6rem;
-  }
-}
-
-/* Not on a phone: at 375 px the nav only just holds "Cancel renders"
-   beside the gear — the "?" pushed the gear off the edge while a render
-   ran — and most of the sheet is keys a phone doesn't have. A tablet, or a
-   phone turned sideways, is usually wider and keeps it. (The tabs'
-   keyboard hints go on every coarse pointer, in the touch-devices block
-   further down.) */
-@media (max-width: 768px) and (pointer: coarse) {
-  :root:not(.desktop) .mode-tab.shortcuts-tab {
-    display: none;
   }
 }
 

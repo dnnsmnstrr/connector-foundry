@@ -1,5 +1,5 @@
 // The keyboard-shortcuts sheet (components/ShortcutsModal.jsx, opened with
-// "?" or the nav's "?" button) as one table, so the sheet is written in one
+// "?", from Settings or from the palette) as one table, so the sheet is written in one
 // place and a unit test can check it, rather than spread over JSX. It
 // describes what the listeners do — App.jsx's shell keys, Bench.jsx's and
 // Holes.jsx's selection keys, StlViewer's view keys and resize handles, the
@@ -25,7 +25,8 @@ import { isMacPlatform } from "./isEditableTarget.js";
 /**
  * @typedef {{ keys: string[][], macKeys?: string[][], action: string }} ShortcutRow
  * @typedef {{ title: string, rows: ShortcutRow[], note?: string }} ShortcutSection
- * @typedef {{ text: string, kbd: boolean }} ShortcutToken
+ * @typedef {{ text: string, kbd: boolean, key: string }} ShortcutToken `key` is the table's own
+ *   token ("Mod", "Alt"), which a search finds as well as what is shown
  * @typedef {{ chords: ShortcutToken[][], action: string }} ResolvedShortcutRow
  * @typedef {{ title: string, rows: ResolvedShortcutRow[], note: string | null }} ResolvedShortcutSection
  */
@@ -246,11 +247,12 @@ export function chordTokens(chord, mac, compact = false) {
   const modifiers = chord.filter(isModifier).sort((a, b) => order[a] - order[b]);
   const rest = chord.filter((t) => !isModifier(t));
   return [...modifiers, ...rest].map((token) => {
-    if (POINTER_TOKENS.has(token)) return { text: token, kbd: false };
-    if (isModifier(token)) return { text: labels[token], kbd: true };
-    if (compact && Object.hasOwn(COMPACT_KEY_LABELS, token))
-      return { text: COMPACT_KEY_LABELS[token], kbd: true };
-    return { text: Object.hasOwn(KEY_LABELS, token) ? KEY_LABELS[token] : token, kbd: true };
+    if (POINTER_TOKENS.has(token)) return { text: token, kbd: false, key: token };
+    if (isModifier(token)) return { text: labels[token], kbd: true, key: token };
+    if (compact && Object.hasOwn(COMPACT_KEY_LABELS, token)) {
+      return { text: COMPACT_KEY_LABELS[token], kbd: true, key: token };
+    }
+    return { text: Object.hasOwn(KEY_LABELS, token) ? KEY_LABELS[token] : token, kbd: true, key: token };
   });
 }
 
@@ -290,4 +292,30 @@ export function shortcutSections(mac = isMacPlatform()) {
       action: platformText(row.action, mac),
     })),
   }));
+}
+
+/**
+ * The sheet narrowed to a search: a row stays when every word typed is in
+ * its section's title, its text or its keys — as shown, or by the table's
+ * own name, so "alt" finds ⌥ Option on a Mac and "mod" either Cmd or Ctrl.
+ * A section stays with the rows that do; its note stays when the note has
+ * every word too (a section can be found by its note alone). Nothing typed
+ * is the whole sheet.
+ * @param {ResolvedShortcutSection[]} sections
+ * @param {string} query
+ * @returns {ResolvedShortcutSection[]}
+ */
+export function filterShortcutSections(sections, query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return sections;
+  const has = (text) => words.every((word) => text.includes(word));
+  return sections.flatMap((section) => {
+    const title = section.title.toLowerCase();
+    const rows = section.rows.filter((row) => {
+      const keys = row.chords.flat().map((t) => `${t.text} ${t.key}`);
+      return has([title, row.action, ...keys].join(" ").toLowerCase());
+    });
+    const note = section.note && has(`${title} ${section.note}`.toLowerCase()) ? section.note : null;
+    return rows.length || note ? [{ ...section, rows, note }] : [];
+  });
 }

@@ -32,15 +32,18 @@ import Modal from "./Modal.jsx";
 // including the order of the system headings in every part list and
 // which systems and parts are listed at all. Below them, a backup of
 // all of it plus the bench presets and saved part defaults
-// (lib/settingsBackup.js).
+// (lib/settingsBackup.js). `onShowShortcuts` is the header's Keyboard
+// shortcuts button: App closes Settings and opens the sheet in its place,
+// never one dialog over the other.
 /**
  * @param {{
  *   parts: any[],
  *   globalDefaults: Record<string, any> | null,
  *   onClose: () => void,
+ *   onShowShortcuts: () => void,
  * }} props
  */
-export default function SettingsModal({ parts, globalDefaults, onClose }) {
+export default function SettingsModal({ parts, globalDefaults, onClose, onShowShortcuts }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
   // Read live, not copied into state: the viewer's Grid select sets the
@@ -123,7 +126,21 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   }
 
   return (
-    <Modal onClose={onClose} title="Settings">
+    <Modal
+      onClose={onClose}
+      title="Settings"
+      actions={
+        <button
+          type="button"
+          className="bench-modal-header-button"
+          onClick={onShowShortcuts}
+          aria-haspopup="dialog"
+          title="Every key, what the handles do, and the mouse, trackpad and touch controls"
+        >
+          Keyboard shortcuts <kbd className="shortcut-hint">?</kbd>
+        </button>
+      }
+    >
       <h4 className="settings-section">Printer</h4>
       <label className="field has-info-tip">
         <span className="field-label">

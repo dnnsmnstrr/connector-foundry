@@ -49,8 +49,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   parameter typed (one step per field), a part switched, a part attached or removed, a hole
   drilled or moved. Each tab keeps its own history through tab switches, and the Bench's
   **Start over** and a loaded config, and Holes' **Pick another model**, can be undone too.
-- **Keyboard shortcuts**: `?` (or the new **?** button) lists every key, what the handles do,
-  and the mouse, trackpad and touch controls.
+- **Keyboard shortcuts**: `?` (or **Keyboard shortcuts** at the top of Settings, or the command
+  palette) lists every key, what the handles do, and the mouse, trackpad and touch controls —
+  searchable: type "redo", "alt" or "bench delete" to see just those.
 
 ### Holes
 

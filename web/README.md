@@ -168,17 +168,22 @@ screen.
   with `showModal()`, so the browser also fires its own `cancel` on Escape (routed to the same
   `onClose`), keeps Tab inside the dialog, makes the page behind it inert, and returns focus to
   the opener on close; the `title` prop is what the dialog is `aria-labelledby`.
-- **The shortcuts sheet.** `?` (or the nav's "?" button) opens "Keyboard shortcuts"
-  (`components/ShortcutsModal.jsx`); `?` again or `Escape` closes it. Everything on it comes from
+- **The shortcuts sheet.** `?` (or Keyboard shortcuts at the top right of Settings, which the
+  sheet replaces, or the command palette) opens "Keyboard shortcuts"
+  (`components/ShortcutsModal.jsx`); `?` again or `Escape` closes it. A search box beside its
+  title has the focus and narrows it to the rows with every word typed — in their text, their keys as
+  shown or by name ("alt" finds ⌥ Option on a Mac), or their section — with
+  `shortcuts.js`'s `filterShortcutSections()`; typed into, `?` is a character there and `Escape`
+  clears the search before it closes the sheet. Everything on it comes from
   one table, `src/lib/shortcuts.js` — the shell's keys, the Bench's and Holes' selection keys,
   the viewer's keys and handles, undo, and the mouse, trackpad and touch map — so a change to
   any listener is a change to its row there; its unit test checks every token has a label on
   both platforms and that the main keys are present. "Mod" is Cmd on a Mac and Ctrl elsewhere,
   decided by the same `isMacPlatform()` the undo keys use, so the sheet never names a key the
   listener ignores. `?` and `/` share a key on a US layout and are told apart by `e.key`, which
-  is the character typed on every layout. The "?" button is hidden in a narrow browser window
-  with a coarse pointer (a phone, where it pushed the Settings gear off the edge while a render
-  ran, and most of the sheet is keys a phone doesn't have); the key works everywhere.
+  is the character typed on every layout. The sheet has no button of its own in the nav: it
+  pushed the Settings gear off a phone's edge while a render ran, and Settings, the palette and
+  the key reach it everywhere.
   TinkerCAD's own single-letter keys are not copied: `h`, `s` and `m` keep this app's meanings
   (Helpers, Settings, the Bench's Move).
 - **The command palette** (`components/CommandPalette.jsx`, Mod+K or the nav's Search button).

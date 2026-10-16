@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   SHORTCUT_SECTIONS,
   chordTokens,
+  filterShortcutSections,
   isKnownToken,
   platformText,
   shortcutSections,
@@ -120,4 +121,27 @@ test("the keys the listeners take are all on the sheet", () => {
   ]) {
     assert.ok(keys.has(key), key);
   }
+});
+
+test("a search keeps the rows that have every word, in their text, their keys or their section", () => {
+  const titles = (sections) => sections.map((s) => [s.title, s.rows.map((r) => r.action)]);
+  const mac = shortcutSections(true);
+  assert.equal(filterShortcutSections(mac, "  "), mac);
+  // The text.
+  assert.deepEqual(titles(filterShortcutSections(mac, "redo")), [["Anywhere", ["Redo"]]]);
+  // A key by what it shows and by its own name: Option is Alt.
+  const option = filterShortcutSections(mac, "option enter");
+  const alt = filterShortcutSections(mac, "alt enter");
+  assert.deepEqual(titles(option), titles(alt));
+  assert.ok(alt.some((s) => s.rows.some((r) => /third action/.test(r.action))));
+  // A section's title narrows: Bench's Delete, not Holes'.
+  assert.deepEqual(
+    filterShortcutSections(mac, "bench delete").map((s) => s.title),
+    ["Bench"],
+  );
+  // A note found by its words keeps its section; one that doesn't match goes.
+  const byNote = filterShortcutSections(mac, "stays centred");
+  assert.ok(byNote.some((s) => s.note && /centred/.test(s.note)));
+  assert.equal(filterShortcutSections(mac, "redo")[0].note, null);
+  assert.deepEqual(filterShortcutSections(mac, "zzz nothing"), []);
 });
