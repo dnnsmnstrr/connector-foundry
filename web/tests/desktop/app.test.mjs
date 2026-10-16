@@ -148,7 +148,7 @@ test(
         imports: [],
       };
       const chooser = page.waitForEvent("filechooser");
-      await page.getByRole("button", { name: "Import config…", exact: true }).click();
+      await page.getByRole("option", { name: "Import config…", exact: true }).click();
       await (
         await chooser
       ).setFiles({
@@ -170,7 +170,7 @@ test(
       const scad = await exportFile(page.getByRole("button", { name: /Download .scad/ }));
       assert.match(scad.toString(), /basics_plate/);
       await page.getByRole("button", { name: "Start over", exact: true }).click();
-      await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
+      await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
       const meshChooser = page.waitForEvent("filechooser");
       await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
       await (await meshChooser).setFiles({ name: "exported-plate.stl", mimeType: "model/stl", buffer: body });

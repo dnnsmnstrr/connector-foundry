@@ -798,6 +798,11 @@ a.mode-tab {
   position: relative;
   min-height: 0;
   flex: 1;
+  /* Its layers (overlay and labels 1, handles 2, drag label 3, toolbar 4)
+     stack among themselves; the mode's chrome outside it
+     (.viewer-actions, .bench-error, the Holes snap chip) stays above all
+     of them. */
+  isolation: isolate;
 }
 
 .viewer-canvas-mount {
@@ -805,14 +810,10 @@ a.mode-tab {
   height: 100%;
 }
 
-/* StlViewer's "Helpers" toggle, in the viewer's top-right corner: a
-   pill like the scene's other floating controls, dimmed while the
-   helpers are hidden so it reads as "off" without getting in the way. */
+/* StlViewer's "Helpers" toggle, last in the viewer toolbar: a pill like
+   the scene's other floating controls, dimmed while the helpers are
+   hidden so it reads as "off" without getting in the way. */
 .viewer-helpers-toggle {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -863,6 +864,329 @@ a.mode-tab {
   transform: translateX(-50%);
 }
 
+/* ---------------------------------------------------------------------
+   StlViewer's toolbar, resize handles, ghost label, size box and the
+   Library's failed-resize note. The handles follow TinkerCAD's look:
+   edge handles dark with a white border, corner and height handles
+   white with a dark one; the accent rings hover and focus and fills the
+   one being dragged.
+   ------------------------------------------------------------------- */
+
+/* The toolbar row in the top-right corner: the mode's Undo/Redo, Grid,
+   Fit, View and Helpers. It wraps (right-aligned) on a narrow viewer; the
+   row itself lets clicks through, its controls catch them. */
+.viewer-toolbar {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: calc(100% - 1.5rem);
+  pointer-events: none;
+}
+
+.viewer-toolbar > * {
+  pointer-events: auto;
+}
+
+.viewer-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  background: rgba(42, 43, 46, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.35rem 0.65rem;
+}
+
+.viewer-tool:hover {
+  background: #34353a;
+}
+
+.viewer-fit {
+  width: 1.75rem;
+  padding: 0;
+}
+
+/* A native select in the pill style, with the same drawn caret as the
+   sidebar's selects. */
+.viewer-grid {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8b8c91 50%),
+    linear-gradient(135deg, #8b8c91 50%, transparent 50%);
+  background-position:
+    right 0.8rem center,
+    right 0.55rem center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 1.5rem;
+}
+
+.viewer-view {
+  position: relative;
+  display: inline-flex;
+}
+
+.viewer-view-menu {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+  padding: 0.25rem;
+  background: #232428;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.viewer-view-item {
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.viewer-view-item:hover,
+.viewer-view-item:focus-visible {
+  background: #34353a;
+}
+
+/* A drag, or a size box, has the user's attention: the pill would only
+   cover the ghost, and an earlier resize's "rendering…" label the box. */
+.viewer-canvas[data-handle-drag] .viewer-overlay,
+.viewer-canvas.is-editing-handle .viewer-overlay,
+.viewer-canvas.is-editing-handle .viewer-drag-label {
+  display: none;
+}
+
+/* Above the overlay and labels, below the drag label and the toolbar. The
+   layer lets clicks through to the canvas; the handles and the size box
+   catch them. */
+.viewer-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* The positioned element is the hit area (its inline transform is
+   rewritten every frame); the visible square inside it is what grows on
+   hover. Hidden until the first projection places it, and whenever the
+   viewer hides it (edge-on, behind the camera, another one dragged).
+   touch-action: none, or a finger's drag would pan the page and cancel. */
+.viewer-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  visibility: hidden;
+  outline: none;
+}
+
+.viewer-handle[data-state="shown"],
+.viewer-handle[data-state="faded"] {
+  visibility: visible;
+}
+
+/* The far side's handle while its mirror is up: same job, so it lets
+   clicks through to the canvas. */
+.viewer-handle[data-state="faded"] {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.viewer-handle[data-dragging] {
+  cursor: grabbing;
+}
+
+.viewer-handle:has(.viewer-handle-readout) {
+  z-index: 1;
+}
+
+.viewer-handle-dot {
+  width: 11px;
+  height: 11px;
+  background: #1d1e22;
+  border: 1.5px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  transition:
+    width 0.08s,
+    height 0.08s;
+}
+
+.viewer-handle-corner .viewer-handle-dot,
+.viewer-handle-top .viewer-handle-dot {
+  background: #ffffff;
+  border-color: #1d1e22;
+}
+
+/* A hole's move handle: round, so it doesn't read as a resize. */
+.viewer-handle-move .viewer-handle-dot {
+  border-radius: 50%;
+}
+
+.viewer-handle:hover .viewer-handle-dot,
+.viewer-handle:focus-visible .viewer-handle-dot {
+  width: 13px;
+  height: 13px;
+  box-shadow: 0 0 0 2px #6b84e8;
+}
+
+.viewer-handle[data-dragging] .viewer-handle-dot {
+  background: #6b84e8;
+  border-color: #ffffff;
+}
+
+/* The height handle's stem, back down to the top face (StlViewer sets its
+   length and angle each frame). */
+.viewer-handle-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.75);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* The size a hovered or focused handle stands for. */
+.viewer-handle-readout,
+.viewer-drag-label {
+  padding: 0.15rem 0.45rem;
+  background: rgba(23, 24, 27, 0.94);
+  border-radius: 4px;
+  color: #e6e6e6;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Placed beside its handle, inside the viewer, by StlViewer each frame. */
+.viewer-handle-readout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid #3a3b40;
+}
+
+/* The ghost's label (not .viewer-label: the Holes tests count those),
+   pinned by StlViewer above the dragged handle's new spot, clear of its
+   grab target and inside the viewer. Above the handles: once a part is
+   small, the mirror handle sits right under it, and the label is what
+   the drag is for (it lets clicks through either way). */
+.viewer-drag-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  border: 1px solid #6b84e8;
+}
+
+.viewer-drag-label:empty {
+  display: none;
+}
+
+/* TinkerCAD's "click the handle, type the size", beside the handle. */
+.viewer-handle-editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.45rem;
+  background: #232428;
+  border: 1px solid #6b84e8;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: #c9cacd;
+  font-size: 0.78rem;
+  pointer-events: auto;
+}
+
+.viewer-handle-editor input[type="text"] {
+  width: 5.5rem;
+  background: #1c1d20;
+  border: 1px solid #33343a;
+  border-radius: 4px;
+  color: #e6e6e6;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 0.3rem 1.2rem 0.3rem 0.45rem;
+}
+
+/* A handle commit that didn't render: the way back, where the handles
+   were. */
+.viewer-error-note {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1;
+  max-width: min(24rem, calc(100% - 2.5rem));
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.4rem 0.45rem 0.4rem 0.75rem;
+  background: #2a1616;
+  border: 1px solid #5a2a2a;
+  border-radius: 6px;
+  color: #e07f7f;
+  font-size: 0.82rem;
+}
+
+.viewer-error-undo {
+  background: rgba(42, 43, 46, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.7rem;
+}
+
+.viewer-error-undo:hover {
+  background: #34353a;
+}
+
+/* The header's size while a resize renders: what it will be, muted. */
+.outside-dimensions.is-predicted {
+  color: #8b8c91;
+}
+
 .viewer-unavailable p {
   margin: 0;
   max-width: 40ch;
@@ -897,31 +1221,48 @@ a.mode-tab {
   color: #9db4e8;
 }
 
+/* An empty Bench or Holes tab: what is behind its part picker (the
+   command palette, over a light backdrop) and what Escape leaves — a
+   card in the middle with the way back to the picker. */
 .bench-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 2rem;
-  max-width: 480px;
-  margin: 0 auto;
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.bench-empty h2 {
-  margin-top: 0;
+.bench-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+  max-width: 440px;
 }
 
-.bench-part-list ul {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  max-height: 60vh;
-  overflow-y: auto;
+.bench-empty-card p {
+  margin: 0;
 }
 
-/* The start-a-bench picker is a full-width page, not a sidebar, so its
-   system headings get more air above them than the shared rule gives. */
-.bench-empty .system-group h2 {
-  margin-top: 2rem;
+.bench-empty-lead {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #d8d9db;
+}
+
+.bench-empty-card .render-button .shortcut-hint {
+  margin-left: 0.5rem;
+}
+
+/* Undo and Redo on the empty tab, after Start over (or an undone first
+   part): the buttons, and what Undo brings back. */
+.bench-empty-history {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
 }
 
 .bench-sidebar h3 {
@@ -930,6 +1271,51 @@ a.mode-tab {
   letter-spacing: 0.06em;
   color: #7d7e83;
   margin: 1.5rem 0 0.5rem;
+}
+
+/* The root's name and its "Select root" toggle on one line; a long name
+   wraps rather than pushing the button out. */
+.bench-root-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bench-root-heading h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Lit in the selection's yellow while the root is selected, like an
+   attached part's name in the tree. */
+.bench-root-select {
+  flex: none;
+  background: #2a2b2e;
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.35rem 0.65rem;
+}
+
+.bench-root-select:hover {
+  background: #34353a;
+}
+
+.bench-root-select[aria-pressed="true"] {
+  background: #3b3416;
+  border-color: #ffd23f;
+  color: #ffd23f;
+}
+
+@media (pointer: coarse) {
+  .bench-root-select {
+    min-height: 32px;
+  }
 }
 
 .bench-reset {
@@ -1180,26 +1566,6 @@ a.mode-tab {
   border-radius: 6px;
 }
 
-/* The start screen: saved presets above the picker (only when there are
-   any), under the same heading style as the sidebar's sections, and the
-   two import buttons side by side in the picker's toolbar. */
-.bench-empty-section {
-  margin: 0 0 1.5rem;
-}
-
-.bench-empty-section h3 {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7d7e83;
-  margin: 0 0 0.5rem;
-}
-
-.bench-picker-toolbar {
-  display: flex;
-  gap: 0.5rem;
-}
-
 .bench-picker-toolbar .bench-import-button {
   flex: 1;
   min-width: 0;
@@ -1322,10 +1688,75 @@ a.mode-tab {
   background: #34353a;
 }
 
-/* The floating rotate controls over the selected part in the scene:
-   sits just above the part's outline (the overlay pins its bottom
+/* The floating controls over the selected part in the scene: the pill,
+   and under it the "Resize in the sidebar" hint when there is one. The
+   pair sits just above the part's outline (the overlay pins its bottom
    center to the box's top center), or docked when the part's place
-   isn't known. */
+   isn't known. Only the pill takes the pointer. */
+.viewer-overlay > .bench-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+  pointer-events: none;
+}
+
+/* The wrapper keeps the gap to the part; the pill's own margin (which the
+   Holes pill, a bare .bench-rotate-panel, still relies on) would push the
+   hint away from it. */
+.bench-overlay > .bench-rotate-panel {
+  margin-bottom: 0;
+  pointer-events: auto;
+}
+
+.bench-overlay-hint {
+  margin: 0;
+  padding: 0.1rem 0.5rem;
+  background: rgba(23, 24, 27, 0.8);
+  border-radius: 999px;
+  color: #9a9ba0;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* The selected root's pill, first in the viewer toolbar rather than over
+   the part (Bench.jsx says why). Toolbar-high, so the row's other controls
+   don't shift when it comes and goes. The "Resize in the sidebar" hint
+   hangs under its left end without making the row taller (a wrapped
+   toolbar's shorter lines are right-aligned, so that spot is free), and
+   lets clicks through. */
+.bench-root-chip {
+  position: relative;
+  display: flex;
+}
+
+.bench-root-chip > .bench-rotate-panel {
+  min-height: 1.75rem;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-shadow: none;
+}
+
+.bench-root-chip .bench-rotate-pill {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.bench-root-chip > .bench-overlay-hint {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .bench-root-chip > .bench-rotate-panel {
+    min-height: 44px;
+  }
+}
+
 .bench-rotate-panel {
   display: flex;
   align-items: center;
@@ -1421,6 +1852,11 @@ a.mode-tab {
   background: #2a1616;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
+}
+
+/* A failed root resize's way back, after its message. */
+.bench-error-undo {
+  margin-left: 0.6rem;
 }
 
 /* A native <dialog> (Modal.jsx): the browser centres it in the top layer
@@ -1606,20 +2042,516 @@ a.mode-tab {
   background: #202126;
 }
 
-.bench-import-button {
+/* --- Command palette (components/CommandPalette.jsx) -----------------------
+   Mod+K, and the Bench's and Holes' part pickers: a panel near the top of
+   the window over a light backdrop, so the workspace (an attach picker's
+   highlighted slot) stays in view behind it. A <dialog>, so the top layer
+   puts it over everything without a z-index. */
+.command-palette {
+  background: #17181b;
+  color: #e6e6e6;
+  border: 1px solid #2f3136;
+  border-radius: 12px;
+  padding: 0;
+  width: min(640px, 100vw - 2rem);
+  max-height: min(560px, 100dvh - 14vh - 1rem);
+  margin: 12vh auto auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.command-palette::backdrop {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* The attach picker sits at the window's right, clear of the model in the
+   middle of the scene, so the slot it attaches to stays in view. */
+.command-palette.command-palette-side {
+  width: min(440px, 100vw - 2rem);
+  margin: 12vh 1.5rem auto auto;
+}
+
+.command-palette[open] {
+  display: flex;
+}
+
+.command-palette-panel {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  margin-bottom: 0.75rem;
-  background: #2a2b2e;
+  min-height: 0;
+  outline: none;
+}
+
+.command-palette-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.6rem 0 0.9rem;
+}
+
+.command-palette-title {
+  flex: 1;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b8c91;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-palette-back,
+.command-palette-close {
+  background: transparent;
+  border: none;
+  color: #8b8c91;
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.command-palette-back {
+  margin-left: -0.5rem;
+  font-size: 1.05rem;
+}
+
+.command-palette-back:hover,
+.command-palette-close:hover {
+  background: #24252a;
+  color: #e6e6e6;
+}
+
+.command-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.9rem 0.6rem;
+  border-bottom: 1px solid #26272c;
+}
+
+.command-palette-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f0f2;
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 0.3rem 0;
+}
+
+.command-palette-input::placeholder {
+  color: #6c6d73;
+}
+
+.command-palette-accessory {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #9a9ba0;
+}
+
+.command-palette-accessory select {
+  max-width: 11rem;
+}
+
+/* The attach picker's joint, beside its search. */
+.command-palette-joint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.command-palette-note,
+.command-palette-error {
+  margin: 0.55rem 0.9rem 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.command-palette-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.35rem 0.4rem 0.5rem;
+}
+
+.command-palette-section {
+  padding: 0.6rem 0.55rem 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7c7d83;
+}
+
+.command-palette-empty {
+  margin: 0.9rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.command-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.38rem 0.55rem;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: #d8d9db;
+}
+
+.command-row.is-active {
+  background: #24304a;
+  color: #f0f2fa;
+}
+
+.command-row.is-disabled {
+  cursor: default;
+  color: #6c6d73;
+}
+
+.command-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.command-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-row-title mark {
+  background: transparent;
+  color: #9fb4ff;
+  font-weight: 600;
+}
+
+.command-row .badge {
+  align-self: center;
+}
+
+.command-row-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #7c7d83;
+  font-size: 0.78rem;
+}
+
+.command-row.is-active .command-row-subtitle {
+  color: #a3aac4;
+}
+
+.command-row-end {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #7c7d83;
+  font-size: 0.75rem;
+}
+
+.command-row-check {
+  color: #8fd19e;
+  font-size: 0.85rem;
+}
+
+.command-row-more {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.command-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.command-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.command-glyph {
+  border-radius: 5px;
+  background: #222328;
+  color: #9a9ba0;
+  font-size: 0.75rem;
+}
+
+.command-row.is-active .command-glyph {
+  background: #2f3c5c;
+  color: #cdd7f5;
+}
+
+/* A part's gallery render (sync-scad.mjs copies docs/img into public/),
+   or its system's initial while there is none. 4:3, as the renders are. */
+.command-thumb {
+  width: 2.5rem;
+  height: 1.875rem;
+  border-radius: 5px;
+  background: #222328;
+  overflow: hidden;
+}
+
+.command-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.command-thumb-empty {
+  color: #8b8c91;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.command-keys {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.command-key {
+  font-family: inherit;
+  font-size: 0.7rem;
+  min-width: 1.3em;
+  text-align: center;
+  color: #9a9ba0;
+  background: #111214;
+  border: 1px solid #33343a;
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
+.command-palette-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  padding: 0.45rem 0.9rem;
+  border-top: 1px solid #26272c;
+  font-size: 0.75rem;
+  color: #8b8c91;
+}
+
+.command-palette-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.command-palette-hint-end {
+  margin-left: auto;
+}
+
+/* "Link copied" and the like (App.jsx's CommandHud): a pill at the foot of
+   the window for a moment after the palette has closed. Above the app's
+   own layers (the highest is an info tip's 20); it never takes a click. */
+.command-hud {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: #24304a;
+  color: #e6eaf7;
+  border: 1px solid #35407a;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.command-hud[hidden] {
+  display: none;
+}
+
+/* The nav's search button: icon, "Search" and its key. */
+.mode-tab.palette-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* A phone: the panel takes the top of the screen, and the keys the
+   footer names aren't there. */
+@media (max-width: 768px) {
+  .command-palette,
+  .command-palette.command-palette-side {
+    margin: 0.75rem auto auto;
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .command-palette-input {
+    font-size: 1rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .command-palette-footer,
+  .command-keys {
+    display: none;
+  }
+
+  .command-row {
+    padding: 0.6rem 0.55rem;
+  }
+
+  .command-palette-back,
+  .command-palette-close {
+    padding: 0.4rem 0.7rem;
+    font-size: 1rem;
+  }
 }
 
 .bench-import-modal {
   width: min(480px, 100vw - 2rem);
 }
 
-/* The Holes header's hint holds two lines whether it has two or one, so
-   the viewer under it never changes size while the pointer moves. */
+/* ---------------------------------------------------------------------
+   Keyboard shortcuts: the nav's "?" button (App.jsx) and the sheet it
+   opens (components/ShortcutsModal.jsx, from lib/shortcuts.js). The sheet
+   is wider than the other dialogs because each row puts a chord like
+   "⇧ Shift + ⌘ Cmd + Z" beside its text; every row splits 2:3, so the key
+   column lines up across the sections, and a long chord wraps between its
+   keys, never inside one.
+   ------------------------------------------------------------------- */
+.shortcuts-modal {
+  width: min(560px, 100vw - 2rem);
+}
+
+.shortcuts-list {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.shortcuts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #26272b;
+}
+
+.shortcuts-row:last-child {
+  border-bottom: none;
+}
+
+.shortcuts-keys,
+.shortcuts-chord {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.shortcuts-keys {
+  margin: 0;
+}
+
+.shortcuts-action {
+  margin: 0;
+  color: #d8d9db;
+}
+
+.shortcuts-key {
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: #c9cacd;
+  background: #111214;
+  border: 1px solid #33343a;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+}
+
+.shortcuts-pointer {
+  color: #c9cacd;
+  white-space: nowrap;
+}
+
+.shortcuts-plus,
+.shortcuts-or {
+  color: #8b8c91;
+  font-size: 0.72rem;
+}
+
+/* "1, 2 or 3": the comma against the key before it, not floating
+   between the two in the row's gap. */
+.shortcuts-comma {
+  margin-left: -0.25rem;
+}
+
+.shortcuts-note {
+  font-size: 0.78rem;
+  margin: 0.4rem 0 0;
+}
+
+/* A phone: the text under its keys rather than squeezed beside them. */
+@media (max-width: 480px) {
+  .shortcuts-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+}
+
+/* A narrow window: the gear beside it goes icon-only and grows (in the
+   narrow-screen block further down), and the "?" grows with it so the two
+   read as a pair. `.mode-tab.shortcuts-tab`, one class more than that
+   block's `.mode-tab` padding, which would otherwise win by coming later. */
+@media (max-width: 768px) {
+  :root:not(.desktop) .mode-tab.shortcuts-tab {
+    font-size: 1.05rem;
+    padding: 0.3rem 0.6rem;
+  }
+}
+
+/* Not on a phone: at 375 px the nav only just holds "Cancel renders"
+   beside the gear — the "?" pushed the gear off the edge while a render
+   ran — and most of the sheet is keys a phone doesn't have. A tablet, or a
+   phone turned sideways, is usually wider and keeps it. (The tabs'
+   keyboard hints go on every coarse pointer, in the touch-devices block
+   further down.) */
+@media (max-width: 768px) and (pointer: coarse) {
+  :root:not(.desktop) .mode-tab.shortcuts-tab {
+    display: none;
+  }
+}
+
+/* The Holes header's hint is two lines high whatever it says, so the
+   viewer under it never changes size while the pointer moves or the
+   selection changes: a third line pushed the viewer down 18 px and the
+   model jumped under the pointer. Holes.jsx keeps its texts to two lines
+   at the note's 60ch; a long model name, or a window too narrow for that,
+   ends the second line with an ellipsis instead of adding a third (the
+   whole text is still what a screen reader hears). */
 .holes-note {
-  min-height: 2.6em;
+  line-height: 1.3;
+  height: 2.6em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* Texts pinned to points in the scene (StlViewer's `labels`): the Holes
@@ -1873,17 +2805,6 @@ a.mode-tab {
   stroke-linecap: round;
 }
 
-.holes-start-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.holes-start-toolbar .bench-import-button {
-  margin-bottom: 0;
-}
-
 .holes-params-note,
 .holes-editor-note {
   font-size: 0.75rem;
@@ -1900,6 +2821,41 @@ a.mode-tab {
 
 .holes-inset-field input {
   width: 4.5rem;
+}
+
+/* The Snapping section's Grid (components/holes/GridField.jsx), sized
+   like the number fields around it. */
+.holes-grid-field select {
+  width: 6rem;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.75rem;
+}
+
+/* A refused move or nudge, in the snap hint's place for a moment. */
+.holes-snap-hint.holes-notice {
+  color: #e07f7f;
+}
+
+/* A failed handle change's way back, after the render error's message. */
+.holes-error-undo {
+  margin-left: 0.6rem;
+}
+
+/* The selected hole's pill hangs below its outline (Holes.jsx anchors it
+   at holePillAnchor()) instead of standing over the hole, where it would
+   cover the top edge and corner handles. The overlay pins its bottom to
+   the anchor, so the pill moves down by its own height plus a gap that
+   clears the bottom edge handle's grab target (12 px out, 20 px across). */
+.bench-rotate-panel.holes-pill-below {
+  margin-bottom: 0;
+  transform: translateY(calc(100% + 1.6rem));
+}
+
+@media (pointer: coarse) {
+  /* Clear of a fingertip's 44 px grab target. */
+  .bench-rotate-panel.holes-pill-below {
+    transform: translateY(calc(100% + 2.4rem));
+  }
 }
 
 .holes-key {
@@ -2203,8 +3159,22 @@ a.mode-tab {
   .search-input,
   .field input[type="text"],
   .field select,
-  .bench-child-meta select {
+  .bench-child-meta select,
+  .viewer-tool,
+  .viewer-helpers-toggle,
+  .viewer-view-item,
+  .viewer-error-undo {
     min-height: 44px;
+  }
+
+  .viewer-fit {
+    width: 44px;
+  }
+
+  /* A fingertip's target; the square inside stays TinkerCAD-small. */
+  .viewer-handle {
+    width: 44px;
+    height: 44px;
   }
 
   .dropzone {
@@ -2259,6 +3229,7 @@ a.mode-tab {
      controls', so what does not fit must go rather than slide under them. */
   .shortcut-hint,
   .settings-label,
+  .palette-label,
   .render-indicator-text {
     display: none;
   }
@@ -2330,10 +3301,6 @@ a.mode-tab {
     margin-top: 1rem;
   }
 
-  :root:not(.desktop) .bench-empty .system-group h2 {
-    margin-top: 1.5rem;
-  }
-
   :root:not(.desktop) .part-header {
     flex-direction: column;
     align-items: stretch;
@@ -2402,8 +3369,17 @@ a.mode-tab {
   :root:not(.desktop) .field select,
   :root:not(.desktop) .bench-child-meta select,
   :root:not(.desktop) .bench-offset-field input,
-  :root:not(.desktop) .bench-preset-name {
+  :root:not(.desktop) .bench-preset-name,
+  :root:not(.desktop) .viewer-handle-editor input[type="text"],
+  :root:not(.desktop) .viewer-grid {
     font-size: 1rem;
+  }
+
+  /* Above the Library's download row, which spans the bottom here. */
+  :root:not(.desktop) .viewer-error-note {
+    left: 1rem;
+    bottom: 4.5rem;
+    max-width: calc(100% - 2rem);
   }
 
   :root:not(.desktop) .bench-offset-field input {
@@ -2426,4 +3402,48 @@ a.mode-tab {
 .holes-repeat-actions {
   display: flex;
   gap: 0.4rem;
+}
+
+/* ---------------------------------------------------------------------
+   Undo and Redo (components/UndoRedoButtons.jsx): two round icon buttons
+   in the floating style of the viewer's other controls, so they sit in
+   the viewer toolbar without a frame of their own and read the same on
+   a start screen. Disabled is dimmed, not hidden, so the toolbar doesn't
+   shift when the first edit makes Undo available.
+   ------------------------------------------------------------------- */
+.undo-redo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.undo-redo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: rgba(42, 43, 46, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #e6e6e6;
+  cursor: pointer;
+}
+
+.undo-redo-button:hover:not(:disabled) {
+  background: #34353a;
+}
+
+.undo-redo-button:disabled {
+  color: #9a9ca3;
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (pointer: coarse) {
+  .undo-redo-button {
+    width: 44px;
+    height: 44px;
+  }
 }

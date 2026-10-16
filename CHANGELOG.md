@@ -7,6 +7,47 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 
 ## Unreleased
 
+### Command palette
+
+- **Cmd/Ctrl+K** (or the new **Search** button) opens a command palette, as in Raycast: type a
+  few letters to switch tabs, open Settings, set the grid or the circle detail, find a part (and
+  open it in the Library, the Bench or Holes), pick a hole type, attach a part, export, undo,
+  change the view, or open the GitHub page — or Layerling, on its own, as a bookmark. The first
+  letters of words work too — `oib` is **Open in Bench** — and what you ran lately comes first.
+  Each row shows its key where it has one. `Enter` runs a command, `Cmd/Ctrl+Enter` and
+  `Alt/Option+Enter` its second and third actions (a part: open it in the Bench, or drill holes
+  in it; a link: copy it), `→` lists all of them, `Esc` clears, goes back, then closes.
+- **The part pickers float over the workspace**: starting a bench, starting in Holes and
+  attaching a part are the same searchable list, with each part's picture, over the scene
+  instead of a page of their own. `Esc` puts one away and `Cmd/Ctrl+K` brings it back; typing in
+  it finds the app's other commands too. Attaching keeps the slot you clicked in view, with the
+  joint beside the search.
+- **Your own commands and hotkeys** — a part with your parameters in a tab, a bench preset, a
+  hole type, a link — can be added to an exported settings file by hand, with an alias to type
+  and a Cmd/Ctrl+Shift hotkey; an editor for them will follow. See the web app's README.
+
+### Editing
+
+- **Resize handles**, as in TinkerCAD: the part in the Library, and the base part on the Bench,
+  get small square handles to drag. An outline shows the new size, with a label ("W 126 mm · gx 3
+  (+21 each side)"), and the part renders once, when you let go. Width and depth grow on both
+  sides, so the part stays centred, height grows upward, and a corner changes width and depth
+  together. `Esc` cancels a drag. Every part with a size to drag has them: the Gridfinity parts,
+  openGrid and Skådis boards, HSW walls, MOLLE spines and panels, BitBeam, the Basics plate,
+  post and dovetails, the Arca plate, the 2020 rail.
+- **Type a size**: click a handle (or Tab to it and press Enter) to enter an exact size in mm —
+  any but a corner, which changes two sizes and only drags. With a handle focused, the arrow
+  keys step it (Shift: ten steps of a length); resting the pointer on one shows its size.
+- **Grid**: lengths snap to it as you drag or step them — Off, or 0.1 to 5 mm (0.5 mm by
+  default) — set in the viewer's toolbar or under Settings → Editing.
+- **Undo and redo** everywhere: Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z (or Ctrl+Y off the Mac), and
+  Undo/Redo buttons in each viewer's toolbar that say what they would undo — a resize, a
+  parameter typed (one step per field), a part switched, a part attached or removed, a hole
+  drilled or moved. Each tab keeps its own history through tab switches, and the Bench's
+  **Start over** and a loaded config, and Holes' **Pick another model**, can be undone too.
+- **Keyboard shortcuts**: `?` (or the new **?** button) lists every key, what the handles do,
+  and the mouse, trackpad and touch controls.
+
 ### Holes
 
 - **DeckMate Innie socket**: cut Mechanism's Innie into any part, so a DeckMate Outie pushes in
@@ -17,11 +58,31 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 - **MOLLE** presets: a rigid panel's opening and a slit panel's slit, and the Repeat grid's
   standard spacings now include MOLLE rigid panel (50.8 mm both ways) and MOLLE slit panel
   (38.1 × 25.4 mm) next to Skådis.
+- **Resize cutouts by dragging**: a selected round or rectangular cutout has handles on its
+  edges (and a rectangle's corners). The opposite edge stays where it is; hold Option (Alt) to
+  resize from the centre. Click an edge's handle to type the size.
+- **Drag a hole to move it**, by the round handle in its middle, in Grid steps (Shift: freely),
+  and **nudge** the selected holes along their face with the arrow keys (Shift: ten steps). A
+  hole that would leave its face stays put, with a note saying why.
+- A click away from the snap points lands on the **Grid** setting, 0.5 mm as before unless you
+  change it, or exactly where you click with it Off; the Snapping section has the Grid too.
+
+### Bench
+
+- **Select the base part** by clicking it in the scene, or with **Select root** in the sidebar:
+  its name, Crop and Deselect sit in the viewer's toolbar. It has resize handles (attached parts
+  are resized in the sidebar for now), and they never take a slot from an attached part: such a
+  size is skipped (2 → 4 cells on an openGrid board with a part on it), and the label says why.
+- Selecting a part in the scene opens its parameters in the sidebar, and `F` frames it.
 
 ### Viewer
 
-- A **Helpers** button (or `H`) hides the grid, markers, guides and labels in every viewer, to
-  see just the model.
+- A **Helpers** button (or `H`) hides the grid, markers, guides, labels and handles in every
+  viewer, to see just the model.
+- A toolbar in each viewer's corner: **Fit** (or `F`), a **View** menu (Home, Top, Front, Right),
+  the Grid where it applies, and Helpers. The wheel **zooms toward the pointer**.
+- Editing a part keeps the camera where you put it, backing out only when the part, or its
+  handles, would leave the view.
 
 ### Settings
 
@@ -36,6 +97,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 - **MOLLE**: the insert's boss is now `boss_w` × `boss_h` (38 × 25.3 mm by default, a tenth
   under the nominal 1.5" × 1"), and the rigid panel's openings are 0.5 mm over nominal so a
   printed insert fits.
+- New minimums, the floors the modules already assert: Gridfinity bin `gz` 1, HSW wall and Skådis
+  board `cols` and `rows` 1, Arca plate `length` 20. The sidebar field and the CLI now stop there
+  instead of failing the render.
 
 ### Fixes
 
@@ -46,10 +110,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
 - Holes: a slow **Use the current bench** no longer replaces a model picked in the meantime; a
   click while the base is re-rendering no longer drills at the old geometry; a revised mesh with
   the same file name no longer shows the previous render from the cache; a very large Skådis
-  fill radius no longer freezes the tab; big flat faces (finely meshed imports) snap again.
+  fill radius no longer freezes the tab; big flat faces (finely meshed imports) snap again; a
+  click on the floor of a rectangular or round pocket drills into it instead of selecting the
+  pocket; a Shift-click on a selected hole takes it out of the selection even where a snap point
+  sits on it.
 - Bench: **Start over** clears the old model; a `.scad` export error is shown instead of
   failing silently; stack markers and click targets are right for parts on side and bottom
-  slots; a second STEP import is not overwritten by a slower first one.
+  slots; a second STEP import is not overwritten by a slower first one; ←/→ on the focused
+  sidebar edge no longer also step the selected part to another slot.
 - Bench configs and shared links can no longer put arbitrary code into the generated `.scad`
   through part, slot or parameter names, and are checked for non-finite numbers and duplicate
   ids.
@@ -64,6 +132,15 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
   include), the catalogue ships as JSON, and the console no longer logs a spurious error after
   every render.
 - CI runs the desktop tests on Windows on every push, and the Pages deploy retries once.
+- **Faster**: the render engine loads while the app is idle, and again after a render is
+  abandoned, so the next render skips that (up to about half a second); hovering over a model in
+  Holes no longer recompiles a shader each time the snap point changes; dragging the sidebar's
+  edge, and a render starting or finishing, no longer re-render the whole tab; the 3D view's
+  pixel ratio is capped at 2; an undo back to something already rendered, and typing the bench's
+  name, show at once instead of rendering again.
+- The catalogue's **`resize`** field says which parameter each of a part's handles drives and
+  how much it grows the part (read by the web app only); `tests/test_resize.py` renders each entry
+  one step on and holds the mesh to the outline the handle showed.
 - Contributor and agent guide (`AGENTS.md`); Python is linted with ruff, the web app is
   type-checked (libraries, workers, components with JSDoc-typed props, hooks), `make check` runs
   every check that needs neither OpenSCAD nor a browser, and a schema test guards

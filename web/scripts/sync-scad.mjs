@@ -7,6 +7,13 @@
 // dev/build (see package.json), and re-run live by
 // vite-plugin-scad-watch.mjs while `npm run dev` is up.
 //
+// Each part's gallery render (docs/img/, made by `foundry preview`) is
+// copied into public/thumbnails/ for the command palette's part rows,
+// and the part's entry in catalogue.json gets a `thumbnail` path — a
+// field the build derives, not one catalogue.yaml has, so the CLI and the
+// catalogue schema never see it. A part with no render has no field and
+// shows its system's initial instead.
+//
 // Bundle shape: { files: { "lib/x.scad": "<source>" }, assets: {
 // "parts/deckmate/universal_grip.stl": "<base64>" } } — `files` is
 // every .scad as text, `assets` every binary a part import()s, mounted
@@ -20,6 +27,8 @@ import yaml from "js-yaml";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, "..", "..");
 export const WEB_PUBLIC = path.resolve(__dirname, "..", "public");
+export const GALLERY_DIR = path.join(REPO_ROOT, "docs", "img");
+export const THUMBNAIL_DIR = path.join(WEB_PUBLIC, "thumbnails");
 
 // The repo's own sources are the roots: every .scad under these is
 // bundled, plus every file reachable from them through `include <..>`
@@ -227,7 +236,39 @@ function catalogue() {
   return yaml.load(fs.readFileSync(path.join(REPO_ROOT, "catalogue.yaml"), "utf8"));
 }
 
-// Returns { files, assets } counts. See the header for the bundle shape.
+// A part's gallery image's file name — its id with "/" as "_", the same
+// slug cli/foundry.py's slug() and catalogueUtils.js's slugify() make —
+// or null for an id that would not make a plain file name.
+/** @param {string} partId */
+export function thumbnailName(partId) {
+  const slug = String(partId).replace(/\//g, "_");
+  return /^[A-Za-z0-9_-]+$/.test(slug) ? `${slug}.png` : null;
+}
+
+// Copies each part's gallery image, when it has one, into `thumbnailDir`
+// (only when the bytes differ, so a dev server's watcher sees no change
+// for nothing), removes images no part has any more, and sets each copied
+// part's `thumbnail`. Returns how many there are.
+export function syncThumbnails(parts, { galleryDir = GALLERY_DIR, thumbnailDir = THUMBNAIL_DIR } = {}) {
+  fs.mkdirSync(thumbnailDir, { recursive: true });
+  const kept = new Set();
+  for (const part of parts) {
+    const name = thumbnailName(part.id);
+    const from = name && path.join(galleryDir, name);
+    if (!from || !fs.existsSync(from)) continue;
+    const to = path.join(thumbnailDir, name);
+    const bytes = fs.readFileSync(from);
+    if (!fs.existsSync(to) || !fs.readFileSync(to).equals(bytes)) fs.writeFileSync(to, bytes);
+    part.thumbnail = `thumbnails/${name}`;
+    kept.add(name);
+  }
+  for (const file of fs.readdirSync(thumbnailDir)) {
+    if (!kept.has(file)) fs.rmSync(path.join(thumbnailDir, file));
+  }
+  return kept.size;
+}
+
+// Returns the { files, assets, thumbnails } counts. See the header for the bundle shape.
 //
 // `strict` (what `npm run sync-scad`, and so every dev/build, uses)
 // throws MissingIncludeError before writing anything when an include
@@ -244,10 +285,12 @@ export function syncScad({ strict = false } = {}) {
 
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
   fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, assets }));
-  fs.writeFileSync(path.join(WEB_PUBLIC, "catalogue.json"), JSON.stringify(catalogue()));
+  const cat = catalogue();
+  const thumbnails = syncThumbnails(cat.parts ?? []);
+  fs.writeFileSync(path.join(WEB_PUBLIC, "catalogue.json"), JSON.stringify(cat));
   fs.writeFileSync(path.join(WEB_PUBLIC, "global-defaults.json"), JSON.stringify(globalConstants()));
 
-  return { files: Object.keys(files).length, assets: Object.keys(assets).length };
+  return { files: Object.keys(files).length, assets: Object.keys(assets).length, thumbnails };
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
@@ -257,9 +300,10 @@ if (isMain) {
   // and only the parts that need them fail, in the browser.
   const allowMissing = process.env.SYNC_SCAD_ALLOW_MISSING === "1";
   try {
-    const { files, assets } = syncScad({ strict: !allowMissing });
+    const { files, assets, thumbnails } = syncScad({ strict: !allowMissing });
     console.log(
-      `sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), wrote catalogue.json`,
+      `sync-scad: bundled ${files} .scad files and ${assets} binary asset(s), wrote catalogue.json ` +
+        `and ${thumbnails} part thumbnail(s)`,
     );
   } catch (error) {
     if (!(error instanceof MissingIncludeError)) throw error;

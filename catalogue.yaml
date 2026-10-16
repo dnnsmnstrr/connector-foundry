@@ -120,6 +120,44 @@
 #   with its slide direction already vertical. Nothing happens on a top
 #   or bottom slot, where every spin keeps the axis level; the user's
 #   own rotation still applies afterwards.
+#
+# resize: which parameter each of the web app's resize handles drives,
+#   one entry per axis of the part's outside box. The CLI ignores this
+#   field; only the web app's resize handles read it
+#   (web/src/lib/resize.js). The axis keys are x, y and z, and xy for one
+#   parameter that grows X and Y together (a diameter), which a part
+#   cannot combine with x or y. An entry is a map of:
+#     param — the parameter the handle drives, one of `defaults` with a
+#             number default. Required.
+#     per   — mm of outside size per unit of the parameter: 42 for a
+#             Gridfinity cell count. Default 1, a length in mm.
+#     step  — the parameter only takes multiples of this: 1 for a count,
+#             0.5 for Skådis's half columns. Omitted for a free length,
+#             which snaps to the viewer's grid instead.
+#     min / max — bounds for the handle alone, to keep a drag out of
+#             sizes where the slope stops holding, or that render slowly
+#             in the browser (openscad-wasm takes up to five times as long
+#             as the native snapshot; each part's comment has the times
+#             its max comes from) or outgrow a large print bed (~350mm).
+#             They restrict neither the CLI nor the sidebar field — that
+#             is what minimums and maximums do, and the handle keeps to
+#             those too. With no min and no minimum (or one of 0), a
+#             handle stops at one step, or at 0.1mm of outside size for a
+#             free length.
+#     when  — a map of parameter to value, each of the default's type:
+#             the entry applies only while every one of them has that
+#             value. Two entries drive one parameter only this way, with
+#             `when`s that exclude each other (the 2020 rail's len is X
+#             lying down and Z standing up).
+#   Only the slope is recorded. The handles measure the current size off
+#   the rendered mesh, and every part is centred in X and Y with its
+#   bottom on z = 0, so a drag shows a ghost box grown by per times the
+#   change (half on each side in X and Y, upward in Z), and the render on
+#   release has to land on it: tests/test_resize.py renders every entry
+#   one step on, from the defaults and from each variant that sets an
+#   option, and holds the mesh to that box. Write numbers plainly
+#   (20.4382, never 2.04382e1) so PyYAML and the web build's js-yaml read
+#   them alike.
 parts:
   - id: gridfinity/base
     system: Gridfinity
@@ -137,6 +175,11 @@ parts:
       gy: 1
       magnets: false
       screws: false
+    # 8 x 8 cells (336mm, about the largest print bed) renders in 0.6s
+    # natively and 0.8s in the browser (1.9s with magnets and screws).
+    resize:
+      x: { param: gx, per: 42, step: 1, max: 8 }
+      y: { param: gy, per: 42, step: 1, max: 8 }
     variants:
       - name: with-magnets
         params: { magnets: true }
@@ -162,6 +205,9 @@ parts:
       tabs apply to a bin with compartments.
     slots:
       pitch: 14  # same free subdivision as the bin base
+    # parts/gridfinity/bin.scad asserts gz * 7 >= BASE_HEIGHT (7mm).
+    minimums:
+      gz: 1
     defaults:
       gx: 1
       gy: 1
@@ -174,6 +220,13 @@ parts:
       lip: true
       magnets: false
       screws: false
+    # gz counts 7mm units; the stacking lip adds a constant 3.548mm on top
+    # (nothing with lip off), so the slope is 7 either way. 8 x 8 x 20
+    # (336 x 336 x 144mm) renders in 0.8s natively, 1.2s in the browser.
+    resize:
+      x: { param: gx, per: 42, step: 1, max: 8 }
+      y: { param: gy, per: 42, step: 1, max: 8 }
+      z: { param: gz, per: 7, step: 1, max: 20 }
     variants:
       - name: filled-2x1
         params: { gx: 2, filled: true }
@@ -206,6 +259,11 @@ parts:
     options:
       style: [thin, weighted, skeletonized, screw_together, screw_together_minimal]
       screw_holes: [none, countersink, counterbore]
+    # 8 x 8 weighted with magnets, the slowest style, renders in 1.2s
+    # natively and 2.0s in the browser.
+    resize:
+      x: { param: gx, per: 42, step: 1, max: 8 }
+      y: { param: gy, per: 42, step: 1, max: 8 }
     variants:
       - name: weighted-2x1
         params: { gx: 2, style: weighted }
@@ -243,6 +301,12 @@ parts:
       # verbatim — openGrid.scad compares these strings directly.
       chamfers: ["None", Corners, Everywhere]
       screw_mounting: ["None", Corners, Everywhere, "By Row and Column"]
+    # The slowest part to grow: render time follows the cell count. 6 x 6
+    # takes 1.2s natively and about 4s in the browser (heavy: 2.7s and
+    # 11.8s; 8 x 8 would be 7.2s in the browser, heavy 20.9s).
+    resize:
+      x: { param: cells_x, per: 28, step: 1, max: 6 }
+      y: { param: cells_y, per: 28, step: 1, max: 6 }
     variants:
       - name: lite-1x1
         params: { cells_x: 1, cells_y: 1, variant: lite }
@@ -590,10 +654,22 @@ parts:
       together; the end columns are then half cells. "mount" is the back,
       against the wall.
     anchors: [bot]
+    # parts/hsw/wall.scad asserts both at least 1 (flat_edges: 2).
+    minimums:
+      cols: 1
+      rows: 1
     defaults:
       cols: 4
       rows: 3
       flat_edges: false
+    # Columns are 1.5 cell sides (23.6 / sqrt(3)) apart, cells 23.6 apart
+    # in a column. A second column hangs half a cell lower and adds 11.8mm
+    # to Y, so the handle keeps two: below that, X would move Y. With
+    # flat_edges, rows 1 is a render error. 16 x 14 (334 x 342mm) renders
+    # in 0.6s natively and 1.1s in the browser.
+    resize:
+      x: { param: cols, per: 20.4382, step: 1, min: 2, max: 16 }
+      y: { param: rows, per: 23.6, step: 1, max: 14 }
     variants:
       - name: flat-edges
         params: { cols: 5, rows: 4, flat_edges: true }
@@ -643,9 +719,19 @@ parts:
       20mm cells, so boards butt together. "mount" is the back, against the
       wall.
     anchors: [bot]
+    # parts/skadis/board.scad asserts both at least 1. Without it the
+    # cols handle would stop at one 0.5 step, which the assert refuses.
+    minimums:
+      cols: 1
+      rows: 1
     defaults:
       cols: 2
       rows: 4
+    # A column is two 20mm cells. 8 x 16 (320mm square) renders in 0.6s
+    # natively and 1.1s in the browser.
+    resize:
+      x: { param: cols, per: 40, step: 0.5, max: 8 }
+      y: { param: rows, per: 20, step: 1, max: 16 }
     variants:
       - name: 3x6
         params: { cols: 3, rows: 6 }
@@ -707,6 +793,12 @@ parts:
       cols: 1
       webbing: 2
       plate: 3
+    # A tongue per PALS column (38.1mm), a PALS row pitch (50.8mm) per
+    # row. 9 x 7 (339 x 344mm) renders in 0.4s natively, 0.3s in the
+    # browser.
+    resize:
+      x: { param: cols, per: 38.1, step: 1, max: 9 }
+      y: { param: rows, per: 50.8, step: 1, max: 7 }
     variants:
       - name: two-cols
         params: { cols: 2 }
@@ -740,6 +832,10 @@ parts:
       cols: 3
       rows: 4
       channel: 3
+    # 9 x 12 (343 x 330mm) renders in 0.4s natively, 0.9s in the browser.
+    resize:
+      x: { param: cols, per: 38.1, step: 1, max: 9 }
+      y: { param: rows, per: 25.4, step: 1, max: 12 }
     variants:
       - name: flat
         params: { channel: 0 }
@@ -782,6 +878,10 @@ parts:
       pitch_x: 50.8
       pitch_y: 50.8
       thickness: 4
+    # Only the thickness: the panel's X and Y step by pitch_x and pitch_y,
+    # which are parameters themselves.
+    resize:
+      z: { param: thickness }
     variants:
       - name: tight-grid
         params: { open_w: 38.6, open_h: 32.25, pitch_x: 50.8, pitch_y: 44.45 }
@@ -849,10 +949,15 @@ parts:
       for a plate fused onto a part. "mount" is the top, where the camera
       or part sits.
     anchors: [bot]
+    # parts/camera/arca_plate.scad asserts length >= 20.
+    minimums:
+      length: 20
     defaults:
       length: 50
       thickness: 10
       screw: false
+    resize:
+      y: { param: length }
     variants:
       - name: camera-screw
         params: { screw: true }
@@ -908,6 +1013,9 @@ parts:
     defaults:
       len: 5
       side_holes: true
+    # 40 holes (320mm) renders in 1.0s natively, 2.5s in the browser.
+    resize:
+      x: { param: len, per: 8, step: 1, max: 40 }
 
   - id: bitbeam/pin
     system: BitBeam
@@ -984,6 +1092,15 @@ parts:
       grid_y: 3
       height: 1
       side_holes: true
+    # Render time follows the hole count: 10 x 10 takes 1.4s natively and
+    # 4.4s in the browser, any height (16 x 16: 2.2s and 8.8s). Past 10
+    # the browser also starts failing: its hull() still runs through CGAL,
+    # which asserts on this plate at 11 x 12 and 12 x 12 (every grid up to
+    # 10 x 10 renders there at height 1).
+    resize:
+      x: { param: grid_x, per: 8, step: 1, max: 10 }
+      y: { param: grid_y, per: 8, step: 1, max: 10 }
+      z: { param: height, per: 8, step: 1, max: 8 }
 
   - id: basics/plate
     system: Basics
@@ -1002,6 +1119,12 @@ parts:
       d: 42
       t: 4
       r: 4
+    # rect() refuses a side under twice the corner radius r: the handles
+    # stop at 8, twice r's default (a bigger r makes that a render error).
+    resize:
+      x: { param: w, min: 8 }
+      y: { param: d, min: 8 }
+      z: { param: t }
     variants:
       - name: with-bolts
         params: { bolts: true }
@@ -1018,6 +1141,12 @@ parts:
     defaults:
       dia: 10
       h: 20
+    # The mesh is a polygon whose side count changes with dia, so on an
+    # axis with no vertex it stops a little inside the circle (0.08mm a
+    # side at dia 11, none at 10): a ghost grown from it is off that much.
+    resize:
+      xy: { param: dia }
+      z: { param: h }
     variants:
       - name: bored
         params: { bore: 4 }
@@ -1035,6 +1164,9 @@ parts:
     defaults:
       rail_len: 36
       end_stop: false
+    # end_stop's 3mm block would stick out past the end of a shorter rail.
+    resize:
+      y: { param: rail_len, min: 3 }
     variants:
       - name: with-end-stop
         params: { end_stop: true }
@@ -1051,6 +1183,8 @@ parts:
       rail_len: 36
       wall: 2.4
       clearance: 0.3
+    resize:
+      y: { param: rail_len }
 
   - id: extrusion2020/tab
     system: 2020 Extrusion
@@ -1155,6 +1289,9 @@ parts:
     options:
       slot: ["t", "v"]
       orientation: [horizontal, vertical]
+    resize:
+      x: { param: len, when: { orientation: horizontal } }
+      z: { param: len, when: { orientation: vertical } }
     variants:
       - name: v-slot
         params: { slot: "v" }

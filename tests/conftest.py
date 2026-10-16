@@ -3,6 +3,7 @@ pyproject.toml's [tool.pytest.ini_options] pythonpath, so test modules
 import `foundry`, `refcache` and `verify` directly."""
 
 import hashlib
+import math
 from pathlib import Path
 
 import foundry
@@ -61,3 +62,46 @@ def render_variant(part: dict, params: dict, render_dir: Path, tag: str) -> Path
     renamed = stl_path.rename(out_dir / f"{tag}-{digest}.stl")
     _RENDERED[key] = renamed
     return renamed
+
+
+def resize_applies(part: dict, entry: dict, params: dict) -> bool:
+    """Whether a `resize` entry has a handle on the part with `params`
+    (over its defaults): every `when` value matches, compared the way
+    resize.js's `===` does — Python's `1 == True` would match a value
+    the web app never matches."""
+    merged = {**part.get("defaults", {}), **params}
+    return all(_same_value(merged.get(k), v) for k, v in entry.get("when", {}).items())
+
+
+def _same_value(a, b) -> bool:
+    return isinstance(a, bool) == isinstance(b, bool) and type(a) in (bool, int, float, str) and a == b
+
+
+def _positive(value) -> float | None:
+    return value if _is_number(value) and value > 0 else None
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def resize_bounds(part: dict, entry: dict) -> tuple[float, float]:
+    """The range a `resize` entry's handle keeps its parameter in, resolved
+    exactly as web/src/lib/resize.js's resizeAxes() does — a mirrored pair
+    (AGENTS.md): change both or neither. Up from the larger of the
+    catalogue minimum and the entry's own `min`, or else (also when that
+    is 0 or below, which no part renders) from one `step`, or else from
+    0.1mm of outside size; up to the smaller of the catalogue maximum and
+    the entry's `max`, or unbounded. A ceiling under the floor is raised
+    to it, so crossed bounds come back as an empty range (low == high),
+    which test_catalogue.py reports."""
+    param = entry["param"]
+    per = _positive(entry.get("per")) or 1
+    step = _positive(entry.get("step"))
+    floor = step if step is not None else 0.1 / per
+    lows = [v for v in (part.get("minimums", {}).get(param), entry.get("min")) if _is_number(v)]
+    highs = [v for v in (part.get("maximums", {}).get(param), entry.get("max")) if _is_number(v)]
+    low = max(lows) if lows else floor
+    if not low > 0:
+        low = floor
+    return low, max(low, min(highs) if highs else math.inf)

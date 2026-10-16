@@ -18,6 +18,9 @@
 // browser's ~5 MB) the previous values are put back. The caller reloads
 // the page afterwards, so every module re-reads storage from scratch
 // instead of each needing its own "reload" hook.
+import { downloadBlob } from "./download.js";
+import { getHolesSession } from "./holesSession.js";
+
 export const SETTINGS_FORMAT = "connector-foundry-settings";
 export const SETTINGS_VERSION = 1;
 export const SETTINGS_EXTENSION = ".settings.json";
@@ -108,4 +111,39 @@ export function applySettings(entries, storage = window.localStorage) {
       ? "The settings file is too large for this browser's storage (presets with imported meshes are the usual cause). Nothing was changed."
       : "The settings couldn't be saved. Nothing was changed.";
   }
+}
+
+// Settings' "Export settings…" and the command palette's: the backup as a
+// download named for today. Returns null, or a message for the user.
+export function downloadSettings() {
+  let doc;
+  try {
+    doc = exportSettings();
+  } catch {
+    return "This browser isn't letting the app read its storage, so there is nothing to export.";
+  }
+  const date = doc.exportedAt.slice(0, 10);
+  downloadBlob(settingsToJson(doc), `connector-foundry-${date}${SETTINGS_EXTENSION}`, "application/json");
+  return null;
+}
+
+// Settings' "Import settings…" and the command palette's, once a file is
+// chosen: check it, ask, apply, reload. Applying means a reload (see the
+// header); the bench survives it — it lives in the URL — but a Holes
+// document only lives in memory, so the question says so. Resolves to
+// null (applied, or the user said no), or a message for the user.
+/** @param {File} file */
+export async function importSettingsFile(file) {
+  let entries;
+  try {
+    entries = parseSettings(await file.text());
+  } catch (err) {
+    return `Couldn't import "${file.name}": ${err.message}`;
+  }
+  const holesWarning = getHolesSession().doc ? " The Holes tab starts over." : "";
+  const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.${holesWarning}`;
+  if (!window.confirm(question)) return null;
+  const problem = applySettings(entries);
+  if (!problem) window.location.reload();
+  return problem;
 }

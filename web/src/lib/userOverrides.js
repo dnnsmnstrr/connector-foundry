@@ -135,6 +135,21 @@ export function clearGlobalOverrides(keys) {
   clearOverrides(GLOBAL_ID, keys);
 }
 
+// Circle detail (lib/constants.scad's CIRCLE_DETAIL: "draft" | "normal" |
+// "fine"), from Settings and from the command palette. The catalogue's own
+// value clears the override rather than saving the default as one, so a
+// later change of the default reaches this user too.
+export const CIRCLE_DETAILS = Object.freeze(["draft", "normal", "fine"]);
+/**
+ * @param {string} value one of CIRCLE_DETAILS; anything else is ignored
+ * @param {string} [catalogueDefault] global-defaults.json's CIRCLE_DETAIL
+ */
+export function setCircleDetail(value, catalogueDefault = "normal") {
+  if (!CIRCLE_DETAILS.includes(value)) return;
+  if (value === catalogueDefault) clearGlobalOverrides(["CIRCLE_DETAIL"]);
+  else updateGlobalOverrides({ CIRCLE_DETAIL: value });
+}
+
 // catalogue default -> saved user override -> instanceParams (usually
 // {} — called once, when a part is first selected, to compute the
 // starting point for that instance's editable param state). The one

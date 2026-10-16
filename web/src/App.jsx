@@ -1,21 +1,62 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Bench from "./Bench.jsx";
 import Holes from "./Holes.jsx";
 import Library from "./Library.jsx";
+import CommandPalette, { CommandPaletteBoundary } from "./components/CommandPalette.jsx";
 import ModeErrorBoundary from "./components/ModeErrorBoundary.jsx";
+import RenderActivity from "./components/RenderActivity.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
+import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
-import { useRenderActivity } from "./hooks/useRenderActivity.js";
+import { useCommands, usePaletteShortcut } from "./hooks/useCommands.js";
+import { useUserCommands } from "./hooks/useUserCommands.js";
 import { createAssembly } from "./lib/assembly.js";
-import { replaceBenchSession } from "./lib/benchSession.js";
+import { getPreset as getBenchPreset } from "./lib/benchPresets.js";
+import { clearBenchHistory, loadBenchConfig, replaceBenchSession } from "./lib/benchSession.js";
 import { getHolesSession, setHolesDoc } from "./lib/holesSession.js";
-import { createHolesDoc } from "./lib/screwHoles.js";
+import { recordLibrary, requestLibrarySelection } from "./lib/librarySession.js";
+import { createHolesDoc, setNextSpec } from "./lib/screwHoles.js";
+import { getPreset as getHolePreset, presetSpecFor } from "./lib/screwPresets.js";
 import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
-import { cancelRenders } from "./lib/openscad-client.js";
+import { listedParts } from "./lib/catalogueUtils.js";
+import {
+  ISSUES_URL,
+  LAYERLING_URL,
+  RELEASES_URL,
+  REPO_URL,
+  builtin,
+  linkActions,
+  openLink,
+  partCommand,
+} from "./lib/commandCatalog.js";
+import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
+import { commandRegistry } from "./lib/commands.js";
 import { hasCommandModifier, ignoresShortcut } from "./lib/isEditableTarget.js";
-import { getBenchFollowsLibrary, getSidebarCollapsed, setSidebarCollapsed } from "./lib/uiPrefs.js";
-import { useSidebarWidth } from "./hooks/useSidebarWidth.js";
+import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
+import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
+import { chordText } from "./lib/shortcuts.js";
+import {
+  GRID_SNAP_OPTIONS,
+  getBenchFollowsLibrary,
+  getGridSnap,
+  getHiddenLibrary,
+  getSidebarCollapsed,
+  getSidebarWidth,
+  setBenchFollowsLibrary,
+  setGridSnap,
+  setSidebarCollapsed,
+  subscribeSidebarWidth,
+} from "./lib/uiPrefs.js";
+import { CIRCLE_DETAILS, getGlobalOverrides, resolveParams, setCircleDetail } from "./lib/userOverrides.js";
 
 // Between the last bench edit and the URL catching up with it — typing a
 // parameter value shouldn't rewrite the address bar once per keystroke.
@@ -24,8 +65,55 @@ const URL_MIRROR_DEBOUNCE_MS = 300;
 // For the error boundary's "Something went wrong in …".
 const MODE_LABELS = { library: "the Library", bench: "the Bench", holes: "Holes" };
 
-// Source code and desktop releases.
-const REPO_URL = "https://github.com/dnnsmnstrr/connector-foundry";
+// The palette's Mod+K, as the nav button's hint shows it: ⌘K on a Mac.
+const PALETTE_KEYS = chordText(["Mod", "K"]);
+
+// The global palette's list: every command the mounted sources offer
+// (hooks/useCommands.js), recent ones first.
+/** @type {import("./lib/commands.js").CommandPage} */
+const ROOT_PAGE = {
+  id: "root",
+  title: "Commands",
+  searchLabel: "Search commands",
+  placeholder: "Search for a command, a part, a setting…",
+  browse: "recent",
+  items: () => commandRegistry.collect(),
+};
+
+// The palette has closed by the time a command runs, so a problem it
+// reports has nowhere else to go.
+function report(problem) {
+  if (problem) window.alert(problem);
+}
+
+// What a command that leaves nothing else to see says it did ("Link
+// copied", lib/commandHud.js), for a moment at the foot of the window.
+// Always mounted, so the live region is there before it has news; hidden
+// (not unmounted) between messages.
+function CommandHud() {
+  const hud = useSyncExternalStore(subscribeCommandHud, getCommandHud);
+  return (
+    <div className="command-hud" role="status" aria-live="polite" hidden={!hud}>
+      {hud?.text}
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      className="nav-link-icon"
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="6.5" cy="6.5" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M10.2 10.2 14 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 function GitHubMark() {
   return (
@@ -45,6 +133,34 @@ function GitHubMark() {
   );
 }
 
+// The workspace under the nav. The sidebar's width (dragged on its edge,
+// components/SidebarResizer.jsx) goes onto it as --sidebar-width straight
+// from the store, through a ref, not through React state: a drag changes it
+// on every pointer move, and as App state each of those re-rendered the
+// active mode — the Bench's tree, the Holes sidebar, the viewer's props —
+// for a value only the stylesheet reads. A layout effect, so the first
+// paint already has the stored width rather than the default's.
+/**
+ * @param {{ children: import("react").ReactNode }} props
+ */
+function ShellBody({ children }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const apply = () => el.style.setProperty("--sidebar-width", `${getSidebarWidth()}px`);
+    apply();
+    const unsubscribe = subscribeSidebarWidth(apply);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+  return (
+    <div ref={ref} className="shell-body">
+      {children}
+    </div>
+  );
+}
+
 // Every single-key shortcut below checks ignoresShortcut() first (a
 // keystroke in a search box or param field means "type a character", not
 // "trigger a shortcut", and one under an open dialog is the dialog's);
@@ -52,21 +168,23 @@ function GitHubMark() {
 // is expected to work from inside a focused field too (native <dialog>
 // behaves the same way).
 
-// The shell: nav bar, the Library/Bench/Holes mode switch, the Settings modal,
-// the sidebar-collapsed preference both modes share, and the URL mirror
-// of the bench (lib/benchUrlState.js) so a reload comes back to it.
+// The shell: nav bar, the Library/Bench/Holes mode switch, the Settings and
+// keyboard-shortcuts dialogs, the sidebar-collapsed preference both modes
+// share, and the URL mirror of the bench (lib/benchUrlState.js) so a reload
+// comes back to it.
 export default function App() {
   const { parts, error } = useCatalogue();
   const globalDefaults = useGlobalDefaults();
-  const rendersInFlight = useRenderActivity();
   // "library" | "bench" | "holes" — from the URL hash on first load, so a
   // reload lands on the tab that was showing.
   const [mode, setMode] = useState(() => readUrlState().mode ?? "library");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The "?" sheet (components/ShortcutsModal.jsx).
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // The command palette (components/CommandPalette.jsx): null when closed,
+  // else the ids of the command pages to open it on (none: the full list).
+  const [palette, setPalette] = useState(/** @type {{ path: string[] } | null} */ (null));
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
-  // Dragged on the sidebar's edge (components/SidebarResizer.jsx); the
-  // grid reads it as --sidebar-width.
-  const sidebarWidth = useSidebarWidth();
   // The live bench (lib/benchSession.js) — read here only to mirror it
   // into the URL and to decide whether a switch may seed it.
   const { assembly, importedParts } = useBenchSession();
@@ -85,20 +203,33 @@ export default function App() {
   // failing silently. `keepCurrent`: a URL with no bench leaves the
   // session alone on first load (there's nothing to replace) but clears
   // it on a later external hash change (the user navigated to "no bench").
+  //
+  // Not an undoable step, and the bench's undo history goes with it: a
+  // link opened or a hash typed is navigation to another bench, not an
+  // edit of this one. Undo would otherwise bring back the previous bench
+  // and then step back through its edits, none of which the user made to
+  // this one. (Open in Bench and the other replacements made inside the
+  // app do record a step.)
   const catalogueById = useMemo(() => (parts ? new Map(parts.map((p) => [p.id, p])) : null), [parts]);
   const restoreFromUrl = useCallback(
     (keepCurrent) => {
       try {
         const session = restoreBenchFromUrl(catalogueById);
-        if (session) replaceBenchSession(session);
-        else if (!keepCurrent) replaceBenchSession({ assembly: null, importedParts: new Map() });
+        if (session) replaceBenchSession(session, { record: false });
+        else if (!keepCurrent) {
+          replaceBenchSession({ assembly: null, importedParts: new Map() }, { record: false });
+        }
       } catch (err) {
-        replaceBenchSession({
-          assembly: null,
-          importedParts: new Map(),
-          notice: `Couldn't restore the bench from this link: ${err.message}`,
-        });
+        replaceBenchSession(
+          {
+            assembly: null,
+            importedParts: new Map(),
+            notice: `Couldn't restore the bench from this link: ${err.message}`,
+          },
+          { record: false },
+        );
       }
+      clearBenchHistory();
     },
     [catalogueById],
   );
@@ -120,6 +251,9 @@ export default function App() {
   useEffect(() => {
     if (!restored) return;
     function onHashChange() {
+      // The restored tab may open a part picker of its own: never two
+      // palettes at once.
+      setPalette(null);
       restoreFromUrl(false);
       setMode(readUrlState().mode ?? "library");
     }
@@ -164,8 +298,12 @@ export default function App() {
   // a fresh bench — "Open in Bench" and, with the setting on, a plain
   // switch. The button asks first when there is a bench to lose; the
   // setting never replaces one (a tab switch is not a request to reset).
+  // An undo step, named like the Bench's own ("Undo open in bench").
   function seedBench(part, params) {
-    replaceBenchSession({ assembly: createAssembly(part.id, params), importedParts: new Map() });
+    replaceBenchSession(
+      { assembly: createAssembly(part.id, params), importedParts: new Map() },
+      { label: "open in bench" },
+    );
   }
 
   // The one path for switching to the Bench (tab and `2` shortcut both
@@ -212,15 +350,31 @@ export default function App() {
   }
 
   // Global shortcuts: 1/2/3 switch mode, s opens Settings, [ toggles the
-  // sidebar, / jumps to the Library's part search, Escape closes Settings. Bench's own modals (attach-a-part,
-  // STL import) and the Holes tab's import close on Escape too, but
-  // that's handled locally in Bench.jsx / Holes.jsx — they own that
-  // state, App doesn't need to reach into it.
+  // sidebar, / jumps to the Library's part search, ? opens the shortcuts
+  // sheet, Escape closes Settings or the sheet. Bench's own modals
+  // (attach-a-part, STL import) and the Holes tab's import close on Escape
+  // too, but that's handled locally in Bench.jsx / Holes.jsx — they own
+  // that state, App doesn't need to reach into it.
+  //
+  // "/" and "?" share a key on a US layout; they are told apart by e.key,
+  // which is the character typed ("?" with Shift, "/" without) on every
+  // layout — a German one types "/" with Shift+7 and "?" with Shift+ß, and
+  // e.key is still "/" and "?". hasCommandModifier() leaves Shift alone,
+  // so both get here.
   useEffect(() => {
     function onKeyDown(e) {
       if (e.repeat || hasCommandModifier(e)) return;
       if (e.key === "Escape") {
         if (settingsOpen) setSettingsOpen(false);
+        if (shortcutsOpen) setShortcutsOpen(false);
+        return;
+      }
+      // "?" again puts the sheet away, as in most apps with one. It comes
+      // before the check below because that one ignores every key while a
+      // dialog — this one — is open.
+      if (e.key === "?" && shortcutsOpen) {
+        e.preventDefault();
+        setShortcutsOpen(false);
         return;
       }
       // Not while typing, and nothing from under an open dialog (Settings,
@@ -246,6 +400,9 @@ export default function App() {
         case "/":
           jumpToLibrarySearch();
           break;
+        case "?":
+          setShortcutsOpen(true);
+          break;
         default:
           return;
       }
@@ -256,11 +413,7 @@ export default function App() {
     // switchToBench() reads `mode` and `assembly`, jumpToLibrarySearch()
     // `sidebarCollapsed`, so the listener is re-bound with them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsOpen, mode, assembly, sidebarCollapsed]);
-
-  if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
-  if (!parts || !restored) return <div className="loading-screen">Loading catalogue&hellip;</div>;
-  if (parts.length === 0) return <div className="error-screen">The catalogue is empty.</div>;
+  }, [settingsOpen, shortcutsOpen, mode, assembly, sidebarCollapsed]);
 
   function openInBench(part, params) {
     if (assembly && !window.confirm(`Replace the current bench with a new one on ${part.name}?`)) return;
@@ -270,7 +423,8 @@ export default function App() {
 
   // Library's "Add Holes": the selected part, with its current parameters,
   // as the Holes tab's base. Asks first only when there are holes to lose;
-  // a base with none drilled yet is just replaced.
+  // a base with none drilled yet is just replaced. An undo step, named
+  // like the Holes tab's own ("Undo add holes").
   function openInHoles(part, params) {
     const current = getHolesSession().doc;
     if (
@@ -278,9 +432,179 @@ export default function App() {
       !window.confirm(`Replace the holes you've placed with a new start on ${part.name}?`)
     )
       return;
-    setHolesDoc(createHolesDoc({ kind: "catalogue", partId: part.id, params }));
+    setHolesDoc(createHolesDoc({ kind: "catalogue", partId: part.id, params }), { label: "add holes" });
     setMode("holes");
   }
+
+  // Mod+K: the palette, or an empty tab's own part picker (the home
+  // override, useCommandHome()). And how a command that opens a list of
+  // its own (Grid step…) is run from outside the palette — a user hotkey.
+  const openPalette = () => (commandRegistry.home() ?? (() => setPalette({ path: [] })))();
+  usePaletteShortcut(() => setPalette({ path: [] }));
+  useEffect(() => commandRegistry.setOpener((id) => setPalette({ path: [id] })), []);
+
+  // A part in the Library — from the palette on another tab, where the
+  // Library's own part commands aren't mounted, or a user's command with
+  // parameters of its own. A mounted Library takes it as a pick in its
+  // list (librarySession.js's requestLibrarySelection()); otherwise its
+  // next mount starts on the part (initialSelection), and the switch is
+  // an undo step in its history all the same.
+  function showInLibrary(part, params = resolveParams(part, {})) {
+    if (!requestLibrarySelection(part.id, params)) {
+      const previous = librarySelection.current;
+      if (previous)
+        recordLibrary({ partId: previous.part.id, params: previous.params }, { label: "switch part" });
+      librarySelection.current = { part, params };
+    }
+    setMode("library");
+  }
+
+  // A user's command for a bench preset: the Bench's own presets list does
+  // the same, asking before it replaces a bench.
+  function loadBenchPreset(name) {
+    const preset = getBenchPreset(name);
+    if (!preset) return report(`There is no bench preset called "${name}".`);
+    if (assembly && !window.confirm(`Replace the current bench with the preset "${name}"?`)) return;
+    try {
+      loadBenchConfig(preset.config, catalogueById, "load preset");
+    } catch (err) {
+      return report(`Couldn't load the preset "${name}": ${err.message}`);
+    }
+    setMode("bench");
+  }
+
+  // A user's command for a hole type: on the Holes tab, its own command
+  // (the selected holes, or the next ones); from elsewhere, the next holes'
+  // type in the Holes document, which needs a model to belong to.
+  function applyHolePreset(presetId) {
+    if (mode === "holes" && commandRegistry.run(`holes.preset:${presetId}`)) return;
+    const preset = getHolePreset(presetId);
+    setMode("holes");
+    if (!getHolesSession().doc) return report(`Pick a model in Holes first, then ${preset.name}.`);
+    setHolesDoc((d) => setNextSpec(d, presetSpecFor(d.nextSpec, preset.spec), preset.id), {
+      label: `pick ${preset.name}`,
+    });
+  }
+
+  // The user's own commands (lib/userCommands.js): one runner per kind of
+  // action, each the same path a button or the palette takes.
+  useUserCommands({
+    "open-part": ({ partId, params, target = "library" }) => {
+      const part = catalogueById?.get(partId);
+      if (!part) return report(`There is no part "${partId}" in the catalogue.`);
+      const full = { ...resolveParams(part, {}), ...params };
+      if (target === "bench") openInBench(part, full);
+      else if (target === "holes") openInHoles(part, full);
+      else showInLibrary(part, full);
+    },
+    "bench-preset": ({ name }) => loadBenchPreset(name),
+    "hole-preset": ({ presetId }) => applyHolePreset(presetId),
+    link: ({ url }) => openLink(url),
+    view: ({ mode: next }) => (next === "bench" ? switchToBench() : setMode(next)),
+    command: ({ id }) => {
+      if (!commandRegistry.run(id)) report(`"${id}" isn't something that can run here.`);
+    },
+  });
+
+  // The shell's commands: the tabs, Settings and its quick settings, help
+  // and links, and — off the Library, which offers its own — every part.
+  // Each tab and the viewer add their own while mounted.
+  useCommands("app", () => {
+    const detailDefault = globalDefaults?.CIRCLE_DETAIL ?? "normal";
+    const detail = () => getGlobalOverrides().CIRCLE_DETAIL ?? detailDefault;
+    const gridLabel = (mm) => (mm === 0 ? "Off" : `${mm} mm`);
+    const benchFollows = getBenchFollowsLibrary();
+    return [
+      builtin("app.library", { when: mode !== "library", run: () => setMode("library") }),
+      builtin("app.bench", { when: mode !== "bench", run: switchToBench }),
+      builtin("app.holes", { when: mode !== "holes", run: () => setMode("holes") }),
+      builtin("app.searchParts", { run: jumpToLibrarySearch }),
+      builtin("app.sidebar", {
+        title: sidebarCollapsed ? "Show the sidebar" : "Hide the sidebar",
+        run: toggleSidebar,
+      }),
+      builtin("app.cancelRenders", { when: getRenderActivity() > 0, run: cancelRenders }),
+      builtin("app.settings", { run: () => setSettingsOpen(true) }),
+      builtin("app.grid", {
+        subtitle: gridLabel(getGridSnap()),
+        page: () => ({
+          id: "grid",
+          title: "Grid step",
+          searchLabel: "Search grid steps",
+          note: "What handle drags snap to, and how far lengths and hole nudges step.",
+          items: () =>
+            GRID_SNAP_OPTIONS.map((mm) => ({
+              id: `app.grid:${mm}`,
+              title: gridLabel(mm),
+              section: "Grid step",
+              checked: getGridSnap() === mm,
+              actions: [{ title: "Use", run: () => setGridSnap(mm) }],
+            })),
+        }),
+      }),
+      builtin("app.circleDetail", {
+        subtitle: capitalize(detail()),
+        page: () => ({
+          id: "circle-detail",
+          title: "Circle detail",
+          searchLabel: "Search circle details",
+          note: "How smooth holes and curves come out. Draft renders faster, fine is rounder and slower.",
+          items: () =>
+            CIRCLE_DETAILS.map((value) => ({
+              id: `app.circleDetail:${value}`,
+              title: capitalize(value),
+              section: "Circle detail",
+              checked: detail() === value,
+              actions: [{ title: "Use", run: () => setCircleDetail(value, detailDefault) }],
+            })),
+        }),
+      }),
+      builtin("app.benchFollowsLibrary", {
+        checked: benchFollows,
+        subtitle: benchFollows ? "On" : "Off",
+        run: () => setBenchFollowsLibrary(!benchFollows),
+      }),
+      builtin("app.exportSettings", { run: () => report(downloadSettings()) }),
+      builtin("app.importSettings", {
+        actions: [
+          {
+            title: "Choose a file",
+            file: {
+              accept: `${SETTINGS_EXTENSION},.json,application/json`,
+              onFile: async (file) => report(await importSettingsFile(file)),
+            },
+          },
+        ],
+      }),
+      builtin("app.shortcuts", { run: () => setShortcutsOpen(true) }),
+      // Links: Enter opens them, Mod+Enter copies them.
+      builtin("app.github", { actions: linkActions(REPO_URL) }),
+      builtin("app.issue", { actions: linkActions(ISSUES_URL) }),
+      builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
+      // The desktop app knows where it came from.
+      builtin("app.releases", {
+        when: !document.documentElement.classList.contains("desktop"),
+        actions: linkActions(RELEASES_URL),
+      }),
+      ...(mode === "library" || !parts
+        ? []
+        : listedParts(parts, getHiddenLibrary()).map((part) =>
+            partCommand(part, {
+              id: `part:${part.id}`,
+              searchOnly: true,
+              actions: [
+                { title: "Show in the Library", run: () => showInLibrary(part) },
+                { title: "Open in Bench", run: () => openInBench(part, resolveParams(part, {})) },
+                { title: "Add holes", run: () => openInHoles(part, resolveParams(part, {})) },
+              ],
+            }),
+          )),
+    ];
+  });
+
+  if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
+  if (!parts || !restored) return <div className="loading-screen">Loading catalogue&hellip;</div>;
+  if (parts.length === 0) return <div className="error-screen">The catalogue is empty.</div>;
 
   return (
     <div className="shell">
@@ -313,23 +637,19 @@ export default function App() {
           Holes<kbd className="shortcut-hint">3</kbd>
         </button>
         <div className="nav-end">
-          {/* Always mounted so the live region exists before it has news;
-              hidden (not unmounted) when idle. */}
-          <span
-            className="render-indicator"
-            role="status"
-            aria-live="polite"
-            hidden={rendersInFlight === 0}
-            title={rendersInFlight > 1 ? `${rendersInFlight} renders in progress` : "Render in progress"}
+          <button
+            type="button"
+            className="mode-tab palette-tab"
+            onClick={openPalette}
+            aria-label="Command palette"
+            aria-haspopup="dialog"
+            title={`Command palette (${PALETTE_KEYS})`}
           >
-            <span className="render-spinner" aria-hidden="true" />
-            <span className="render-indicator-text">Rendering…</span>
-          </span>
-          {rendersInFlight > 0 && (
-            <button type="button" className="mode-tab" onClick={cancelRenders}>
-              Cancel renders
-            </button>
-          )}
+            <SearchIcon />
+            <span className="palette-label">Search</span>
+            <kbd className="shortcut-hint">{PALETTE_KEYS}</kbd>
+          </button>
+          <RenderActivity />
           <a
             className="mode-tab nav-link"
             href={REPO_URL}
@@ -340,6 +660,16 @@ export default function App() {
           >
             <GitHubMark />
           </a>
+          <button
+            type="button"
+            className="mode-tab shortcuts-tab"
+            onClick={() => setShortcutsOpen(true)}
+            aria-label="Keyboard shortcuts"
+            aria-haspopup="dialog"
+            title="Keyboard shortcuts (?)"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
           <button
             type="button"
             className="mode-tab settings-tab"
@@ -353,10 +683,7 @@ export default function App() {
           </button>
         </div>
       </nav>
-      <div
-        className="shell-body"
-        style={/** @type {import("react").CSSProperties} */ ({ "--sidebar-width": `${sidebarWidth}px` })}
-      >
+      <ShellBody>
         {/* Keyed by mode: a switch to another tab starts with a fresh
             boundary rather than the last mode's error. */}
         <ModeErrorBoundary key={mode} label={MODE_LABELS[mode]}>
@@ -381,10 +708,27 @@ export default function App() {
             <Bench parts={parts} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
           )}
         </ModeErrorBoundary>
-      </div>
+      </ShellBody>
       {settingsOpen && (
         <SettingsModal parts={parts} globalDefaults={globalDefaults} onClose={() => setSettingsOpen(false)} />
       )}
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      <CommandHud />
+      {palette && (
+        <CommandPaletteBoundary onError={() => setPalette(null)}>
+          <CommandPalette
+            page={ROOT_PAGE}
+            initialPath={palette.path}
+            closeOnRun
+            onClose={() => setPalette(null)}
+          />
+        </CommandPaletteBoundary>
+      )}
     </div>
   );
+}
+
+/** @param {string} text */
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

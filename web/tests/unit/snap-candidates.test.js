@@ -145,6 +145,9 @@ test("nearest snap within reach, the face grid otherwise; both cached per face",
   assert.equal(nearestCandidate(face, [5.4, 2.2, 2], 1.5).kind, "quarter");
   assert.equal(nearestCandidate(face, [9.2, 0.3, 2], 1.5), null);
   assert.deepEqual(round(gridPoint(face, [1.26, -2.74, 2])), [1.5, -2.5, 2]);
+  // The Grid setting: 1 mm, and Off (exactly where the click landed).
+  assert.deepEqual(round(gridPoint(face, [1.26, -2.74, 2], 1)), [1, -3, 2]);
+  assert.deepEqual(round(gridPoint(face, [1.26, -2.74, 2.3], 0)), [1.26, -2.74, 2]);
   // The same face from another of its triangles is the same cached record.
   const other = [...Array(geometry.index.count / 3).keys()].find(
     (i) => i !== t && face.triangles.includes(i),
@@ -215,6 +218,8 @@ test("near a guide line but no point, the hit slides onto the line and rounds al
   assert.equal(nearestGuide(face, [2.2, 0.6, 2], 0.3), null);
   // Past the end of a line it is not "on" it.
   assert.equal(nearestGuide(face, [14, 0.1, 2], 1.5), null);
+  // With the Grid off it slides onto the line without rounding along it.
+  assert.deepEqual(round(nearestGuide(face, [2.3, 0.4, 2], 1.5, 0).point).map(Math.abs), [2.3, 0, 2]);
 });
 
 test("the center circle: drawn at the chosen radius, snap points where it meets the center lines and radials, clicks slide onto it", () => {

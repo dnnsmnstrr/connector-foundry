@@ -54,6 +54,9 @@ async function mockWorker(page, auto = false) {
       window.Worker = class {
         terminated = false;
         postMessage(request) {
+          // The client's warm-ups (at boot, after an abort) are not jobs
+          // and get no answer; left out, every entry in `jobs` is a render.
+          if (request?.type === "warm") return;
           const index = window.__renders.jobs.push({ request, worker: this }) - 1;
           if (window.__renders.auto) queueMicrotask(() => window.__renders.finish(index));
         }
@@ -74,7 +77,11 @@ async function downloadBytes(download) {
 }
 async function importConfig(page, config) {
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Import config…", exact: true }).click();
+  // The start picker's row over an empty bench, the sidebar's button on one.
+  await page
+    .getByRole("option", { name: "Import config…", exact: true })
+    .or(page.getByRole("button", { name: "Import config…", exact: true }))
+    .click();
   await (
     await chooser
   ).setFiles({
@@ -142,10 +149,12 @@ for (const [platform, width] of [
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(600);
 
+    // The empty Bench's part picker scrolls its own list, not the page.
     await page.getByTitle("Bench (2)").click();
-    await page.locator(".bench-empty").hover();
+    const pickerList = page.locator(".command-palette-list");
+    await pickerList.hover();
     await page.mouse.wheel(0, 700);
-    await expect.poll(() => page.locator(".bench-empty").evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => pickerList.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
     expect(await header.boundingBox()).toEqual(headerBefore);
     await importConfig(page, config());
     await sidebar.hover();
@@ -207,7 +216,8 @@ test("the sidebar's edge resizes it, within limits, and the width sticks", async
   await expect.poll(sidebarWidth).toBe(340);
   await page.keyboard.press("3");
   await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
-  // The Holes start screen focuses its search box, so click back.
+  // The Holes part picker is up over the tab: put it away, then go back.
+  await page.keyboard.press("Escape");
   await page
     .getByRole("navigation", { name: "Main" })
     .getByRole("button", { name: /^Library/ })
@@ -457,7 +467,7 @@ test("a STEP file is tessellated in the browser and offered for slot placement",
   await catalogue(page);
   await page.goto("/");
   await page.getByTitle("Bench (2)").click();
-  await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
+  await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
   await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
   // occt-import-js ships a 10 x 10 x 10 mm rounded cube as a test fixture.
@@ -497,7 +507,7 @@ test("a multi-body STEP file asks which body to import", async ({ page }) => {
   await catalogue(page);
   await page.goto("/");
   await page.getByTitle("Bench (2)").click();
-  await page.getByRole("button", { name: "Import STL / STEP / 3MF…", exact: true }).click();
+  await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
   await page.locator('input[type=file][accept=".stl,.step,.stp,.3mf"]').click();
   const fixture = fileURLToPath(
@@ -576,9 +586,68 @@ test("/ jumps to the Library's part search from any mode", async ({ page }) => {
   await expect(page.locator("[aria-expanded]").first()).toHaveAttribute("aria-expanded", "false");
   await page.keyboard.press("2");
   await expect(page.locator(".mode-tab.active")).toContainText("Bench");
+  // The empty Bench opens its part picker; "/" is a character in its search.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press("/");
   await expect(page.locator(".mode-tab.active")).toContainText("Library");
   await expect(page.locator("[aria-expanded]").first()).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(".sidebar .search-input")).toBeFocused();
+});
+
+test("? opens the shortcuts sheet and puts it away again; in a field it is a character", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, true);
+  await page.goto("/");
+  const search = page.getByRole("searchbox", { name: "Search parts" });
+  await expect(search).toBeVisible();
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  // "?" is Shift+/ on a US layout: e.key tells the two apart.
+  await page.keyboard.press("Shift+Slash");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText("Show this list")).toBeVisible();
+  // A second "?" puts it away, as Esc does.
+  await page.keyboard.press("Shift+Slash");
+  await expect(sheet).toHaveCount(0);
+  await page.keyboard.press("?");
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+
+  // Opened from the nav's "?" button, focus goes back to the button
+  // however the sheet is closed.
+  const button = page.getByRole("button", { name: "Keyboard shortcuts" });
+  await button.click();
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press("?");
+  await expect(sheet).toHaveCount(0);
+  await expect(button).toBeFocused();
+  await button.click();
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(button).toBeFocused();
+
+  // Typed into the part search, "?" is a character, and "/" from the
+  // page still goes to the search, not the sheet.
+  await search.fill("a");
+  await search.press("Shift+Slash");
+  await expect(search).toHaveValue("a?");
+  await expect(sheet).toHaveCount(0);
+  await search.blur();
+  await page.keyboard.press("/");
+  await expect(search).toBeFocused();
+  await expect(sheet).toHaveCount(0);
+
+  // With Settings open, "?" is not the page's (isEditableTarget.js's
+  // guard): no sheet opens over the dialog.
+  await search.blur();
+  await page.keyboard.press("s");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await expect(settings).toBeVisible();
+  await page.keyboard.press("Shift+Slash");
+  await expect(sheet).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(settings).toHaveCount(0);
 });

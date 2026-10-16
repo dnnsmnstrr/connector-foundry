@@ -25,8 +25,8 @@ web/ ────────── React app (Library, Bench, Holes tabs) + Ele
 - The web app never reimplements geometry. It generates small `.scad` stubs (or whole assemblies,
   `web/src/lib/assembly.js`) and compiles them with the same sources the CLI uses.
 - Where the web app needs to know a geometric fact without rendering (slot positions, mount
-  offsets), it mirrors the `.scad` logic in `web/src/lib/` and a Python test holds the two
-  together. Change both sides or neither.
+  offsets, where a resize handle's next render will land), it mirrors the `.scad` logic in
+  `web/src/lib/` and a Python test holds the two together. Change both sides or neither.
 
 Deeper reading, by topic:
 
@@ -63,7 +63,7 @@ it done. CI (`.github/workflows/ci.yml`) runs all of the rows below.
 | `make check` | ruff, the non-rendering pytest files, and `npm run check` (ESLint, `tsc` type check, Prettier, unit tests) | nothing extra — **the minimum before every commit** |
 | `make lint` / `make format` | Python lint + format (ruff, config in `pyproject.toml`) | — |
 | `cd web && npm run lint` / `typecheck` / `format` / `test` | the parts of `npm run check` one at a time | — |
-| `make test` | the full pytest suite: renders every catalogue entry and variant (~4 min) | OpenSCAD snapshot |
+| `make test` | the full pytest suite: renders every catalogue entry and variant, and every `resize` slope one step on (~4 min, plus about a minute for `tests/test_resize.py`) | OpenSCAD snapshot |
 | `make verify` | reference comparisons and fit checks (`make refs` fetches the references first) | OpenSCAD, network once |
 | `cd web && npm run test:browser` | Playwright against the built app (its `pretest` builds; don't call bare `playwright test`, it reuses a stale bundle) | Playwright's Chromium |
 | `cd web && npm run test:desktop` | Electron smoke test against `dist/` (build first) | — |
@@ -71,8 +71,9 @@ it done. CI (`.github/workflows/ci.yml`) runs all of the rows below.
 Which ones to add on top of `make check`:
 
 - Changed a `.scad` file or `catalogue.yaml`: `make test` (or at least the affected part's tests,
-  `pytest tests -k <part>`), and `make verify` for an `exact` part. A recorded bounding box that
-  moved on purpose: `make goldens`.
+  `pytest tests -k <part>`, which picks up its `tests/test_resize.py` cases too), and
+  `make verify` for an `exact` part. A recorded bounding box that moved on purpose:
+  `make goldens`.
 - Changed web UI behaviour: `npm run test:browser`. A new test that clicks an export button must
   name the bench first (the name prompt opens otherwise and `waitForEvent("download")` times out).
 - Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`.
@@ -92,13 +93,17 @@ still runs `hull()` through CGAL (which asserts on some BOSL2 rounded cuboids), 
 the measured numbers: `web/README.md`, "Known limit — nesting depth", and the worker's header.
 
 **Mirrored logic.** `web/src/lib/slots.js` mirrors `lib/slots.scad`; `scadLiteral.js` mirrors
-`openscad_value()`; `mount_offset` is evaluated in both `cli/foundry.py` and `slots.js`. Python
-tests render the geometry and check the formulas; when you change one side, change the other.
+`openscad_value()`; `mount_offset` is evaluated in both `cli/foundry.py` and `slots.js`;
+`resize.js`'s `resizeAxes()` (a `resize` entry's handle bounds, and whether its `when` applies)
+is mirrored by `tests/conftest.py`'s `resize_bounds()` and `resize_applies()`, which
+`test_catalogue.py` and `test_resize.py` use. Python tests render the geometry and check the
+formulas; when you change one side, change the other.
 
 **Catalogue fields have two readers.** The CLI (PyYAML) and the web build (js-yaml) parse
 `catalogue.yaml`. A new field must be documented in the file's header, added to the schema test's
-allowed keys, and handled by both readers (or explicitly only one, with a comment saying so).
-Quote strings like `yes`, `on`, `1e3`: the two parsers read them differently.
+allowed keys, and handled by both readers (or explicitly only one, with a comment saying so —
+`resize` is read only by the web app's handles, and `check_minimums()` in the CLI says why it
+ignores its bounds). Quote strings like `yes`, `on`, `1e3`: the two parsers read them differently.
 
 **Persisted and shared state is untrusted.** localStorage, sessionStorage, the URL hash
 (`#bench=`), imported `.bench.json` / `.settings.json` files: validate the shape *and* the values
@@ -107,7 +112,23 @@ throws (private mode, quota). `benchConfig.js`'s `checkBenchConfig` is the patte
 
 **Keyboard shortcuts** go through the shared guard in `web/src/lib/isEditableTarget.js`: no
 single-key shortcut fires while typing in a field, while a dialog the event did not come from is
-open, or with a modifier key held.
+open, or with a modifier key held. The Cmd/Ctrl shortcuts are undo and redo (`undoShortcut()`,
+`ignoresUndoShortcut()`: a text field keeps them for its own undo, through
+`web/src/hooks/useUndoShortcuts.js`), Mod+K for the command palette (`paletteShortcut()`), and a
+user's own hotkeys (`ignoresHotkey()`; Mod+Shift or Mod+Alt chords only, checked against
+`web/src/lib/hotkeys.js`'s `RESERVED_CHORDS`). Every key and pointer gesture is listed once, in
+`web/src/lib/shortcuts.js` (the `?` sheet): a key added or changed is a row added or changed
+there.
+
+**A user action gets a command.** A new button, key or menu entry also gets a command palette
+entry: its title, section, keywords and key hint in `web/src/lib/commandCatalog.js` (a unit test
+holds every hint to a row of `shortcuts.js`), its behaviour bound with `useCommands()`
+(`web/src/hooks/useCommands.js`) in the component that owns the state, before any early return.
+A part picker is a `CommandPalette` page, not a `Modal` with a `PartBrowser`. Running a command
+closes the palette in the same event, before whatever it opens mounts: never two modal dialogs
+at once (`isBehindOpenDialog()` reads the first open one, not the topmost). Anything a user's
+command can carry (`web/src/lib/userCommands.js`) is untrusted, like the rest of persisted
+state: a new action kind gets its `check` there.
 
 **React conventions.** Plain JSX, no TypeScript; components document their props in a comment
 (what each is for) and a JSDoc `@param` (their types, optional ones marked `[name]` / `name?`),
@@ -116,6 +137,8 @@ Async work in an effect (renders, imports) must ignore stale results, because a 
 finishing after the user moved on is the common bug here. A preview render goes through
 `web/src/hooks/useRender.js`, which does that (and the debounce and cancellation) for every mode;
 other async work needs its own guard — a flag the effect's cleanup clears, or an `AbortSignal`.
+Record an undo step from the event handler that makes the change, never inside a `setState`
+updater: StrictMode runs updaters twice in development, and the step would be recorded twice.
 Dispose what three.js allocates. `web/eslint.config.js` switches off
 four React-Compiler rules on purpose and says why; don't "fix" those patterns.
 
@@ -131,7 +154,10 @@ down, a `"mount"` anchor on TOP; see an existing part of the same system). Add i
 its gallery image with `foundry.render_preview()` from a Python one-liner (`foundry preview --all`
 re-renders every image, and a different OpenSCAD build changes all their bytes), and
 `foundry readme` for the README table. If it is `exact`, add its check to `references.yaml` and
-run `make verify`. The web app picks it up from the catalogue; try it there for the WASM limits.
+run `make verify`. If a parameter sets its outside size, give it a `resize` entry (the header
+says how; cap `max` at sizes that render in a few seconds in the browser) and run
+`pytest tests/test_resize.py -k <part id>`. The web app picks it up from the catalogue; try it
+there for the WASM limits.
 
 **Add a web lib module.** Pure logic goes in `web/src/lib/` with no React in it, gets a
 `web/tests/unit/<name>.test.js` (Node's test runner; three.js resolves because the test lives

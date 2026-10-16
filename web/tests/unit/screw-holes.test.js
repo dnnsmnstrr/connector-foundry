@@ -7,7 +7,9 @@ import {
   createHolesDoc,
   cutterLines,
   flipHoles,
+  formatPoint,
   frameMatrix,
+  holeAtSpot,
   holeFootprintRadius,
   holeLabel,
   holeMeta,
@@ -1275,4 +1277,38 @@ test("a through hole on a mesh with no finite size falls back instead of throwin
   assert.match(scad, /difference\(\)/);
   assert.doesNotMatch(scad, /Infinity|NaN/);
   assert.doesNotThrow(() => holesToScad(doc, partsById, { throughLength: NaN }));
+});
+
+test("formatPoint: a tenth of a millimetre, and never a negative zero", () => {
+  assert.equal(formatPoint([12, -3.54, 4.05]), "12.0, -3.5, 4.1");
+  // A snapped coordinate that came out as -0, or rounds to it.
+  assert.equal(formatPoint([-0, -0.04, 0.75]), "0.0, 0.0, 0.8");
+});
+
+test("a click within a hole's footprint picks it, except on the floor of a plain cutout's pocket", () => {
+  const up = [0, 0, 1];
+  const pocket = {
+    point: [0, 0, 4],
+    normal: up,
+    spec: normalizeSpec({ kind: "rectangle", width: 24, height: 24, depth: 2 }),
+  };
+  // On the opening's face: the hole, near its centre or towards its edge.
+  assert.equal(holeAtSpot(pocket, [0, 0, 4], up), true);
+  assert.equal(holeAtSpot(pocket, [8, 3, 4], up), true);
+  // Its walls (a face turned sideways) are the hole's too.
+  assert.equal(holeAtSpot(pocket, [11.9, 0, 3], [-1, 0, 0]), true);
+  // Its floor, 2 mm down, takes a new hole — the snapped floor centre too.
+  assert.equal(holeAtSpot(pocket, [5, -5, 2], up), false);
+  assert.equal(holeAtSpot(pocket, [0, 0, 2], up), false);
+  // A round pocket's floor the same; outside the footprint nothing.
+  const round = { ...pocket, spec: normalizeSpec({ kind: "cylinder", diameter: 10, depth: 3 }) };
+  assert.equal(holeAtSpot(round, [1, 1, 1], up), false);
+  assert.equal(holeAtSpot(round, [1, 1, 4], up), true);
+  assert.equal(holeAtSpot(pocket, [13, 0, 4], up), false);
+  // A screw's counterbore floor is still the screw: clicking into it
+  // selects it rather than drilling a second hole on its axis.
+  const screw = { ...pocket, spec: getPreset("m3-cap").spec };
+  assert.equal(holeAtSpot(screw, [0.5, 0, 1], up), true);
+  // No normal (a caller that has none): the footprint alone.
+  assert.equal(holeAtSpot(pocket, [5, -5, 2]), true);
 });

@@ -8,9 +8,12 @@ a typo in this file does not fail anywhere — it quietly produces the
 wrong part, and every test that only checks the part renders will pass.
 """
 
+import math
+
 import foundry
 import pytest
 import typer
+from conftest import resize_applies, resize_bounds
 
 # The face anchors web/src/lib/slots.js knows how to place — the only
 # names catalogue.yaml's `anchors` field may use (see FACE_ANCHOR_LOCAL).
@@ -35,6 +38,8 @@ def test_declared_parameters_exist_on_the_module():
             "maximums": part.get("maximums", {}).keys(),
             "attached_defaults": part.get("attached_defaults", {}).keys(),
         }
+        for axis, entry in part.get("resize", {}).items():
+            declared[f"resize.{axis}"] = [entry["param"], *entry.get("when", {})]
         for variant in part.get("variants", []):
             declared[f"variant {variant['name']}"] = variant["params"].keys()
 
@@ -112,6 +117,51 @@ def test_limits_hold_for_defaults_and_variants():
             floor = part.get("minimums", {}).get(key)
             if _is_mm(floor) and _is_mm(ceiling) and floor > ceiling:
                 problems.append(f"{part['id']}: {key}'s minimum {floor} is over its maximum {ceiling}")
+    assert not problems, "\n".join(problems)
+
+
+def _on_step(value: float, step: float) -> bool:
+    # Steps are 1 or 0.5 and values small, so a ratio within float noise of
+    # a whole number is the honest test (no `%` on floats).
+    return abs(value / step - round(value / step)) < 1e-9
+
+
+def test_resize_handles_cover_the_catalogue_values():
+    """A resize handle snaps its parameter to its step and keeps it within
+    its bounds. A value the catalogue sets off the step would jump to the
+    nearest one at the first touch, resizing a part the user only meant
+    to nudge. A value outside the bounds can't jump (resize.js widens a
+    gesture's bounds to include where it started), but the handle can then
+    only take it back toward the range, never further, so a `max` under
+    a default is a typo. Crossed bounds leave the handle nowhere to go."""
+    problems = []
+    for part in _parts():
+        values = [("default", {})] + [(f"variant {v['name']}", v["params"]) for v in part.get("variants", [])]
+        if "attached_defaults" in part:
+            values.append(("attached default", part["attached_defaults"]))
+        for axis, entry in part.get("resize", {}).items():
+            label = f"{part['id']}: resize.{axis} ({entry['param']})"
+            low, high = resize_bounds(part, entry)
+            if not low < high:
+                problems.append(f"{label}: the handle's range [{low}, {high}] is empty (crossed bounds)")
+            step = entry.get("step")
+            if step is not None:
+                for name, bound in (("lower bound", low), ("upper bound", high)):
+                    if math.isfinite(bound) and not _on_step(bound, step):
+                        problems.append(f"{label}: {name} {bound} is not a multiple of step {step}")
+            for where, params in values:
+                # An entry that does not apply to these values has no handle on them.
+                if not resize_applies(part, entry, params):
+                    continue
+                value = {**part.get("defaults", {}), **params}.get(entry["param"])
+                if not _is_mm(value):
+                    continue
+                if not low <= value <= high:
+                    problems.append(
+                        f"{label} [{where}]: {value} is outside the handle's range [{low}, {high}]"
+                    )
+                if step is not None and not _on_step(value, step):
+                    problems.append(f"{label} [{where}]: {value} is not a multiple of step {step}")
     assert not problems, "\n".join(problems)
 
 

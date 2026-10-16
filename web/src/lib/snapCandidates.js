@@ -48,7 +48,10 @@ export const DEFAULT_CENTER_RADIUS_MM = 10;
 // first (hole centers before everything else) wins.
 const DEDUPE_MM = 0.3;
 // Grid for free placement with snapping on: the click rounds to this
-// in the face's own frame, measured from the face center.
+// in the face's own frame, measured from the face center. The default
+// only: the Holes tab passes the Grid setting (uiPrefs.js's
+// getGridSnap(), whose default this is), and 0 there — Off — places a
+// hole exactly where the click lands.
 export const FREE_GRID_MM = 0.5;
 // A click sliding onto the circle rounds to this many degrees around it.
 const CIRCLE_STEP_DEG = 1;
@@ -440,8 +443,9 @@ export function nearestCandidate(face, point, maxDistance) {
 
 // The guide nearest to `point` within `maxDistance`, with `point` moved
 // onto it — along a line rounded to the grid (measured from the line's
-// closest point to the face center, so the center stays on the grid),
-// around the circle rounded to whole degrees — or null.
+// closest point to the face center, so the center stays on the grid; a
+// grid of 0 is Off, no rounding), around the circle rounded to whole
+// degrees — or null.
 export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
   const p = project(point, face.center, face.u, face.v);
   let best = null;
@@ -474,7 +478,8 @@ export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
     const foot = [a[0] + dir[0] * along, a[1] + dir[1] * along];
     const d = Math.hypot(p[0] - foot[0], p[1] - foot[1]);
     const centerAlong = -(a[0] * dir[0] + a[1] * dir[1]);
-    const snapped = Math.min(Math.max(centerAlong + Math.round((along - centerAlong) / grid) * grid, 0), len);
+    const rounded = grid > 0 ? centerAlong + Math.round((along - centerAlong) / grid) * grid : along;
+    const snapped = Math.min(Math.max(rounded, 0), len);
     const label =
       { center: "on the center line", quarter: "on a quarter line", radial: "on a radial line" }[
         guide.kind
@@ -515,9 +520,11 @@ export function edgeDistances(face, point) {
 }
 
 // `point` rounded to the face's grid, measured from its center and
-// lifted onto its plane — free placement with snapping on.
+// lifted onto its plane — free placement with snapping on. A grid of 0
+// (Off) only lifts it onto the plane, as planePoint() does.
 export function gridPoint(face, point, grid = FREE_GRID_MM) {
   const [pu, pv] = project(point, face.center, face.u, face.v);
+  if (!(grid > 0)) return unproject([pu, pv], face);
   return unproject([Math.round(pu / grid) * grid, Math.round(pv / grid) * grid], face);
 }
 

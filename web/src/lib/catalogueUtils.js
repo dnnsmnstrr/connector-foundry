@@ -56,6 +56,20 @@ export function listedParts(parts, hidden) {
   return parts.filter((p) => !p.hidden && !systems.has(p.system) && !ids.has(p.id));
 }
 
+// A part picker's list (the Bench's and Holes' palette pages): the parts
+// listedParts() keeps, under their systems in the order Settings saved —
+// the same groups, in the same order, as PartBrowser's.
+/**
+ * @param {any[]} parts
+ * @param {{ systems?: string[], parts?: string[] } | null} hidden
+ * @param {string[] | null} savedOrder
+ * @returns {Map<string, any[]>}
+ */
+export function partSections(parts, hidden, savedOrder) {
+  const listed = listedParts(parts, hidden);
+  return groupBySystem(listed, resolveSystemOrder(listed, savedOrder));
+}
+
 // A part id as a filename stem — gridfinity/base -> gridfinity_base, the
 // same as cli/foundry.py's slug(), so a browser download and a CLI
 // render of the same part get the same name.

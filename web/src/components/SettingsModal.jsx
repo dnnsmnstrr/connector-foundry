@@ -1,25 +1,26 @@
 import { useMemo, useRef, useState } from "react";
+import { useGridSnap } from "../hooks/useGridSnap.js";
 import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
 import { groupBySystem, resolveSystemOrder } from "../lib/catalogueUtils.js";
-import { downloadBlob } from "../lib/download.js";
-import { getHolesSession } from "../lib/holesSession.js";
+import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "../lib/settingsBackup.js";
 import {
-  SETTINGS_EXTENSION,
-  applySettings,
-  exportSettings,
-  parseSettings,
-  settingsToJson,
-} from "../lib/settingsBackup.js";
-import {
+  GRID_SNAP_DEFAULT,
+  GRID_SNAP_OPTIONS,
   getBenchFollowsLibrary,
   getSystemOrder,
   setBenchFollowsLibrary,
+  setGridSnap,
   setHiddenLibrary,
   setPartHidden,
   setSystemHidden,
   setSystemOrder,
 } from "../lib/uiPrefs.js";
-import { clearGlobalOverrides, getGlobalOverrides, updateGlobalOverrides } from "../lib/userOverrides.js";
+import {
+  clearGlobalOverrides,
+  getGlobalOverrides,
+  setCircleDetail,
+  updateGlobalOverrides,
+} from "../lib/userOverrides.js";
 import DecimalInput from "./DecimalInput.jsx";
 import InfoTip from "./InfoTip.jsx";
 import Modal from "./Modal.jsx";
@@ -42,6 +43,9 @@ import Modal from "./Modal.jsx";
 export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
+  // Read live, not copied into state: the viewer's Grid select sets the
+  // same value, and the two must never disagree.
+  const gridSnap = useGridSnap();
   // string[] | null; null is catalogue order. The list shown (and moved)
   // is always the resolved full permutation, so a system the saved order
   // predates still has a row.
@@ -71,12 +75,11 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
 
   // Circle detail (lib/constants.scad's CIRCLE_DETAIL): "normal" is the
   // catalogue default, so picking it clears the override rather than
-  // saving the default as one.
+  // saving the default as one (userOverrides.js's setCircleDetail()).
   const detailDefault = globalDefaults?.CIRCLE_DETAIL ?? "normal";
   const detail = saved.CIRCLE_DETAIL ?? detailDefault;
   function applyDetail(value) {
-    if (value === detailDefault) clearGlobalOverrides(["CIRCLE_DETAIL"]);
-    else updateGlobalOverrides({ CIRCLE_DETAIL: value });
+    setCircleDetail(value, detailDefault);
     setSaved(getGlobalOverrides());
   }
 
@@ -107,38 +110,16 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
   const [backupError, setBackupError] = useState(null);
 
   function exportAll() {
-    setBackupError(null);
-    let doc;
-    try {
-      doc = exportSettings();
-    } catch {
-      setBackupError("This browser isn't letting the app read its storage, so there is nothing to export.");
-      return;
-    }
-    const date = doc.exportedAt.slice(0, 10);
-    downloadBlob(settingsToJson(doc), `connector-foundry-${date}${SETTINGS_EXTENSION}`, "application/json");
+    setBackupError(downloadSettings());
   }
 
-  // Applying means a reload (see settingsBackup.js). The bench survives
-  // it — it lives in the URL — but a Holes document only in memory.
+  // Applying means a reload (settingsBackup.js's importSettingsFile()).
   async function importAll(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     setBackupError(null);
-    let entries;
-    try {
-      entries = parseSettings(await file.text());
-    } catch (err) {
-      setBackupError(`Couldn't import "${file.name}": ${err.message}`);
-      return;
-    }
-    const holesWarning = getHolesSession().doc ? " The Holes tab starts over." : "";
-    const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.${holesWarning}`;
-    if (!window.confirm(question)) return;
-    const problem = applySettings(entries);
-    if (problem) setBackupError(problem);
-    else window.location.reload();
+    setBackupError(await importSettingsFile(file));
   }
 
   return (
@@ -193,6 +174,36 @@ export default function SettingsModal({ parts, globalDefaults, onClose }) {
           <option value="draft">Draft</option>
           <option value="normal">Normal</option>
           <option value="fine">Fine</option>
+        </select>
+      </label>
+
+      <h4 className="settings-section">Editing</h4>
+      <label className="field has-info-tip">
+        <span className="field-label">
+          {gridSnap !== GRID_SNAP_DEFAULT && (
+            <span
+              className="field-differs"
+              role="img"
+              aria-label={`Differs from the default ${GRID_SNAP_DEFAULT} mm`}
+              title={`Default: ${GRID_SNAP_DEFAULT} mm`}
+            />
+          )}
+          Grid
+          <InfoTip
+            label="About the grid"
+            text="The step a length snaps to as you drag its resize handle or press an arrow key on it (counts, like Gridfinity units, keep their own steps), and the grid holes snap to when you place them (hold Shift to place one freely). The Grid menu in the 3D view sets the same value."
+          />
+        </span>
+        <select
+          aria-label="Grid"
+          value={String(gridSnap)}
+          onChange={(e) => setGridSnap(Number(e.target.value))}
+        >
+          {GRID_SNAP_OPTIONS.map((mm) => (
+            <option key={mm} value={String(mm)}>
+              {mm === 0 ? "Off" : `${mm} mm`}
+            </option>
+          ))}
         </select>
       </label>
 

@@ -9,6 +9,8 @@ on:
       - "parts/**"
       - "assemblies/**"
       - "catalogue.yaml"
+      # The gallery renders are the command palette's part thumbnails.
+      - "docs/img/**"
       - "vendor/**"
       - ".github/workflows/deploy-web.yml"
   workflow_dispatch:

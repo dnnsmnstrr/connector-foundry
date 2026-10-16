@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { memo, useId, useMemo, useState } from "react";
 import { presetGroups } from "../../lib/screwPresets.js";
 import { getPresetGroupsOpen, setPresetGroupOpen } from "../../lib/uiPrefs.js";
 import ScrewIcon from "./ScrewIcon.jsx";
@@ -14,8 +14,13 @@ import ScrewIcon from "./ScrewIcon.jsx";
 // it. Closed by default, except the group holding the preset in effect;
 // a group opened or closed by hand stays that way (uiPrefs.js). While
 // searching, every group with a match shows open.
+//
+// Memoised (the export below): an open group is a grid of SVG icons, and
+// the Holes tab re-renders on every snap change under the pointer; with
+// an `onPick` that keeps its identity, the grid re-renders only when the
+// preset in effect does.
 /** @param {{ value: string | null, onPick: (preset: any) => void }} props */
-export default function PresetPicker({ value, onPick }) {
+function PresetPicker({ value, onPick }) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [openByHand, setOpenByHand] = useState(getPresetGroupsOpen);
@@ -101,6 +106,8 @@ export default function PresetPicker({ value, onPick }) {
     </div>
   );
 }
+
+export default memo(PresetPicker);
 
 // Every word somewhere in the preset's name, short label or group.
 function matches(preset, group, words) {

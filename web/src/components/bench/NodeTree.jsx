@@ -20,7 +20,8 @@ import RotationInput from "../RotationInput.jsx";
 // Clicking the part's name selects it — the same selection a click on
 // the part in the scene makes (`selectedId`), so the row lights up when
 // the part is picked either way, and the scene's floating ↺/↻ buttons
-// and the outline follow. The "Rotation (°)" field is the exact-value
+// and the outline follow; a click in the scene also opens this row's
+// "Parameters" and scrolls to it. The "Rotation (°)" field is the exact-value
 // twin of those buttons: type any angle, or step by 90 with the arrows.
 // "Offset" moves the part along the mating axis, "Shift X / Y" across
 // it (assembly.js's `overlap` and `shift`).
@@ -135,7 +136,9 @@ export default function NodeTree({
         />
         <span className="field-label">Crop others to this outline</span>
       </label>
-      <details className="bench-node-params-details">
+      {/* data-node-params: how a selection in the scene finds this
+          node's parameters to open them (Bench.jsx's revealParams()). */}
+      <details className="bench-node-params-details" data-node-params={nodeId}>
         <summary>Parameters</summary>
         <ParamsEditor
           className="bench-node-params"

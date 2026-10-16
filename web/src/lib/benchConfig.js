@@ -324,6 +324,14 @@ function checkParams(params, where) {
   }
 }
 
+// The same check without the message, for other documents that carry a
+// parameter set (a user's own command, userCommands.js).
+/** @param {unknown} params */
+export function isParamSet(params) {
+  if (!isObject(params)) return false;
+  return Object.entries(params).every(([key, value]) => PARAM_NAME.test(key) && isParamValue(value));
+}
+
 function isParamValue(v) {
   if (typeof v === "string" || typeof v === "boolean" || v === null) return true;
   if (typeof v === "number") return Number.isFinite(v);

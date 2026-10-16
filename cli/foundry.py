@@ -344,7 +344,8 @@ def check_options(part: dict, params: dict[str, object]) -> None:
 def check_minimums(part: dict, params: dict[str, object]) -> None:
     """Reject a number under a parameter's declared minimum (or over its
     maximum), before OpenSCAD's own assertion turns it into a failed
-    render."""
+    render. A `resize` entry's min/max are deliberately not checked: they
+    bound the web app's resize handles alone (catalogue.yaml's header)."""
     for key, floor in part.get("minimums", {}).items():
         value = params.get(key)
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value < floor:
