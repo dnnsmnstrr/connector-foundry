@@ -2088,8 +2088,23 @@ a.mode-tab {
   overflow: hidden;
 }
 
+/* The shade fades in rather than snapping on with the panel. The global
+   reduced-motion rule above doesn't reach ::backdrop, so it opts out here. */
 .command-palette::backdrop {
   background: rgba(0, 0, 0, 0.3);
+  animation: command-palette-shade 180ms ease-out;
+}
+
+@keyframes command-palette-shade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-palette::backdrop {
+    animation: none;
+  }
 }
 
 /* The attach picker sits at the window's right, clear of the model in the
