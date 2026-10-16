@@ -8,9 +8,11 @@ single part as STL, or compose several in the browser and export the result.
 Three ways to get a part from the same `.scad` sources:
 
 - **Browser app** (`web/`) — pick a part, set parameters, preview, export STL; combine parts on the
-  Bench. Runs entirely client-side via `openscad-wasm`. The primary way to use this. The 3D view's
-  **Helpers** button (or `H`) hides the grid, slot markers, hole outlines and guides to show just
-  the model.
+  Bench. Runs entirely client-side via `openscad-wasm`. The primary way to use this. As in
+  TinkerCAD, the selected part has square handles to drag to a new size, or click to type one
+  (on the Bench, the base part; in the Holes tab, a cutout); Cmd/Ctrl+Z undoes in every tab, and
+  `?` lists every shortcut. The 3D view's **Helpers** button (or `H`) hides the grid, slot
+  markers, hole outlines, guides and handles to show just the model.
 - **CLI** (`cli/foundry.py`) — `foundry render gridfinity/base --gx 2 --magnets -o out/`
 - **OpenSCAD** — open anything under `parts/` or `assemblies/` in the GUI.
 
@@ -100,14 +102,14 @@ and screwed. What each one is, and what it exports: [docs/JOINTS.md](docs/JOINTS
 ## Bench
 
 The web app's Bench tab is a visual editor: pick a base part, click a slot marker, attach a part
-with a joint, repeat. Its controls, STL/STEP/3MF import, export naming, configs and presets:
-[docs/BENCH.md](docs/BENCH.md).
+with a joint, repeat. Its controls, resizing the base part, undo, STL/STEP/3MF import, export
+naming, configs and presets: [docs/BENCH.md](docs/BENCH.md).
 
 ## Holes
 
 The web app's Holes tab puts screw holes, connector slots and cutouts into a model: a catalogue
-part, a mesh of your own or the bench as it stands. The snap points, every preset group and the
-print options: [docs/HOLES.md](docs/HOLES.md).
+part, a mesh of your own or the bench as it stands. The snap points, resizing and moving holes,
+every preset group and the print options: [docs/HOLES.md](docs/HOLES.md).
 
 ## Catalogue
 

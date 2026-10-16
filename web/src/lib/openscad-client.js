@@ -94,6 +94,60 @@ function getWorker() {
   return worker;
 }
 
+// Warm-up. A fresh worker has to load its 13.8 MB script, fetch and
+// decode the source bundle and compile the WebAssembly module before it
+// can render. Measured in headless Chromium (dev server; a plate and a
+// 2 x 2 Gridfinity base): a render posted to a fresh worker took
+// 1040-1210 ms, the same render posted to one that had finished warming
+// 495-600 ms, and the warm-up itself about 600 ms of the worker's time
+// (none of the page's). An idle warmed worker holds a little less memory
+// than the worker every session that has rendered already keeps (in
+// Node, about 170 MB against 199 MB). So a fresh worker is started and
+// sent `{ type: "warm" }` (the worker's warmOnce()) when none exists
+// and nothing is pending:
+// - once, after the app's first paint (main.jsx calls warmRenderer()),
+//   for a landing on the Bench or Holes, whose first render waits for a
+//   pick;
+// - after a stop that interrupted a render: one the user moved past (an
+//   abort) or one that ran out of time (warmAfterStop()). The next
+//   edit's render usually follows a debounce later, which the warm-up
+//   fills: 100-400 ms of idle saved 80-430 ms of that render. One posted
+//   with no gap (a drag commit) costs nothing measurable, since
+//   warmOnce() leaves the instance to a render already waiting.
+// Never after fail(): a worker that cannot load at all (an old tab's
+// hashed worker file gone after a deploy, a CSP block, offline) would
+// respawn in a loop. Never after cancelRenders(): the user asked for the
+// work to stop. A warm-up is not a job: it has no id, no deadline and no
+// entry in inFlight, so getRenderActivity() never counts it; a render
+// posted behind it waits in the worker's own queue, its 2-minute deadline
+// running from when it was posted, as for any render.
+/**
+ * Starts a render worker and has it load what a render needs, so the
+ * first render does not wait for that. Does nothing when a worker exists
+ * or a render is pending, so a second call is harmless.
+ */
+export function warmRenderer() {
+  if (worker || pending.size > 0) return;
+  try {
+    getWorker().postMessage({ type: "warm" });
+  } catch {
+    // The Worker could not be constructed or messaged. Drop it: the next
+    // render creates one as it always has, and reports the failure.
+    stopWorker();
+  }
+}
+
+// One warm-up attempt per stop, deferred to a microtask so it sees the
+// state after the whole synchronous pass that stopped the worker: an
+// effect cleanup that aborts the Bench's active render and the ones
+// queued behind it together, or a caller that requests its next render
+// at once. A job still pending then gets the fresh worker from pump()
+// (queued earlier by finish(), so it runs first), and warmRenderer()
+// finds that worker and does nothing.
+function warmAfterStop() {
+  queueMicrotask(warmRenderer);
+}
+
 function pump() {
   if (active || pending.size === 0) return;
   const job = pending.values().next().value;
@@ -104,6 +158,7 @@ function pump() {
       job,
       new Error("OpenSCAD render timed out after 2 minutes. Try simpler parameters or render again."),
     );
+    warmAfterStop();
   }, RENDER_TIMEOUT_MS);
   try {
     // Clone imported buffers: exports and later previews still need them.
@@ -267,8 +322,10 @@ export function renderPart(request, { signal } = {}) {
       job.consumers.delete(consumer);
       reject(abortError());
       if (job.consumers.size === 0) {
-        if (active === job) stopWorker();
+        const interrupted = active === job;
+        if (interrupted) stopWorker();
         finish(job, abortError());
+        if (interrupted) warmAfterStop();
       }
     }
     job.consumers.add(consumer);

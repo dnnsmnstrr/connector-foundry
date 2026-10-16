@@ -233,3 +233,114 @@ export function setPresetGroupOpen(group, open) {
   }
   return next;
 }
+
+// --- Grid ---------------------------------------------------------------
+// The grid that handle drags, arrow-key handle steps and Holes
+// placements snap to, in mm (TinkerCAD's "Snap Grid", same values); 0 is
+// Off. One value for every tab: it is how coarsely the user wants to
+// work, not a property of a part. The default is 0.5 mm, the Holes tab's
+// free-placement grid before this setting existed (snapCandidates.js's
+// FREE_GRID_MM); TinkerCAD's is 1 mm, but that would change where every
+// existing user's next hole lands. Stored only when not the default; a
+// stored value that is not one of the options reads as the default.
+const GRID_SNAP_KEY = "connector-foundry.gridSnap";
+export const GRID_SNAP_OPTIONS = Object.freeze([0, 0.1, 0.25, 0.5, 1, 2, 5]);
+export const GRID_SNAP_DEFAULT = 0.5;
+
+let gridSnap = null;
+const gridSnapListeners = new Set();
+
+function readGridSnap() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem(GRID_SNAP_KEY);
+  } catch {
+    // best-effort — see header comment
+  }
+  if (stored === null) return GRID_SNAP_DEFAULT;
+  const n = Number(stored);
+  return stored.trim() !== "" && GRID_SNAP_OPTIONS.includes(n) ? n : GRID_SNAP_DEFAULT;
+}
+
+/** @returns {number} mm, 0 for Off */
+export function getGridSnap() {
+  if (gridSnap === null) gridSnap = readGridSnap();
+  return gridSnap;
+}
+
+/** @param {number} mm one of GRID_SNAP_OPTIONS; anything else is ignored */
+export function setGridSnap(mm) {
+  const next = Number(mm);
+  if (!GRID_SNAP_OPTIONS.includes(next)) return;
+  // Read (and cache) the current value before writing: a first read after
+  // the write would find the new value already there and never notify.
+  const previous = getGridSnap();
+  try {
+    if (next === GRID_SNAP_DEFAULT) localStorage.removeItem(GRID_SNAP_KEY);
+    else localStorage.setItem(GRID_SNAP_KEY, String(next));
+  } catch {
+    // best-effort — see header comment; the in-memory value still updates
+  }
+  if (next === previous) return;
+  gridSnap = next;
+  for (const listener of gridSnapListeners) listener();
+}
+
+// For useSyncExternalStore (hooks/useGridSnap.js): the viewer's Grid
+// select and the Settings row stay in step. Returns the unsubscribe.
+export function subscribeGridSnap(listener) {
+  gridSnapListeners.add(listener);
+  return () => gridSnapListeners.delete(listener);
+}
+
+// --- Command palette recents ----------------------------------------------
+// The commands run from the palette (components/CommandPalette.jsx), newest
+// first: they head its list on an empty query and win near-ties when
+// something is typed (commands.js's rankCommands()). Only ids are kept —
+// compared, never interpreted — so the check on the way in is that each is
+// a short string without control characters; an id that names no command
+// any more is simply never matched. Capped, so a long session can't grow
+// the stored list without bound.
+const COMMAND_RECENTS_KEY = "connector-foundry.commandRecents";
+export const COMMAND_RECENTS_MAX = 30;
+const COMMAND_ID_MAX = 200;
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
+/** @type {readonly string[] | null} */
+let commandRecents = null;
+
+/** @param {unknown} id */
+function isCommandId(id) {
+  return typeof id === "string" && id.length > 0 && id.length <= COMMAND_ID_MAX && !CONTROL_CHARS.test(id);
+}
+
+function readCommandRecents() {
+  let parsed;
+  try {
+    parsed = JSON.parse(localStorage.getItem(COMMAND_RECENTS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return Object.freeze([...new Set(parsed.filter(isCommandId))].slice(0, COMMAND_RECENTS_MAX));
+}
+
+/** @returns {readonly string[]} command ids, newest first */
+export function getCommandRecents() {
+  if (commandRecents === null) commandRecents = readCommandRecents();
+  return commandRecents;
+}
+
+/** @param {string} id moved (or added) to the front */
+export function recordCommandRecent(id) {
+  if (!isCommandId(id)) return;
+  commandRecents = Object.freeze(
+    [id, ...getCommandRecents().filter((r) => r !== id)].slice(0, COMMAND_RECENTS_MAX),
+  );
+  try {
+    localStorage.setItem(COMMAND_RECENTS_KEY, JSON.stringify(commandRecents));
+  } catch {
+    // best-effort — see header comment; this session still remembers
+  }
+}

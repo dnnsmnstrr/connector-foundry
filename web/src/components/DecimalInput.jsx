@@ -137,6 +137,11 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
         aria-valuemin={/** @type {number} */ (min)}
         aria-valuemax={/** @type {number} */ (max)}
         value={draft ?? (isNumber ? String(value) : "")}
+        // No draft: the text is the app's (a step, the wheel, the arrow
+        // buttons, a value from outside), which leaves the browser no
+        // typing to undo, so Cmd/Ctrl+Z goes to the tab's history
+        // (lib/isEditableTarget.js's ignoresUndoShortcut()).
+        data-native-undo={draft === null ? "false" : undefined}
         onChange={(e) => {
           setDraft(e.target.value);
           const parsed = parseDecimal(e.target.value);

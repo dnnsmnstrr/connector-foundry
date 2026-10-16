@@ -765,6 +765,30 @@ export function holeFootprintRadius(spec) {
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
 
+// A face this far below a hole's opening, turned its way, is a floor in it.
+const FLOOR_BELOW_MM = 0.01;
+
+/**
+ * Whether a click that resolved to `point`, on a face with outward
+ * `normal`, is on this hole — the Holes tab then selects it rather than
+ * drilling another there: within its footprint radius of its point (1 mm
+ * at least). Except on the floor of a plain cutout's pocket — a face
+ * turned the hole's way, below its opening — which is a surface to drill
+ * into (a screw hole at the bottom of a nut recess): the footprint covers
+ * most of a pocket's floor, so it could never take a hole. A screw's own
+ * counterbore floor still picks the screw.
+ * @param {{ point: number[], normal: number[], spec: any }} hole
+ * @param {number[]} point
+ * @param {number[]} [normal]
+ */
+export function holeAtSpot(hole, point, normal) {
+  if (distance(hole.point, point) >= Math.max(1, holeFootprintRadius(hole.spec))) return false;
+  if (!normal || (hole.spec.kind !== "rectangle" && hole.spec.kind !== "cylinder")) return true;
+  const n = unit(hole.normal);
+  const below = -dot([point[0] - hole.point[0], point[1] - hole.point[1], point[2] - hole.point[2]], n);
+  return !(dot(unit(normal), n) > 0.999 && below > FLOOR_BELOW_MM);
+}
+
 // --- codegen -----------------------------------------------------------
 
 // `throughLength`: how deep a "through" hole reaches — anything past the
@@ -901,6 +925,14 @@ export function holeLabel(hole, presetName = null) {
   if (s.head === "countersink") parts.push(`countersink Ø${fmt(s.headDiameter)} ${fmt(s.sinkAngle)}°`);
   if (s.head === "hex") parts.push(`hex pocket ${fmt(s.headDiameter)}×${fmt(s.headDepth)}`);
   return parts.join(" ");
+}
+
+// "12.0, -3.5, 4.0" — a hole's position for the sidebar (which puts it in
+// brackets), to a tenth of a millimetre, with -0 shown as 0 (a snapped
+// coordinate can come out as a negative zero).
+/** @param {number[]} point */
+export function formatPoint(point) {
+  return point.map((n) => (Math.round(n * 10) / 10 || 0).toFixed(1)).join(", ");
 }
 
 // The one-line summary under a hole's name in the list: how deep a

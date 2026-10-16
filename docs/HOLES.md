@@ -4,7 +4,10 @@ The web app's Holes tab: where a hole snaps, every preset it cuts, and the print
 
 The web app's Holes tab puts screw holes into a model. For custom Gridfinity storage, start from
 `gridfinity/bin` with `filled` on: a bin solid up to its stacking lip, whose flat top takes any
-cavity cut below — a tool's outline from rounded rectangles, magnet pockets, a 2020 socket. Start from a catalogue part (its
+cavity cut below — a tool's outline from rounded rectangles, magnet pockets, a 2020 socket. Start —
+in the picker that floats over the empty tab, the command palette's list (`Esc` puts it away,
+Cmd/Ctrl+K brings it back; a model file dropped on it or on the empty tab is imported) — from a
+catalogue part (its
 parameters stay editable under a toggle in the sidebar while you work), a mesh of your own (STL, STEP or 3MF), or the
 bench as it stands, then click a face: the
 hole snaps to that face's significant points — its center, the center of each quadrant, the
@@ -27,13 +30,41 @@ pin hole** — a beam's own hole (Ø4.8 with the groove a pin's tip clicks into,
 checked against bitbeam-lib's beam), one beam (8 mm) deep with a groove at its bottom too, or through. Clearances are ISO 273 medium;
 treat every one as a starting point for your printer and measure the first print. The presets are
 grouped by kind under headings that open and close (closed but for the group of the preset in use,
-and remembered), with a search box over them that matches names and groups. A selected hole
+and remembered), with a search box over them that matches names and groups; the command palette
+(Cmd/Ctrl+K) finds them too — "m4 counter" and `Enter` — and so does its "Hole type…". A selected hole
 can be edited on its own, and whatever screw was picked or edited last is what the next holes get.
 Shift-click holes — in the list, or their rings in the scene — to select several: the editor then
 shows the values they share (the rest say "mixed" until you set them) and a change applies to all
 of them, a preset picked makes them all that kind, the quarter-turn buttons turn each slot from
 its own direction, and Delete removes them all. Shift-click on a bare face still places a hole
 exactly where you click.
+
+**Resizing and moving a hole.** Select one hole and it gets handles in the viewer, as in
+TinkerCAD. A round or rectangular cutout — the Generic shapes and the presets that cut one (USB
+ports, memory cards, Skådis and MOLLE slots, disc-magnet and bearing pockets) — has small square
+handles: drag an edge to resize it, and the opposite edge stays where it is; drag a rectangle's
+corner to change its width and height together; hold Option (Alt) to resize from the centre
+instead. Click an edge's handle (or Tab to it and press Enter) to type the size in mm (a corner
+only drags); with a handle focused, the arrow keys grow or shrink it a Grid step at a time
+(0.1 mm with the Grid off; Shift: ten steps). `Esc` cancels a drag. A resized hole is also what
+the next click drills, as an edit in the sidebar is. Screws and connector slots keep their
+hardware's size; every hole, those too, has a round handle in its middle: drag it to move the
+hole across its face, in whole Grid steps from where it was (Shift: freely). A spot off the face says "Off the face", and the hole
+stays. A cutout may still hang over the face's edge to notch it — only its centre has to stay on
+the face. The arrow keys nudge the selected holes along their face by one Grid step (Shift: ten),
+and refuse, with a note, a step that would take one off it.
+
+The **Grid** — in the viewer's toolbar, the sidebar's Snapping section and Settings → Editing,
+all one setting — is what those steps and sizes snap to, and where a click away from the snap
+points lands: 0.5 mm unless you change it (0.1 to 5 mm); Off places, drags and sizes exactly
+(an arrow key then nudges 0.5 mm).
+
+**Undo.** Cmd+Z (Ctrl+Z on Windows and Linux) undoes any change — a hole drilled, resized, moved
+or deleted, a field typed (one step per field), a Repeat, a new model and "Pick another model"
+too — and Shift+Cmd+Z (Shift+Ctrl+Z or Ctrl+Y) redoes; so do the Undo and Redo buttons in the
+viewer's toolbar, which say what they would undo. After "Pick another model" the start picker
+offers Undo, and Cmd/Ctrl+Z works in its search straight away. The history keeps the last 100 steps and
+lasts until the page reloads, through switches to the other tabs. `?` lists every shortcut.
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally

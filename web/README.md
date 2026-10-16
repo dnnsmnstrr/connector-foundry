@@ -11,7 +11,10 @@ running in a Web Worker.
    parts reach into — `lib`, `parts`, `assemblies` (`ROOT_DIRS` in `scripts/sync-scad.mjs`), plus
    whatever those `include`/`use`, followed transitively into the vendored upstreams — into
    `public/scad-bundle.json`,
-   and parses `catalogue.yaml` into `public/catalogue.json`. This is the only "build step" that touches the
+   and parses `catalogue.yaml` into `public/catalogue.json`. It also copies each part's gallery render
+   (`docs/img/`, made by `foundry preview`) into `public/thumbnails/` for the command palette's
+   part rows, and gives that part a `thumbnail` path in `catalogue.json` — a field the build
+   derives, not a `catalogue.yaml` field, so the CLI and the schema test never see it. This is the only "build step" that touches the
    OpenSCAD sources — the app never transpiles or reimplements them.
    An included file that does not exist (a submodule that was never checked out) fails the
    sync — and so `dev`, `build` and CI — naming the files, since the symptom in the browser is
@@ -48,6 +51,30 @@ is reused across them (`scripts/vite-plugin-openscad-wasm-memo.mjs` — the pack
 decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). See the
 worker's header comment for the full story.
 
+**Warm-up.** A fresh worker has to load its 13.8 MB script, fetch and decode the source bundle
+and compile the WebAssembly module before it can render anything: in headless Chromium a render
+posted to a fresh worker took 1040–1210 ms, the same render posted to a warmed one 495–600 ms.
+So `openscad-client.js`'s `warmRenderer()` starts a worker and sends it `{ type: "warm" }` when
+none exists and nothing is pending — once at boot (`main.jsx`, through `requestIdleCallback`
+after the first paint, or a 1.5 s timeout where there is none, i.e. Safari; not from a
+component, where StrictMode would run it twice, and not at import, which would leak a timer into
+every unit test), and again after a stop that interrupted a render: an abort of the active job
+that nobody needs any more, or the two-minute timeout. That second warm-up is queued as a
+microtask, so a job still waiting gets the fresh worker from `pump()` first and the warm-up then
+finds a worker and does nothing; through the real client, 100–1000 ms of idle after an abort
+saved 119–545 ms of the next render, and one posted with no gap (a handle commit) costs nothing
+measurable. Never after a worker failure (`fail()`: a worker that cannot load at all — an old
+tab's hashed worker file gone after a deploy, a CSP block — would respawn in a loop) and never
+after **Cancel renders**. The worker takes the warm message through the same FIFO as renders,
+since two `createOpenSCAD()` calls at once corrupt shared state; `warmOnce()` loads the bundle,
+creates and drops one instance (no `callMain`: a warm-up that ran `cube(1)` did not speed up the
+next render) unless a render is already waiting for it, swallows every error, and answers
+nothing. A warm-up is not a job — no id, no deadline, not in `inFlight` — so
+`getRenderActivity()` never counts it, and the fake Workers in the unit and browser tests never
+answer it (the unit tests' one keeps it apart from the renders, to count it).
+An idle warmed worker holds a little less memory than the one every session that has rendered
+keeps anyway (in Node, about 170 MB against 199 MB).
+
 **Known limit — nesting depth.** This `openscad-wasm` build runs out of thread stack about 70
 nested module levels down: a chain of 69 BOSL2 attachables renders, 70 traps, with the symptom
 varying by what the overflow lands on (`memory access out of bounds`, `table index out of bounds`,
@@ -73,32 +100,50 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 
 | Module | What |
 | --- | --- |
-| `src/App.jsx` | Shell: nav, mode switch, Settings, the shared sidebar preference, the render-in-progress indicator |
-| `src/hooks/useRenderActivity.js` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map) |
+| `src/App.jsx` | Shell: nav, mode switch, Settings, the keyboard-shortcuts sheet, the command palette and the shell's commands, the shared sidebar preference (its width written onto the layout by `ShellBody`) |
+| `src/lib/commands.js` | The command palette's model, pure and Node-tested: what a command and a page are, the registry every source adds a getter to (`createCommandRegistry()`, the app's `commandRegistry`), and the ranking — word by word, prefix > initials ("oib") > word start > substring > scattered letters, the title over keywords, an exact alias first, recent commands only breaking ties (`rankCommands()`, `browseSections()`, `matchRanges()`) |
+| `src/lib/commandCatalog.js` | The built-in commands' titles, sections, search keywords and key hints, as data (`BUILTIN_COMMANDS`; `builtin(id, binding)` binds behaviour to an id and tsc checks the id), the section order, `partCommand()` for a part's row, the repository and Layerling links and `linkActions()` (open, copy); a unit test holds every key hint to a row of the shortcuts sheet |
+| `src/lib/commandHud.js` | "Link copied" and the like: one short message at a time, shown for a moment by App's `CommandHud` (a polite live region) after the palette has closed |
+| `src/components/CommandPalette.jsx` | The palette (Mod+K) and the Bench's and Holes' part pickers: a native `<dialog>` near the top of the window, its search, sections, key hints, nested pages and an Actions page per command (see the Shell section) |
+| `src/hooks/useCommands.js` | `useCommands(source, build)`: a component offers commands while mounted, its latest `build` called only when an open palette collects; `useCommandHome()`, what Mod+K opens on an empty tab (its own picker); `usePaletteShortcut()`, the Mod+K listener |
+| `src/lib/hotkeys.js` | User hotkeys: `parseChord()` (Mod plus Shift or Alt plus a letter or digit), `chordOf()` a keydown (falling back to `e.code` where Option or Shift changes `e.key`), and `hotkeyProblem()` against the app's, the desktop menu's and the browser's chords (`RESERVED_CHORDS`) |
+| `src/lib/userCommands.js`, `hooks/useUserCommands.js` | The user's own commands and their aliases and hotkeys for built-in ones — a validated store (`checkUserCommands()`, entry by entry), the action kinds (`ACTION_KINDS`: open a part with parameters in a tab, a bench preset, a hole type, a link, a tab, a built-in command), and the hook that lists them, puts the bindings on the registry and listens for the hotkeys; App.jsx runs each kind. No editor yet (see the Shell section) |
+| `src/hooks/useRenderActivity.js`, `components/RenderActivity.jsx` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map), and the nav's "Rendering…" status and **Cancel renders** button built on it — a component of its own, so a render starting or finishing re-renders those two elements rather than App and the whole active mode |
+| `src/lib/shortcuts.js`, `components/ShortcutsModal.jsx` | The keyboard-shortcuts sheet (`?`): every key, pointer gesture and the mouse/touch map as one table, with each platform's modifier names, checked by a unit test — a change to a key is a change to its row here |
+| `src/lib/isEditableTarget.js` | The shortcut guards: `ignoresShortcut()` for single keys, `undoShortcut()` / `ignoresUndoShortcut()` for Cmd/Ctrl+Z, `pickerUndoKey()` for a part picker's search, `paletteShortcut()` for Mod+K and `ignoresHotkey()` for a user's hotkeys (see the Shell section) |
+| `src/lib/history.js` | The undo/redo engine behind all three tabs: a stack of immutable snapshots, coalescing by key (a run of keystrokes in one field is one step), and a cached state for `useSyncExternalStore` |
+| `src/lib/librarySession.js`, `hooks/useLibraryHistory.js`, `useBenchHistory.js`, `useHolesHistory.js` | The Library's undo history as module state (the Library unmounts on every mode switch; the Bench's and Holes' histories live in their own sessions), and each tab's history state — can undo, can redo, the steps' labels — for its buttons |
+| `src/hooks/useUndoShortcuts.js`, `components/UndoRedoButtons.jsx` | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z and Ctrl+Y for the mounted tab (a part picker's search hands them to its tab itself, see the Shell section); the Undo/Redo icon pair every viewer toolbar and the empty Bench and Holes tabs show, its tooltip naming the step ("Undo resize W (⌘Z)") |
 | `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
 | `src/Library.jsx`, `src/Bench.jsx`, `src/Holes.jsx` | The three modes — see the sections below |
 | `src/hooks/useRender.js` | The preview render all three modes share: give it a key (a memoised object of the inputs, or null for nothing) and a `run(key, signal)`; it debounces, cancels the render for a replaced key through its `AbortSignal`, drops results that land after their key was replaced, and returns `{ result, key, status, error, setError, retry }` — `key` being the request the shown result came from, so a caller can tell a stale mesh from the current one (Library's download button, Holes' surface clicks) |
 | `src/lib/renderError.js` | `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change |
-| `src/components/PartBrowser.jsx` | Search box + grouped part list, used by Library's sidebar and both Bench pickers; headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
+| `src/components/PartBrowser.jsx` | Search box + grouped part list, the Library's sidebar (the Bench's and Holes' pickers are command palette pages built from the same `catalogueUtils.js`'s `partSections()`); headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
-| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `StlViewer.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler |
+| `src/components/StlViewer.jsx` | The three.js viewer every mode uses: the model, markers, guides, labels, the floating overlay, the resize handles and their ghost, the toolbar and the camera — see "3D viewer" below |
+| `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views, Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
+| `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench root): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
+| `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
+| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
-| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction) |
-| `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source) and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
-| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`; BitBeam pin holes cut by `lib/pinhole.scad`; KLIPPT channels cut by `lib/klippt.scad`; DeckMate sockets cut by `lib/deckmate.scad`); the fastener, slot, shape and socket presets; the Repeat form's row / grid / circle patterns (`repeatHole()`, which places only the copies the caller's mesh probe accepts); the face-feature snap points; the live document as module state |
+| `src/lib/benchResize.js` | The Bench root's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, and whether a node's measured extents still belong to its parameters |
+| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction), `HoleRow` (one row of the hole list), `GridField` (the Snapping section's Grid select) |
+| `src/lib/holeHandles.js` | The Holes tab's handles on the selected hole: a cutout resized from the opposite edge (Alt: from the centre), the move handle, the arrow-key nudge, the "still on its face?" check, the selection pill's anchor |
+| `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source), `cachedHoled()` (all of that straight from the render cache, so an undo shows with no render), the surface probe a moved hole is checked against, and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
+| `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`; BitBeam pin holes cut by `lib/pinhole.scad`; KLIPPT channels cut by `lib/klippt.scad`; DeckMate sockets cut by `lib/deckmate.scad`); the fastener, slot, shape and socket presets; the Repeat form's row / grid / circle patterns (`repeatHole()`, which places only the copies the caller's mesh probe accepts); the face-feature snap points; the live document as module state, with its undo history |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
-| `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component), and its mirror in the URL hash + sessionStorage so a reload restores it |
+| `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component) with its undo history, and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root, and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
-| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache on the main thread, OpenSCAD WASM in the worker |
+| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live) |
-| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes, "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
+| `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
+| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
 
 ## Shell (`src/App.jsx`)
 
@@ -108,25 +153,138 @@ screen.
 
 - Keyboard shortcuts: `1`/`2`/`3` switch Library/Bench/Holes, `s` opens Settings, `[` toggles the sidebar,
   `/` jumps to the Library's part search (switching mode and opening the sidebar as needed),
-  `Escape` closes Settings. One `keydown` listener (`App`'s own `useEffect`) handles all of these;
-  `h` (the 3D viewer's "Helpers" button: hide the grid, markers, guides and labels to see just the
-  model) is `StlViewer`'s own, since it is that viewer's state;
+  `?` opens the shortcuts sheet (below), `Escape` closes Settings or the sheet; Mod+K (Cmd on a
+  Mac, Ctrl elsewhere) is the command palette's, through a listener of its own (below). One `keydown`
+  listener (`App`'s own `useEffect`, which ignores key repeats) handles all of these;
+  `h` (the 3D viewer's "Helpers" button: hide the grid, markers, guides, labels and handles to see
+  just the model) and `f` (Fit) are `StlViewer`'s own, since they act on that viewer's state;
   `isEditableTarget()` (`src/lib/isEditableTarget.js`, shared with the Bench's own keys) skips every
   single-key shortcut (not `Escape`, which is expected to work
   from inside a focused field the same way a native `<dialog>` does) whenever the event's target is
   a text input, `<select>`, or anything `contentEditable` — so typing "s" in the search box types
-  an "s", it doesn't open Settings. The Bench's own modals (attach-a-part, STL/STEP import) close on
-  `Escape` too, but that's a second, local listener in `Bench.jsx` — that state is local to Bench,
-  so App doesn't need to reach into it. `src/components/Modal.jsx` is a native `<dialog>` opened
+  an "s", it doesn't open Settings. The Bench's own dialogs (the STL/STEP import, the name asked
+  before an export) close on `Escape` too, but that's a second, local listener in `Bench.jsx` —
+  that state is local to Bench, so App doesn't need to reach into it. `src/components/Modal.jsx` is a native `<dialog>` opened
   with `showModal()`, so the browser also fires its own `cancel` on Escape (routed to the same
   `onClose`), keeps Tab inside the dialog, makes the page behind it inert, and returns focus to
   the opener on close; the `title` prop is what the dialog is `aria-labelledby`.
+- **The shortcuts sheet.** `?` (or Keyboard shortcuts at the top right of Settings, which the
+  sheet replaces, or the command palette) opens "Keyboard shortcuts"
+  (`components/ShortcutsModal.jsx`); `?` again or `Escape` closes it. A search box beside its
+  title has the focus and narrows it to the rows with every word typed — in their text, their keys as
+  shown or by name ("alt" finds ⌥ Option on a Mac), or their section — with
+  `shortcuts.js`'s `filterShortcutSections()`; typed into, `?` is a character there and `Escape`
+  clears the search before it closes the sheet. Everything on it comes from
+  one table, `src/lib/shortcuts.js` — the shell's keys, the Bench's and Holes' selection keys,
+  the viewer's keys and handles, undo, and the mouse, trackpad and touch map — so a change to
+  any listener is a change to its row there; its unit test checks every token has a label on
+  both platforms and that the main keys are present. "Mod" is Cmd on a Mac and Ctrl elsewhere,
+  decided by the same `isMacPlatform()` the undo keys use, so the sheet never names a key the
+  listener ignores. `?` and `/` share a key on a US layout and are told apart by `e.key`, which
+  is the character typed on every layout. The sheet has no button of its own in the nav: it
+  pushed the Settings gear off a phone's edge while a render ran, and Settings, the palette and
+  the key reach it everywhere.
+  TinkerCAD's own single-letter keys are not copied: `h`, `s` and `m` keep this app's meanings
+  (Helpers, Settings, the Bench's Move).
+- **The command palette** (`components/CommandPalette.jsx`, Mod+K or the nav's Search button).
+  Everything the app does, in one searchable list: the tabs, Settings and its quick settings
+  (Grid step, Circle detail), help and links, every part (search-only: typed, not listed), and
+  whatever the mounted tab and its 3D view offer — the Library's downloads, the Bench's attach,
+  move, crop and exports, the Holes tab's 78 hole types, the views. Each source offers its own
+  through `hooks/useCommands.js` where its state lives, so a command's closures are that
+  component's current handlers and a tab that isn't mounted has none; the getter runs only when
+  an open palette collects, never on a render. Built-in commands take their title, section,
+  keywords and key hint from `lib/commandCatalog.js` by id, so the hints are held to the
+  shortcuts sheet by a unit test. What is typed is ranked by `lib/commands.js` (every word must
+  match; prefix, then initials — "oib" is Open in Bench — then word starts, substrings and
+  scattered letters; an exact alias first); with nothing typed, the last commands run come first
+  (`uiPrefs.js`'s recents, kept across reloads), then the sections in `SECTION_ORDER`. Keys:
+  ↑/↓ (⌃N/⌃P on a Mac), Enter runs, Mod+Enter and Alt+Enter run a command's second and third
+  actions (Open in Bench and Add holes, for a part; Copy link, for a link), → at the end of the
+  search lists all of its actions — where the same three keys go by position, whichever action
+  is highlighted — Escape clears the search, then goes back a list, then closes, Backspace on an
+  empty search goes back. A link command (`commandCatalog.js`'s `linkActions()`: the repository,
+  an issue, the desktop app, Layerling, a part's source, a user's link) opens on Enter and copies
+  on Mod+Enter; a command that leaves nothing else to see says what it did for a moment at the
+  foot of the window (`lib/commandHud.js`, "Link copied"). A command with a `page`
+  opens a list of its own (Grid step…, View from…, Hole type…, Attach a part…); the stack holds
+  ids and resolves them again on every render, so it never runs a stale closure.
+  It is a native `<dialog>` with `showModal()`, so every key handler in the tabs already stands
+  aside (`isBehindOpenDialog()`), and it stops each plain key from propagating as the View menu
+  does. Running a command closes it first, in the same event: a file chooser or a new window keeps
+  the user's activation, and whatever the command opens (Settings, the attach picker) mounts in
+  the same commit the palette leaves — never two modal dialogs at once, which matters because
+  `isBehindOpenDialog()` reads the first open one, not the topmost. Mod+K over another dialog
+  does nothing (it is cancelled, so Chrome's Ctrl+K doesn't take it either). Links go through
+  `window.open()`, which the desktop app hands to the system browser.
+  The Bench's and Holes' **part pickers** are palette pages too — "Start a bench", "Drill screw
+  holes" over an empty tab, "Attach to …" over the scene with the joint beside the search — built
+  from `catalogueUtils.js`'s `partSections()` with each part's gallery thumbnail. A start picker
+  opens whenever the tab is empty (first visit, Start over, Pick another model, an undo back to
+  empty, a link to no bench): Escape puts it away *for that session snapshot*, leaving the empty
+  tab with a "Choose a part… ⌘K" button, and Mod+K there reopens it (`useCommandHome()`). It
+  steps aside for the import flow it opens and comes back when that is cancelled. Typed into,
+  its search also ranks the app's commands under "Commands", so an empty tab still reaches the
+  rest of the app; until something is typed, Cmd/Ctrl+Z in it is the tab's undo
+  (`pickerUndoKey()`), so Start over then Cmd+Z brings the bench back at once.
+  **A model file dropped** anywhere on a palette, backdrop included, goes to its root page's
+  `drop` (`hooks/useFileDrop.js`, which also keeps the browser from opening a dropped file in
+  place of the app): the start pickers and the attach picker open their import flow on it
+  (`ImportFlow`'s `initialFile`, read as the flow opens), and the global palette hands it to the
+  mounted tab (`useCommandDrop()`) — the Bench starts a new bench on it, Holes drills into it,
+  each after asking when there is work to lose, and undoably; the Library takes none. The empty
+  Bench and Holes tabs behind the pickers are drop targets too, with an Import button beside
+  "Choose a part…".
+  **User commands** (`lib/userCommands.js`) are the architecture for the user's own: a
+  validated store under `connector-foundry.userCommands` of commands — an action `kind`
+  (`open-part` with parameters and a target tab, `bench-preset`, `hole-preset`, `link`, `view`,
+  `command`), a title, an alias, a hotkey — and of aliases and hotkeys for built-in commands
+  (`bindings`). Every entry is checked on the way in and a bad one dropped with a reason: links
+  http(s) only, parameters names and values the code generator can write, hotkeys Mod+Shift or
+  Mod+Alt (Mod+Shift only off the Mac, where Ctrl+Alt is AltGr) and not reserved or taken
+  (`lib/hotkeys.js`). `hooks/useUserCommands.js` lists them first, under "Your commands", and
+  runs a hotkey as Enter would — outside any dialog, never on AltGr. There is no editor yet: a
+  settings backup carries the key (as a JSON string, since the backup stores raw strings), so a
+  hand-edited `.settings.json` is how they are made for now, e.g.
+  `"connector-foundry.userCommands": "{\"version\":1,\"commands\":[{\"id\":\"bin\",\"title\":\"My bin\",\"hotkey\":\"Mod+Shift+L\",\"action\":{\"kind\":\"open-part\",\"partId\":\"gridfinity/bin\",\"params\":{\"gridx\":2},\"target\":\"library\"}}]}"`.
+  A new kind is a `check` in `ACTION_KINDS` and a runner in App.jsx's `useUserCommands()` call.
+- **Undo and redo.** Each tab has its own history, kept with its state so a tab switch keeps it:
+  `lib/librarySession.js`, `lib/benchSession.js`, `lib/holesSession.js`, all on `lib/history.js`.
+  A step is an immutable snapshot of the value *before* a change (the Library's part and
+  parameters, the bench's tree and imported meshes, the Holes document), so a step costs a
+  reference; meshes are never copied or serialised. A history keeps the last 100 steps
+  (`createHistory()`'s `limit`) and lasts until a reload; only a bench link opened clears one
+  (below). Modes record from event handlers, never inside a `setState` updater, which StrictMode
+  runs twice. A field that reports every keystroke passes a coalescing key (`param:gx`,
+  `params:<node>:<key>`, `spec:<ids>:<field>`, …): records with the same key within a second of
+  each other are one step, and undo, redo and clear forget the key, so typing, undoing and
+  typing again is a fresh step. Cmd+Z (Ctrl+Z off the Mac) undoes,
+  Shift+Cmd/Ctrl+Z and, off the Mac, Ctrl+Y redo — `hooks/useUndoShortcuts.js`, one window
+  listener per mounted tab, matching `e.key` lowercased and never `e.code` (on a German keyboard
+  Z and Y swap places, and the key labelled Z is the one meant). `ignoresUndoShortcut()` leaves
+  the keys to a text field's own undo (`isTextEntry()`: a text-like `<input>`, a `<textarea>`,
+  anything `contentEditable` — not a checkbox or a select, which have no native undo, so Cmd+Z
+  after ticking a parameter undoes the tick) unless the field is marked
+  `data-native-undo="false"`, as a `DecimalInput` is while it shows a value the app put there (a
+  step, the wheel) rather than typing; and to a dialog the event is not inside. Every matched,
+  unignored key is `preventDefault()`ed, also with nothing to undo: in the desktop app the Edit
+  menu's undo role is bound to the same keys, Chromium offers a key to the page before the menu,
+  and a key the page let through goes on to `webContents.undo()`, which can revert typing in a
+  field that has already lost focus. The Bench's and Holes' part pickers focus their search on
+  arrival, after Start over or "Pick another model" too; until something is typed into it,
+  Cmd/Ctrl+Z there is the tab's (the palette's `undo`, `pickerUndoKey()`), so Start over then
+  Cmd+Z brings the bench back at once.
 - **Sidebar width.** The sidebar's right edge is a drag handle (`src/components/SidebarResizer.jsx`,
   a `role="separator"`): drag it, or focus it and use ←/→ (16 px; Shift 64), Home/End; a
-  double-click restores the default. One width for all three modes, kept in `uiPrefs.js`
-  (220–640 px, default 280, stored only when not the default) and put on `.shell-body` as
-  `--sidebar-width`; the grid column and the handle both read it through the same
-  `clamp(220px, var(--sidebar-width), 60%)`, so a width saved on a big window still leaves the
+  double-click restores the default; the keys it handles stop there (`stopPropagation()`), so
+  ←/→ on the focused sidebar edge never also step a selected Bench part to another slot. One
+  width for all three modes, kept in `uiPrefs.js` (220–640 px, default 280, stored only when
+  not the default) and written onto `.shell-body` as
+  `--sidebar-width` by App's `ShellBody` — through a ref (`style.setProperty`, from a store
+  subscription, in a layout effect so the first paint already has it), not React state: a drag
+  changes it on every pointer move, and as App state each of those re-rendered the active mode
+  for a value only the stylesheet reads. The grid column and the handle both read it through the
+  same `clamp(220px, var(--sidebar-width), 60%)`, so a width saved on a big window still leaves the
   workspace 40% of a small one and the handle stays on the edge. The handle is a sibling of the
   `<aside>`, not a child, so it doesn't scroll away with the sidebar's content. The sidebar is a
   size container (`container: sidebar / inline-size`) and its rows are written to reflow on its
@@ -140,8 +298,8 @@ screen.
   the header, the 3D viewer at a fixed viewport fraction (the canvas sizes itself from its mount,
   so it needs a real height), then the parameter form. The `[` shortcut hints and the "Settings"
   word hide; `SidebarToggle` shows text instead of a chevron. A `(pointer: coarse)` block gives
-  every primary control a 44px hit area and skips `PartBrowser`'s `autoFocus` so the keyboard
-  doesn't pop over the list.
+  every primary control a 44px hit area and skips `PartBrowser`'s and the command palette's
+  autofocus so the keyboard doesn't pop over the list; the palette's key hints and footer go.
 - Switching to the Bench goes through one `switchToBench()` (the tab and the `2` shortcut alike).
   With the "Switching to the Bench opens the Library's selected part" setting on (off by default,
   `uiPrefs.js`), it seeds an *empty* Bench with Library's current part and parameters exactly as
@@ -166,13 +324,18 @@ screen.
   rendering either mode (a `restored` gate also holds the mirror back, or it would overwrite the
   hash it's about to read), through the same `hydrateBenchConfig()` a file goes through — checks,
   fresh ids, meshes rebuilt. A link that can't be restored (truncated, or naming a mesh only the
-  original tab had) leaves an empty session carrying a `notice` that the Bench's start screen
+  original tab had) leaves an empty session carrying a `notice` that the Bench's start picker
   shows in place of the config error, pointing at the config export, which does carry the meshes.
   A `hashchange` after that (a bench link pasted into this tab's address bar — a same-document
   navigation, so the app doesn't restart) restores again and switches to the hash's mode;
   `replaceState` never fires `hashchange`, so every such event is external by construction.
-- Settings → "Part list" sets the order of the system headings in every `PartBrowser` (Library
-  sidebar, start-a-bench, attach-to-slot). Default is catalogue order — `catalogue.yaml` is kept
+  Neither restore is an undo step, and both clear the bench's history
+  (`replaceBenchSession(…, { record: false })`, then `clearBenchHistory()`): a link opened is
+  navigation to another bench, and undo would otherwise bring back the previous one and step
+  through edits nobody made to this one. Replacements made inside the app — Open in Bench, a
+  loaded config, Start over — are steps ("Undo open in bench").
+- Settings → "Part list" sets the order of the system headings in every part list (Library
+  sidebar, start-a-bench, attach-to-slot, Holes' start). Default is catalogue order — `catalogue.yaml` is kept
   in the intended default order (Gridfinity, openGrid, GoPro, DeckMate, BitBeam, Basics, 2020
   Extrusion), so nothing here restates it. A saved order (`uiPrefs.js`, one JSON array) is
   resolved against the live catalogue by `catalogueUtils.js`'s `resolveSystemOrder()`: systems it
@@ -181,12 +344,19 @@ screen.
   behind the open dialog reorders as ▲/▼ are pressed; "Reset to catalogue order" removes the key.
   The same rows curate the list: a box per system and, folded under it, one per part
   (`uiPrefs.js`'s `{ systems, parts }` under one key, read live through `useHiddenLibrary()`).
-  `catalogueUtils.js`'s `listedParts()` is the one filter every `PartBrowser` applies — catalogue
+  `catalogueUtils.js`'s `listedParts()` is the one filter every part list applies — catalogue
   `hidden` entries, hidden systems, hidden part ids — and nothing else consults it: the parts map
   the Bench, configs, and links resolve ids against is the full catalogue, so hiding a part never
   breaks a bench that uses it. A hidden system hides parts added to it later too (its part boxes
   are disabled while it's hidden, and untouched, so showing it again restores the per-part
   choices). Library's first-visit default is the first *listed* part, not `parts[0]`.
+- Settings → "Editing" → Grid is the one grid every tab snaps to (`uiPrefs.js`'s `gridSnap`: Off,
+  0.1, 0.25, 0.5, 1, 2 or 5 mm, default 0.5 — the Holes tab's old fixed placement grid; TinkerCAD's
+  is 1 mm, but that would have moved where every existing user's next hole lands): resize drags,
+  arrow steps on a handle, and the Holes tab's placement, hole moves and nudges. The viewers' Grid
+  selects and the Holes sidebar's set the same value, all read live through `useGridSnap()`, so
+  none can disagree; a stored value that is not an option reads as the default, and the settings
+  backup carries it like every other `connector-foundry.` key.
 - Collapsible sidebar: one shared boolean (`src/lib/uiPrefs.js`, localStorage-backed the same
   best-effort way as `userOverrides.js`) rather than one per screen, so collapsing it in Library
   and switching to Bench doesn't spring it back open. `src/components/SidebarToggle.jsx` is the
@@ -194,6 +364,163 @@ screen.
   and `Bench.jsx`'s `{!sidebarCollapsed && (...)}`) rather than hiding it with CSS, and
   `.app`/`.bench`'s grid column narrows to fit — no separate collapsed-vs-expanded layout to keep
   in sync.
+
+## 3D viewer (`src/components/StlViewer.jsx`)
+
+One viewer for all three modes; its header comment documents every prop. What follows is the
+resize handles, the toolbar and the camera, which TinkerCAD users will look for, and where this
+app differs from it on purpose: its geometry is parametric, and a render takes a while
+(a Gridfinity bin going from 1 to 2 units: about 570 ms from release to the new mesh, with real
+`openscad-wasm`).
+
+- **Handles are DOM, not three.js.** Each is a `role="slider"` element in a `.viewer-handles`
+  layer over the canvas, re-projected every frame the viewer draws. That gets keyboard focus, a
+  Tab order, `aria-valuenow`/`-valuetext` for screen readers, CSS hover and focus, and a hit
+  area measured in pixels whatever the zoom: 20 px (44 px on a coarse pointer) around an 11 px
+  square. The positioned element is the hit area (its inline transform is rewritten every frame);
+  the square inside it is what grows on hover. TinkerCAD's look: edge handles dark with a white
+  border, corner and height handles white with a dark one, the accent on hover, focus and drag.
+  A grab target is drawn 12 px out from the point it stands for along the handle's direction as
+  the screen shows it (the height handle 18 px above the top face, on a stem; Holes' move handle
+  on its point), plus however far the side of the body it stands on (`span`) reaches past the
+  point that way — looking down on a tall bin, the footprint handles' targets sit outside the
+  top rim, not on it or in the opening. That also keeps them off the slot markers at face
+  centres.
+- **A ghost, then one commit.** A drag never re-renders the part. `pointerdown` (primary
+  pointer, button 0; `preventDefault()`, so the handle takes no focus and the arrow keys go on
+  nudging the selection afterwards — though it does blur a field outside the viewer, as a press
+  on the canvas would, so Cmd/Ctrl+Z after the drag undoes the drag, not the field's typing)
+  captures the pointer and calls `onHandleStart`; each pointer move, at most once a frame, finds
+  where the pointer's ray meets the handle's line or plane and asks the mode for a preview
+  (`onHandlePreview`), which the viewer draws as the ghost outline (one `LineSegments`, no depth
+  test, its buffer reused), a label, and the dragged handle and its mirror moved onto the ghost
+  — every other handle hides. The point handed over
+  is the handle's own point moved by the pointer's travel since the press, so a press anywhere on
+  the target doesn't jump. On release the viewer flushes one last preview at the release point
+  and commits that same point (`onHandleCommit`): the commit is exactly what the ghost showed.
+  Travel under 5 px (10 px for a finger or a pen) was a click. `Escape` cancels; while a drag
+  runs, a capture-phase key listener swallows every key but the modifiers, whose changes re-run
+  the preview. A right- or middle-button press and the wheel over a handle go on to the canvas,
+  so orbit, pan and zoom work from there; a second finger ends a handle drag without a commit and
+  hands both fingers to OrbitControls as a pinch (`drags.handOff()`). A handle that goes away
+  mid-drag (a render error, another part, Helpers) takes the drag, or its open size box, with
+  it. `onHandleEnd(id, committed)` closes every gesture. The modes keep the ghost (`ghost` prop,
+  labelled "… · rendering…") and stand the handles on the predicted box until the render lands,
+  so a second drag can start before the first is done.
+- **Symmetric and anchored.** Every catalogue part module is `anchor=BOTTOM` and centred in X
+  and Y, so a render is always centred: Library and Bench parts grow on both sides in width and
+  depth (TinkerCAD's Alt-drag) and upward in height, the mirror handle rides along, a small cross
+  marks the centre during an X/Y drag, and the label says so ("W 126 mm · gx 3 (+21 each
+  side)"). `handleMode="symmetric"` (the default) fades a footprint handle on the far side to
+  35% and lets clicks through it while its mirror on the near side is up — never the focused
+  one. `resize.js` makes one handle per axis a Tab stop (`x+`, `y+`, `z+`, `xy:x+`; the viewer
+  leaves the rest `aria-hidden`), since the mirror does the same job; a corner, which drives two
+  values, is never one. Holes passes `"anchored"`: each edge resizes from the opposite one, so
+  all four are different jobs, all live and all Tab stops (`holeHandles.js`).
+- **Near-parallel views.** A line constraint pointing within 15° of the view ray (the height
+  handle from the Top view), or a plane within 15° of edge-on, maps a few pixels of pointer to
+  hundreds of millimetres. `dragMath.js`'s intersections refuse inside that cone and the viewer
+  hides a handle there (and one behind the camera). When perspective carries a running drag into
+  the cone, the rest of it is read in screen space (`screenAxisDelta()`), from the last good
+  point and the pointer position it was read at, with the scale floored at the cone edge's, so
+  the reading never gets more sensitive than where the intersection stopped — without the floor,
+  50 px of travel 1° off the axis read as 573 mm.
+- **The size box** (TinkerCAD's "click a handle, type the size"). A click on an editable handle,
+  or `Enter` on a focused one, opens a small form with one `DecimalInput`, prefilled with the
+  size in mm and kept inside the viewer. `Enter` commits (`onHandleSet`), `Escape` cancels, and
+  both stop there, so the Bench's and Holes' `Escape` doesn't also drop the selection; focus
+  leaving it commits only while the window has focus; an emptied or unparseable field sets
+  nothing, and nor does one closed still showing its prefill (the measured size rounded to three
+  decimals, which would otherwise re-round the parameter: an undo step and a render nobody asked
+  for); `Enter` or `Escape` gives focus back to the handle if it is a Tab stop. While it is
+  open, a press on the canvas or on a handle closes it (committing what was typed, as leaving the
+  field does) and does nothing else: no hole drilled, no part picked, no drag. A typed size is
+  not snapped to the grid (a count still rounds to its step).
+- **Keyboard.** On a focused handle ↑/→ grow and ↓/← shrink (`onHandleStep`); the mode applies
+  Shift ×10 to free lengths only (ten Gridfinity units is 420 mm). The viewer takes the key
+  (`preventDefault()` + `stopPropagation()`), so the Bench's and Holes' window arrow keys don't
+  also move the selection, and leaves it alone with Cmd, Ctrl or Alt held. Steps take the mode's
+  normal debounce and coalesce into one undo step. Hover or focus shows the handle's size
+  (`valueText`) after 300 ms, beside it, flipped or moved so it stays inside the viewer and off
+  the other handles.
+- **The toolbar** (`.viewer-toolbar`, top right): the mode's `toolbar` (its Undo and Redo; the
+  Bench's selected-root chip), a Grid select when `gridControl` is set (Library: a part with a
+  free length to drag; Bench: a selected root with one; Holes: always) — `uiPrefs.js`'s grid,
+  shared with Settings → Editing; it gives up focus after a pick, so the next arrow key isn't
+  the select's — then Fit, View ▾ and Helpers. It wraps on a narrow viewer, and its controls are
+  44 px on a coarse pointer. Fit (or `f`) frames `fitBox` — the Bench's selection — or the model,
+  keeping the direction the camera looks from; View ▾ has Home (the framing a new model gets),
+  Top, Front and Right, and Top looks down from a hair off vertical so OrbitControls keeps +Y
+  up the screen; the wheel zooms toward the pointer (`zoomToCursor`); Helpers (`h`) also hides
+  the handles, ghost, label and size box, and cancels a drag.
+- **When the camera moves** (`viewerCamera.js`'s `refitMode()`). `fitKey` says what the model
+  is of — Library: the part id; Bench: the root's part id; Holes: `catalogue:<id>`, or
+  `mesh:<name>:<extents>` so another file with the same name re-frames while a flip doesn't. The
+  first model, or a new key, gets the Home framing; a new model with the same key keeps the
+  camera where the user put it and only backs out along the view, never in, if the new box no
+  longer fits ±0.95 of the view — a part that shrank keeps the view. A caller that passes no
+  `fitKey` keeps the old rule: re-fit when the model's centre or size moves more than 2%.
+- **Handles stay in reach.** A resize can push handles under the toolbar, under the mode's
+  buttons (Library's Download STL) or off the canvas before its render even lands. So when a new
+  `handles` list shares an id with the last one and reaches more than 0.01 mm past it (the
+  predicted box a commit stands them on), the viewer backs the camera out, never in, to the
+  nearest distance (up to 20×) at which every handle that could be grabbed before still can —
+  shown, its whole hit area 4 px inside the viewer, clear of the toolbar's controls and of every
+  other child of the viewer's parent element — and so can the keyboard-focused one, with every
+  handle point inside ±0.95, the margin a landed model gets, so the landing moves nothing more.
+  Not during a drag, not for a shrink or a new selection (no shared id), not while the helpers
+  are hidden, and not when the viewer itself is resized. So a mode lays its chrome over the
+  viewer as siblings of `<StlViewer>`, stands its handles on the pending predicted box, and gives
+  each subject its own ids (Holes prefixes them with the hole's id, so switching holes never
+  moves the camera).
+- **Stacking.** `.viewer-canvas` is `isolation: isolate`: the `children` overlay and the labels
+  at 1, the handles at 2, the drag label at 3, the toolbar at 4, and the mode's chrome outside the
+  canvas (`.viewer-actions`, `.bench-error`, the Holes snap chip) above all of it. The drag label
+  is `.viewer-drag-label`, not `.viewer-label` (which `holes.spec.js` counts); it sits 26 px
+  above its point, or below where above is off the viewer or would cover a shown handle, and
+  stays 6 px inside the viewer. The overlay hides during a drag and while the size box is open,
+  and is kept inside the viewer.
+- **The catalogue's `resize` field** (its header in `catalogue.yaml` documents it; the CLI
+  ignores it) says which parameter each axis's handles drive: per axis (`x`, `y`, `z`, or `xy`
+  for a diameter) a `param`, its slope `per` (mm of outside size per unit: 42 for a Gridfinity
+  cell), a `step` for a count, handle-only `min`/`max`, and a `when` for entries that apply to
+  one option (the 2020 rail's `len` is X lying down, Z standing up). Only the slope is recorded;
+  the current size is measured off the mesh (`meshBounds()`), so a bin's clearance or lip never
+  needs writing down. `resize.js`'s `resizeAxes()` resolves the bounds — up from the larger of
+  the catalogue minimum and the entry's `min`, else one step, else 0.1 mm of outside size; up to
+  the smaller of the catalogue maximum and the entry's `max` — and `tests/conftest.py`'s
+  `resize_bounds()` and `resize_applies()` (a `when` compared with JS `===`: a bool never equals
+  a number) are its Python mirror: change both or neither. `tests/test_catalogue.py` holds every
+  default and variant inside the range and on the step, and `tests/test_resize.py` renders each
+  entry one step on — from the defaults, from the handle's lower bound where that isn't the
+  default, and from every variant that sets an option — and holds the mesh to the ghost within
+  0.05 mm (an `xy` diameter gets a faceting allowance on top: the polygon's box stops short of
+  the circle by a different amount at each size). A gesture's bounds widen to
+  take in its start value, so a part set past a handle bound in the sidebar doesn't jump when a
+  drag starts; and one gesture moves at most 4× the size along the handle or the box's diagonal,
+  whichever is larger, so a flick past the edge of the view can't commit a grid that takes
+  minutes to render. A count rounds to its step; a free length (slope 1) snaps its value to the
+  grid, so 40.3 goes to 41 on a 1 mm grid, not 41.3; any other free slope snaps the size change;
+  grid Off rounds to 0.01.
+- **Library** (`src/Library.jsx`) is the plainest use of all this. Its handles stand on
+  `meshBounds()` of the mesh on screen when that mesh is for the current parameters, else on
+  the box predicted from it (each resize axis grown by its slope times the change), so a
+  focused handle keeps its element — and its focus — through the render it started, and through
+  a sidebar edit. A drag, a typed size and an arrow step all commit through one
+  `commitResize()`: an undo step ("resize W"), the changed values merged into the *current*
+  parameters, and a pending ghost with the header's size shown muted until the render lands. A
+  drag's or a typed size's render starts at once — `useRender`'s `delay` is 0 while the key's
+  params are the very object the commit set — while arrow steps wait the usual 400 ms and
+  coalesce as `handle:<id>`; a sidebar edit is keyed
+  `param:<key>`, and a switch to another part is a step too. A size that fails to render swaps
+  the handles for a "Couldn't render that size." note with an Undo. The Grid select shows when
+  any of the part's axes is a free length.
+- **Perf.** No hover raycasts while a mouse button is down (an orbit or pan); the device pixel
+  ratio is capped at 2 and re-applied when it changes (another screen, browser zoom: a
+  `matchMedia` on the current resolution, re-armed each time); markers and guides are compared
+  by key and rebuilt only when they changed; the overlay effect asks for a frame only when its
+  anchor moved or it is a new element. Retired marker groups are disposed a frame late — see the
+  Holes section.
 
 ## Bench (`src/Bench.jsx`)
 
@@ -269,18 +596,82 @@ a part actually has anchors left over. A few implementation notes that don't bel
   (`gridfinity-base_gopro-female`) — and, on confirm, names the bench and lets the export go. The
   sidebar's Name field edits the same thing; it is kept as typed (trimming on every keystroke
   would eat the space between two words) and read trimmed everywhere.
-- Selection is `Bench.jsx`'s `selectedNodeId` (never root). A click on the rendered mesh goes
+- Selection is `Bench.jsx`'s `selectedNodeId`, the root included. A click on the rendered mesh goes
   through `StlViewer`'s `onModelClick` (the hit point, or null for empty space; a drag isn't a click
   — `CLICK_SLOP_PX`) and `src/lib/benchPick.js` decides which part that point is on:
   `nodeWorldBoxes()` gives a world AABB per node that can be placed on the same footing as the
   markers (root, plus any catalogue part mated vertically — root's top grid, a `bot` stack, a ±Z
   imported anchor — footprint rotated by its spin, padded by `mount_offset`), and `pickNodeAt()`
   takes the smallest box containing the point, so the part sitting on top wins over the base it's
-  on. Nodes without a box (imported, side-mounted) select from the sidebar only. The same box
-  drives `StlViewer`'s `highlightBox` outline (a `Box3Helper`) and, via `boxTopCenter()`, the
-  `overlayAnchor` the floating controls are pinned to — `StlViewer` re-projects that anchor every
-  frame it draws and moves the overlay `<div>` with a transform, docking it at the bottom when there
-  is no anchor.
+  on, and the root is what's left. Nodes without a box (imported, side-mounted) select from the
+  sidebar only; the root also has a "Select root" toggle beside its name, outside the "Root
+  parameters" `<summary>` (a button in a summary toggles its `<details>` too, and the browser
+  tests open those by their summaries). A selection made in the scene opens that node's
+  parameters and scrolls them into view (`revealParams()`, finding the `<details>` by its
+  `data-node-params`; only the sidebar scrolls, so the stacked phone layout never scrolls the
+  viewer away from the tap). The same box drives `StlViewer`'s `highlightBox` outline (a
+  `Box3Helper`; for a selected root with handles, the box they stand on, so outline and handles
+  never disagree while a resize renders), `fitBox` (Fit and `F` frame the selection) and, for an
+  attached part, via `boxTopCenter()`, the `overlayAnchor` its floating controls are pinned to —
+  `StlViewer` re-projects that anchor every frame it draws and moves the overlay `<div>` with a
+  transform, docking it at the bottom when there is no anchor. The root's controls (its name, Crop,
+  Deselect) go in the viewer's toolbar instead, as `.bench-root-chip`: pinned over its top face,
+  they covered an open slot marker and its handles.
+- The root is guarded wherever an attached part's action would do harm: `Delete`/`Backspace`,
+  `M` and the arrows do nothing while it is selected, and `nodeActions.remove` refuses it —
+  `removeChild(root)` would take every node with it, and the root has no slot to move or step to.
+- **Root resize handles** (see "3D viewer" for the handles themselves). Only the root's for now:
+  it is placed exactly — centred, unrotated — so its box is its faces, while an attached part's
+  box is padded for spin, shift and mount offset, and handles on it would sit off the faces they
+  stand for; a selected attached part shows "Resize in the sidebar" under its pill instead (see
+  docs/IMPROVEMENTS.md), and so does a selected catalogue root whose entry has no `resize` (an
+  imported mesh has no size parameters and says nothing). The box the handles stand on is for
+  the root's current parameters only (a box from older ones would start a drag from the wrong
+  size and run the guard below against the wrong slots): the measured extents, when they were
+  rendered for these parameters (each entry keeps the parameters it was measured with); else the
+  root's own render straight from the cache, when it is there but the measurement hasn't caught
+  up (an undo back to a size rendered before, so a focused handle survives it); else the box a
+  pending commit predicted; else none, and none on a failed render. A commit is
+  `nodeActions.setParams(ROOT_ID, merged, { key, label: "resize W" })`. A drag or typed size
+  renders at once (`immediateTree`: the root's own extents first, so the handles move onto the
+  measured box, then one assembly render); arrow steps wait the 250 ms debounce and share the
+  key `params:root:<param>` with typing in that sidebar field, and a run of them labels its
+  ghost with the change since the run began. The pending ghost stays until the assembly render
+  for that tree is current; if it fails, an Undo appears inside `.bench-error`, but only while
+  the tree is still the one the commit made — after any other edit it would take back that edit
+  instead.
+- **The children guard** (`benchResize.js`'s `guardResize()`). An attached part names its slot
+  (`mount_1_0`, `xpos_-0.5`) and the generated `.scad` attaches it by that name; slot names are
+  centre-relative indices (`slots.js`), so a grid that shrinks loses its outer names and a
+  count-parameter grid that changes parity renames every slot (2 cells: ±0.5; 3 cells: −1, 0,
+  1) — BOSL2's "Unknown anchor" on the next render. So a handle only ever lands on a value that
+  keeps every occupied slot name: from the value asked for, the nearest one further the same way,
+  up to the handle's bound (2 → 3 cells on an openGrid board with parts on it becomes 2 → 4);
+  failing that, the nearest back toward the start, never past it; if the start itself already
+  misses a slot, the value asked for goes through and the render error shows, as before. Each
+  driven axis is settled on its own, which is exact for every catalogue part today (slot names
+  factor by axis). The drag label, and for an arrow step or a typed size the handle's
+  `aria-valuetext` and readout, say what it did and why ("cells_x 4 — 3 would move attached
+  parts"); that note belongs to the gesture and goes when the handle loses focus, another gesture
+  starts, or the selection or the parameters change. Only the handles are guarded; a sidebar
+  field is not (docs/IMPROVEMENTS.md).
+- **Undo.** Every change goes through `benchSession.js`'s setters with a label for the Undo
+  tooltip ("attach part", "delete part", "start over", "open in bench", …); the fields that report
+  every keystroke pass a coalescing key — `params:<nodeId>:<key>` (from a diff of the old and new
+  parameters; none when several changed, a reset), `name`, `overlap:<id>`, `shift:<id>`,
+  `spin:<id>`. A step records only when the tree actually changed (a JSON compare; the meshes are
+  compared by identity, never serialised), and an import is one step with the node that uses it:
+  `setBenchImportedParts()` records under a key of its own that the `setBenchAssembly()` in the
+  same task joins (the fold ends at the next microtask). Start over, a loaded config or preset and
+  Open in Bench are steps (`replaceBenchSession()` records by default). After an undo or redo the
+  pending ghost and guard note go, and so do the selection and an armed move if their node did.
+  The start picker offers Undo/Redo whenever either is possible, and so does the empty tab behind it.
+- **Rendering less.** `compileToScad()` is memoised per `{ assembly, partsById }` (a `WeakMap`
+  on the immutable tree; a throw is kept and handed back as that render's error), which backs the
+  assembly render's `cached` option: typing the bench's name (not in the source) or undoing back
+  to a bench rendered before shows at once, with no "rendering" in between. A round of node
+  extents that measures every node as before keeps the old state object (`mergeExtents()`), so
+  the markers, boxes and slot lists built on it don't rebuild.
 - Moving a part is `assembly.js`'s `moveChild()`: a new `parentId`/`slotName` on the node, nothing
   else — its subtree comes along for free since every descendant is positioned relative to it. It
   hands the assembly back unchanged for anything that isn't a move (target taken, target on the
@@ -316,9 +707,12 @@ a part actually has anchors left over. A few implementation notes that don't bel
 - The Bench's keys are one `window` `keydown` listener for the component's lifetime that calls
   whatever handler the latest render left in `keyHandlerRef` (so it sees current state without
   re-subscribing per render): `Escape` backs out one layer at a time (import flow, attach picker,
-  move mode, selection); `Delete`/`Backspace` removes the selected part, `M` toggles move mode,
+  move mode, selection) — the attach picker is a command palette page, which takes its own
+  Escape first (clearing a typed search before it cancels); `Delete`/`Backspace` removes the selected part, `M` toggles move mode,
   arrows nudge — all three only with no modal up and the key not aimed at a field
-  (`src/lib/isEditableTarget.js`, the same check `App.jsx`'s shell shortcuts use).
+  (`src/lib/isEditableTarget.js`, the same check `App.jsx`'s shell shortcuts use), and never for
+  the root (above). The handler skips an event something nearer already took
+  (`defaultPrevented`): a focused resize handle's arrows, the View menu's `Escape`.
 - Slot markers are real 3D objects in the scene (`src/components/StlViewer.jsx`'s `markers`
   prop), raycast-clickable — root's own open slots, plus one more per stacked node that still has
   its "bot" anchor open (`src/lib/benchLayout.js`'s `stackSlotFor()`; everything about where a
@@ -555,12 +949,14 @@ the implementation notes:
   snapped. Everything is
   cached per geometry (face by its lowest triangle index, every triangle mapped to it), so hovering
   across a face is a lookup. With snapping on, a click within `snapRadius` (4% of the model's
-  largest extent, at least 1.5 mm) of a candidate takes it; otherwise the click rounds to a 0.5 mm
-  grid in the face's own frame; Shift-click (or snapping off) uses the exact point. The analysed mesh
-  is a welded copy (`mergeVertices` on positions only — the display geometry keeps the file's flat
-  normals) in the same triangle order, so the viewer's `faceIndex` indexes it directly. Because it
-  is the *rendered* mesh that is analysed, holes already drilled are themselves snap targets, and a
-  click on one selects it instead of drilling through it (`placeAt()`).
+  largest extent, at least 1.5 mm) of a candidate takes it; otherwise the click rounds to the
+  Grid setting (`uiPrefs.js`'s, 0.5 mm by default — the fixed grid it replaced; Off is the exact
+  point) in the face's own frame; Shift-click (or snapping off) uses the exact point. The
+  analysed mesh is a welded copy (`mergeVertices` on positions only — the display geometry keeps
+  the file's flat normals) in the same triangle order, so the viewer's `faceIndex` indexes it
+  directly. Because it is the *rendered* mesh that is analysed, holes already drilled are
+  themselves snap targets, and a click on one selects it instead of drilling through it
+  (`placeAt()`).
 - Markers: holes are flat rings (`StlViewer` `shape: "ring"` markers, oriented by the hole's
   normal and lifted 0.08 mm off the surface; `holeFootprintRadius()` sizes them — a slot's ring is
   its channel's half width), the hovered face's snap points small spheres, the one
@@ -568,8 +964,8 @@ the implementation notes:
   through the `guides` prop (`slotOutline()`: the channel and pocket or round end, the entry
   dashed, and an arrow the way the head travels), since a ring says nothing about which way it
   points. Markers now take a `color`, and the
-  viewer keeps the camera where it is when a new model has the same bounding sphere as the last —
-  a hole drilled into a plate (or a Bench part turned in place) no longer resets the view.
+  viewer keeps the camera where it is for a new model of the same base (`fitKey`, see "3D
+  viewer") — a hole drilled, a parameter changed or a flip no longer resets the view.
 - `src/lib/screwPresets.js` holds the fastener presets — ISO 4762 socket caps, ISO 10642
   countersunk, ISO 7380 button heads, heat-set inserts, thread-forming core holes, ISO 4032 nut
   traps, wood screws and their pilots, a plain hole and a dowel — each with the `spec` it cuts and
@@ -587,11 +983,86 @@ the implementation notes:
   openConnect slot turned into a MultiConnect one keeps its direction. For the same reason a slot
   only counts as "(edited)" when one of those fields differs; a screw preset is a whole fastener,
   replaces everything and compares every field.
-- Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected holes
-  and `Escape` deselects (or closes the import), same local-listener arrangement as the Bench.
+- Keys: `3` switches here (App.jsx); inside the tab `Delete`/`Backspace` removes the selected holes,
+  the arrows nudge them (below) and `Escape` deselects (or closes the import), same local-listener
+  arrangement as the Bench.
   Exports are `<name>_holes.stl` / `<name>_holes.scad` via `benchName.js`'s `exportFilename()`,
   the name being the sidebar's field or the source's own stem (a mesh's file name minus its
   extension).
+- **Handles** (`src/lib/holeHandles.js`; the viewer side is "3D viewer" above). A single selected
+  hole gets them once the mesh on screen is the current base's (a click on the old mesh would
+  be at the old model's coordinates). A rectangle cutout has four edge and four corner handles
+  in its own frame (`slotFrame()`'s `ex`/`ey`, turned by its spin); a round one four rim handles
+  on the face's sideways and up (`slotFrame()` at spin 0, not `planeBasis()`'s arbitrary axes,
+  so "right" and "top" in their labels are true and they line up with the nudge); screws and
+  connectors are their hardware's size and get none. Every hole has a round centre handle that
+  moves it, listed first so it draws under the others and a small hole's edge handles stay
+  grabbable. All of them are constrained to the hole's face plane, `handleMode="anchored"`, and
+  every edge handle is a Tab stop; corners and the move handle are pointer-only. Ids are
+  prefixed with the hole's id, so the viewer never takes switching holes for one hole grown.
+  The move handle sits over the very spot a click on the hole used to land, so a press on it
+  that never becomes a drag is handed to the viewer's canvas click (`clickAt()`), modifiers and
+  all: whatever a click on the canvas there would do happens (on the hole's own face, a click
+  selects it and a Shift-click takes it out of the selection).
+  Corners don't forward (they sit off the body, where a click would drill beside the hole).
+- **Resizing** keeps the opposite edge where it is (TinkerCAD's default): the hole's point moves
+  by half the change. With Alt (Option) it grows about its centre. Sizes land on the Grid (Off:
+  hundredths of a mm) and never go under 0.1 mm, the floor `normalizeSpec()` keeps; a pill stays
+  a pill. One gesture reaches at most the model's diagonal or four times the hole's size,
+  whichever is more (a move: the diagonal), so a flick past the edge of the view can't ask for a
+  hole metres wide. A change commits like a sidebar edit of the hole —
+  `setNextSpec(updateHole(doc, id, { spec, point }), spec, presetId)` — so the new size is also
+  what the next click drills. The Option-held measurements are hidden while a handle is dragged
+  (`onHandleStart`/`onHandleEnd`).
+- **Moving.** The centre handle drags the hole across its face in whole Grid steps from where it
+  was, along the face's sideways and up (Shift: freely); the ghost is its outline and a cross at
+  the new spot, committed as one `updateHole(doc, id, { point })`. A spot off the face says "Off
+  the face" while dragging, and a release there commits nothing and says, in the snap hint's
+  place for a moment (`notice`), that the hole stayed. Only the centre is checked, on purpose: a
+  cutout may hang over an edge to notch it, as one drilled near the edge or grown in the sidebar
+  can. The arrow keys nudge the selected holes the same way, one Grid step (0.5 mm with the Grid
+  off; Shift ten), and refuse with a notice when a hole would leave its face (and do nothing
+  while the mesh on screen is an older base's); a run of presses is one undo step
+  (`nudge:<ids>`).
+- **"Still on its face?"** (`movedOnFace()`) is asked first of the base without holes —
+  `renderHoled()` returns it alongside the holed mesh, and `stlProbe()` parses it once per
+  buffer, the first time a hole moves — since on the mesh on screen a hole's own bore sits at its
+  old spot, and a step shorter than its radius would land in it and read as off the model. A face
+  only the holes made (a pocket's floor, which `holeAtSpot()` lets a click drill into) is
+  asked of the mesh on screen instead, a spot inside the hole's own bore counting when the face
+  goes on just past the bore. Repeat keeps its probe on the mesh on screen. A probe buckets the
+  mesh's triangles in a uniform grid the first time it is asked, since three.js raycasts test
+  every triangle: over a 156k-triangle Gridfinity baseplate one probe took 7.6 ms, and a 20-hole
+  pattern's nudge outlasted the key repeat.
+- **The Grid** for placement is the same setting as the handles' (`uiPrefs.js`): the sidebar's
+  Snapping section has it as `components/holes/GridField.jsx`, the viewer as its Grid select;
+  both give up focus after a pick, so the next arrow key nudges the hole.
+- The selection pill hangs below the selected hole's outline when the hole has handles
+  (`holePillAnchor()`: down the face to the outline's bottom, then as far down the screen as an
+  oblique view needs), so it doesn't cover the top edge and corners; the viewer keeps it inside
+  the viewer. With several holes selected it sits over their middle, as before.
+- **Undo.** `holesSession.js` records every change to the document, a new one (picking a model,
+  the Library's Add Holes) and going back to the start picker ("Pick another model") included,
+  and nothing clears it short of a reload; it skips an equal document cheaply (its small fields
+  as JSON, the source field by field, mesh bytes by identity). Coalescing keys:
+  `spec:<sorted ids>:<field>` (`spec:new:<field>` for the next hole's spec with nothing
+  selected), `name`, `base:<param>`, `nudge:<ids>`, and `handle:<id>` for arrow steps on a
+  handle. After an undo or redo the selection drops holes that no longer exist. A drag or typed
+  size renders at once, arrow steps after the 250 ms debounce, with a "… · rendering…" ghost
+  meanwhile; a commit whose render fails offers its Undo inside the error message, only while
+  the document is still the one the commit made. `cachedHoled()` is the render's `cached`
+  option, so an undo to anything rendered before shows at once. Every document the history
+  keeps holds its mesh source's bytes, so a Flip toggled back reuses the grounded bytes that side
+  already had (`meshSource()`) — fresh ones per press held another 25 MB each for a
+  500k-triangle import.
+- **Hover cost.** Every snap change under the pointer re-renders the tab, so the list rows
+  (`HoleRow`) and `PresetPicker` are memoised with callbacks that keep their identity, and the
+  guides array keeps its identity between renders. The big one was in the viewer: every marker
+  rebuild disposed the old markers' materials first, and three.js deletes a shader program when
+  its last material goes, so each hover that moved the snap highlight linked the marker program
+  again. The old group now leaves the scene at once and is disposed a frame later, when the new
+  materials hold the program: a profiled hover sweep (SwiftShader) went from about 316 program
+  links to none, and its script time from 25.9 s to 0.5 s.
 
 ## Bench configs and presets (`src/lib/benchConfig.js`, `src/lib/benchPresets.js`)
 
@@ -629,12 +1100,13 @@ localStorage), so a preset can always become a file and a file a preset with no 
   hear — an embedded mesh can push the document past the origin's ~5 MB quota — so `savePreset()`
   returns a message instead of failing silently, and the panel suggests the file export, which has
   no such limit.
-- **UI** (`components/bench/PresetsPanel.jsx`): the same panel in two places. On the start screen
-  the saved presets sit above the part picker (only once there are any, or a config import has an
-  error to show) and "Import config…" is in the picker's toolbar beside "Import STL / STEP / 3MF…"
-  (`ConfigImportButton`, a button fronting a hidden file input); in a running bench's sidebar the
-  panel also has the name field + Save (reads "Replace" when the name is taken) and its own import
-  button, and "Download config" joins the STL/.scad buttons under Export. Loading over an existing
+- **UI** (`components/bench/PresetsPanel.jsx`, and the start picker): on the empty Bench the saved
+  presets head the start picker (Enter loads one; its Actions page deletes it), and "Import
+  config…" and "Import STL / STEP / 3MF…" are its last rows — the palette's own file input, so
+  the picker stays up until a file is chosen and shows a bad file's error itself; in a running
+  bench's sidebar the panel has the name field + Save (reads "Replace" when the name is taken) and
+  its own import button (`ConfigImportButton`, a button fronting a hidden file input), and
+  "Download config" joins the STL/.scad buttons under Export. Both are in the command palette too. Loading over an existing
   bench and deleting a preset each ask first via `window.confirm` — the only two places the app
   uses it.
 
@@ -679,14 +1151,17 @@ project's own MIT license.
 ## Verification
 
 ```bash
-npm test                       # render scheduler unit tests (Node.js 20+)
+npm test                       # unit tests, tests/unit/ (Node.js 22.12+)
 npx playwright install chromium
 npm run test:browser            # builds and tests the production app in Chromium
 ```
 
 The browser suite covers stale-download prevention, printer-setting changes,
 worker recovery and cancellation, export preservation during edits, Bench tab/URL
-restoration, and the existing config round trip with an embedded mesh. Most UI
+restoration, the existing config round trip with an embedded mesh, and the resize
+handles and undo in each tab (`library-handles.spec.js`, `bench-handles.spec.js`,
+`holes.spec.js`: drags, arrow steps, the size box, Esc, the guard, touch). Every fake
+Worker in it ignores the `{ type: "warm" }` message (see "Warm-up"). Most UI
 cases use a controllable worker to exercise delays and failures deterministically.
 A separate real `openscad-wasm` test checks the dimensions of Library and generated
 Bench STL exports. CI runs both suites and retains browser traces on failure.

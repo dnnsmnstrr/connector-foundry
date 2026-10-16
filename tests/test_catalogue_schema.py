@@ -11,6 +11,7 @@ comment block at the top of catalogue.yaml; when adding a field there,
 add it to KNOWN_KEYS here too.
 """
 
+import math
 import re
 
 import foundry
@@ -34,6 +35,7 @@ KNOWN_KEYS = REQUIRED_KEYS | {
     "minimums",
     "mount_offset",
     "options",
+    "resize",
     "screw_pattern",
     "side_slots",
     "slots",
@@ -191,6 +193,187 @@ def test_options_minimums_and_maximums_are_shaped():
                 if not _is_number(limit):
                     problems.append(f"{part['id']}: {field}.{key} = {limit!r} is not a number")
     assert not problems, "\n".join(problems)
+
+
+# `resize`: the web app's resize handles (see the catalogue.yaml header).
+# `xy` is one parameter growing X and Y together, so it replaces both.
+RESIZE_AXES = {"x", "y", "z", "xy"}
+RESIZE_ENTRY_KEYS = {"param", "per", "step", "min", "max", "when"}
+
+
+def _resize_entry_problems(label: str, entry, part: dict) -> list[str]:
+    if not isinstance(entry, dict):
+        return [f"{label} must be a map with at least `param`, got {entry!r}"]
+    problems = []
+    unknown = sorted(set(entry) - RESIZE_ENTRY_KEYS)
+    if unknown:
+        problems.append(f"{label}: unknown key(s) {unknown}, not one of {sorted(RESIZE_ENTRY_KEYS)}")
+    defaults = part.get("defaults", {})
+    options = part.get("options", {})
+    param = entry.get("param")
+    # The handle measures the current size and adds `per` per unit, so it
+    # needs a number to add to; a bool default reads as 0 or 1 in Python.
+    if not isinstance(param, str):
+        problems.append(f"{label}: param must name a parameter, got {param!r}")
+    elif not _is_number(defaults.get(param)):
+        problems.append(f"{label}: param {param!r} has no number default to resize from")
+    for field in ("per", "step", "min", "max"):
+        # YAML's .inf is a number to both parsers; an unbounded handle
+        # leaves `max` out instead.
+        if field in entry and not (_is_number(entry[field]) and 0 < entry[field] < math.inf):
+            problems.append(f"{label}: {field} must be a finite number over 0, got {entry[field]!r}")
+    low, high = entry.get("min"), entry.get("max")
+    if _is_number(low) and _is_number(high) and low >= high:
+        problems.append(f"{label}: min {low} is not under max {high}")
+    when = entry.get("when")
+    if when is None:
+        return problems
+    if not isinstance(when, dict) or not when:
+        return [*problems, f"{label}: when must be a non-empty map of parameter -> value, got {when!r}"]
+    for key, value in when.items():
+        if key == param:
+            problems.append(f"{label}: when tests {key!r}, the parameter the handle itself changes")
+        elif key not in defaults:
+            problems.append(f"{label}: when names {key!r}, which has no default")
+        elif not _is_scalar(value):
+            problems.append(f"{label}: when.{key} = {value!r} is not a scalar")
+        elif _kind(value) != _kind(defaults[key]):
+            # resize.js compares with ===, so `when: {flat_edges: 1}` never
+            # matches a true, though Python's 1 == True says it does.
+            problems.append(
+                f"{label}: when.{key} = {value!r} is a {_kind(value)}, but its default "
+                f"{defaults[key]!r} is a {_kind(defaults[key])}"
+            )
+        elif key in options and value not in options[key]:
+            problems.append(f"{label}: when.{key} = {value!r} is not one of its options {options[key]}")
+    return problems
+
+
+def _kind(value) -> str:
+    return "bool" if isinstance(value, bool) else "number" if _is_number(value) else type(value).__name__
+
+
+def _exclusive(a: dict, b: dict) -> bool:
+    """Whether two `when` maps can never both hold: some parameter they
+    both test has a different value in each."""
+    return any(k in b and (_kind(v), v) != (_kind(b[k]), b[k]) for k, v in a.items())
+
+
+def _repeated_resize_axes(text: str) -> list[str]:
+    """Axes a `resize` map names twice. PyYAML keeps the last of two equal
+    keys without a word (js-yaml, in the web build, refuses the whole
+    file), so the parsed catalogue cannot show this: read the node tree."""
+    problems = []
+    root = yaml.compose(text)
+    parts = next(value for key, value in root.value if key.value == "parts")
+    for part in parts.value:
+        fields = {key.value: value for key, value in part.value}
+        resize = fields.get("resize")
+        if not isinstance(resize, yaml.MappingNode):
+            continue
+        axes = [key.value for key, _ in resize.value]
+        repeated = sorted({a for a in axes if axes.count(a) > 1})
+        if repeated:
+            problems.append(f"{fields['id'].value}: resize names {repeated} more than once")
+    return problems
+
+
+def _resize_problems(part: dict) -> list[str]:
+    resize = part["resize"]
+    if not isinstance(resize, dict) or not resize:
+        return [f"{part['id']}: resize must be a non-empty map of axis -> entry"]
+    problems = []
+    unknown = sorted(set(resize) - RESIZE_AXES)
+    if unknown:
+        problems.append(f"{part['id']}: resize axis {unknown} is not one of {sorted(RESIZE_AXES)}")
+    if "xy" in resize and {"x", "y"} & set(resize):
+        problems.append(f"{part['id']}: resize has xy, which already drives x and y")
+    for axis, entry in resize.items():
+        problems += _resize_entry_problems(f"{part['id']}: resize.{axis}", entry, part)
+    # Two handles on one parameter at once would fight over it: a corner
+    # drag sets it from the X and the Y size in the same gesture. The 2020
+    # rail's len is X or Z, never both, because the `when`s exclude each
+    # other; a diameter is what `xy` is for.
+    entries = [(axis, e) for axis, e in resize.items() if isinstance(e, dict)]
+    for i, (axis_a, a) in enumerate(entries):
+        for axis_b, b in entries[i + 1 :]:
+            if a.get("param") != b.get("param"):
+                continue
+            when_a, when_b = a.get("when"), b.get("when")
+            if isinstance(when_a, dict) and isinstance(when_b, dict) and _exclusive(when_a, when_b):
+                continue
+            problems.append(
+                f"{part['id']}: resize.{axis_a} and resize.{axis_b} both drive {a.get('param')!r} at "
+                "once — give them `when`s that exclude each other, or use xy for a diameter"
+            )
+    return problems
+
+
+def test_resize_is_shaped():
+    """`resize` is read by the web app alone, which trusts it: a typo'd
+    key there is ignored and a stray string `per` turns a drag into NaN.
+    tests/test_catalogue.py holds the bounds to the defaults, and
+    tests/test_resize.py the slopes to the geometry."""
+    problems = _repeated_resize_axes(CATALOGUE_TEXT)
+    for part in _parts():
+        if "resize" in part:
+            problems += _resize_problems(part)
+    assert not problems, "\n".join(problems)
+
+
+@pytest.mark.parametrize(
+    ("resize", "complaint"),
+    [
+        ({"x": {"param": "w"}}, None),
+        ({"xy": {"param": "w"}, "z": {"param": "d"}}, None),
+        ({"xy": {"param": "w"}, "x": {"param": "d"}}, "already drives x and y"),
+        ({"w": {"param": "w"}}, "is not one of"),
+        ({}, "non-empty map"),
+        ({"x": {"param": "r"}}, "has no number default"),
+        ({"x": {"param": "flag"}}, "has no number default"),
+        ({"x": {"param": "w", "per": 0}}, "per must be a finite number over 0"),
+        ({"x": {"param": "w", "per": "42"}}, "per must be a finite number over 0"),
+        ({"x": {"param": "w", "min": 9, "max": 9}}, "is not under max"),
+        ({"x": {"param": "w", "pitch": 1}}, "unknown key"),
+        ({"x": {"param": "w", "when": {"kind": "a"}}}, None),
+        ({"x": {"param": "w", "when": {"kind": "c"}}}, "is not one of its options"),
+        ({"x": {"param": "w", "when": {"w": 1}}}, "the handle itself changes"),
+        ({"x": {"param": "w", "when": {"nope": 1}}}, "which has no default"),
+        ({"x": "w"}, "must be a map"),
+        ({"x": {"param": "w", "max": float("inf")}}, "max must be a finite number"),
+        ({"x": {"param": "w", "when": {"flag": True}}}, None),
+        ({"x": {"param": "w", "when": {"flag": 1}}}, "is a number, but its default"),
+        ({"x": {"param": "w", "when": {"kind": 1}}}, "is a number, but its default"),
+        ({"x": {"param": "w"}, "y": {"param": "w"}}, "both drive 'w' at once"),
+        ({"x": {"param": "w", "when": {"kind": "a"}}, "z": {"param": "w"}}, "both drive"),
+        (
+            {"x": {"param": "w", "when": {"kind": "a"}}, "z": {"param": "w", "when": {"kind": "a"}}},
+            "both drive",
+        ),
+        ({"x": {"param": "w", "when": {"kind": "a"}}, "z": {"param": "w", "when": {"kind": "b"}}}, None),
+        (
+            {"x": {"param": "w", "when": {"flag": True}}, "z": {"param": "w", "when": {"kind": "b"}}},
+            "both drive",
+        ),
+    ],
+)
+def test_the_resize_shape_check_itself(resize, complaint):
+    part = {
+        "id": "test/part",
+        "defaults": {"w": 10, "d": 5, "flag": True, "kind": "a"},
+        "options": {"kind": ["a", "b"]},
+        "resize": resize,
+    }
+    problems = _resize_problems(part)
+    if complaint is None:
+        assert not problems, problems
+    else:
+        assert any(complaint in p for p in problems), problems
+
+
+def test_repeated_resize_axes_are_caught():
+    text = "parts:\n  - id: a/b\n    resize:\n      x: { param: w }\n      x: { param: d }\n"
+    assert _repeated_resize_axes(text) == ["a/b: resize names ['x'] more than once"]
 
 
 # ------------------------------------------------- YAML 1.1 vs 1.2 guard

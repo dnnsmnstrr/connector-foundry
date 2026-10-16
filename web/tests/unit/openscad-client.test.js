@@ -13,13 +13,17 @@ const request = (size) => ({ scadFile: "parts/basics/plate.scad", module: "plate
 beforeEach(async () => {
   workers = [];
   globalThis.Worker = class {
+    // Render requests only, so the assertions on `messages` keep meaning
+    // renders; warm-ups (which carry no id and get no answer) go to `warms`.
     messages = [];
+    warms = [];
     terminated = false;
     constructor() {
       workers.push(this);
     }
     postMessage(message) {
-      this.messages.push(message);
+      if (message?.type === "warm") this.warms.push(message);
+      else this.messages.push(message);
     }
     terminate() {
       this.terminated = true;
@@ -84,6 +88,9 @@ test("interrupts an obsolete active preview and ignores its late result", async 
   assert.equal(workers.length, 2);
   workers[0].result();
   assert.equal(client.getCachedRender(request(1)), null);
+  // The next render was requested before the stop's warm-up ran, so it
+  // takes the fresh worker with nothing queued ahead of it.
+  assert.equal(workers[1].warms.length, 0);
   const bytes = workers[1].result();
   assert.equal(await latest, bytes);
   await rejected;
@@ -130,6 +137,9 @@ test("a timeout terminates only the active job and allows retry", async (t) => {
   deadlines[0].fn();
   await tick();
   assert.equal(workers[0].terminated, true);
+  // The queued render takes the fresh worker, with no warm-up ahead of it.
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].warms.length, 0);
   workers[1].result();
   await next;
   await rejected;
@@ -150,6 +160,9 @@ test("explicit cancellation clears active and queued work and activity", async (
   assert.equal(workers[0].terminated, true);
   assert.equal(client.getRenderActivity(), 0);
   assert.equal(counts.at(-1), 0);
+  // The user asked for the work to stop: no worker is warmed in its place.
+  await tick();
+  assert.equal(workers.length, 1);
   unsubscribe();
 });
 
@@ -169,6 +182,147 @@ test("a rejected postMessage does not strand queued jobs", async () => {
   workers[1].result();
   await good;
   await bad;
+});
+
+test("a warm-up is not a job and leaves render activity alone", async () => {
+  const counts = [];
+  const unsubscribe = client.subscribeRenderActivity(() => counts.push(client.getRenderActivity()));
+  client.warmRenderer();
+  client.warmRenderer();
+  await tick();
+  assert.equal(workers.length, 1);
+  assert.equal(workers[0].warms.length, 1);
+  assert.equal(workers[0].messages.length, 0);
+  assert.equal(client.getRenderActivity(), 0);
+  assert.deepEqual(counts, []);
+  // The first render goes to the warmed worker, queued behind the warm-up
+  // in the worker's own FIFO.
+  const first = client.renderPart(request(1));
+  await tick();
+  assert.equal(workers.length, 1);
+  assert.equal(workers[0].messages[0].params.size, 1);
+  const bytes = workers[0].result();
+  assert.equal(await first, bytes);
+  assert.equal(workers[0].warms.length, 1);
+  assert.deepEqual(counts, [1, 0]);
+  unsubscribe();
+});
+
+test("warmRenderer does nothing while a render is pending", async () => {
+  const first = client.renderPart(request(1));
+  client.warmRenderer();
+  await tick();
+  assert.equal(workers.length, 1);
+  assert.equal(workers[0].warms.length, 0);
+  assert.equal(workers[0].messages.length, 1);
+  workers[0].result();
+  await first;
+});
+
+test("an abort that stops the active render with nothing queued warms a fresh worker for the next one", async () => {
+  const controller = new AbortController();
+  const preview = client.renderPart(request(1), { signal: controller.signal });
+  const rejected = assert.rejects(preview, { name: "AbortError" });
+  await tick();
+  controller.abort();
+  await rejected;
+  await tick();
+  assert.equal(workers[0].terminated, true);
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].warms.length, 1);
+  assert.equal(workers[1].messages.length, 0);
+  assert.equal(client.getRenderActivity(), 0);
+  // The debounced next render lands on the warmed worker.
+  const latest = client.renderPart(request(2));
+  await tick();
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].messages[0].params.size, 2);
+  const bytes = workers[1].result();
+  assert.equal(await latest, bytes);
+});
+
+test("no warm-up goes ahead of a job queued when the active one aborts", async () => {
+  const controller = new AbortController();
+  const preview = client.renderPart(request(1), { signal: controller.signal });
+  const rejected = assert.rejects(preview, { name: "AbortError" });
+  const exported = client.renderPart(request(2));
+  await tick();
+  controller.abort();
+  await tick();
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].warms.length, 0);
+  assert.equal(workers[1].messages[0].params.size, 2);
+  const bytes = workers[1].result();
+  assert.equal(await exported, bytes);
+  await rejected;
+});
+
+test("one abort that drops the active render and the one queued behind it warms one worker", async () => {
+  // One signal for both, as the Bench's extents effect uses: its cleanup
+  // aborts the active render first, while the queued one is still pending.
+  const controller = new AbortController();
+  const rejected = Promise.all([
+    assert.rejects(client.renderPart(request(1), { signal: controller.signal }), { name: "AbortError" }),
+    assert.rejects(client.renderPart(request(2), { signal: controller.signal }), { name: "AbortError" }),
+  ]);
+  await tick();
+  controller.abort();
+  await rejected;
+  await tick();
+  assert.equal(workers[0].terminated, true);
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].warms.length, 1);
+  assert.equal(workers[1].messages.length, 0);
+  assert.equal(client.getRenderActivity(), 0);
+});
+
+test("a crash is not followed by a warm-up, and a warm-only worker that fails is dropped", async () => {
+  const first = client.renderPart(request(1));
+  const rejected = assert.rejects(first, /worker failed: crash/);
+  await tick();
+  workers[0].onerror({ message: "crash" });
+  await rejected;
+  await tick();
+  // A worker that cannot load would otherwise respawn in a loop.
+  assert.equal(workers.length, 1);
+
+  client.warmRenderer();
+  assert.equal(workers.length, 2);
+  workers[1].onerror({ message: "script error" });
+  await tick();
+  assert.equal(workers[1].terminated, true);
+  assert.equal(workers.length, 2);
+  assert.equal(client.getRenderActivity(), 0);
+  // The next real render creates a worker as it always has.
+  const next = client.renderPart(request(2));
+  await tick();
+  assert.equal(workers.length, 3);
+  assert.equal(workers[2].warms.length, 0);
+  assert.equal(workers[2].messages[0].params.size, 2);
+  const bytes = workers[2].result();
+  assert.equal(await next, bytes);
+});
+
+test("a warm-up sets no timer, and a timeout with nothing queued warms a fresh worker", async (t) => {
+  const deadlines = [];
+  t.mock.method(globalThis, "setTimeout", (fn, ms) => {
+    deadlines.push({ fn, ms });
+    return 0;
+  });
+  client.warmRenderer();
+  assert.equal(deadlines.length, 0);
+  const first = client.renderPart(request(1));
+  const rejected = assert.rejects(first, /timed out/);
+  await tick();
+  assert.equal(deadlines.length, 1);
+  assert.equal(deadlines[0].ms, 120_000);
+  deadlines[0].fn();
+  await rejected;
+  await tick();
+  assert.equal(workers[0].terminated, true);
+  assert.equal(workers.length, 2);
+  assert.equal(workers[1].warms.length, 1);
+  assert.equal(deadlines.length, 1);
 });
 
 test("parameter ordering shares cache, but printer settings invalidate it", async () => {

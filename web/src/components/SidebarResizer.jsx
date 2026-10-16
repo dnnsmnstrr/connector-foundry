@@ -77,7 +77,14 @@ export default function SidebarResizer() {
     else if (e.key === "Home") next = SIDEBAR_WIDTH_MIN;
     else if (e.key === "End") next = Math.min(SIDEBAR_WIDTH_MAX, maxShownWidth());
     if (next === null) return;
+    // The key is this handle's: not a page scroll, and not for the
+    // window listeners either — the Bench's arrow keys step the selected
+    // part to another slot, and a focused <div> is not "editable" to
+    // their guard, so without this ←/→ resized the sidebar and moved the
+    // part at once. (React's root listener runs before the event reaches
+    // window, so stopping it here stops it there.)
     e.preventDefault();
+    e.stopPropagation();
     setSidebarWidth(next);
   }
 

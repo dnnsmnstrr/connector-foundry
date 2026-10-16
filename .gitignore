@@ -17,6 +17,7 @@ web/dist/
 web/public/scad-bundle.json
 web/public/catalogue.json
 web/public/global-defaults.json
+web/public/thumbnails/
 .DS_Store
 .claude/worktrees/
 
