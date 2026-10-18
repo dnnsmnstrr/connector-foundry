@@ -25,9 +25,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   [the command line](https://dnnsmnstrr.github.io/connector-foundry/docs/cli/) are new; the Bench,
   Holes, Joints, user overrides and accuracy pages are on the website too. They are the Markdown
   files in `docs/`, so GitHub shows the same text.
-- **The guides from the app**: **Open the guides** in the command palette (type `docs`) and the
-  **Guides** link at the top of Settings open them in a new tab — from the desktop app, in your
-  browser.
+- **The guides and the website from the app**: **Open the guides** in the command palette (type
+  `docs`) and the **Guides** link at the top of Settings open them in a new tab — from the desktop
+  app, in your browser. Each guide is in the palette too, by its name (type `holes guide`), and
+  **Open the website** goes to the landing page.
 
 ## 0.3.0 — 2026-10-16
 

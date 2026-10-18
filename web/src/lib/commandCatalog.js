@@ -14,10 +14,11 @@ import { showCommandHud } from "./commandHud.js";
 export const REPO_URL = "https://github.com/dnnsmnstrr/connector-foundry";
 export const ISSUES_URL = `${REPO_URL}/issues/new`;
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
-// The website's guides, rendered from docs/*.md (scripts/build-docs.mjs).
-// The whole address, not a path beside the app's: the desktop app is served
-// from foundry://app/, which has no guides.
-export const GUIDES_URL = "https://dnnsmnstrr.github.io/connector-foundry/docs/";
+// The website: its landing page, and its guides, rendered from docs/*.md
+// (scripts/build-docs.mjs). Whole addresses, not paths beside the app's:
+// the desktop app is served from foundry://app/, which has neither.
+export const SITE_URL = "https://dnnsmnstrr.github.io/connector-foundry/";
+export const GUIDES_URL = `${SITE_URL}docs/`;
 // Layerling, where "Copy for Layerling" pastes (lib/layerlingClipboard.js).
 export const LAYERLING_URL = "https://layerling.com/";
 
@@ -335,6 +336,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["docs", "documentation", "help", "manual", "getting started", "tutorial"],
     action: "Open",
   },
+  "app.website": {
+    title: "Open the website",
+    section: "Help",
+    keywords: ["home", "homepage", "landing page", "site", "connector foundry"],
+    action: "Open",
+  },
   "app.github": {
     title: "Open the GitHub repository",
     section: "Help",
@@ -467,4 +474,45 @@ export function linkActions(url) {
     { title: "Open", run: () => openLink(url) },
     { title: "Copy link", run: () => copyLink(url) },
   ];
+}
+
+// --- Guides --------------------------------------------------------------
+// Every guide the website publishes, each a link of its own. Which guides
+// there are is scripts/build-docs.mjs's DOC_GROUPS, in its order; a unit
+// test holds this list to it, so no row leads to a page that isn't there.
+// `name` goes into the title: "Open the Holes guide", not "Holes guide",
+// which would outrank Go to Holes when someone types `holes`.
+export const GUIDES = Object.freeze([
+  { slug: "getting-started", name: "getting started", keywords: ["tutorial", "introduction", "first steps"] },
+  { slug: "desktop", name: "desktop app", keywords: ["install", "mac", "macos", "windows", "electron"] },
+  { slug: "cli", name: "command line", keywords: ["cli", "terminal", "foundry", "python"] },
+  { slug: "bench", name: "Bench", keywords: ["assembly", "combine"] },
+  { slug: "holes", name: "Holes", keywords: ["drill", "screw holes", "magnets"] },
+  { slug: "joints", name: "joints", keywords: ["flange", "fused", "bolted", "connection"] },
+  { slug: "overrides", name: "user overrides", keywords: ["saved defaults", "parameters"] },
+  { slug: "accuracy", name: "accuracy", keywords: ["references", "verify", "exact", "fit"] },
+]);
+
+/**
+ * A guide's page on the website.
+ * @param {string} slug
+ */
+export function guideUrl(slug) {
+  return `${GUIDES_URL}${slug}/`;
+}
+
+/**
+ * A row per guide, found by typing, as the parts are: on an empty query
+ * Help lists the guides' index (app.guides) and not eight rows more.
+ * @returns {Command[]}
+ */
+export function guideCommands() {
+  return GUIDES.map(({ slug, name, keywords }) => ({
+    id: `guide:${slug}`,
+    title: `Open the ${name} guide`,
+    section: "Help",
+    keywords: ["docs", "documentation", "manual", ...keywords],
+    searchOnly: true,
+    actions: linkActions(guideUrl(slug)),
+  }));
 }

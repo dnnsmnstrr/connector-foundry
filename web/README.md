@@ -157,7 +157,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | --- | --- |
 | `src/App.jsx` | Shell: nav, mode switch, Settings, the keyboard-shortcuts sheet, the command palette and the shell's commands, the shared sidebar preference (its width written onto the layout by `ShellBody`) |
 | `src/lib/commands.js` | The command palette's model, pure and Node-tested: what a command and a page are, the registry every source adds a getter to (`createCommandRegistry()`, the app's `commandRegistry`), and the ranking — word by word, prefix > initials ("oib") > word start > substring > scattered letters, the title over keywords, an exact alias first, recent commands only breaking ties (`rankCommands()`, `browseSections()`, `matchRanges()`) |
-| `src/lib/commandCatalog.js` | The built-in commands' titles, sections, search keywords and key hints, as data (`BUILTIN_COMMANDS`; `builtin(id, binding)` binds behaviour to an id and tsc checks the id), the section order, `partCommand()` for a part's row, the repository and Layerling links and `linkActions()` (open, copy); a unit test holds every key hint to a row of the shortcuts sheet |
+| `src/lib/commandCatalog.js` | The built-in commands' titles, sections, search keywords and key hints, as data (`BUILTIN_COMMANDS`; `builtin(id, binding)` binds behaviour to an id and tsc checks the id), the section order, `partCommand()` for a part's row, the website's, the repository's and Layerling's links and `linkActions()` (open, copy), `guideCommands()` for a row per guide (`GUIDES`, which a unit test holds to the guides `scripts/build-docs.mjs` publishes); a unit test holds every key hint to a row of the shortcuts sheet |
 | `src/lib/commandHud.js` | "Link copied" and the like: one short message at a time, shown for a moment by App's `CommandHud` (a polite live region) after the palette has closed |
 | `src/components/CommandPalette.jsx` | The palette (Mod+K) and the Bench's and Holes' part pickers: a native `<dialog>` near the top of the window, its search, sections, key hints, nested pages and an Actions page per command (see the Shell section) |
 | `src/hooks/useCommands.js` | `useCommands(source, build)`: a component offers commands while mounted, its latest `build` called only when an open palette collects; `useCommandHome()`, what Mod+K opens on an empty tab (its own picker); `usePaletteShortcut()`, the Mod+K listener |
@@ -263,9 +263,10 @@ screen.
   actions (Open in Bench and Add holes, for a part; Copy link, for a link), → at the end of the
   search lists all of its actions — where the same three keys go by position, whichever action
   is highlighted — Escape clears the search, then goes back a list, then closes, Backspace on an
-  empty search goes back. A link command (`commandCatalog.js`'s `linkActions()`: the repository,
-  an issue, the desktop app, Layerling, a part's source, a user's link) opens on Enter and copies
-  on Mod+Enter; a command that leaves nothing else to see says what it did for a moment at the
+  empty search goes back. A link command (`commandCatalog.js`'s `linkActions()`: the website, the
+  guides and each guide on its own — search-only, after the shell's other commands so that a
+  one-word tie, `holes`, goes to Go to Holes — the repository, an issue, the desktop app,
+  Layerling, a part's source, a user's link) opens on Enter and copies on Mod+Enter; a command that leaves nothing else to see says what it did for a moment at the
   foot of the window (`lib/commandHud.js`, "Link copied"). A command with a `page`
   opens a list of its own (Grid step…, View from…, Hole type…, Attach a part…); the stack holds
   ids and resolves them again on every render, so it never runs a stale closure.

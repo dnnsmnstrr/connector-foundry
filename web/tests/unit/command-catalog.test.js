@@ -1,7 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { BUILTIN_COMMANDS, SECTION_ORDER, builtin, partCommand } from "../../src/lib/commandCatalog.js";
+import { DOC_GROUPS } from "../../scripts/build-docs.mjs";
+import {
+  BUILTIN_COMMANDS,
+  GUIDES,
+  GUIDES_URL,
+  SECTION_ORDER,
+  builtin,
+  guideCommands,
+  partCommand,
+} from "../../src/lib/commandCatalog.js";
+import { rankCommands } from "../../src/lib/commands.js";
 import { SHORTCUT_SECTIONS, isKnownToken } from "../../src/lib/shortcuts.js";
 
 test("every built-in command has a title and a section the palette orders", () => {
@@ -65,4 +75,50 @@ test("a part row reads as the part lists do: name, then its confidence", () => {
     { id: "m", actions: [] },
   );
   assert.equal(mesh.subtitle, "Imported");
+});
+
+test("every guide the website publishes has a row, and every row a page", (t) => {
+  // build-docs.mjs's list is what becomes docs/<slug>/ on the website.
+  const published = DOC_GROUPS.flatMap((group) => group.docs.map((doc) => doc.slug));
+  assert.deepEqual(
+    GUIDES.map((guide) => guide.slug),
+    published,
+  );
+  const opened = [];
+  globalThis.window = /** @type {any} */ ({ open: (url) => opened.push(url) });
+  t.after(() => {
+    delete globalThis.window;
+  });
+  const rows = guideCommands();
+  assert.equal(new Set(rows.map((row) => row.id)).size, rows.length);
+  for (const row of rows) {
+    // Found by typing: on an empty query Help lists the index, app.guides.
+    assert.equal(row.searchOnly, true, row.id);
+    assert.ok(SECTION_ORDER.includes(row.section), row.id);
+    assert.ok(row.keywords?.includes("docs"), row.id);
+    assert.deepEqual(
+      row.actions?.map((action) => action.title),
+      ["Open", "Copy link"],
+    );
+    row.actions?.[0].run?.();
+  }
+  assert.deepEqual(
+    opened,
+    published.map((slug) => `${GUIDES_URL}${slug}/`),
+  );
+});
+
+test("a guide never outranks the command it is named after", () => {
+  // As the shell lists them: the guides after the rest, so a tie on a
+  // word in both titles goes to the command.
+  const ids = /** @type {const} */ (["app.library", "app.bench", "app.holes", "app.guides", "app.website"]);
+  const commands = [...ids.map((id) => builtin(id, { run() {} })), ...guideCommands()];
+  const first = (query) => rankCommands(commands, query)[0]?.command.id;
+  assert.equal(first("bench"), "app.bench");
+  assert.equal(first("holes"), "app.holes");
+  assert.equal(first("docs"), "app.guides");
+  assert.equal(first("guide"), "app.guides");
+  assert.equal(first("website"), "app.website");
+  assert.equal(first("holes guide"), "guide:holes");
+  assert.equal(first("joints"), "guide:joints");
 });

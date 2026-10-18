@@ -299,6 +299,36 @@ test("the guides: listed under Help, found by typing docs, and linked from Setti
   expect(opened.url()).toBe(guides);
 });
 
+test("each guide is found by its name, and the website is under Help", async ({ page }) => {
+  const site = "https://dnnsmnstrr.github.io/connector-foundry/";
+  await catalogue(page);
+  await mockWorker(page);
+  await page.context().route(`${site}**`, (route) => route.fulfill({ body: "ok" }));
+  await page.goto("/app/");
+  await openPalette(page);
+  const help = palette(page).getByRole("group", { name: "Help", exact: true });
+  await expect(help.getByRole("option", { name: "Open the website", exact: true })).toBeVisible();
+  // The guides themselves wait to be typed for, as the parts do.
+  await expect(help.getByRole("option", { name: /guide$/ })).toHaveCount(0);
+  await commandSearch(page).fill("holes guide");
+  await expect(rows(page).first()).toHaveAccessibleName("Open the Holes guide");
+  let popup = page.waitForEvent("popup");
+  await page.keyboard.press("Enter");
+  let opened = await popup;
+  await opened.waitForLoadState();
+  expect(opened.url()).toBe(`${site}docs/holes/`);
+  await opened.close();
+
+  await openPalette(page);
+  await commandSearch(page).fill("website");
+  await expect(rows(page).first()).toHaveAccessibleName("Open the website");
+  popup = page.waitForEvent("popup");
+  await page.keyboard.press("Enter");
+  opened = await popup;
+  await opened.waitForLoadState();
+  expect(opened.url()).toBe(site);
+});
+
 test("a hole type found in the palette is the one the sidebar shows", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

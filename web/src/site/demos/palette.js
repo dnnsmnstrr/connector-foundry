@@ -33,6 +33,7 @@ const LINKS = {
   "app.bench": `${BASE}app/#mode=bench`,
   "app.holes": `${BASE}app/#mode=holes`,
   "app.guides": `${BASE}docs/`,
+  "app.website": BASE,
   "app.github": REPO_URL,
   "app.issue": ISSUES_URL,
   "app.layerling": LAYERLING_URL,

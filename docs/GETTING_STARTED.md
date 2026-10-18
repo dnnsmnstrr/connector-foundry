@@ -100,9 +100,10 @@ solid up to its stacking lip, ready for pockets shaped like your tools.
 ## Find anything with Cmd/Ctrl+K
 
 **Cmd+K** on a Mac, **Ctrl+K** elsewhere, opens the command palette: type a few letters to switch
-tabs, find a part, pick a hole type, attach, export, undo or change a setting. The first letters of
-words work too — `oib` is **Open in Bench**. Press `?` for every keyboard shortcut and the mouse and
-trackpad controls; **Cmd/Ctrl+Z** undoes in every tab.
+tabs, find a part, pick a hole type, attach, export, undo, change a setting or open a guide like
+this one (`holes guide`). The first letters of words work too — `oib` is **Open in Bench**. Press
+`?` for every keyboard shortcut and the mouse and trackpad controls; **Cmd/Ctrl+Z** undoes in every
+tab.
 
 ## Save and share
 

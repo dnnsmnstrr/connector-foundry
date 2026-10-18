@@ -34,7 +34,9 @@ import {
   LAYERLING_URL,
   RELEASES_URL,
   REPO_URL,
+  SITE_URL,
   builtin,
+  guideCommands,
   linkActions,
   openLink,
   partCommand,
@@ -584,6 +586,7 @@ export default function App() {
       builtin("app.shortcuts", { run: () => setShortcutsOpen(true) }),
       // Links: Enter opens them, Mod+Enter copies them.
       builtin("app.guides", { actions: linkActions(GUIDES_URL) }),
+      builtin("app.website", { actions: linkActions(SITE_URL) }),
       builtin("app.github", { actions: linkActions(REPO_URL) }),
       builtin("app.issue", { actions: linkActions(ISSUES_URL) }),
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
@@ -592,6 +595,9 @@ export default function App() {
         when: !document.documentElement.classList.contains("desktop"),
         actions: linkActions(RELEASES_URL),
       }),
+      // After the rest: a guide ties with the command of its name ("bench"),
+      // and a tie goes to the one listed first.
+      ...guideCommands(),
       ...(mode === "library" || !parts
         ? []
         : listedParts(parts, getHiddenLibrary()).map((part) =>
