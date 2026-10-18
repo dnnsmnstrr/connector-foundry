@@ -19,6 +19,19 @@ const RESTART_MS = 4200;
  */
 export function mountTerminal(root, { still }) {
   const body = /** @type {HTMLElement} */ (root.querySelector("[data-terminal]"));
+  // The session is typed on `live`, over an unseen copy of all of it in
+  // the same grid cell (landing.css), so the box is always as tall as the
+  // whole session. When its height followed the text, it fed back through
+  // onVisibility() below: with the terminal at the top of the window,
+  // starting over shrank it under the visibility threshold, showing it all
+  // grew it back over, and the Download section under it jumped between
+  // the two heights every frame.
+  const ghost = document.createElement("span");
+  ghost.className = "terminal-ghost";
+  ghost.setAttribute("aria-hidden", "true");
+  const live = document.createElement("span");
+  body.replaceChildren(ghost, live);
+  body.classList.add("is-stacked");
   let timer = 0;
   let running = false;
 
@@ -37,39 +50,40 @@ export function mountTerminal(root, { still }) {
     return fragment;
   }
 
-  function showAll() {
-    body.replaceChildren();
+  function showAll(target = live) {
+    target.replaceChildren();
     SESSION.forEach(([command, output], i) => {
-      if (i) body.append("\n");
-      body.append(line(command, output));
+      if (i) target.append("\n");
+      target.append(line(command, output));
     });
   }
 
   function play(index = 0, typed = 0) {
     if (!running) return;
-    body.replaceChildren();
-    for (let i = 0; i < index; i++) body.append(line(SESSION[i][0], SESSION[i][1]), "\n");
+    live.replaceChildren();
+    for (let i = 0; i < index; i++) live.append(line(SESSION[i][0], SESSION[i][1]), "\n");
     if (index >= SESSION.length) {
       timer = window.setTimeout(() => play(0, 0), RESTART_MS);
       return;
     }
     const [command] = SESSION[index];
     const done = typed >= command.length;
-    body.append(line(command, null, typed));
+    live.append(line(command, null, typed));
     const cursor = document.createElement("span");
     cursor.className = "terminal-cursor";
-    body.append(cursor);
+    live.append(cursor);
     if (!done) {
       timer = window.setTimeout(() => play(index, typed + 1), TYPE_MS);
       return;
     }
     timer = window.setTimeout(() => {
-      body.replaceChildren();
-      for (let i = 0; i <= index; i++) body.append(line(SESSION[i][0], SESSION[i][1]), i < index ? "\n" : "");
+      live.replaceChildren();
+      for (let i = 0; i <= index; i++) live.append(line(SESSION[i][0], SESSION[i][1]), i < index ? "\n" : "");
       timer = window.setTimeout(() => play(index + 1, 0), NEXT_MS);
     }, OUTPUT_MS);
   }
 
+  showAll(ghost);
   if (still) {
     showAll();
     return;
