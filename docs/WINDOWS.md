@@ -114,11 +114,58 @@ use `bash` (Git for Windows provides it on the Windows runners), the two
 Windows-only ones PowerShell. The Windows job installs dependencies, runs the
 unit tests, builds the installer with a fixed name, runs that installer
 silently into a scratch folder (`/S /D=…`), runs the desktop suite against the
-installed `Connector Foundry.exe`, runs the uninstaller silently and checks it
-cleaned up, and uploads the installer and the screenshots. An experimental
+installed `Connector Foundry.exe`, has that app update itself to a newer build
+(x64 only; [below](#how-the-app-updates-itself)), runs the uninstaller silently
+and checks it cleaned up, and uploads the installer and the screenshots. An experimental
 `windows-11-arm` entry (`continue-on-error`) does the same for an ARM64
 build. A version tag publishes the installers alongside the DMGs; see
 [MACOS.md](MACOS.md#publishing-a-release) for the tagging steps.
+
+## How the app updates itself
+
+The updater is the macOS one ([MACOS.md](MACOS.md#how-the-app-updates-itself)
+says how it checks and verifies a release); the install differs. On Windows
+it downloads the release's `Connector-Foundry-windows-<arch>-setup.exe` (an
+ARM64 machine takes the x64 installer when a release has no ARM64 one), checks
+its size and SHA-256 against `latest.json`, and on **Restart to update**
+writes `pending-update.json` to the profile, starts the installer detached
+with `--updated /S --force-run` and quits; an update left for the next quit
+runs without `--force-run`. These are the arguments electron-updater passes,
+and electron-builder's installer does the rest:
+
+- `--updated` skips its "close the app" question: after about a second it ends
+  whatever still runs from the installation folder (found by path, through
+  PowerShell).
+- It takes the folder from the registry (`InstallLocation`, under HKCU for a
+  per-user install, so a folder chosen with `/D=` or on the folder page is
+  kept), runs the old version's uninstaller silently with `--updated`, which
+  leaves the profile alone, and installs the new files.
+- `--force-run` starts the app again through its Start menu shortcut
+  (`StdUtils::ExecShellAsUser`, so an installer that elevated itself starts it
+  unelevated), with `--updated` on the command line, which the app ignores.
+  The shortcut carries no other arguments: a copy started with
+  `--user-data-dir` comes back on the default profile, where on macOS the
+  swap script passes the profile on. That copy's `pending-update.json` waits
+  in its own profile for the next launch there.
+
+Verified on `windows-latest` (2026-10-18, run 39166110934). After the job's
+silent install and desktop suite, `desktop.yml` builds the same app again as
+0.4.1 (`-c.extraMetadata.version`, into `release-update/`) and writes its
+`latest.json` with `scripts/release-manifest.mjs`. `tests/desktop/update.test.mjs`
+then launches the installed 0.4.0, answers its GitHub requests from those
+files (`protocol.handle("https")` in the main process), checks for updates in
+Settings and clicks **Restart to update** in the header. The installed
+`Connector Foundry.exe` became 0.4.1, the installer exited, the app ran again
+from the installation folder with `--updated` on its command line, and its
+MCP server answered as 0.4.1 (on the default profile, which the test seeds
+with `mcp.json` for that). The next launch on the test's profile opened on the
+Bench tab the restart left, reported the update to 0.4.1 as done (the
+"Updated to version 0.4.1" notice) and had removed `pending-update.json`.
+From the old app's launch to that check took 23 seconds, and the uninstaller
+afterwards still removed everything. The test is skipped unless
+`DESKTOP_UPDATE_INSTALLER` names the newer installer: it replaces the
+installed app and writes to the default profile, so it belongs on a
+throwaway machine.
 
 ## Not done
 
@@ -138,14 +185,10 @@ build. A version tag publishes the installers alongside the DMGs; see
 - **File associations, a portable build.** Same status as on macOS: not
   implemented. The `.blockmap` electron-builder emits is for
   electron-updater's differential updates and is dropped from releases.
-- **Self-update is not tested on Windows yet.** The app updates itself
-  (`web/desktop/updates.cjs`; the macOS notes say how it checks and
-  verifies): on Windows it downloads the release's setup `.exe` and, on
-  **Restart to update** or at quit, runs it with `--updated /S` (plus
-  `--force-run` to start the app again). That is what electron-updater
-  passes: electron-builder's installer then skips its pages, waits for or
-  ends the running app, finds the installation in the registry and elevates
-  itself for an all-users one. A copy without `Uninstall Connector
-  Foundry.exe` beside it (unpacked, not installed) doesn't update itself.
-  Only the unit and desktop tests cover this so far; no update has been run
-  on a Windows machine.
+- **Self-update, where CI can't look.** An all-users installation: the
+  installer's silent upgrade of one elevates itself through its UAC plugin
+  (the install section of electron-builder's `installer.nsi`), so the updater
+  needs no `elevate.exe` of its own, but the runner's account is an
+  administrator that is never prompted, so nobody has seen that prompt yet.
+  And a real release: the test serves the files from disk, so the first
+  download through GitHub's redirects will be the first real update.
