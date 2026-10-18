@@ -39,12 +39,10 @@ export const HERO_PAIRS = [
     attached: { part: "gopro/female", words: "GoPro" },
   },
   {
-    // What the catalogue's MultiConnect snap is: an openGrid snap with the
-    // head that takes Multiboard accessories.
-    key: "opengrid-multiboard",
-    label: "Multiboard",
+    key: "opengrid-gopro",
+    label: "openGrid",
     base: { part: "opengrid/snap", words: "openGrid" },
-    attached: { part: "opengrid/multiconnect", words: "Multiboard" },
+    attached: { part: "gopro/male", words: "GoPro" },
   },
   {
     key: "hsw-opengrid",
@@ -53,10 +51,19 @@ export const HERO_PAIRS = [
     attached: { part: "opengrid/openconnect", words: "openGrid" },
   },
   {
-    key: "opengrid-gopro",
-    label: "openGrid",
-    base: { part: "opengrid/snap", words: "openGrid" },
-    attached: { part: "gopro/male", words: "GoPro" },
+    // Named for the attached part: the Gridfinity button is the GoPro pair.
+    key: "gridfinity-deckmate",
+    label: "DeckMate",
+    base: { part: "gridfinity/base", words: "Gridfinity" },
+    attached: { part: "deckmate/innie", words: "DeckMate" },
+  },
+  {
+    key: "klippt-gopro",
+    label: "KLIPPT",
+    base: { part: "klippt/base", words: "KLIPPT" },
+    // Equal prongs: the default's wider nut leg runs a millimetre past
+    // the 20mm octagon.
+    attached: { part: "gopro/female", words: "GoPro", params: { outer_w: 3 } },
   },
 ];
 
