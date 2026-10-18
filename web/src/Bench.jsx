@@ -43,6 +43,7 @@ import { useBenchPresets } from "./hooks/useBenchPresets.js";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
@@ -725,28 +726,41 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setAssembly(createAssembly(part.id, resolveParams(part, {})), { label: "choose base part" });
   }
 
-  // Finish the pending "attach to this slot" with `partId`: a catalogue
-  // part attaches via its own "mount"; an imported one via the anchor
-  // the user picked in the import flow.
-  function attachPending(partId, params, childAnchor, spin = 0) {
+  // Attach `partId` to `slot` with `joint`: a catalogue part attaches via
+  // its own "mount"; an imported one via the anchor the user picked in the
+  // import flow. One undo step. Returns the new node's id, or null when
+  // the bench had no room (addChild() leaves it as it was).
+  function attachTo(slot, joint, partId, params, childAnchor, spin = 0) {
+    let id = null;
     setAssembly(
-      (a) =>
-        addChild(a, {
-          parentId: pendingSlot.parentId,
+      (a) => {
+        const next = addChild(a, {
+          parentId: slot.parentId,
           partId,
           params,
-          slotName: pendingSlot.slotName,
-          joint: pendingJoint,
+          slotName: slot.slotName,
+          joint,
           childAnchor,
           spin,
-        }),
+        });
+        if (next !== a) id = next.nodes[next.nodes.length - 1].id;
+        return next;
+      },
       { label: "attach part" },
     );
+    return id;
+  }
+
+  // Finish the pending "attach to this slot" (the attach picker's).
+  function attachPending(partId, params, childAnchor, spin = 0) {
+    attachTo(pendingSlot, pendingJoint, partId, params, childAnchor, spin);
     setPendingSlot(null);
     setPendingJoint("fused");
   }
 
-  function attachChild(part) {
+  // What a catalogue part starts with on `slot` — the picker's and an
+  // agent's attach alike (webmcp.js's attach_part).
+  function attachedStart(part, slot) {
     // ...plus the catalogue's `attached_defaults`: a part on something
     // else may be a different thing from the part on its own (an
     // openGrid connector here is just its head).
@@ -754,13 +768,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     // Size a grid part to the surface it lands on (a 5x5 BitBeam plate on
     // a single Gridfinity base, 3x3 on an openGrid snap) — except for a
     // count the user's saved default for this part already pins.
-    const available = slotFootprint(
-      assembly,
-      partsById,
-      nodeExtents,
-      pendingSlot.parentId,
-      pendingSlot.slotName,
-    );
+    const available = slotFootprint(assembly, partsById, nodeExtents, slot.parentId, slot.slotName);
     const fitted = fitGridCounts(part, available);
     if (fitted) {
       const pinned = getOverrides(part.id);
@@ -773,8 +781,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     // a side face — the way it hangs on a wall — instead of wherever
     // BOSL2's attach() happens to leave it.
     const spin = part.attached_up
-      ? (uprightSpin(assembly, partsById, pendingSlot.parentId, pendingSlot.slotName, part.attached_up) ?? 0)
+      ? (uprightSpin(assembly, partsById, slot.parentId, slot.slotName, part.attached_up) ?? 0)
       : 0;
+    return { params, spin };
+  }
+
+  function attachChild(part) {
+    const { params, spin } = attachedStart(part, pendingSlot);
     attachPending(part.id, params, "mount", spin);
   }
 
@@ -1258,6 +1271,35 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       loadPresets,
       importConfig,
     ];
+  });
+
+  // The browser's AI agent (lib/webmcp.js): how the preview went, where a
+  // part can go, and the attach the picker makes — with the agent's own
+  // parameters over what the part starts with, and its joint, which the
+  // picker's list would have narrowed for "screwed".
+  useWebMcpTab({
+    tab: "bench",
+    preview: () => ({ status, error: renderError }),
+    openSlots: () =>
+      roomToAttach
+        ? markers.map((marker) => {
+            const { parentId, slotName } = parseMarkerId(marker.id);
+            return { parentId, slotName, on: partsById.get(getNode(assembly, parentId)?.partId)?.name ?? "" };
+          })
+        : [],
+    attach: ({ parentId, slotName, part, params, joint }) => {
+      const parentPart = partsById.get(getNode(assembly, parentId)?.partId);
+      if (joint === "screwed" && !screwedApplies(parentPart, part)) {
+        throw new Error(
+          `A screwed joint needs a screw pattern on one side, and neither ${parentPart?.name} nor ${part.name} has one.`,
+        );
+      }
+      const slot = { parentId, slotName };
+      const start = attachedStart(part, slot);
+      const id = attachTo(slot, joint, part.id, { ...start.params, ...params }, "mount", start.spin);
+      if (!id) throw new Error("The bench is full.");
+      return id;
+    },
   });
 
   if (!assembly) {

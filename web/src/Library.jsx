@@ -15,6 +15,7 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useLibraryHistory } from "./hooks/useLibraryHistory.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommands } from "./hooks/useCommands.js";
+import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { recordLibrary, redoLibrary, subscribeLibraryRequest, undoLibrary } from "./lib/librarySession.js";
@@ -249,6 +250,8 @@ export default function Library({
   });
   const stlBuffer = preview.result;
   const { status, error: renderError } = preview;
+  // How the preview went, for the browser's AI agent (lib/webmcp.js).
+  useWebMcpTab({ tab: "library", preview: () => ({ status, error: renderError }) });
 
   useEffect(() => {
     if (selected) onSelectionChange?.({ part: selected, params });

@@ -24,6 +24,7 @@ import {
 } from "../lib/userOverrides.js";
 import DecimalInput from "./DecimalInput.jsx";
 import InfoTip from "./InfoTip.jsx";
+import McpSettings from "./McpSettings.jsx";
 import Modal from "./Modal.jsx";
 
 // App-wide settings, opened from the nav in either mode. Two kinds live
@@ -352,6 +353,8 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           </>
         )}
       </p>
+
+      <McpSettings />
 
       <h4 className="settings-section has-info-tip">
         Backup

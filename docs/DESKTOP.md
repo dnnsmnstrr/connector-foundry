@@ -96,6 +96,28 @@ release changed.
 - **Same version as its release.** The web app always runs the latest code from the main branch; the
   desktop app is the version you installed, until you update it.
 
+## Let coding agents use it
+
+A coding agent on your computer, such as Claude Code, can work the open window over
+[MCP](https://modelcontextprotocol.io/). It gets the same tools an AI agent in a browser gets: run
+any command in the palette, search the parts, open a part with parameters, attach parts on the
+Bench, load a bench, and read what each tab shows, render errors included. Everything it does
+happens in the window in front of you, and **Cmd/Ctrl+Z** takes it back.
+
+1. In **Settings → Coding agents**, tick **Let coding agents use the app (MCP)**.
+2. Click **Copy Claude Code command** and run it in a terminal. It adds the app to Claude Code for
+   every project. Other agents take **Copy JSON config**, an `mcpServers` entry for their config
+   file.
+3. Ask the agent for a part or a bench while the app is open. If the window is closed, the agent's
+   first request opens it.
+
+It is off until you turn it on. Only programs on this computer can connect, and only with the token
+shown in Settings; web pages are refused. **New token…** locks out every agent set up with the old
+one. The app listens on port 47811. If another program has that port, Settings says so; set another
+`"port"` in `mcp.json` in the app's data folder and turn it on again. That folder is
+`~/Library/Application Support/Connector Foundry` on a Mac and `%APPDATA%\Connector Foundry` on
+Windows.
+
 ## Build it yourself
 
 To run the desktop app from a checkout of the repository, or package it for your own machine, see

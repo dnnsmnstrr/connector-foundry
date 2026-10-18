@@ -117,6 +117,16 @@ recorded volume, so it needs `make goldens`.
 - `resize.js`'s `formatMm()` repeats `outsideDimensions.js`'s private three-decimal rule; it can
   reuse that once someone is in both files.
 
+## The stateless MCP revision for the desktop server
+
+`web/desktop/mcp-server.cjs` speaks MCP's initialize-based revisions (2025-03-26 to 2025-11-25),
+which the reference SDK (1.32) and the clients of October 2026 use; a client of the stateless
+2026-07-28 revision gets the 400 that sends a dual-era client back to `initialize`. Serving that
+revision too means `server/discover`, the per-request `_meta` version and capabilities, the
+`Mcp-Method` / `Mcp-Name` headers checked against the body (`HeaderMismatch`, -32020) and
+`UnsupportedProtocolVersionError` (-32022) — worth doing once a modern-only client turns up, and
+testing against the SDK release that implements it rather than by hand.
+
 ## The command palette's user commands: an editor
 
 `web/src/lib/userCommands.js` is the architecture for the user's own commands — a validated

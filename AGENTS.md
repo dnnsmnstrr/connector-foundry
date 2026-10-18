@@ -122,6 +122,17 @@ ignores its bounds). Quote strings like `yes`, `on`, `1e3`: the two parsers read
 (finite numbers, string names, known keys) before use, and keep the app working when storage
 throws (private mode, quota). `benchConfig.js`'s `checkBenchConfig` is the pattern.
 
+**WebMCP tools are the palette.** `web/src/lib/webmcp.js` offers the browser's AI agent the
+command registry (`list_commands`, `run_command`) and a few tools for what has no command. A new
+command reaches agents on its own; a new tool is for something the palette can't do, its input
+checked like any shared file's (an agent acts on pages anyone can write), its failures returned
+as a message rather than thrown, and a test in `web/tests/unit/webmcp.test.js`. What only a
+mounted tab knows (its render status, the Bench's slots and attach) reaches the tools through
+`useWebMcpTab()`, called with the tab's own handlers rather than a copy of their logic. The
+desktop app serves the same tools to coding agents over MCP (`web/desktop/mcp.cjs`, through the
+window's preload): a tool needs nothing more to reach them, and the preload stays the page's only
+line to the main process.
+
 **Keyboard shortcuts** go through the shared guard in `web/src/lib/isEditableTarget.js`: no
 single-key shortcut fires while typing in a field, while a dialog the event did not come from is
 open, or with a modifier key held. The Cmd/Ctrl shortcuts are undo and redo (`undoShortcut()`,

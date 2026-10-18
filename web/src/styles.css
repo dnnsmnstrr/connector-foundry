@@ -1998,6 +1998,18 @@ a.bench-modal-header-button {
   margin: 0.5rem 0 0;
 }
 
+/* Settings > Coding agents (components/McpSettings.jsx): the address and
+   token in a typewriter face, so a 0 and an O never get confused when
+   one is copied by hand; three buttons wrap on a narrow window. */
+.settings-mcp input[readonly] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.settings-mcp .settings-backup {
+  flex-wrap: wrap;
+}
+
 /* Settings > Part list: one row per system heading — a "shown" box, the
    name, a collapsed list of its parts (each with its own box) — with
    ▲/▼ to move the heading. */

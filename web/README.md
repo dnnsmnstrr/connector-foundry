@@ -163,6 +163,8 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/hooks/useCommands.js` | `useCommands(source, build)`: a component offers commands while mounted, its latest `build` called only when an open palette collects; `useCommandHome()`, what Mod+K opens on an empty tab (its own picker); `usePaletteShortcut()`, the Mod+K listener |
 | `src/lib/hotkeys.js` | User hotkeys: `parseChord()` (Mod plus Shift or Alt plus a letter or digit), `chordOf()` a keydown (falling back to `e.code` where Option or Shift changes `e.key`), and `hotkeyProblem()` against the app's, the desktop menu's and the browser's chords (`RESERVED_CHORDS`) |
 | `src/lib/userCommands.js`, `hooks/useUserCommands.js` | The user's own commands and their aliases and hotkeys for built-in ones — a validated store (`checkUserCommands()`, entry by entry), the action kinds (`ACTION_KINDS`: open a part with parameters in a tab, a bench preset, a hole type, a link, a tab, a built-in command), and the hook that lists them, puts the bindings on the registry and listens for the hotkeys; App.jsx runs each kind. No editor yet (see the Shell section) |
+| `src/lib/webmcp.js`, `hooks/useWebMcp.js` | The app's WebMCP tools for the browser's AI agent, pure and Node-tested: `getModelContext()` (the draft's `document.modelContext`, else Chrome's early-preview `navigator.modelContext`), `registerTools()` (each API's registration, unregistration and result shape; a failure is a result with a message, not a rejection) and `createAppTools()` — `list_commands` / `run_command` over the command registry, `search_parts`, `open_part`, `attach_part`, `get_app_state` and `load_bench`, every input checked; `tabBridge`, where the mounted tab hands over its preview status and (the Bench) its open slots and attach. `useWebMcp()` registers the tools once from App and reads App's latest state through a ref; `useWebMcpTab()` is how Library, the Bench and Holes fill the bridge (see the Shell section) |
+| `desktop/mcp.cjs`, `mcp-server.cjs`, `preload.cjs`; `src/lib/desktopBridge.js`, `hooks/useDesktopMcp.js`, `components/McpSettings.jsx` | Coding agents in the desktop app (see the Shell section): the MCP server (plain Node, Node-tested), its Settings switch and the window's tool calls in the main process, the preload's `window.foundryDesktop`; on the page, the bridge's types with the Claude Code command and JSON config it copies, the live status, and Settings → Coding agents |
 | `src/hooks/useRenderActivity.js`, `components/RenderActivity.jsx` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map), and the nav's "Rendering…" status and **Cancel renders** button built on it — a component of its own, so a render starting or finishing re-renders those two elements rather than App and the whole active mode |
 | `src/lib/shortcuts.js`, `components/ShortcutsModal.jsx` | The keyboard-shortcuts sheet (`?`): every key, pointer gesture and the mouse/touch map as one table, with each platform's modifier names, checked by a unit test — a change to a key is a change to its row here |
 | `src/lib/isEditableTarget.js` | The shortcut guards: `ignoresShortcut()` for single keys, `undoShortcut()` / `ignoresUndoShortcut()` for Cmd/Ctrl+Z, `pickerUndoKey()` for a part picker's search, `paletteShortcut()` for Mod+K and `ignoresHotkey()` for a user's hotkeys (see the Shell section) |
@@ -309,6 +311,48 @@ screen.
   hand-edited `.settings.json` is how they are made for now, e.g.
   `"connector-foundry.userCommands": "{\"version\":1,\"commands\":[{\"id\":\"bin\",\"title\":\"My bin\",\"hotkey\":\"Mod+Shift+L\",\"action\":{\"kind\":\"open-part\",\"partId\":\"gridfinity/bin\",\"params\":{\"gridx\":2},\"target\":\"library\"}}]}"`.
   A new kind is a `check` in `ACTION_KINDS` and a runner in App.jsx's `useUserCommands()` call.
+- **WebMCP** (`lib/webmcp.js`, [the draft](https://webmachinelearning.github.io/webmcp/)): where
+  the browser has an AI agent that takes a page's tools, App registers seven (`hooks/useWebMcp.js`),
+  once, with an `AbortSignal` that unregisters them on unmount. Two of them are the palette:
+  `list_commands` walks the registry and its pages as the palette does (`within` is the stack of
+  ids, a `query` ranks with `rankCommands()`), and `run_command` runs a command's action by
+  title, so every command a source offers reaches agents with no more work — except an action
+  that is a file the user picks, which is left out. The rest cover what the palette has no rows
+  for: `search_parts` (the catalogue with defaults, options, floors, ceilings and variants),
+  `open_part` (App's `openPart()`, the user commands' `open-part` runner, which asks before it
+  replaces a bench or placed holes; parameters checked against `options`, `minimums` and
+  `maximums` as the Library's fields check them), `attach_part` (the attach picker's choice made
+  in one call: the palette's attach ends in a second picker, the Bench's own, that only a person
+  can use), `get_app_state` (the tab and how its preview render went, the Library's part, the
+  bench as its config with imported meshes' STL left out and its open slots, the Holes model) and
+  `load_bench` (that config back, through `checkBenchConfig()` and `loadBenchConfig()`, an undo
+  step named "load bench"; a left-out STL is put back from the bench by id). What only the
+  mounted tab knows it hands over through `tabBridge` while mounted (`useWebMcpTab()`, the latest
+  read through a ref when a tool asks): its `useRender` status and error — the one place a bad
+  parameter or slot name shows — and, on the Bench, the open slots (its markers, as Attach a
+  part… lists them) and `attach()`, which shares `attachedStart()` and `attachTo()` with the
+  picker, so an agent's part starts as a picked one would (sized to the surface, turned upright)
+  and is one "attach part" undo step. Tool input is untrusted like a
+  shared config — an agent acts on pages anyone can write — and a failure is returned as
+  `{ error }` with a message the model can retry from. Chrome's early preview
+  (`navigator.modelContext`) takes MCP's `{ content: [...] }` results and has to be told to
+  unregister; `registerTools()` does both for it.
+- **Coding agents in the desktop app** (`desktop/mcp.cjs`, `mcp-server.cjs`, `preload.cjs`): the
+  same tools over MCP, for Claude Code and the like on the same computer. The window's preload,
+  its only line to the main process, exposes `window.foundryDesktop`: a `modelContext` shaped like
+  Chrome's early preview, which `getModelContexts()` finds beside the browser's, so the page
+  registers its tools there too; and the Settings switch (`hooks/useDesktopMcp.js`,
+  `components/McpSettings.jsx`, the palette's `app.mcp*` commands). The preload sends the tools'
+  descriptions to the main process and runs a call there by id; the main process accepts those
+  messages only from the app's own page in its window. `mcp-server.cjs` is plain Node (`http`, no
+  dependency) speaking Streamable HTTP in MCP's initialize-based revisions (2025-03-26 to
+  2025-11-25), one JSON response per request, no sessions and no GET stream; it is tested on its
+  own and was checked against the reference SDK's client. Off by default; turned on, it listens on
+  127.0.0.1 at a fixed port (`mcp.json`'s `port`, 47811), refuses a request with an Origin header
+  or another Host before it looks at the token (DNS rebinding), and wants `Authorization: Bearer
+  <token>`, 32 random bytes kept in the profile's `mcp.json` (mode 0600) until **New token…**. A
+  call waits up to two minutes (a question the user has to answer) and opens the window if it is
+  closed; a reload or a closed window fails the calls in flight.
 - **Undo and redo.** Each tab has its own history, kept with its state so a tab switch keeps it:
   `lib/librarySession.js`, `lib/benchSession.js`, `lib/holesSession.js`, all on `lib/history.js`.
   A step is an immutable snapshot of the value *before* a change (the Library's part and
