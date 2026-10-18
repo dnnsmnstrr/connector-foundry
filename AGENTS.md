@@ -84,7 +84,9 @@ Which ones to add on top of `make check`:
   `make goldens`.
 - Changed web UI behaviour: `npm run test:browser`. A new test that clicks an export button must
   name the bench first (the name prompt opens otherwise and `waitForEvent("download")` times out).
-- Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`.
+- Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`. The
+  updater's Windows install (`tests/desktop/update.test.mjs`) runs only in `desktop.yml`'s
+  Windows x64 job: dispatch it for a change to `updates.cjs` or the NSIS settings.
 - Changed a guide the website publishes, or the landing page: `npm test` checks every link and
   `#fragment` in the published guides and that the hero's meshes match its pair list
   (`web/tests/unit/build-docs.test.js`, `hero-meshes.test.js`); `npm run test:browser` runs
