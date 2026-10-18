@@ -36,6 +36,14 @@ class RefError(RuntimeError):
     pass
 
 
+class ManualFileMissing(RefError):
+    """A `kind: file` source with a `path` that isn't there: a file only
+    its user can supply (a download behind a login), which nothing here
+    can fetch. Its checks skip (resolve_available()), and `make refs` —
+    CI's "Fetch reference sources" too — says so and carries on, where a
+    source it could have fetched and didn't is a failure."""
+
+
 def load() -> dict:
     return yaml.safe_load(REFS_YAML.read_text())
 
@@ -106,13 +114,19 @@ def resolve_source(name: str, spec: dict, offline: bool = False) -> Path:
     return dest
 
 
-def resolve_all(config: dict, offline: bool = False) -> dict[str, Path]:
+def resolve_all(config: dict, offline: bool = False) -> tuple[dict[str, Path], dict[str, str]]:
     """Every source's root, or the first RefError — for `make refs`,
-    where an unavailable source is a failure."""
-    roots = {"repo": REPO_ROOT}
+    where an unavailable source is a failure. Except a file its user has
+    to supply (ManualFileMissing): returned in the second dict, with
+    why, since nothing `make refs` could do would bring it."""
+    roots: dict[str, Path] = {"repo": REPO_ROOT}
+    missing: dict[str, str] = {}
     for name, spec in config.get("sources", {}).items():
-        roots[name] = resolve_source(name, spec, offline=offline)
-    return roots
+        try:
+            roots[name] = resolve_source(name, spec, offline=offline)
+        except ManualFileMissing as exc:
+            missing[name] = str(exc)
+    return roots, missing
 
 
 def resolve_available(config: dict, offline: bool = False) -> tuple[dict[str, Path], dict[str, str]]:
@@ -179,7 +193,7 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
     if source:
         source = (REPO_ROOT / source).resolve()
         if not source.exists():
-            raise RefError(
+            raise ManualFileMissing(
                 f"source {name}: {spec['path']} not found. This source is a "
                 f"file you supply yourself — see references.yaml."
             )
@@ -408,10 +422,12 @@ def compose_intersection(a: str, b: str) -> str:
 def sync(offline: bool = False) -> dict[str, Path]:
     """Fetch every source and pre-render every recipe."""
     config = load()
-    roots = resolve_all(config, offline=offline)
+    roots, missing = resolve_all(config, offline=offline)
     for name, path in roots.items():
         if name != "repo":
             print(f"  {name:<20} {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+    for name, why in missing.items():
+        print(f"  {name:<20} skipped, its checks too: {why}", file=sys.stderr)
     return roots
 
 
