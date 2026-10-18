@@ -137,6 +137,26 @@ jobs:
           fi
           echo "testing $DESKTOP_EXECUTABLE"
           DESKTOP_EXECUTABLE="$DESKTOP_EXECUTABLE" npm run test:desktop
+      # The installed app updating itself (desktop/updates.cjs) the way it
+      # would from a real release: a second installer of the same app one
+      # patch version up, with the latest.json the release job would write
+      # beside it, which the app downloads and runs over itself
+      # (tests/desktop/update.test.mjs). x64 only: the ARM64 job is
+      # experimental and its runner a preview.
+      - name: Build an update (Windows x64)
+        if: matrix.platform == 'win' && matrix.arch == 'x64'
+        run: |
+          next="$(node -p 'const [a, b, c] = require("./package.json").version.split("."); `${a}.${b}.${Number(c) + 1}`')"
+          npx electron-builder --win --x64 --publish never \
+            "-c.extraMetadata.version=$next" \
+            -c.directories.output=release-update \
+            '-c.win.artifactName=${{ matrix.artifact }}.${ext}'
+          node scripts/release-manifest.mjs release-update "$next"
+      - name: Test self-update (Windows x64)
+        if: matrix.platform == 'win' && matrix.arch == 'x64'
+        env:
+          DESKTOP_UPDATE_INSTALLER: release-update/${{ matrix.artifact }}.exe
+        run: node --test tests/desktop/update.test.mjs
       # _?= keeps the uninstaller running in place so -Wait really waits.
       - name: Uninstall (Windows)
         if: matrix.platform == 'win'
