@@ -41,6 +41,7 @@ document.documentElement.classList.add("js");
 watchHeader();
 reveal();
 hero();
+stageHole();
 spotlight();
 downloads();
 modifierKeys();
@@ -214,6 +215,28 @@ function hero() {
   // the meshes are not what the page is waiting for.
   const idle = window.requestIdleCallback ?? ((callback) => window.setTimeout(callback, 600));
   idle(() => load(), { timeout: 2500 });
+}
+
+// The backdrop's grid leaves a hole behind the 3D view (landing.css,
+// .hero-backdrop::before), and the hole has to sit on the stage: to the
+// right of the copy on a wide screen, under it on a narrow one, at a
+// place no stylesheet value gives. So it is measured, and again whenever
+// the hero changes size. Offsets, not getBoundingClientRect(): the stage
+// rises into place, and its transform must not carry the hole with it.
+// Both are laid out against .hero, their offset parent.
+function stageHole() {
+  const backdrop = $(".hero-backdrop");
+  const stage = $("[data-hero-stage]");
+  const place = () => {
+    const x = stage.offsetLeft - backdrop.offsetLeft + stage.offsetWidth / 2;
+    const y = stage.offsetTop - backdrop.offsetTop + stage.offsetHeight / 2;
+    backdrop.style.setProperty("--stage-x", `${x}px`);
+    backdrop.style.setProperty("--stage-y", `${y}px`);
+    backdrop.style.setProperty("--stage-w", `${stage.offsetWidth}px`);
+    backdrop.style.setProperty("--stage-h", `${stage.offsetHeight}px`);
+  };
+  place();
+  new ResizeObserver(place).observe(backdrop);
 }
 
 function webgl() {
