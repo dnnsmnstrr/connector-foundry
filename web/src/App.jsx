@@ -29,6 +29,7 @@ import { getPreset as getHolePreset, presetSpecFor } from "./lib/screwPresets.js
 import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
 import { listedParts } from "./lib/catalogueUtils.js";
 import {
+  GUIDES_URL,
   ISSUES_URL,
   LAYERLING_URL,
   RELEASES_URL,
@@ -582,6 +583,7 @@ export default function App() {
       }),
       builtin("app.shortcuts", { run: () => setShortcutsOpen(true) }),
       // Links: Enter opens them, Mod+Enter copies them.
+      builtin("app.guides", { actions: linkActions(GUIDES_URL) }),
       builtin("app.github", { actions: linkActions(REPO_URL) }),
       builtin("app.issue", { actions: linkActions(ISSUES_URL) }),
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),

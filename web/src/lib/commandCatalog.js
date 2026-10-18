@@ -14,6 +14,10 @@ import { showCommandHud } from "./commandHud.js";
 export const REPO_URL = "https://github.com/dnnsmnstrr/connector-foundry";
 export const ISSUES_URL = `${REPO_URL}/issues/new`;
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
+// The website's guides, rendered from docs/*.md (scripts/build-docs.mjs).
+// The whole address, not a path beside the app's: the desktop app is served
+// from foundry://app/, which has no guides.
+export const GUIDES_URL = "https://dnnsmnstrr.github.io/connector-foundry/docs/";
 // Layerling, where "Copy for Layerling" pastes (lib/layerlingClipboard.js).
 export const LAYERLING_URL = "https://layerling.com/";
 
@@ -324,6 +328,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["keys", "help", "cheat sheet"],
     keys: [["?"]],
     action: "Show",
+  },
+  "app.guides": {
+    title: "Open the guides",
+    section: "Help",
+    keywords: ["docs", "documentation", "help", "manual", "getting started", "tutorial"],
+    action: "Open",
   },
   "app.github": {
     title: "Open the GitHub repository",

@@ -1919,7 +1919,7 @@ a.mode-tab {
 }
 
 /* A dialog's title with a button or two at its right (Modal.jsx's
-   `actions`: Settings' Keyboard shortcuts). */
+   `actions`: Settings' Keyboard shortcuts and Guides). */
 .bench-modal-header {
   display: flex;
   flex-wrap: wrap;
@@ -1960,6 +1960,11 @@ a.mode-tab {
 
 .bench-modal-header-button .shortcut-hint {
   margin-left: 0;
+}
+
+/* Settings' Guides link looks like the button beside it. */
+a.bench-modal-header-button {
+  text-decoration: none;
 }
 
 .settings-section {

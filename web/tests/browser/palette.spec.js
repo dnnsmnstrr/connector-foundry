@@ -268,6 +268,37 @@ test("the GitHub command opens the repository in a new window", async ({ page })
   expect(opened.url()).toBe("https://github.com/dnnsmnstrr/connector-foundry");
 });
 
+test("the guides: listed under Help, found by typing docs, and linked from Settings", async ({ page }) => {
+  const guides = "https://dnnsmnstrr.github.io/connector-foundry/docs/";
+  await catalogue(page);
+  await mockWorker(page);
+  await page.context().route(`${guides}**`, (route) => route.fulfill({ body: "ok" }));
+  await page.goto("/app/");
+  await openPalette(page);
+  await expect(
+    palette(page)
+      .getByRole("group", { name: "Help", exact: true })
+      .getByRole("option", { name: "Open the guides", exact: true }),
+  ).toBeVisible();
+  // A search result still says which section it is listed under.
+  await commandSearch(page).fill("docs");
+  await expect(rows(page).first()).toHaveAccessibleName("Open the guides");
+  await expect(rows(page).first().locator(".command-row-section")).toHaveText("Help");
+  let popup = page.waitForEvent("popup");
+  await page.keyboard.press("Enter");
+  let opened = await popup;
+  await opened.waitForLoadState();
+  expect(opened.url()).toBe(guides);
+  await opened.close();
+
+  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Settings" }).click();
+  popup = page.waitForEvent("popup");
+  await page.getByRole("dialog", { name: "Settings" }).getByRole("link", { name: "Guides" }).click();
+  opened = await popup;
+  await opened.waitForLoadState();
+  expect(opened.url()).toBe(guides);
+});
+
 test("a hole type found in the palette is the one the sidebar shows", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
