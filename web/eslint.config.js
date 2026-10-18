@@ -13,6 +13,7 @@ export default [
       "public/",
       "release/",
       "desktop/generated/",
+      "docs/",
       "test-results/",
       "playwright-report/",
     ],

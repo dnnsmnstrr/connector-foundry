@@ -9,7 +9,8 @@ const { assetPath, isAppURL } = createRequire(import.meta.url)("../../desktop/pa
 const root = path.resolve("/bundle/dist");
 
 test("desktop protocol serves only bundled assets, including encoded names", () => {
-  assert.equal(assetPath("foundry://app/", root), path.join(root, "index.html"));
+  // The origin's root is the app, not the website's landing page.
+  assert.equal(assetPath("foundry://app/", root), path.join(root, "app", "index.html"));
   assert.equal(assetPath("foundry://app/assets/a%20b.js", root), path.join(root, "assets", "a b.js"));
   for (const url of [
     "https://app/index.html",

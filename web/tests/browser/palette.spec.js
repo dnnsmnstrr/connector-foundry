@@ -90,7 +90,7 @@ async function importConfig(page, config) {
 test("Mod+K opens the palette and puts it away again, as Escape does", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
   await expect(page.getByRole("heading", { name: "Commands", exact: true })).toBeVisible();
@@ -111,7 +111,7 @@ test("Mod+K opens the palette and puts it away again, as Escape does", async ({ 
 test("initials find a command: oib and Enter opens the part in the Bench", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
   await commandSearch(page).fill("oib");
@@ -125,7 +125,7 @@ test("initials find a command: oib and Enter opens the part in the Bench", async
 test("Settings from the palette; Mod+K does nothing over another dialog", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("sett");
   await page.keyboard.press("Enter");
@@ -140,7 +140,7 @@ test("Settings from the palette; Mod+K does nothing over another dialog", async 
 test("what ran lately comes first, after a reload too", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("keyboard");
   await page.keyboard.press("Enter");
@@ -160,7 +160,7 @@ test("a list of its own: Escape clears, then goes back, then closes; Backspace g
 }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("grid");
   await page.keyboard.press("Enter");
@@ -193,7 +193,7 @@ test("a list of its own: Escape clears, then goes back, then closes; Backspace g
 test("a part's actions: → lists them all, and Mod+Enter runs the second there too", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("round post");
   await expect(rows(page).first()).toHaveAccessibleName("Round post exact");
@@ -211,7 +211,7 @@ test("a part's actions: → lists them all, and Mod+Enter runs the second there 
 test("Alt+Enter runs a command's third action", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
   await commandSearch(page).fill("round post");
@@ -227,7 +227,7 @@ test("a link's second action copies it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("github repo");
   await expect(rows(page).first()).toHaveAccessibleName("Open the GitHub repository");
@@ -243,7 +243,7 @@ test("Layerling opens on its own, as a bookmark", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
   await page.context().route("https://layerling.com/**", (route) => route.fulfill({ body: "ok" }));
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("layerling");
   await expect(rows(page).first()).toHaveAccessibleName("Open Layerling");
@@ -258,7 +258,7 @@ test("the GitHub command opens the repository in a new window", async ({ page })
   await catalogue(page);
   await mockWorker(page);
   await page.context().route("https://github.com/**", (route) => route.fulfill({ body: "ok" }));
-  await page.goto("/");
+  await page.goto("/app/");
   await openPalette(page);
   await commandSearch(page).fill("github repo");
   const popup = page.waitForEvent("popup");
@@ -271,7 +271,7 @@ test("the GitHub command opens the repository in a new window", async ({ page })
 test("a hole type found in the palette is the one the sidebar shows", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
@@ -289,7 +289,7 @@ test("the Bench's start picker: over the empty tab, put away with Escape, back w
 }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await expect(page.getByRole("heading", { name: "Start a bench" })).toBeVisible();
   const search = page.getByRole("combobox", { name: "Search parts" });
   await expect(search).toBeFocused();
@@ -324,7 +324,7 @@ test("the Bench's start picker: over the empty tab, put away with Escape, back w
 test("attaching a part: the picker over the scene, with its joint beside the search", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await importConfig(page, {
     format: "connector-foundry/bench",
     version: 1,
@@ -380,7 +380,7 @@ test("part rows show the gallery render, or the system's initial without one", a
   );
   await page.route("**/thumbnails/basics_post.png", (route) => route.fulfill({ status: 404 }));
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   const row = (name) => page.getByRole("option", { name, exact: true });
   await expect
     .poll(() =>
@@ -417,7 +417,7 @@ test("the user's own commands: listed first, found by alias, run by hotkey", asy
       }),
     );
   });
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
   await expect(palette(page).locator(".command-palette-section").first()).toHaveText("Your commands");
@@ -459,7 +459,7 @@ async function dropModel(page, target, name = "cube.stl") {
 test("a model dropped on the Bench's start picker is imported as the base part", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await expect(page.getByRole("heading", { name: "Start a bench" })).toBeVisible();
   const dragged = await dropModel(page, palette(page));
   await expect(palette(page).locator(".command-palette-drop")).toHaveText(
@@ -482,7 +482,7 @@ test("a model dropped on the Bench's start picker is imported as the base part",
 test("the empty tabs take a dropped model once their picker is put away", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(palette(page)).toHaveCount(0);
@@ -508,7 +508,7 @@ test("the empty tabs take a dropped model once their picker is put away", async 
 test("a model dropped on the palette over a model in Holes replaces it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
@@ -528,20 +528,20 @@ test("a model dropped on the palette over a model in Holes replaces it", async (
 test("the Library's palette refuses a dropped file rather than opening it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
   const dragged = await dropModel(page, palette(page));
   await expect(palette(page).locator(".command-palette-drop")).toHaveCount(0);
   await dragged.drop();
   await expect(palette(page)).toHaveCount(1);
-  expect(page.url()).toMatch(/^http:\/\/127\.0\.0\.1:4175\//);
+  expect(page.url()).toMatch(/^http:\/\/127\.0\.0\.1:4175\/app\//);
 });
 
 test("a model dropped on the attach picker is imported to attach on that slot", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await importConfig(page, {
     format: "connector-foundry/bench",
     version: 1,

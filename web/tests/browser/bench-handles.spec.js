@@ -135,7 +135,7 @@ async function importConfig(page, config) {
 async function openBench(page, config) {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
   await importConfig(page, config);
   const renders = config.nodes.length + 2;
@@ -351,7 +351,7 @@ test("a guard note lasts as long as the gesture it explains", async ({ page }) =
 test("Start over can be undone from the start picker", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await importConfig(page, boardConfig);
   const attached = page.getByRole("heading", { name: "Attached (1 of 3)" });
   const start = page.getByRole("heading", { name: "Start a bench" });
@@ -390,7 +390,7 @@ test("Start over can be undone from the start picker", async ({ page }) => {
 test("Open in Bench is a named undo step", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
   await expect(page.getByRole("button", { name: "Select root", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toHaveAttribute(
