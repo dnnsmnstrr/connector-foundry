@@ -1,7 +1,7 @@
 {
   "name": "connector-foundry-web",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "sync-scad": "node scripts/sync-scad.mjs",
