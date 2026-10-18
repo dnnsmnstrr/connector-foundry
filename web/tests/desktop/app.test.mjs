@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -279,6 +280,119 @@ test(
     } finally {
       if (child && child.exitCode === null) child.kill();
       await first?.close();
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    }
+  },
+);
+
+// A port nothing listens on now, for the MCP server to take.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+test(
+  "a coding agent reaches the window's tools over MCP while Settings has it on",
+  { timeout: 180_000 },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "foundry-desktop-"));
+    const profile = path.join(directory, "profile");
+    // The switch as Settings leaves it, on a port of the test's own: the
+    // default one may be taken by the user's own copy of the app.
+    const port = await freePort();
+    const token = "c".repeat(64);
+    await mkdir(profile, { recursive: true });
+    await writeFile(path.join(profile, "mcp.json"), JSON.stringify({ enabled: true, port, token }));
+    let app;
+    try {
+      app = await electron.launch({
+        ...(executable ? { executablePath: executable } : {}),
+        args: [...(executable ? [] : ["."]), `--user-data-dir=${profile}`],
+      });
+      const page = await app.firstWindow();
+      await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeVisible({
+        timeout: 90_000,
+      });
+      let id = 0;
+      const post = (method, params, headers = {}) =>
+        fetch(`http://127.0.0.1:${port}/mcp`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json, text/event-stream",
+            authorization: `Bearer ${token}`,
+            ...headers,
+          },
+          body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, ...(params ? { params } : {}) }),
+        });
+      const rpc = async (method, params) => (await (await post(method, params)).json()).result;
+      const tool = async (name, args) => {
+        const result = await rpc("tools/call", { name, arguments: args });
+        assert.equal(result.isError, undefined, JSON.stringify(result));
+        return JSON.parse(result.content[0].text);
+      };
+
+      const init = await rpc("initialize", {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "desktop-test", version: "0" },
+      });
+      assert.equal(init.serverInfo.name, "connector-foundry");
+      assert.equal(init.protocolVersion, "2025-06-18");
+      const { tools } = await rpc("tools/list");
+      assert.deepEqual(
+        tools.map((t) => t.name),
+        [
+          "list_commands",
+          "run_command",
+          "search_parts",
+          "open_part",
+          "attach_part",
+          "get_app_state",
+          "load_bench",
+        ],
+      );
+      assert.equal(tools.find((t) => t.name === "get_app_state").annotations.readOnlyHint, true);
+
+      // The window's own tools, answering from its state.
+      const { parts } = await tool("search_parts", { query: "flat plate" });
+      assert.ok(
+        parts.some((p) => p.id === "basics/plate"),
+        JSON.stringify(parts),
+      );
+      assert.deepEqual(await tool("open_part", { partId: "basics/plate", target: "bench" }), {
+        opened: "Flat plate",
+        tab: "bench",
+      });
+      await expect(page.locator(".mode-tab.active")).toContainText("Bench");
+      assert.equal((await tool("get_app_state", {})).bench.root.partId, "basics/plate");
+
+      // Without the token, or from a web page, nothing.
+      assert.equal((await post("tools/list", undefined, { authorization: "" })).status, 401);
+      assert.equal((await post("tools/list", undefined, { origin: "https://example.com" })).status, 403);
+
+      // Settings has it on, with the address; turned off, the port closes
+      // and the token stays for next time.
+      await page.keyboard.press("s");
+      const settings = page.getByRole("dialog", { name: "Settings" });
+      const toggle = settings.getByRole("checkbox", { name: "Let coding agents use the app (MCP)" });
+      await expect(toggle).toBeChecked();
+      await expect(settings.getByRole("textbox", { name: "Address" })).toHaveValue(
+        `http://127.0.0.1:${port}/mcp`,
+      );
+      await toggle.uncheck();
+      await expect(settings.getByRole("textbox", { name: "Address" })).toHaveCount(0);
+      await assert.rejects(post("ping"));
+      const saved = JSON.parse(await readFile(path.join(profile, "mcp.json"), "utf8"));
+      assert.deepEqual(saved, { enabled: false, port, token });
+    } finally {
+      await app?.close();
       await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     }
   },

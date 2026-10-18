@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } = requ
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { setupMcp } = require("./mcp.cjs");
 const { APP_URL, assetPath, isAppURL } = require("./paths.cjs");
 
 const isMac = process.platform === "darwin";
@@ -35,6 +36,8 @@ const csp = [
 ].join("; ");
 let window;
 let lastExportDirectory;
+// Coding agents' way in (mcp.cjs), off unless the user turned it on.
+let mcp;
 
 function openExternal(url) {
   try {
@@ -74,8 +77,17 @@ function createWindow() {
           titleBarOverlay: { color: "#17181b", symbolColor: "#e8e8ea", height: OVERLAY_HEIGHT },
         }
       : {}),
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
+    // The preload is the page's only line to this process: the coding
+    // agents' bridge and its Settings switch (preload.cjs).
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      preload: path.join(__dirname, "preload.cjs"),
+    },
   });
+  mcp?.watch(window);
   window.once("ready-to-show", () => window.show());
   window.webContents.setWindowOpenHandler(({ url }) => {
     openExternal(url);
@@ -203,7 +215,17 @@ function start() {
       { role: "windowMenu" },
     ]),
   );
+  mcp = setupMcp({
+    getWindow: () => window ?? null,
+    // An agent's call with no window open (closed on macOS) opens one.
+    openWindow: () => {
+      if (!window) createWindow();
+      return window;
+    },
+    isAppURL,
+  });
   createWindow();
+  mcp.start();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

@@ -1,27 +1,25 @@
 import { useEffect, useRef } from "react";
-import { createAppTools, getModelContext, registerTools, tabBridge } from "../lib/webmcp.js";
+import { createAppTools, getModelContexts, registerTools, tabBridge } from "../lib/webmcp.js";
 
 /**
  * Offers the app's WebMCP tools (lib/webmcp.js) to the browser's AI agent
- * while the caller is mounted — App, once. Where the browser has no
- * WebMCP, nothing happens. The tools are registered once and read the
- * latest `deps` through a ref when called, so they see the tab and the
- * bench as they are then, not as they were at registration; re-registering
- * on every render would fire the browser's toolchange each keystroke.
+ * and, in the desktop app, to coding agents (desktop/mcp.cjs), while the
+ * caller is mounted — App, once. Where there is neither, nothing happens.
+ * The tools are registered once and read the latest `deps` through a ref
+ * when called, so they see the tab and the bench as they are then, not as
+ * they were at registration; re-registering on every render would fire
+ * the browser's toolchange each keystroke.
  * @param {import("../lib/webmcp.js").AppToolDeps} deps
  */
 export function useWebMcp(deps) {
   const depsRef = useRef(deps);
   depsRef.current = deps;
   useEffect(() => {
-    const found = getModelContext();
-    if (!found) return undefined;
+    const found = getModelContexts();
+    if (!found.length) return undefined;
     const controller = new AbortController();
-    registerTools(
-      found,
-      createAppTools(() => depsRef.current),
-      controller.signal,
-    );
+    const tools = createAppTools(() => depsRef.current);
+    for (const context of found) registerTools(context, tools, controller.signal);
     return () => controller.abort();
   }, []);
 }

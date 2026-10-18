@@ -6,7 +6,7 @@ import { createCommandRegistry } from "../../src/lib/commands.js";
 import {
   createAppTools,
   createTabBridge,
-  getModelContext,
+  getModelContexts,
   registerTools,
   toolError,
   toolResult,
@@ -134,18 +134,43 @@ function tools(deps) {
 
 // --- Finding the API and registering ----------------------------------------
 
-test("the draft's document.modelContext comes first, the preview's navigator.modelContext second", () => {
+test("the draft's document.modelContext before the preview's navigator.modelContext, and the desktop's too", () => {
   const draft = { registerTool() {} };
   const preview = { registerTool() {} };
-  assert.deepEqual(getModelContext({ modelContext: draft }, { modelContext: preview }), {
-    context: draft,
-    legacy: false,
-  });
-  assert.deepEqual(getModelContext({}, { modelContext: preview }), { context: preview, legacy: true });
-  assert.equal(getModelContext({}, {}), null);
-  assert.equal(getModelContext(undefined, undefined), null);
+  const desktop = { modelContext: { registerTool() {} } };
+  assert.deepEqual(getModelContexts({ modelContext: draft }, { modelContext: preview }, null), [
+    { context: draft, mcp: false },
+  ]);
+  assert.deepEqual(getModelContexts({}, { modelContext: preview }, null), [{ context: preview, mcp: true }]);
+  assert.deepEqual(getModelContexts({ modelContext: draft }, {}, desktop), [
+    { context: draft, mcp: false },
+    { context: desktop.modelContext, mcp: true },
+  ]);
+  assert.deepEqual(getModelContexts({}, {}, desktop), [{ context: desktop.modelContext, mcp: true }]);
+  assert.deepEqual(getModelContexts({}, {}, null), []);
+  assert.deepEqual(getModelContexts(undefined, undefined, undefined), []);
   // Something there that isn't the API is no API.
-  assert.equal(getModelContext({ modelContext: {} }, { modelContext: { registerTool: "no" } }), null);
+  assert.deepEqual(
+    getModelContexts({ modelContext: {} }, { modelContext: { registerTool: "no" } }, { modelContext: 1 }),
+    [],
+  );
+});
+
+test("the desktop bridge gets no signal, which it couldn't carry", () => {
+  const calls = [];
+  const context = {
+    registerTool(...args) {
+      calls.push(args.length);
+      return { unregister() {} };
+    },
+  };
+  const { deps } = sampleDeps();
+  registerTools(
+    { context, mcp: true },
+    createAppTools(() => deps),
+    new AbortController().signal,
+  );
+  assert.deepEqual(new Set(calls), new Set([1]));
 });
 
 test("the draft gets each tool with the signal, and plain results", async () => {
@@ -159,7 +184,7 @@ test("the draft gets each tool with the signal, and plain results", async () => 
   const controller = new AbortController();
   const { deps } = sampleDeps();
   registerTools(
-    { context, legacy: false },
+    { context, mcp: false },
     createAppTools(() => deps),
     controller.signal,
   );
@@ -207,7 +232,7 @@ test("the preview gets MCP-shaped results and is told to unregister", async () =
   const controller = new AbortController();
   const { deps } = sampleDeps();
   registerTools(
-    { context, legacy: true },
+    { context, mcp: true },
     createAppTools(() => deps),
     controller.signal,
   );
@@ -229,7 +254,7 @@ test("a handle with unregister() is used instead of unregisterTool", () => {
   const controller = new AbortController();
   const { deps } = sampleDeps();
   registerTools(
-    { context, legacy: true },
+    { context, mcp: true },
     createAppTools(() => deps),
     controller.signal,
   );
@@ -249,7 +274,7 @@ test("a tool the browser refuses is skipped; the rest are registered", (t) => {
   };
   const { deps } = sampleDeps();
   registerTools(
-    { context, legacy: false },
+    { context, mcp: false },
     createAppTools(() => deps),
     new AbortController().signal,
   );
@@ -263,7 +288,7 @@ test("an aborted signal registers nothing", () => {
   controller.abort();
   const { deps } = sampleDeps();
   registerTools(
-    { context: { registerTool: () => assert.fail("registered") }, legacy: false },
+    { context: { registerTool: () => assert.fail("registered") }, mcp: false },
     createAppTools(() => deps),
     controller.signal,
   );

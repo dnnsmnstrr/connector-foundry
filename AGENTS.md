@@ -128,7 +128,10 @@ command reaches agents on its own; a new tool is for something the palette can't
 checked like any shared file's (an agent acts on pages anyone can write), its failures returned
 as a message rather than thrown, and a test in `web/tests/unit/webmcp.test.js`. What only a
 mounted tab knows (its render status, the Bench's slots and attach) reaches the tools through
-`useWebMcpTab()`, called with the tab's own handlers rather than a copy of their logic.
+`useWebMcpTab()`, called with the tab's own handlers rather than a copy of their logic. The
+desktop app serves the same tools to coding agents over MCP (`web/desktop/mcp.cjs`, through the
+window's preload): a tool needs nothing more to reach them, and the preload stays the page's only
+line to the main process.
 
 **Keyboard shortcuts** go through the shared guard in `web/src/lib/isEditableTarget.js`: no
 single-key shortcut fires while typing in a field, while a dialog the event did not come from is

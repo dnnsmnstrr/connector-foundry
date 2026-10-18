@@ -114,7 +114,8 @@ loading a whole bench. Ask the agent for "a 3 by 2 Gridfinity bin with magnets" 
 plate to this board's corner slot" and it works the app as you would. Opening a part over your bench
 or holes asks you first, and anything the agent does to a bench can be undone with **Cmd/Ctrl+Z**.
 As of October 2026 that is Chrome with `chrome://flags/#enable-webmcp-testing` turned on; elsewhere
-nothing changes.
+nothing changes. The [desktop app](DESKTOP.md#let-coding-agents-use-it) offers the same to coding
+agents like Claude Code.
 
 ## Save and share
 

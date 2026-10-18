@@ -41,6 +41,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   render fail — and load a bench config. Opening a part over a bench or placed holes asks you
   first, as the buttons do, and whatever the agent does to a bench is a step you can undo. In
   other browsers nothing changes.
+- **Coding agents in the desktop app.** **Settings → Coding agents** lets a coding agent on your
+  computer, like Claude Code, use the open window over MCP, with the same seven tools. Copy the
+  Claude Code command or a JSON config from there. It is off until you turn it on, listens only
+  on this computer (port 47811), needs the token Settings shows, and refuses web pages.
 
 ### New systems and parts
 

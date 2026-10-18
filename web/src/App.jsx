@@ -18,6 +18,7 @@ import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
 import { useCommands, usePaletteShortcut } from "./hooks/useCommands.js";
+import { useDesktopMcp } from "./hooks/useDesktopMcp.js";
 import { useUserCommands } from "./hooks/useUserCommands.js";
 import { useWebMcp } from "./hooks/useWebMcp.js";
 import { createAssembly } from "./lib/assembly.js";
@@ -42,12 +43,14 @@ import {
   REPO_URL,
   SITE_URL,
   builtin,
+  copyText,
   guideCommands,
   linkActions,
   openLink,
   partCommand,
 } from "./lib/commandCatalog.js";
 import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
+import { claudeCodeCommand, mcpJsonConfig } from "./lib/desktopBridge.js";
 import { commandRegistry } from "./lib/commands.js";
 import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isEditableTarget.js";
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
@@ -200,6 +203,8 @@ export default function App() {
   // The live bench (lib/benchSession.js) — read here only to mirror it
   // into the URL and to decide whether a switch may seed it.
   const { assembly, importedParts } = useBenchSession();
+  // The desktop app's MCP server for coding agents; null in a browser.
+  const desktopMcp = useDesktopMcp();
   // Library's current { part, params }, kept in a ref (it changes on
   // every parameter keystroke; nothing here needs to re-render for it).
   // Read by switchToBench() when the "Bench follows Library" setting is
@@ -533,6 +538,42 @@ export default function App() {
     },
   });
 
+  // Settings > Coding agents' switch, copy buttons and New token…, in the
+  // desktop app (components/McpSettings.jsx does the same in Settings).
+  function mcpCommands() {
+    const status = desktopMcp?.status;
+    if (!desktopMcp || !status) return [];
+    const ready = status.enabled && Boolean(status.token);
+    return [
+      builtin("app.mcp", {
+        checked: status.enabled,
+        subtitle: !status.enabled ? "Off" : status.listening ? "On" : "On, not connected",
+        run: () => desktopMcp.setEnabled(!status.enabled),
+      }),
+      builtin("app.mcpSetup", {
+        when: ready,
+        actions: [
+          {
+            title: "Copy Claude Code command",
+            run: () => copyText(claudeCodeCommand(status), "Claude Code command copied"),
+          },
+          { title: "Copy JSON config", run: () => copyText(mcpJsonConfig(status), "MCP config copied") },
+        ],
+      }),
+      builtin("app.mcpNewToken", {
+        when: ready,
+        run: () => {
+          if (
+            window.confirm(
+              "Make a new token? Coding agents set up with the old one can't connect until they have the new one.",
+            )
+          )
+            desktopMcp.newToken();
+        },
+      }),
+    ];
+  }
+
   // The shell's commands: the tabs, Settings and its quick settings, help
   // and links, and — off the Library, which offers its own — every part.
   // Each tab and the viewer add their own while mounted.
@@ -603,6 +644,8 @@ export default function App() {
           },
         ],
       }),
+      // The desktop app's switch for coding agents, as Settings has it.
+      ...mcpCommands(),
       builtin("app.shortcuts", { run: () => setShortcutsOpen(true) }),
       // Links: Enter opens them, Mod+Enter copies them.
       builtin("app.guides", { actions: linkActions(GUIDES_URL) }),

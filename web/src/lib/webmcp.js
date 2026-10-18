@@ -32,14 +32,18 @@
 // any JSON-ready value. Chrome's early preview (146–149) had
 // navigator.modelContext, unregistered with unregisterTool(name) or the
 // handle registerTool returned, and took MCP's result shape
-// ({ content: [{ type: "text", text }] }). getModelContext() finds either,
-// and registerTools() speaks to each in its own terms.
+// ({ content: [{ type: "text", text }] }). The desktop app has a third
+// taker, shaped like the preview: its preload's modelContext
+// (desktop/preload.cjs), through which the same tools reach coding agents
+// over MCP (desktop/mcp.cjs). getModelContexts() finds each there is, and
+// registerTools() speaks to each in its own terms.
 
 import { JOINTS, MAX_ATTACHED } from "./assembly.js";
 import { checkBenchConfig, isParamSet, serializeBenchConfig } from "./benchConfig.js";
 import { matchesSearch } from "./catalogueUtils.js";
 import { SECTION_ORDER } from "./commandCatalog.js";
 import { browseSections, rankCommands } from "./commands.js";
+import { desktopBridge } from "./desktopBridge.js";
 
 /** @typedef {import("./commands.js").Command} Command */
 /** @typedef {import("./commands.js").CommandPage} CommandPage */
@@ -53,7 +57,8 @@ import { browseSections, rankCommands } from "./commands.js";
 /**
  * @typedef {object} FoundModelContext
  * @property {ModelContextLike} context
- * @property {boolean} legacy navigator.modelContext: MCP-shaped results, no signal
+ * @property {boolean} mcp the preview's terms (navigator.modelContext, the desktop bridge): MCP-shaped
+ *   results, no signal — a handle or unregisterTool() to unregister with
  */
 /**
  * @typedef {object} AppTool
@@ -147,40 +152,50 @@ export function createTabBridge() {
 export const tabBridge = createTabBridge();
 
 /**
- * The page's WebMCP entry point, or null where the browser has none (most
- * of them, as of 2026: Chrome behind a flag or an origin trial).
+ * Where the page can register tools: the browser's WebMCP — the draft's,
+ * else the preview's; none in most browsers, as of 2026, where Chrome has
+ * it behind a flag or an origin trial — and, in the desktop app, its
+ * bridge to coding agents. Empty in a browser without WebMCP.
  * @param {any} [doc]
  * @param {any} [nav]
- * @returns {FoundModelContext | null}
+ * @param {any} [desktop] the desktop app's window.foundryDesktop
+ * @returns {FoundModelContext[]}
  */
-export function getModelContext(doc = globalThis.document, nav = globalThis.navigator) {
-  const current = doc?.modelContext;
-  if (typeof current?.registerTool === "function") return { context: current, legacy: false };
-  const preview = nav?.modelContext;
-  if (typeof preview?.registerTool === "function") return { context: preview, legacy: true };
-  return null;
+export function getModelContexts(
+  doc = globalThis.document,
+  nav = globalThis.navigator,
+  desktop = desktopBridge(),
+) {
+  /** @type {FoundModelContext[]} */
+  const found = [];
+  if (typeof doc?.modelContext?.registerTool === "function")
+    found.push({ context: doc.modelContext, mcp: false });
+  else if (typeof nav?.modelContext?.registerTool === "function")
+    found.push({ context: nav.modelContext, mcp: true });
+  if (typeof desktop?.modelContext?.registerTool === "function")
+    found.push({ context: desktop.modelContext, mcp: true });
+  return found;
 }
 
 /**
  * A tool's result as the API wants it: the draft's any JSON-ready value,
- * or the preview's MCP text content.
+ * or MCP's text content.
  * @param {unknown} value
- * @param {boolean} legacy
+ * @param {boolean} mcp
  */
-export function toolResult(value, legacy) {
-  return legacy ? { content: [{ type: "text", text: JSON.stringify(value) }] } : value;
+export function toolResult(value, mcp) {
+  return mcp ? { content: [{ type: "text", text: JSON.stringify(value) }] } : value;
 }
 
 /**
  * A failure, as a result rather than a rejection: best practice is a
  * message the model can read and correct its input from, and a rejection
- * reaches some agents as a bare "error". The preview's MCP shape has a
- * flag for it.
+ * reaches some agents as a bare "error". MCP's shape has a flag for it.
  * @param {string} message
- * @param {boolean} legacy
+ * @param {boolean} mcp
  */
-export function toolError(message, legacy) {
-  return legacy ? { content: [{ type: "text", text: message }], isError: true } : { error: message };
+export function toolError(message, mcp) {
+  return mcp ? { content: [{ type: "text", text: message }], isError: true } : { error: message };
 }
 
 /**
@@ -191,7 +206,7 @@ export function toolError(message, legacy) {
  * @param {AppTool[]} tools
  * @param {AbortSignal} signal
  */
-export function registerTools({ context, legacy }, tools, signal) {
+export function registerTools({ context, mcp }, tools, signal) {
   for (const tool of tools) {
     if (signal.aborted) return;
     const definition = {
@@ -202,9 +217,9 @@ export function registerTools({ context, legacy }, tools, signal) {
       annotations: tool.annotations,
       execute: async (/** @type {unknown} */ input) => {
         try {
-          return toolResult(await tool.execute(inputObject(input)), legacy);
+          return toolResult(await tool.execute(inputObject(input)), mcp);
         } catch (err) {
-          return toolError(messageOf(err), legacy);
+          return toolError(messageOf(err), mcp);
         }
       },
     };
@@ -212,15 +227,17 @@ export function registerTools({ context, legacy }, tools, signal) {
       console.warn(`WebMCP: the browser refused the tool "${tool.name}"`, err);
     let handle;
     try {
-      handle = context.registerTool(definition, { signal });
+      // Not the signal where it isn't taken: the desktop bridge can't
+      // carry one across to its preload.
+      handle = mcp ? context.registerTool(definition) : context.registerTool(definition, { signal });
     } catch (err) {
       refused(err);
       continue;
     }
     // The draft returns a promise (rejected for a name already taken),
-    // and the abort signal unregisters; the preview has to be told.
+    // and the abort signal unregisters; the others have to be told.
     if (typeof handle?.then === "function") handle.then(undefined, refused);
-    if (!legacy) continue;
+    if (!mcp) continue;
     signal.addEventListener(
       "abort",
       () => {

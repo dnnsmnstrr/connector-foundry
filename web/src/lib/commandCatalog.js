@@ -124,6 +124,25 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["backup", "restore", "load"],
     action: "Choose a file",
   },
+  // The desktop app's MCP server for coding agents (desktop/mcp.cjs).
+  "app.mcp": {
+    title: "Let coding agents use the app",
+    section: "Settings",
+    keywords: ["mcp", "claude code", "agent", "server", "automation", "api"],
+    action: "Toggle",
+  },
+  "app.mcpSetup": {
+    title: "Copy the coding-agent setup",
+    section: "Settings",
+    keywords: ["mcp", "claude code", "token", "config", "json", "connect"],
+    action: "Copy command",
+  },
+  "app.mcpNewToken": {
+    title: "Make a new coding-agent token",
+    section: "Settings",
+    keywords: ["mcp", "token", "revoke", "reset"],
+    action: "Replace",
+  },
   // --- Library
   "library.openInBench": {
     title: "Open in Bench",
@@ -459,9 +478,20 @@ export function openLink(url) {
  * @param {string} url
  */
 export function copyLink(url) {
-  const failed = () => showCommandHud("The browser didn't let the app copy the link");
+  copyText(url, "Link copied", "The browser didn't let the app copy the link");
+}
+
+/**
+ * Puts text on the clipboard and says so, or says it couldn't — under the
+ * same rule as copyLink(): straight from the key or the click.
+ * @param {string} text
+ * @param {string} done what the HUD says once it is copied
+ * @param {string} [failure] what it says when the browser refuses
+ */
+export function copyText(text, done, failure = "The app couldn't copy that") {
+  const failed = () => showCommandHud(failure);
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) return failed();
-  navigator.clipboard.writeText(url).then(() => showCommandHud("Link copied"), failed);
+  navigator.clipboard.writeText(text).then(() => showCommandHud(done), failed);
 }
 
 /**
