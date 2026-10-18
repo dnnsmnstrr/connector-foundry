@@ -1,0 +1,123 @@
+# Getting started
+
+From opening the app to a part on your print bed: the three tabs, and how to save and share what you make. Back to the [README](../README.md).
+
+Connector Foundry is a catalogue of printable mounting parts — Gridfinity bins and baseplates,
+openGrid snaps, Skådis pegs, Honeycomb Storage Wall inserts, MOLLE panels, GoPro buckles, Arca
+plates, tripod sockets, 2020 extrusion fittings and more — written as parametric OpenSCAD. Every part
+follows the same slot convention, so any of them can be attached to any other: a GoPro buckle on a
+Gridfinity base, an openConnect head on a Honeycomb Storage Wall insert. You set the sizes, check the
+part in 3D and download an STL for your slicer.
+
+## Open the app
+
+The web app runs at
+[dnnsmnstrr.github.io/connector-foundry/app/](https://dnnsmnstrr.github.io/connector-foundry/app/) in
+any current desktop browser. There is nothing to install and no account to make. Parts render on
+your own computer, with OpenSCAD compiled to WebAssembly, and nothing you make is uploaded anywhere.
+The first render of a visit takes a few seconds longer while the engine loads; after that most parts
+render in a second or two.
+
+Want it in a window of its own, or offline? The [desktop app](DESKTOP.md) is the same app for macOS
+and Windows. To render parts from scripts, there is a [command line](CLI.md).
+
+The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
+
+| Tab | For |
+| --- | --- |
+| **Library** | One part on its own: pick it, set its parameters, download it. |
+| **Bench** | Several parts as one: attach parts to a base part's slots, with a joint each. |
+| **Holes** | Screw holes, connector slots and cutouts in a part, in a model of your own, or in the bench. |
+
+## Print your first part
+
+1. **Pick a part.** The Library lists every part by system on the left; type in **Search parts…**
+   to narrow it down. If you are not sure where to start, try **Gridfinity → Bin**. The part renders
+   with its catalogue defaults, and the line under its name says how to print it: which side goes
+   on the bed, and whether it needs supports.
+2. **Set its size.** Change a parameter in the sidebar and the part renders again. A dot marks a
+   value you changed, and the ↺ beside it puts that one back; **Reset all to catalogue** resets them
+   all. Most parts can also be resized in the 3D view: drag one of the small square handles, as in
+   TinkerCAD. An outline shows the new size before you let go, with a label such as
+   "W 126 mm · gx 3", and the part renders once you do. Parts on a grid grow in the grid's own
+   steps — a Gridfinity unit is 42 mm. To type an exact size instead, click a handle.
+3. **Check the outside dimensions** under the part's name: width, height and depth in millimetres, as
+   rendered.
+4. **Download STL** (under the 3D view) and open the file in your slicer. With
+   [Layerling](https://layerling.com/), **Copy for Layerling** skips the file and pastes the part in
+   directly.
+
+Each part says how far to trust it. **exact** parts come from the standard's reference
+implementation or its published specification, and are checked against someone else's model of the
+same standard (see [Accuracy checks](ACCURACY.md)). **parametric** parts are a good starting point:
+measure your hardware — the webbing on your bag, the slot in your rail — and print a test piece first.
+
+## Fit it to your printer
+
+Two settings change every part, under **⚙ Settings** at the top right (or the `s` key):
+
+- **Fit clearance** is the gap left where two printed parts slide or snap together, 0.15 mm by
+  default. If snaps are too tight on your printer, raise it a little; if they rattle, lower it.
+- **Circle detail** is how finely curves are faceted: **Draft** renders faster, **Fine** gives rounder
+  holes.
+
+To keep your own values for one part — "my Gridfinity bins always have magnet holes" — set them and
+click **Save as my default**. [User overrides](OVERRIDES.md) has the details. Settings can hide the
+systems you never print from the part lists, and **Export settings…** saves all of this to a file, to
+move it to another browser or to the desktop app.
+
+## Combine parts on the Bench
+
+The Bench builds one part out of several:
+
+1. **Choose a base part** (or **Open in Bench** from the Library, which brings its parameters along).
+2. **Click a green slot marker** on it. A picker opens over the scene: pick the part to attach, and the
+   joint beside the search — **fused** into one body, **bolted** with heat-set inserts, **snap**,
+   **pin** or **screwed**. [Joints](JOINTS.md) explains each one.
+3. **Adjust the attached part** in the sidebar: its own parameters, an offset, a shift across the slot,
+   a rotation. Click it in the scene to turn it in 90° steps, move it to another slot (`M`), or delete
+   it.
+4. **Export.** Every printable body of the bench gets its own **STL** button: a fused bench is one
+   body, a bolted one is two halves you print separately and bolt together.
+
+A bench can start from a model of your own, too: **Import STL / STEP / 3MF…**, or drop the file on
+the empty Bench. The [Bench guide](BENCH.md) covers resizing the base part, cropping, presets and
+importing.
+
+## Drill holes into anything
+
+The Holes tab takes a part from the catalogue, a model of your own or the bench as it stands, and
+cuts into it. Click a face and a hole snaps to the useful places on it: the middle, the middle of
+each quarter, a point set in from each corner, the middle of a hole already there, and the guide
+lines between them. Pick what to cut from the presets: socket cap screws from M2 to M6, countersunk and
+button heads, heat-set insert bores, nut traps, wood screws, magnet and bearing pockets, and the
+slots that take openConnect, MultiConnect, Skådis and MOLLE hardware. Select a hole to move it, or
+drag a cutout's handles to resize it. The [Holes guide](HOLES.md) lists every preset.
+
+For custom Gridfinity storage, start Holes from **Gridfinity → Bin** with `filled` on: a bin that is
+solid up to its stacking lip, ready for pockets shaped like your tools.
+
+## Find anything with Cmd/Ctrl+K
+
+**Cmd+K** on a Mac, **Ctrl+K** elsewhere, opens the command palette: type a few letters to switch
+tabs, find a part, pick a hole type, attach, export, undo or change a setting. The first letters of
+words work too — `oib` is **Open in Bench**. Press `?` for every keyboard shortcut and the mouse and
+trackpad controls; **Cmd/Ctrl+Z** undoes in every tab.
+
+## Save and share
+
+- **The address bar is a link to your bench.** The app keeps the bench in the URL as you work, so a
+  reload comes back to it and the link opens the same bench for someone else. Imported meshes are too
+  big for a link: they stay with this browser tab only.
+- **Download config** (on the Bench) saves the whole bench to a `.bench.json` file, imported meshes
+  included, to open again later from **Import config…**.
+- **Presets** keep benches you reuse in this browser.
+
+## Next steps
+
+- [Desktop app](DESKTOP.md): install it on macOS or Windows.
+- [Command line](CLI.md): render parts without a browser, with your saved defaults.
+- [Bench](BENCH.md), [Holes](HOLES.md) and [Joints](JOINTS.md): everything each tab can do.
+- Found a problem, or a part that does not fit?
+  [Open an issue](https://github.com/dnnsmnstrr/connector-foundry/issues/new) — measurements of the
+  real thing help most.
