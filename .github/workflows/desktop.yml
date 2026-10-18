@@ -2,10 +2,11 @@ name: Desktop app
 
 # Manual runs build and test the macOS and Windows apps and keep the DMGs, ZIPs
 # and installer as workflow artifacts. Pushing a version tag (v0.1.0, matching
-# web/package.json) also publishes the DMGs and the Windows installer as a
-# GitHub release. Their names carry no version, so
-# releases/latest/download/Connector-Foundry-<platform>-<label>.<ext> is a
-# stable link.
+# web/package.json) also publishes them as a GitHub release, with latest.json
+# for the app's updater (web/desktop/updates.cjs). Their names carry no
+# version, so releases/latest/download/Connector-Foundry-<platform>-<label>.<ext>
+# is a stable link, and releases/latest/download/latest.json is where every
+# installed app looks for the next version.
 on:
   workflow_dispatch:
   push:
@@ -177,20 +178,32 @@ jobs:
           pattern: Connector-Foundry-*
           path: dist
           merge-multiple: true
-      # The macOS ZIPs hold the same app as the DMGs and only matter for
-      # auto-update, which the app doesn't do; the blockmap is for the same
-      # purpose on Windows. Publishing one file per platform keeps the choice
-      # simple.
-      - name: Keep only the installers
-        run: rm -f dist/*.zip dist/*.blockmap
+      # The macOS ZIPs hold the same app as the DMGs: they are what the app's
+      # updater downloads, since they unpack without mounting anything. The
+      # blockmaps are for electron-updater's partial downloads, which the
+      # app's own updater doesn't do.
+      - name: Drop the blockmaps
+        run: rm -f dist/*.blockmap
       - name: Checksums
         working-directory: dist
-        run: sha256sum *.dmg *.exe > SHA256SUMS.txt
+        run: sha256sum *.dmg *.zip *.exe > SHA256SUMS.txt
       - uses: actions/checkout@v7
         with:
           path: src
-          sparse-checkout: CHANGELOG.md
+          sparse-checkout: |
+            CHANGELOG.md
+            web/scripts/release-manifest.mjs
+            web/desktop/update-manifest.cjs
           sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      # What the installed apps check: this version, and the size and
+      # SHA-256 of each update file. Written with the updater's own file
+      # table and checked by its own parser, so a release the app would
+      # refuse fails here instead.
+      - name: Update manifest
+        run: node src/web/scripts/release-manifest.mjs dist "${GITHUB_REF_NAME#v}"
       # This version's section of CHANGELOG.md heads the notes; nothing
       # there (a tag without a changelog entry) just leaves it out.
       - name: Changelog section
@@ -233,6 +246,11 @@ jobs:
           default it installs for the current user only, without an administrator
           prompt (choosing "all users" asks for one), and can be removed from
           Settings → Apps like any other program.
+
+          Once installed, the app updates itself: it finds the next release,
+          downloads it in the background and installs it when you restart. The
+          `.zip` files and `latest.json` are for that updater; to install, take
+          the DMG or the setup file above.
 
           Verify downloads against `SHA256SUMS.txt`. Step by step, with updating
           and removing the app: https://dnnsmnstrr.github.io/connector-foundry/docs/desktop/

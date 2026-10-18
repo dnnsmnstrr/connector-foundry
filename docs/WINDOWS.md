@@ -135,6 +135,17 @@ build. A version tag publishes the installers alongside the DMGs; see
   that filter, so without it the install "succeeds" with every `.exe` and
   `.dll` missing. Verified on the runner (2026-10-02, run 36979259223):
   silent install, the full desktop suite, silent uninstall.
-- **Auto-update, file associations, a portable build.** Same status as on
-  macOS: not implemented. The `.blockmap` electron-builder emits is for
-  differential updates and is dropped from releases.
+- **File associations, a portable build.** Same status as on macOS: not
+  implemented. The `.blockmap` electron-builder emits is for
+  electron-updater's differential updates and is dropped from releases.
+- **Self-update is not tested on Windows yet.** The app updates itself
+  (`web/desktop/updates.cjs`; the macOS notes say how it checks and
+  verifies): on Windows it downloads the release's setup `.exe` and, on
+  **Restart to update** or at quit, runs it with `--updated /S` (plus
+  `--force-run` to start the app again). That is what electron-updater
+  passes: electron-builder's installer then skips its pages, waits for or
+  ends the running app, finds the installation in the registry and elevates
+  itself for an all-users one. A copy without `Uninstall Connector
+  Foundry.exe` beside it (unpacked, not installed) doesn't update itself.
+  Only the unit and desktop tests cover this so far; no update has been run
+  on a Windows machine.

@@ -13,6 +13,7 @@ import Library from "./Library.jsx";
 import CommandPalette, { CommandPaletteBoundary } from "./components/CommandPalette.jsx";
 import ModeErrorBoundary from "./components/ModeErrorBoundary.jsx";
 import RenderActivity from "./components/RenderActivity.jsx";
+import UpdateNotice from "./components/UpdateNotice.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
@@ -746,6 +747,7 @@ export default function App() {
             <kbd className="shortcut-hint">{PALETTE_KEYS}</kbd>
           </button>
           <RenderActivity />
+          <UpdateNotice />
           <a
             className="mode-tab nav-link"
             href={REPO_URL}

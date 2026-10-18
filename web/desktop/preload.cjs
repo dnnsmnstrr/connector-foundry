@@ -1,6 +1,7 @@
-// What the desktop window's page may ask of the main process: two things,
-// both for coding agents (mcp-server.cjs). The page stays sandboxed with
-// no Node; this is the whole surface, exposed as window.foundryDesktop.
+// What the desktop window's page may ask of the main process: three
+// things, two of them for coding agents (mcp-server.cjs). The page stays
+// sandboxed with no Node; this is the whole surface, exposed as
+// window.foundryDesktop.
 //
 // `modelContext` is where the page registers its WebMCP tools
 // (src/lib/webmcp.js), shaped like Chrome's early-preview
@@ -11,6 +12,10 @@
 //
 // `mcp` is the Settings switch: whether the server is on, its address and
 // token, a new token.
+//
+// `updates` is the updater (updates.cjs): its status, a check, the
+// automatic checks' switch, and the restart that installs a downloaded
+// update.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
@@ -79,6 +84,18 @@ contextBridge.exposeInMainWorld("foundryDesktop", {
       const handler = (_event, status) => listener(status);
       ipcRenderer.on("mcp:status", handler);
       return () => ipcRenderer.removeListener("mcp:status", handler);
+    },
+  },
+  updates: {
+    status: () => ipcRenderer.invoke("updates:status"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    install: () => ipcRenderer.invoke("updates:install"),
+    setAutoCheck: (on) => ipcRenderer.invoke("updates:set-auto-check", on === true),
+    /** Calls `listener` with the new status whenever it changes; returns the unsubscribe. */
+    onStatus(listener) {
+      const handler = (_event, status) => listener(status);
+      ipcRenderer.on("updates:status", handler);
+      return () => ipcRenderer.removeListener("updates:status", handler);
     },
   },
 });

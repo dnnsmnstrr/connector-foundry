@@ -164,6 +164,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/hotkeys.js` | User hotkeys: `parseChord()` (Mod plus Shift or Alt plus a letter or digit), `chordOf()` a keydown (falling back to `e.code` where Option or Shift changes `e.key`), and `hotkeyProblem()` against the app's, the desktop menu's and the browser's chords (`RESERVED_CHORDS`) |
 | `src/lib/userCommands.js`, `hooks/useUserCommands.js` | The user's own commands and their aliases and hotkeys for built-in ones — a validated store (`checkUserCommands()`, entry by entry), the action kinds (`ACTION_KINDS`: open a part with parameters in a tab, a bench preset, a hole type, a link, a tab, a built-in command), and the hook that lists them, puts the bindings on the registry and listens for the hotkeys; App.jsx runs each kind. No editor yet (see the Shell section) |
 | `src/lib/webmcp.js`, `hooks/useWebMcp.js` | The app's WebMCP tools for the browser's AI agent, pure and Node-tested: `getModelContext()` (the draft's `document.modelContext`, else Chrome's early-preview `navigator.modelContext`), `registerTools()` (each API's registration, unregistration and result shape; a failure is a result with a message, not a rejection) and `createAppTools()` — `list_commands` / `run_command` over the command registry, `search_parts`, `open_part`, `attach_part`, `get_app_state` and `load_bench`, every input checked; `tabBridge`, where the mounted tab hands over its preview status and (the Bench) its open slots and attach. `useWebMcp()` registers the tools once from App and reads App's latest state through a ref; `useWebMcpTab()` is how Library, the Bench and Holes fill the bridge (see the Shell section) |
+| `desktop/updates.cjs`, `update-manifest.cjs`, `scripts/release-manifest.mjs`; `src/lib/desktopUpdates.js`, `hooks/useDesktopUpdates.js`, `components/UpdateNotice.jsx`, `components/UpdateSettings.jsx` | The desktop app updating itself from GitHub releases (see the Shell section): the check, download, verification and install in the main process, the Electron-free half (the update-file table, manifest checks, the macOS swap script; Node-tested) and the release job's `latest.json` writer that shares it; on the page, one status store, so progress re-renders only the nav's notice and Settings → Updates, and the palette's update commands |
 | `desktop/mcp.cjs`, `mcp-server.cjs`, `preload.cjs`; `src/lib/desktopBridge.js`, `hooks/useDesktopMcp.js`, `components/McpSettings.jsx` | Coding agents in the desktop app (see the Shell section): the MCP server (plain Node, Node-tested), its Settings switch and the window's tool calls in the main process, the preload's `window.foundryDesktop`; on the page, the bridge's types with the Claude Code command and JSON config it copies, the live status, and Settings → Coding agents |
 | `src/hooks/useRenderActivity.js`, `components/RenderActivity.jsx` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map), and the nav's "Rendering…" status and **Cancel renders** button built on it — a component of its own, so a render starting or finishing re-renders those two elements rather than App and the whole active mode |
 | `src/lib/shortcuts.js`, `components/ShortcutsModal.jsx` | The keyboard-shortcuts sheet (`?`): every key, pointer gesture and the mouse/touch map as one table, with each platform's modifier names, checked by a unit test — a change to a key is a change to its row here |
@@ -353,6 +354,21 @@ screen.
   <token>`, 32 random bytes kept in the profile's `mcp.json` (mode 0600) until **New token…**. A
   call waits up to two minutes (a question the user has to answer) and opens the window if it is
   closed; a reload or a closed window fails the calls in flight.
+- **Desktop updates** (`desktop/updates.cjs`, `update-manifest.cjs`): the app checks the newest
+  release's `latest.json` 30 s after launch and every 12 hours (`updates.json`'s `autoCheck`; never
+  on its own in a development run), downloads its platform's file from that release's tag,
+  keeps it only if size and SHA-256 match, and installs it on **Restart to update** or at quit —
+  on macOS by swapping the bundle from a detached script, on Windows by running the NSIS installer
+  silently. Not Electron's `autoUpdater`: Squirrel.Mac needs a Developer ID signature, which the
+  ad-hoc signed builds don't have (`docs/MACOS.md`, "How the app updates itself"). The manifest
+  only supplies a version, sizes and checksums; every URL and path is built from the repository,
+  the version and the update-file table, which a unit test holds to `desktop.yml`'s artifact names.
+  A restart reopens the window on the address it showed (the tab and the bench), through
+  `pending-update.json`, which also tells the next launch whether the update took; a version that
+  failed to install isn't retried until the user checks by hand. On the page, the status lives in
+  `lib/desktopUpdates.js` (one subscription for the whole page), read by `UpdateNotice` in the
+  nav, which also offers the palette's `app.checkUpdates`, `app.restartToUpdate` and
+  `app.autoUpdate`, and by `UpdateSettings`.
 - **Undo and redo.** Each tab has its own history, kept with its state so a tab switch keeps it:
   `lib/librarySession.js`, `lib/benchSession.js`, `lib/holesSession.js`, all on `lib/history.js`.
   A step is an immutable snapshot of the value *before* a change (the Library's part and

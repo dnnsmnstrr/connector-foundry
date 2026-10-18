@@ -1,6 +1,7 @@
 // The desktop app's window.foundryDesktop (desktop/preload.cjs): where the
-// page registers its tools for coding agents (lib/webmcp.js), and the
-// Settings switch for the MCP server that serves them (desktop/mcp.cjs).
+// page registers its tools for coding agents (lib/webmcp.js), the
+// Settings switch for the MCP server that serves them (desktop/mcp.cjs),
+// and the updater (desktop/updates.cjs, read through lib/desktopUpdates.js).
 // Absent in a browser.
 
 /**
@@ -20,9 +21,33 @@
  * @property {(listener: (status: DesktopMcpStatus) => void) => () => void} onStatus
  */
 /**
+ * What the updater is doing, as the main process reports it.
+ * @typedef {object} DesktopUpdateStatus
+ * @property {string} version the running app's
+ * @property {boolean} autoCheck whether it checks on its own
+ * @property {"idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "installing" | "error"} state
+ *   "available" is newer but not installable from here (`manual` says why); "ready" is downloaded
+ * @property {string | null} latest the newest version the last check found
+ * @property {number | null} progress 0–1 while downloading
+ * @property {string | null} releaseUrl that version's release page
+ * @property {number | null} checkedAt when the last check finished (ms since the epoch)
+ * @property {string | null} error why the last check, download or install failed
+ * @property {string | null} manual why this copy can't install updates itself
+ * @property {string | null} justUpdated the version this launch was updated to, if it was
+ */
+/**
+ * @typedef {object} DesktopUpdates
+ * @property {() => Promise<DesktopUpdateStatus | null>} status
+ * @property {() => Promise<DesktopUpdateStatus | null>} check checks, and downloads what it finds
+ * @property {() => Promise<boolean>} install restarts the app to install a downloaded update
+ * @property {(on: boolean) => Promise<DesktopUpdateStatus | null>} setAutoCheck
+ * @property {(listener: (status: DesktopUpdateStatus) => void) => () => void} onStatus
+ */
+/**
  * @typedef {object} DesktopBridge
  * @property {{ registerTool: (tool: object) => { unregister: () => void } }} modelContext
  * @property {DesktopMcp} mcp
+ * @property {DesktopUpdates} updates
  */
 
 /**

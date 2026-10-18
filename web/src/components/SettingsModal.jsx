@@ -26,6 +26,7 @@ import DecimalInput from "./DecimalInput.jsx";
 import InfoTip from "./InfoTip.jsx";
 import McpSettings from "./McpSettings.jsx";
 import Modal from "./Modal.jsx";
+import UpdateSettings from "./UpdateSettings.jsx";
 
 // App-wide settings, opened from the nav in either mode. Two kinds live
 // here: printer-level render overrides — FIT_CLEARANCE and friends, the
@@ -355,6 +356,8 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
       </p>
 
       <McpSettings />
+
+      <UpdateSettings />
 
       <h4 className="settings-section has-info-tip">
         Backup

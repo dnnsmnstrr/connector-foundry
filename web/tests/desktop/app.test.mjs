@@ -17,17 +17,27 @@ const screenshots = fileURLToPath(
   new URL(`../../test-results/desktop/${process.platform}-${process.arch}/`, import.meta.url),
 );
 
+// A fresh profile with the updater's automatic checks off (desktop/updates.cjs):
+// a test must never reach GitHub, let alone download a release.
+async function newProfile(directory) {
+  const profile = path.join(directory, "profile");
+  await mkdir(profile, { recursive: true });
+  await writeFile(path.join(profile, "updates.json"), JSON.stringify({ autoCheck: false }));
+  return profile;
+}
+
 test(
   "bundled desktop renders offline and imports/exports files through Chromium",
   { timeout: 180_000 },
   async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "foundry-desktop-"));
+    const profile = await newProfile(directory);
     await mkdir(screenshots, { recursive: true });
     let app;
     try {
       app = await electron.launch({
         ...(executable ? { executablePath: executable } : {}),
-        args: [...(executable ? [] : ["."]), `--user-data-dir=${path.join(directory, "profile")}`],
+        args: [...(executable ? [] : ["."]), `--user-data-dir=${profile}`],
       });
       const page = await app.firstWindow();
       const errors = [];
@@ -232,11 +242,8 @@ test(
   { timeout: 120_000, skip: process.platform === "darwin" && "macOS launches are single-instance already" },
   async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "foundry-desktop-"));
-    const args = (extra) => [
-      ...(executable ? [] : ["."]),
-      `--user-data-dir=${path.join(directory, "profile")}`,
-      ...extra,
-    ];
+    const profile = await newProfile(directory);
+    const args = (extra) => [...(executable ? [] : ["."]), `--user-data-dir=${profile}`, ...extra];
     let first;
     let child;
     try {
@@ -302,12 +309,11 @@ test(
   { timeout: 180_000 },
   async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "foundry-desktop-"));
-    const profile = path.join(directory, "profile");
+    const profile = await newProfile(directory);
     // The switch as Settings leaves it, on a port of the test's own: the
     // default one may be taken by the user's own copy of the app.
     const port = await freePort();
     const token = "c".repeat(64);
-    await mkdir(profile, { recursive: true });
     await writeFile(path.join(profile, "mcp.json"), JSON.stringify({ enabled: true, port, token }));
     let app;
     try {
@@ -391,6 +397,103 @@ test(
       await assert.rejects(post("ping"));
       const saved = JSON.parse(await readFile(path.join(profile, "mcp.json"), "utf8"));
       assert.deepEqual(saved, { enabled: false, port, token });
+    } finally {
+      await app?.close();
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    }
+  },
+);
+
+test(
+  "Settings checks for updates against the newest release and keeps no download that fails its checksum",
+  { timeout: 120_000 },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "foundry-desktop-"));
+    const profile = await newProfile(directory);
+    let app;
+    try {
+      app = await electron.launch({
+        ...(executable ? { executablePath: executable } : {}),
+        args: [...(executable ? [] : ["."]), `--user-data-dir=${profile}`],
+      });
+      const page = await app.firstWindow();
+      await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeVisible({
+        timeout: 90_000,
+      });
+      // GitHub, played by the main process itself: the updater fetches
+      // through Chromium's network stack, which a protocol handler for
+      // https intercepts. The release names every update file, with a
+      // checksum no download matches.
+      const version = await app.evaluate(({ app }) => app.getVersion());
+      await app.evaluate(({ protocol }) => {
+        globalThis.release = { version: "0.0.0", requests: [] };
+        protocol.handle("https", (request) => {
+          globalThis.release.requests.push(request.url);
+          const url = new URL(request.url);
+          if (url.host !== "github.com") return new Response("offline", { status: 503 });
+          if (url.pathname.endsWith("/releases/latest/download/latest.json")) {
+            const file = { sha256: "0".repeat(64), size: 64 };
+            return Response.json({
+              version: globalThis.release.version,
+              files: Object.fromEntries(
+                [
+                  "Connector-Foundry-mac-apple-silicon.zip",
+                  "Connector-Foundry-mac-intel.zip",
+                  "Connector-Foundry-windows-x64-setup.exe",
+                  "Connector-Foundry-windows-arm64-setup.exe",
+                ].map((name) => [name, file]),
+              ),
+            });
+          }
+          if (url.pathname.startsWith("/dnnsmnstrr/connector-foundry/releases/download/"))
+            return new Response("x".repeat(64));
+          return new Response("not found", { status: 404 });
+        });
+      });
+
+      await page.keyboard.press("s");
+      const settings = page.getByRole("dialog", { name: "Settings" });
+      await expect(settings.getByText(`Version ${version}`)).toBeVisible();
+      // The profile turned the automatic checks off; Settings shows it.
+      await expect(
+        settings.getByRole("checkbox", { name: "Check for updates automatically" }),
+      ).not.toBeChecked();
+      const check = settings.getByRole("button", { name: "Check for updates" });
+
+      // The release is this version or older: nothing to do.
+      await app.evaluate((_electron, v) => (globalThis.release.version = v), version);
+      await check.click();
+      await expect(settings.getByText("Up to date")).toBeVisible();
+
+      // A newer one: a development run or a copy that can't replace itself
+      // says so and links the release; an installed copy downloads it and
+      // throws it away when the checksum doesn't match.
+      await app.evaluate(() => (globalThis.release.version = "99.0.0"));
+      await check.click();
+      const { manual } = await page.evaluate(() => window.foundryDesktop.updates.status());
+      if (manual) {
+        await expect(settings.getByText("Version 99.0.0 is available")).toBeVisible();
+        await expect(settings.getByText(manual)).toBeVisible();
+      } else {
+        await expect(settings.getByText(/didn't match the release's checksum/)).toBeVisible();
+        const requests = await app.evaluate(() => globalThis.release.requests);
+        assert.ok(
+          requests.some((url) => url.includes("/releases/download/v99.0.0/Connector-Foundry-")),
+          JSON.stringify(requests),
+        );
+      }
+      await expect(settings.getByRole("link", { name: "What's new in 99.0.0" })).toHaveAttribute(
+        "href",
+        "https://github.com/dnnsmnstrr/connector-foundry/releases/tag/v99.0.0",
+      );
+      // Nothing to restart into.
+      await expect(page.getByRole("button", { name: "Restart to update" })).toHaveCount(0);
+
+      // The switch is kept in the profile.
+      await settings.getByRole("checkbox", { name: "Check for updates automatically" }).check();
+      await expect
+        .poll(async () => JSON.parse(await readFile(path.join(profile, "updates.json"), "utf8")).autoCheck)
+        .toBe(true);
     } finally {
       await app?.close();
       await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });

@@ -143,6 +143,13 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["mcp", "token", "revoke", "reset"],
     action: "Replace",
   },
+  // The desktop app's updater (desktop/updates.cjs).
+  "app.autoUpdate": {
+    title: "Check for updates automatically",
+    section: "Settings",
+    keywords: ["update", "upgrade", "version", "release", "auto"],
+    action: "Toggle",
+  },
   // --- Library
   "library.openInBench": {
     title: "Open in Bench",
@@ -384,6 +391,18 @@ export const BUILTIN_COMMANDS = Object.freeze({
     section: "Help",
     keywords: ["mac", "windows", "electron", "release"],
     action: "Open",
+  },
+  "app.checkUpdates": {
+    title: "Check for updates",
+    section: "Help",
+    keywords: ["update", "upgrade", "new version", "release", "download"],
+    action: "Check",
+  },
+  "app.restartToUpdate": {
+    title: "Restart to update",
+    section: "Help",
+    keywords: ["update", "upgrade", "install", "relaunch", "new version"],
+    action: "Restart",
   },
 });
 

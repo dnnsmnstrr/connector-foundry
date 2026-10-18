@@ -65,11 +65,34 @@ The long hexadecimal string printed must be the one `SHA256SUMS.txt` lists for t
 
 ## Update
 
-The app does not update itself. To update, download the newest version from the links above and
-install it over the old one: on a Mac, drag it into Applications again and choose **Replace**; on
-Windows, run the new installer. Your settings, saved defaults and presets are kept. The
-[changelog](https://github.com/dnnsmnstrr/connector-foundry/blob/main/CHANGELOG.md) says what each
-release changed.
+The app updates itself. Shortly after it starts, and twice a day while it runs, it asks GitHub
+whether there is a newer release. If there is, it downloads it in the background (the header shows
+**Updating** with how far it has got) and checks the download against the release's checksums. Then
+a **Restart to update** button appears at the right of the header: click it and the app closes,
+installs the new version and opens again on the tab and bench you had. If you don't, the update
+installs the next time you quit. Your settings, saved defaults and presets are kept.
+
+A restart brings back the bench (as a bench link would), but not a model on the Holes tab or meshes
+imported onto the Bench; the app asks before restarting when there are any.
+
+**Settings → Updates** shows the version you have, **Check for updates** to look now, and a link to
+what changed in a new version. Untick **Check for updates automatically** to stop the app from
+looking on its own; it then never goes online unless you check by hand. On a Mac, **Connector
+Foundry → Check for Updates…** in the menu bar does the same.
+
+The app can only replace itself where it is installed properly:
+
+- **macOS**: from the Applications folder (or another folder you can write to). Opened straight from
+  the DMG or the Downloads folder, macOS runs it from a read-only copy; Settings then says so, and
+  the fix is to drag it into Applications and open it from there.
+- **Windows**: installed with the installer, for you or for everyone. An all-users installation asks
+  for administrator rights while it updates.
+
+Where it can't, or if an update fails, Settings links the release page, and updating by hand works
+as it always has: download the newest version from the links above and install it over the old one
+(on a Mac, drag it into Applications again and choose **Replace**; on Windows, run the new
+installer). The [changelog](https://github.com/dnnsmnstrr/connector-foundry/blob/main/CHANGELOG.md)
+says what each release changed.
 
 ## Uninstall
 
@@ -82,7 +105,8 @@ release changed.
 ## How it differs from the web app
 
 - **Offline.** Everything the app needs is inside it: the interface, the OpenSCAD engine, the part
-  sources and the meshes some parts are built from. It never goes online to render.
+  sources and the meshes some parts are built from. It never goes online to render; the only thing
+  it fetches is its own updates, from GitHub, which you can turn off.
 - **Native file dialogs.** **Import STL / STEP / 3MF…** and **Import config…** open your system's file
   picker, and every export (**Download STL**, **Download .scad**, **Download config**) opens a Save
   dialog where you choose the name and the folder. The folder of the last export is offered again
@@ -94,7 +118,7 @@ release changed.
 - **One window.** Opening the app again brings the running window to the front. On Windows the
   window controls sit at the right end of the app's own header, which doubles as the title bar.
 - **Same version as its release.** The web app always runs the latest code from the main branch; the
-  desktop app is the version you installed, until you update it.
+  desktop app runs the newest release, once it has updated itself to it.
 
 ## Let coding agents use it
 

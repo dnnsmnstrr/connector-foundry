@@ -4,6 +4,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { setupMcp } = require("./mcp.cjs");
 const { APP_URL, assetPath, isAppURL } = require("./paths.cjs");
+const { setupUpdates } = require("./updates.cjs");
 
 const isMac = process.platform === "darwin";
 const isWindows = process.platform === "win32";
@@ -38,6 +39,8 @@ let window;
 let lastExportDirectory;
 // Coding agents' way in (mcp.cjs), off unless the user turned it on.
 let mcp;
+// Checking for, downloading and installing new releases (updates.cjs).
+let updates;
 
 function openExternal(url) {
   try {
@@ -78,7 +81,8 @@ function createWindow() {
         }
       : {}),
     // The preload is the page's only line to this process: the coding
-    // agents' bridge and its Settings switch (preload.cjs).
+    // agents' bridge and its Settings switch, and the updater's status and
+    // buttons (preload.cjs).
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -110,8 +114,10 @@ function createWindow() {
   window.on("closed", () => {
     window = null;
   });
+  // Restarted to install an update, the window opens on the page it
+  // showed, the bench in its address included.
   window
-    .loadURL(APP_URL)
+    .loadURL(updates?.takeRestoreURL() ?? APP_URL)
     .catch((error) => dialog.showErrorBox("Could not open Connector Foundry", error.message));
 }
 
@@ -193,9 +199,29 @@ function start() {
         );
     });
   });
+  updates = setupUpdates({ getWindow: () => window ?? null, isAppURL });
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(isMac ? [{ role: "appMenu" }] : []),
+      // The standard app menu, with Check for Updates… where Mac apps keep it.
+      ...(isMac
+        ? [
+            {
+              label: app.name,
+              submenu: [
+                { role: "about" },
+                { label: "Check for Updates…", click: () => updates.checkFromMenu() },
+                { type: "separator" },
+                { role: "services" },
+                { type: "separator" },
+                { role: "hide" },
+                { role: "hideOthers" },
+                { role: "unhide" },
+                { type: "separator" },
+                { role: "quit" },
+              ],
+            },
+          ]
+        : []),
       {
         label: "File",
         submenu: [{ role: "close" }, ...(isMac ? [] : [{ type: "separator" }, { role: "quit" }])],
@@ -226,6 +252,7 @@ function start() {
   });
   createWindow();
   mcp.start();
+  updates.start();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
