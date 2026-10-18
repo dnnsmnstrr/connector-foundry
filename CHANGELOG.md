@@ -30,6 +30,18 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   app, in your browser. Each guide is in the palette too, by its name (type `holes guide`), and
   **Open the website** goes to the landing page.
 
+### AI agents
+
+- **WebMCP.** In a browser with [WebMCP](https://webmachinelearning.github.io/webmcp/) — for now
+  Chrome, with `chrome://flags/#enable-webmcp-testing` or its origin trial — the app offers the
+  browser's AI agent seven tools: list and run the command palette's commands (whatever the
+  palette offers on the tab you are on), search the parts catalogue with each part's parameters,
+  open a part with parameters in the Library, the Bench or Holes, attach a part to an open slot on
+  the Bench, read what each tab shows — how its preview render went included, so the agent sees a
+  render fail — and load a bench config. Opening a part over a bench or placed holes asks you
+  first, as the buttons do, and whatever the agent does to a bench is a step you can undo. In
+  other browsers nothing changes.
+
 ### New systems and parts
 
 - **MOD-GRID** (by 3dedc / TinyToolShop, CC BY-NC-SA 4.0): the grid, any number of holes each

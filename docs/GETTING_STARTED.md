@@ -105,6 +105,17 @@ this one (`holes guide`). The first letters of words work too — `oib` is **Ope
 `?` for every keyboard shortcut and the mouse and trackpad controls; **Cmd/Ctrl+Z** undoes in every
 tab.
 
+## Let an AI agent use it
+
+In a browser with [WebMCP](https://developer.chrome.com/docs/ai/webmcp), the app tells the browser's
+AI agent what it can do: the command palette's commands, the parts catalogue with each part's
+parameters, opening a part in any tab, attaching parts on the Bench, what each tab shows, and
+loading a whole bench. Ask the agent for "a 3 by 2 Gridfinity bin with magnets" or "attach a flat
+plate to this board's corner slot" and it works the app as you would. Opening a part over your bench
+or holes asks you first, and anything the agent does to a bench can be undone with **Cmd/Ctrl+Z**.
+As of October 2026 that is Chrome with `chrome://flags/#enable-webmcp-testing` turned on; elsewhere
+nothing changes.
+
 ## Save and share
 
 - **The address bar is a link to your bench.** The app keeps the bench in the URL as you work, so a

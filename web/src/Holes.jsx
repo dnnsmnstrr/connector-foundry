@@ -23,6 +23,7 @@ import { useHolesSession } from "./hooks/useHolesSession.js";
 import { useRender } from "./hooks/useRender.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
+import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
@@ -267,6 +268,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // than its radius would land in it and read as off the model.
   const baseStl = preview.result?.base ?? null;
   const { status, error: renderError, setError: setRenderError } = preview;
+  // How the preview went, for the browser's AI agent (lib/webmcp.js).
+  useWebMcpTab({ tab: "holes", preview: () => ({ status, error: renderError }) });
 
   // Two geometries from one STL: the parsed one for display (flat facet
   // normals straight from the file), and a welded, indexed copy for the

@@ -19,9 +19,15 @@ import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
 import { useCommands, usePaletteShortcut } from "./hooks/useCommands.js";
 import { useUserCommands } from "./hooks/useUserCommands.js";
+import { useWebMcp } from "./hooks/useWebMcp.js";
 import { createAssembly } from "./lib/assembly.js";
 import { getPreset as getBenchPreset } from "./lib/benchPresets.js";
-import { clearBenchHistory, loadBenchConfig, replaceBenchSession } from "./lib/benchSession.js";
+import {
+  clearBenchHistory,
+  getBenchSession,
+  loadBenchConfig,
+  replaceBenchSession,
+} from "./lib/benchSession.js";
 import { getHolesSession, setHolesDoc } from "./lib/holesSession.js";
 import { recordLibrary, requestLibrarySelection } from "./lib/librarySession.js";
 import { createHolesDoc, setNextSpec } from "./lib/screwHoles.js";
@@ -47,6 +53,7 @@ import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isE
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
 import { chordText } from "./lib/shortcuts.js";
+import { tabBridge } from "./lib/webmcp.js";
 import {
   GRID_SNAP_OPTIONS,
   getBenchFollowsLibrary,
@@ -422,10 +429,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen, shortcutsOpen, mode, assembly, sidebarCollapsed]);
 
+  // Each of these says whether it opened the part: false when the user
+  // chose to keep what was there (an agent's tool reports it, webmcp.js).
   function openInBench(part, params) {
-    if (assembly && !window.confirm(`Replace the current bench with a new one on ${part.name}?`)) return;
+    if (assembly && !window.confirm(`Replace the current bench with a new one on ${part.name}?`))
+      return false;
     seedBench(part, params);
     setMode("bench");
+    return true;
   }
 
   // Library's "Add Holes": the selected part, with its current parameters,
@@ -438,9 +449,10 @@ export default function App() {
       current?.holes.length &&
       !window.confirm(`Replace the holes you've placed with a new start on ${part.name}?`)
     )
-      return;
+      return false;
     setHolesDoc(createHolesDoc({ kind: "catalogue", partId: part.id, params }), { label: "add holes" });
     setMode("holes");
+    return true;
   }
 
   // Mod+K: the palette, or an empty tab's own part picker (the home
@@ -464,6 +476,17 @@ export default function App() {
       librarySelection.current = { part, params };
     }
     setMode("library");
+  }
+
+  // A part, with parameters over its defaults, in a tab — a user's command
+  // or an agent's (webmcp.js's open_part). False when the user chose to
+  // keep the bench or holes it would replace.
+  function openPart(part, params, target = "library") {
+    const full = { ...resolveParams(part, {}), ...params };
+    if (target === "bench") return openInBench(part, full);
+    if (target === "holes") return openInHoles(part, full);
+    showInLibrary(part, full);
+    return true;
   }
 
   // A user's command for a bench preset: the Bench's own presets list does
@@ -499,10 +522,7 @@ export default function App() {
     "open-part": ({ partId, params, target = "library" }) => {
       const part = catalogueById?.get(partId);
       if (!part) return report(`There is no part "${partId}" in the catalogue.`);
-      const full = { ...resolveParams(part, {}), ...params };
-      if (target === "bench") openInBench(part, full);
-      else if (target === "holes") openInHoles(part, full);
-      else showInLibrary(part, full);
+      openPart(part, params, target);
     },
     "bench-preset": ({ name }) => loadBenchPreset(name),
     "hole-preset": ({ presetId }) => applyHolePreset(presetId),
@@ -612,6 +632,27 @@ export default function App() {
             }),
           )),
     ];
+  });
+
+  // The same, for the browser's AI agent where it has WebMCP
+  // (lib/webmcp.js): the palette's commands, and what the palette has no
+  // rows for — parts with parameters, the state of each tab, a bench
+  // config loaded whole (an undo step, as Import config… is).
+  useWebMcp({
+    registry: commandRegistry,
+    parts,
+    catalogueById,
+    tab: mode,
+    librarySelection: () => librarySelection.current,
+    benchSession: getBenchSession,
+    holesSession: getHolesSession,
+    renders: getRenderActivity,
+    openPart,
+    loadBench: (doc) => {
+      loadBenchConfig(doc, catalogueById, "load bench");
+      setMode("bench");
+    },
+    mounted: tabBridge.get,
   });
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
