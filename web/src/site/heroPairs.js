@@ -58,12 +58,15 @@ export const HERO_PAIRS = [
     attached: { part: "deckmate/innie", words: "DeckMate" },
   },
   {
-    key: "klippt-gopro",
+    // Named for the attached part: the openGrid button is the GoPro pair.
+    key: "opengrid-klippt",
     label: "KLIPPT",
-    base: { part: "klippt/base", words: "KLIPPT" },
-    // Equal prongs: the default's wider nut leg runs a millimetre past
-    // the 20mm octagon.
-    attached: { part: "gopro/female", words: "GoPro", params: { outer_w: 3 } },
+    // The lite snap, half height (3.4mm), the one for lite boards; the
+    // GoPro pair shows the full one.
+    base: { part: "opengrid/snap", words: "openGrid", params: { variant: "lite" } },
+    // Its "mount" is the neck's face, so it lands neck down, the flange
+    // up for a clip to slide onto.
+    attached: { part: "klippt/base", words: "KLIPPT" },
   },
 ];
 
