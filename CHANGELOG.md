@@ -5,6 +5,20 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
+## Unreleased
+
+### Parts
+
+- **MOD-GRID pin, reshaped so it bends instead of breaking.** The designer's pin has barbs 6.9mm
+  across for a 5mm hole, so each leg had to bend almost a millimetre on a leg 3mm long: printed in
+  PLA, the legs snapped off rather than going in. The pegs keep the designer's layout but now have
+  thinner, longer legs, barbs 0.3mm proud of the hole, a gentle 30° lead-in and a 45° latch that
+  stays pressed on the hole's back edge, so the part pulls flush onto the grid and doesn't rattle.
+  Going in takes about a sixth of the force, and the strain in the legs is about a quarter of what
+  it was. Pegs are 4.8mm deep now (5 before), with room in the hole. The pin part, and the bit
+  holders that use it, still fit grids printed from the designer's file; the grid is unchanged, so
+  accessories printed from the designer's files still fit it too.
+
 ## 0.4.0 — 2026-10-18
 
 ### Website

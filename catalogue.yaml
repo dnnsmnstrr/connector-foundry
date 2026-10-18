@@ -765,10 +765,11 @@ parts:
         params: { pegs: 2 }
 
   # MOD-GRID (3dedc / TinyToolShop, CC BY-NC-SA 4.0 — see README
-  # "Licensing"): rebuilt from the designer's v4 STLs, not imported
-  # (lib/modgrid.scad). references.yaml checks each part against the
-  # designer's file, which sits behind a MakerWorld login: download it and
-  # drop it in refs/manual/modgrid/ for those checks to run.
+  # "Licensing"): rebuilt from the designer's v4 STLs, not imported, and
+  # the pin reshaped to bend instead of snapping (lib/modgrid.scad).
+  # references.yaml checks each part against the designer's files, which
+  # sit behind a MakerWorld login: download them and drop them in
+  # refs/manual/modgrid/ for those checks to run.
   - id: modgrid/grid
     system: MOD-GRID
     name: Grid
@@ -814,24 +815,27 @@ parts:
     license: CC-BY-NC-SA-4.0
     source: >-
       MOD-GRID by 3dedc (TinyToolShop), MakerWorld model 2811701 — the
-      designer's "Modular connector", rebuilt from its v4 STL, measured,
-      and checked against it. CC BY-NC-SA 4.0 — see README "Licensing".
+      designer's "Modular connector", with its pegs reshaped so their legs
+      bend instead of breaking, and checked to fit the designer's grid.
+      CC BY-NC-SA 4.0 — see README "Licensing".
     source_url: https://makerworld.com/en/models/2811701-mod-grid
     print_note: >-
       The snap pin MOD-GRID accessories plug in with, for fusing onto any
       part so it plugs into a MOD-GRID grid; on the Bench it attaches with
-      plate 0, the pegs straight on the part's face. pegs 2 is the
-      designer's 2x1 pin, for two neighbouring holes of a row; pegs 1 a
-      single peg for one hole. rows repeats them in that many rows; depth
-      is how deep each goes along its hole (5, the hole). On its own,
-      plate puts a plate behind them, 14.6mm wide for two pegs, 6.6 for
-      one. Print the pegs on their side, their profile flat on the bed, as
-      the designer does: turn the part, or the part it is fused onto, that
-      way in the slicer.
+      plate 0, the pegs straight on the part's face. pegs 2 is the 2x1
+      pin, for two neighbouring holes of a row; pegs 1 a single peg for
+      one hole. rows repeats them in that many rows; depth is how deep
+      each goes along its 5mm hole (4.8). On its own, plate puts a plate
+      behind them, 14.6mm wide for two pegs, 6.6 for one. Each peg's legs
+      bend 0.3mm to snap in and stay pressed on the hole's back edge, so
+      the part sits flush and firm. Print the pegs on their side, their
+      profile flat on the bed, as the designer does: turn the part, or
+      the part it is fused onto, that way in the slicer.
     attached_defaults:
       plate: 0
     # parts/modgrid/connector.scad asserts these: a peg's two 1mm tip
-    # roundings need 2mm of depth, and the hole is 5mm.
+    # roundings need 2mm of depth, and the hole is 5mm (4.8 leaves 0.1mm
+    # either side).
     minimums:
       rows: 1
       depth: 2
@@ -841,7 +845,7 @@ parts:
     defaults:
       pegs: 2
       rows: 1
-      depth: 5
+      depth: 4.8
       plate: 1.5
     options:
       pegs: [1, 2]
@@ -867,8 +871,9 @@ parts:
     source: >-
       MOD-GRID by 3dedc (TinyToolShop), MakerWorld model 2811701 — the
       designer's 4mm, 6mm and Leatherman flat bit holders, rebuilt from
-      their v4 STLs, measured, and checked against them. CC BY-NC-SA 4.0 —
-      see README "Licensing".
+      their v4 STLs, measured, and checked against them, on the reshaped
+      pin of the MOD-GRID pin part. CC BY-NC-SA 4.0 — see README
+      "Licensing".
     source_url: https://makerworld.com/en/models/2811701-mod-grid
     print_note: >-
       Holds driver bits on a MOD-GRID grid: bit 4mm takes three 4mm hex

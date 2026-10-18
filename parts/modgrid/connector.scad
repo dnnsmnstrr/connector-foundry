@@ -6,15 +6,17 @@
 // and where its numbers come from.
 //
 // The designer ships this as "Modular connector": the two pegs of the
-// 2x1 pin alone, to add to your own model. pegs = 1 is a single peg, for
-// one hole, centred on the part (the designer's 6mm bit holder is two
-// halves of a peg each). `plate` puts a plate behind the pegs, as long
-// as the pin and 1.4mm short of its holes' 8mm cells across (14.6mm for
-// two pegs, the bit holders' width; 6.6 for one), so the part stands on
-// its own; on the Bench it attaches with plate 0, the pegs' roots
-// straight on the host's face as in the designer's file. rows spans that
-// many rows of the grid, a set of pegs in each; depth is how deep each
-// peg goes along its hole (5, the hole, by default).
+// 2x1 pin alone, to add to your own model. These are the same two pegs
+// reshaped to bend rather than snap (lib/modgrid.scad says how and why).
+// pegs = 1 is a single peg, for one hole, centred on the part (the
+// designer's 6mm bit holder is two halves of a peg each). `plate` puts a
+// plate behind the pegs, as long as the pin and 1.4mm short of its
+// holes' 8mm cells across (14.6mm for two pegs, the bit holders' width;
+// 6.6 for one), so the part stands on its own; on the Bench it attaches
+// with plate 0, the pegs' roots straight on the host's face as in the
+// designer's file. rows spans that many rows of the grid, a set of pegs
+// in each; depth is how deep each peg goes along its hole (4.8 by
+// default, 0.1mm clear of the 5mm hole either side).
 //
 // Orientation: functional face BOTTOM — the pegs, pointing down; "mount"
 // on TOP, the plate's top (the pegs' roots with plate 0). The designer
@@ -27,8 +29,8 @@ include <../../lib/modgrid.scad>
 
 // The plate's width across the pegs: their cells, less the 1.4mm the
 // designer leaves between two accessories side by side in a row (a bit
-// holder's body is 14.6mm across two cells), so 0.15 to 0.2mm inside the
-// barbs either side.
+// holder's body is 14.6mm across two cells), so 0.5mm outside the barbs
+// either side.
 function modgrid_plate_width(pegs) = pegs * MODGRID_PITCH - 1.4;
 
 module modgrid_connector(pegs = 2, rows = 1, depth = MODGRID_PIN_DEPTH, plate = 1.5,
@@ -39,7 +41,8 @@ module modgrid_connector(pegs = 2, rows = 1, depth = MODGRID_PIN_DEPTH, plate = 
     assert(plate >= 0, "plate must not be negative");
     length = (rows - 1) * MODGRID_PITCH + depth;
     width = modgrid_plate_width(pegs);
-    size = [modgrid_pin_width(pegs), length, MODGRID_PIN_LEN + plate];
+    size = [plate > 0 ? max(width, modgrid_pin_width(pegs)) : modgrid_pin_width(pegs), length,
+            MODGRID_PIN_LEN + plate];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
         // Profile frame to part frame: a quarter turn about X takes the

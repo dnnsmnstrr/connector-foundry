@@ -5,7 +5,9 @@
 //
 // Three of the designer's holders, rebuilt from their v4 STLs — the
 // profiles below are those files' cross-sections, measured, made
-// symmetric where the originals are a tenth or less off it:
+// symmetric where the originals are a tenth or less off it. Their bodies
+// are the designer's; their pin is lib/modgrid.scad's, which bends where
+// the designer's snaps (the reasons are there).
 //
 // - "4mm": three 4mm hex bits (precision screwdriver bits). The sockets
 //   are 4.2mm across their flats, the middle one 4.3; each is held by
@@ -40,10 +42,10 @@ include <../../lib/modgrid.scad>
 
 MODGRID_BITS = ["4mm", "6mm", "leatherman"];
 
-// [body height, peg depth] per bit; every body is the pin's width or
-// 0.2mm inside it either side (the hex holders are 14.6mm across).
-function modgrid_bit_spec(bit) =
-    bit == "4mm" ? [7.05, 4.9] : bit == "6mm" ? [9.8, 4.9] : [9.9, 5];
+// The body's height per bit, root to top. (The designer's pegs are 4.9mm
+// deep on the hex holders and 5 on the Leatherman; ours are all the
+// pin's 4.8, for room in the 5mm hole.)
+function modgrid_bit_height(bit) = bit == "4mm" ? 7.05 : bit == "6mm" ? 9.8 : 9.9;
 
 // A hex socket with vertical flats, centred on (cx, cy): `a` half its
 // width across the flats, `c` from its centre to its top and bottom
@@ -119,20 +121,22 @@ function modgrid_bit_profile(bit) =
 module modgrid_bit_holder(bit = "4mm", rows = 1, anchor = BOTTOM, spin = 0, orient = UP) {
     assert(in_list(bit, MODGRID_BITS), "bit must be \"4mm\", \"6mm\" or \"leatherman\"");
     assert(rows >= 1 && rows == round(rows), "rows must be a whole number, at least 1");
-    spec = modgrid_bit_spec(bit);
+    height = modgrid_bit_height(bit);
     length = rows * MODGRID_PITCH;
-    size = [MODGRID_PIN_W, length, MODGRID_PIN_LEN + spec[0]];
     profile = modgrid_bit_profile(bit);
+    // Every body is wider than the pin's barbs: the hex holders are
+    // 14.6mm across, the Leatherman 15, the pin 13.6.
+    size = [max(2 * max([for (p = profile) abs(p.x)]), MODGRID_PIN_W), length, MODGRID_PIN_LEN + height];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
         // Profile frame to part frame, as for the connector: a quarter
         // turn about X takes the pin down and the bits along -y. render()
         // merges body and pin for the preview, as there.
-        translate([0, length / 2, (MODGRID_PIN_LEN - spec[0]) / 2]) rotate([90, 0, 0]) render(convexity = 4) {
+        translate([0, length / 2, (MODGRID_PIN_LEN - height) / 2]) rotate([90, 0, 0]) render(convexity = 4) {
             linear_extrude(length)
                 polygon(round_corners([for (p = profile) [p.x, p.y]], radius = [for (p = profile) p[2]],
                                       $fa = detail_fa(6), $fs = detail_fs(0.2)));
-            modgrid_pin(spec[1], rows, overlap = 0.01, $fa = detail_fa(6), $fs = detail_fs(0.2));
+            modgrid_pin(rows = rows, overlap = 0.01, $fa = detail_fa(6), $fs = detail_fs(0.2));
         }
         children();
     }
