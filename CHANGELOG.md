@@ -30,6 +30,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   app, in your browser. Each guide is in the palette too, by its name (type `holes guide`), and
   **Open the website** goes to the landing page.
 
+### New systems and parts
+
+- **MOD-GRID** (by 3dedc / TinyToolShop, CC BY-NC-SA 4.0): the grid, any number of holes each
+  way; the pin its accessories snap in with — the designer's 2x1 pin, or a single peg for one
+  hole — to fuse onto any part on the Bench so it plugs into a MOD-GRID grid; and a bit holder for
+  4mm hex, 1/4" ("6mm") hex or Leatherman flat bits, one or more grid rows long. Rebuilt from the
+  designer's own files and checked against them.
+
 ## 0.3.0 — 2026-10-16
 
 ### Command palette

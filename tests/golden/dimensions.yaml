@@ -404,6 +404,75 @@ klippt/clip_mount:
     - 15.0
     - 8.752
     volume_mm3: 2644.42
+modgrid/bit_holder:
+  4mm-two-rows:
+    bbox:
+    - 15.0
+    - 16.0
+    - 12.348
+    volume_mm3: 1117.9
+  6mm:
+    bbox:
+    - 15.0
+    - 8.0
+    - 15.098
+    volume_mm3: 682.25
+  default:
+    bbox:
+    - 15.0
+    - 8.0
+    - 12.348
+    volume_mm3: 558.95
+  leatherman:
+    bbox:
+    - 15.0
+    - 8.0
+    - 15.198
+    volume_mm3: 729.77
+modgrid/connector:
+  default:
+    bbox:
+    - 15.0
+    - 5.0
+    - 6.798
+    volume_mm3: 224.64
+  depth-4.9:
+    bbox:
+    - 15.0
+    - 4.9
+    - 6.798
+    volume_mm3: 220.13
+  single:
+    bbox:
+    - 6.9
+    - 5.0
+    - 6.798
+    volume_mm3: 107.07
+  two-rows:
+    bbox:
+    - 15.0
+    - 13.0
+    - 6.798
+    volume_mm3: 514.98
+modgrid/grid:
+  2x1:
+    bbox:
+    - 19.0
+    - 11.0
+    - 3.0
+    volume_mm3: 453.47
+  6x9:
+    bbox:
+    - 51.0
+    - 75.0
+    - 3.0
+    volume_mm3: 7401.47
+  default:
+    bbox:
+    - 99.0
+    - 35.0
+    - 3.0
+    volume_mm3: 6771.47
 molle/insert:
   center-hole:
     bbox:

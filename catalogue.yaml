@@ -764,6 +764,138 @@ parts:
       - name: two-pegs
         params: { pegs: 2 }
 
+  # MOD-GRID (3dedc / TinyToolShop, CC BY-NC-SA 4.0 — see README
+  # "Licensing"): rebuilt from the designer's v4 STLs, not imported
+  # (lib/modgrid.scad). references.yaml checks each part against the
+  # designer's file, which sits behind a MakerWorld login: download it and
+  # drop it in refs/manual/modgrid/ for those checks to run.
+  - id: modgrid/grid
+    system: MOD-GRID
+    name: Grid
+    file: parts/modgrid/grid.scad
+    module: modgrid_grid
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      MOD-GRID by 3dedc (TinyToolShop), MakerWorld model 2811701 — rebuilt
+      from the designer's 4x12 grid STL, measured, and checked against it.
+      CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://makerworld.com/en/models/2811701-mod-grid
+    print_note: >-
+      Flat on the bed, no supports. 5mm square holes on an 8mm pitch
+      through a 3mm plate, cols across and rows up: a grid is exactly cols
+      x 8 + 3 by rows x 8 + 3mm, so the designer's 12 x 4 is 99 x 35.
+      Accessories plug into two neighbouring holes of a row. "mount" is
+      the back, for fusing the grid onto a case or a lid.
+    anchors: [bot]
+    # parts/modgrid/grid.scad asserts both at least 1.
+    minimums:
+      cols: 1
+      rows: 1
+    defaults:
+      cols: 12
+      rows: 4
+    # A hole per 8mm each way.
+    resize:
+      x: { param: cols, per: 8, step: 1, max: 40 }
+      y: { param: rows, per: 8, step: 1, max: 40 }
+    variants:
+      - name: 6x9
+        params: { cols: 6, rows: 9 }
+      - name: 2x1
+        params: { cols: 2, rows: 1 }
+
+  - id: modgrid/connector
+    system: MOD-GRID
+    name: Pin
+    file: parts/modgrid/connector.scad
+    module: modgrid_connector
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      MOD-GRID by 3dedc (TinyToolShop), MakerWorld model 2811701 — the
+      designer's "Modular connector", rebuilt from its v4 STL, measured,
+      and checked against it. CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://makerworld.com/en/models/2811701-mod-grid
+    print_note: >-
+      The snap pin MOD-GRID accessories plug in with, for fusing onto any
+      part so it plugs into a MOD-GRID grid; on the Bench it attaches with
+      plate 0, the pegs straight on the part's face. pegs 2 is the
+      designer's 2x1 pin, for two neighbouring holes of a row; pegs 1 a
+      single peg for one hole. rows repeats them in that many rows; depth
+      is how deep each goes along its hole (5, the hole). On its own,
+      plate puts a plate behind them, 14.6mm wide for two pegs, 6.6 for
+      one. Print the pegs on their side, their profile flat on the bed, as
+      the designer does: turn the part, or the part it is fused onto, that
+      way in the slicer.
+    attached_defaults:
+      plate: 0
+    # parts/modgrid/connector.scad asserts these: a peg's two 1mm tip
+    # roundings need 2mm of depth, and the hole is 5mm.
+    minimums:
+      rows: 1
+      depth: 2
+      plate: 0
+    maximums:
+      depth: 5
+    defaults:
+      pegs: 2
+      rows: 1
+      depth: 5
+      plate: 1.5
+    options:
+      pegs: [1, 2]
+    # A set of pegs per 8mm row. No handle for plate: a handle stops
+    # short of 0, which is the plate this part has on the Bench.
+    resize:
+      y: { param: rows, per: 8, step: 1, max: 12 }
+    variants:
+      - name: single
+        params: { pegs: 1 }
+      - name: two-rows
+        params: { rows: 2 }
+      - name: depth-4.9
+        params: { depth: 4.9 }
+
+  - id: modgrid/bit_holder
+    system: MOD-GRID
+    name: Bit holder
+    file: parts/modgrid/bit_holder.scad
+    module: modgrid_bit_holder
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      MOD-GRID by 3dedc (TinyToolShop), MakerWorld model 2811701 — the
+      designer's 4mm, 6mm and Leatherman flat bit holders, rebuilt from
+      their v4 STLs, measured, and checked against them. CC BY-NC-SA 4.0 —
+      see README "Licensing".
+    source_url: https://makerworld.com/en/models/2811701-mod-grid
+    print_note: >-
+      Holds driver bits on a MOD-GRID grid: bit 4mm takes three 4mm hex
+      precision bits, 6mm two 1/4" (6.35mm) hex bits, leatherman three
+      Leatherman flat bits. The bits lie along the holder and slide in
+      from an end. rows makes it that many grid rows long, 8mm and a pin
+      each, to hold longer bits further along. Print it on its side, an
+      end face on the bed, as the designer does; no supports.
+    # parts/modgrid/bit_holder.scad asserts it.
+    minimums:
+      rows: 1
+    defaults:
+      bit: "4mm"
+      rows: 1
+    options:
+      bit: ["4mm", "6mm", leatherman]
+    # 8mm and a pin per row.
+    resize:
+      y: { param: rows, per: 8, step: 1, max: 8 }
+    variants:
+      - name: 6mm
+        params: { bit: "6mm" }
+      - name: leatherman
+        params: { bit: leatherman }
+      - name: 4mm-two-rows
+        params: { rows: 2 }
+
   - id: molle/spine
     system: MOLLE
     name: Spine
