@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useGridSnap } from "../hooks/useGridSnap.js";
 import { useHiddenLibrary } from "../hooks/useHiddenLibrary.js";
 import { groupBySystem, resolveSystemOrder } from "../lib/catalogueUtils.js";
+import { GUIDES_URL } from "../lib/commandCatalog.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "../lib/settingsBackup.js";
 import {
   GRID_SNAP_DEFAULT,
@@ -34,7 +35,9 @@ import Modal from "./Modal.jsx";
 // all of it plus the bench presets and saved part defaults
 // (lib/settingsBackup.js). `onShowShortcuts` is the header's Keyboard
 // shortcuts button: App closes Settings and opens the sheet in its place,
-// never one dialog over the other.
+// never one dialog over the other. Beside it, Guides opens the website's
+// guides in a new tab — in the desktop app, the system browser, which
+// desktop/main.cjs hands every new window to.
 /**
  * @param {{
  *   parts: any[],
@@ -130,15 +133,26 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
       onClose={onClose}
       title="Settings"
       actions={
-        <button
-          type="button"
-          className="bench-modal-header-button"
-          onClick={onShowShortcuts}
-          aria-haspopup="dialog"
-          title="Every key, what the handles do, and the mouse, trackpad and touch controls"
-        >
-          Keyboard shortcuts <kbd className="shortcut-hint">?</kbd>
-        </button>
+        <>
+          <button
+            type="button"
+            className="bench-modal-header-button"
+            onClick={onShowShortcuts}
+            aria-haspopup="dialog"
+            title="Every key, what the handles do, and the mouse, trackpad and touch controls"
+          >
+            Keyboard shortcuts <kbd className="shortcut-hint">?</kbd>
+          </button>
+          <a
+            className="bench-modal-header-button"
+            href={GUIDES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Getting started, the Bench, Holes and the rest, on the website"
+          >
+            Guides <span aria-hidden="true">↗</span>
+          </a>
+        </>
       }
     >
       <h4 className="settings-section">Printer</h4>
