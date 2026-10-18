@@ -13,12 +13,13 @@
 // the attached part where the Bench would put it — rendered as the base
 // with the part attached to its "mount" slot, everything but the
 // attached part hidden with BOSL2's show_only(). The hero then only has
-// to lift the attached part along Z to take the pair apart.
+// to lift the attached part along Z to take the pair apart. A base that
+// stands in several pairs is stored once (heroPairs.js's meshNames()).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createOpenSCAD } from "openscad-wasm";
-import { HERO_PAIRS } from "../src/site/heroPairs.js";
+import { HERO_PAIRS, meshNames } from "../src/site/heroPairs.js";
 import { encodeMeshes, indexStl } from "../src/site/heroMeshes.js";
 import { callArgs, scadLiteral } from "../src/lib/scadLiteral.js";
 
@@ -90,26 +91,32 @@ async function render(source) {
 }
 
 const meshes = [];
+const renderedBases = new Set();
 for (const pair of HERO_PAIRS) {
+  const names = meshNames(pair);
   const base = catalogueEntry(pair.base.part);
   const attached = catalogueEntry(pair.attached.part);
   const baseCall = `${base.module}(${callArgs({ ...base.defaults, ...pair.base.params })})`;
   const attachedParams = { ...attached.defaults, ...attached.attached_defaults, ...pair.attached.params };
-  const includes = [
-    `include <../vendor/BOSL2/std.scad>`,
-    `include <../${base.file}>`,
-    `include <../${attached.file}>`,
-  ].join("\n");
+  // The base on its own includes only its own file, as the Library
+  // renders it — a file's top-level settings can change another part's
+  // facets, and a base shared by two pairs must come out the same.
+  const baseInclude = `include <../vendor/BOSL2/std.scad>\ninclude <../${base.file}>`;
   const started = Date.now();
-  const baseMesh = await render(`${includes}\n${baseCall};\n`);
+  const baseMesh = renderedBases.has(names.base) ? null : await render(`${baseInclude}\n${baseCall};\n`);
   const attachedMesh = await render(
-    `${includes}\nshow_only(${scadLiteral(TAG)}) ${baseCall} ` +
+    `${baseInclude}\ninclude <../${attached.file}>\nshow_only(${scadLiteral(TAG)}) ${baseCall} ` +
       `attach(${scadLiteral("mount")}, ${scadLiteral("mount")}) tag(${scadLiteral(TAG)}) ` +
       `${attached.module}(${callArgs(attachedParams)});\n`,
   );
-  meshes.push({ name: `${pair.key}/base`, ...baseMesh }, { name: `${pair.key}/attached`, ...attachedMesh });
+  if (baseMesh) {
+    meshes.push({ name: names.base, ...baseMesh });
+    renderedBases.add(names.base);
+  }
+  meshes.push({ name: names.attached, ...attachedMesh });
+  const baseTriangles = baseMesh ? baseMesh.indices.length / 3 : "(shared)";
   console.log(
-    `${pair.key}: ${baseMesh.indices.length / 3} + ${attachedMesh.indices.length / 3} triangles ` +
+    `${pair.key}: ${baseTriangles} + ${attachedMesh.indices.length / 3} triangles ` +
       `(${((Date.now() - started) / 1000).toFixed(1)} s)`,
   );
 }

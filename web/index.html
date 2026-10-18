@@ -83,7 +83,7 @@
             <div class="hero-fallback" aria-hidden="true">
               <img src="/thumbnails/gridfinity_base.png" alt="" width="640" height="480" />
               <span>+</span>
-              <img src="/thumbnails/gopro_male.png" alt="" width="640" height="480" />
+              <img src="/thumbnails/gopro_female.png" alt="" width="640" height="480" />
             </div>
             <canvas
               class="hero-canvas"
@@ -203,12 +203,17 @@
             <figure class="demo demo-resize" data-demo="resize">
               <div class="demo-toolbar">
                 <span class="demo-title">Bin</span>
-                <span class="demo-dimensions" data-resize-dimensions>Outside: W 83.5 × H 21 × D 41.5 mm</span>
+                <span class="demo-dimensions" data-resize-dimensions
+                  >Outside: W 83.5 × H 24.55 × D 41.5 mm</span
+                >
               </div>
               <div class="resize-stage">
                 <svg class="resize-art" viewBox="0 0 520 330" data-resize-art aria-hidden="true"></svg>
                 <button type="button" class="resize-handle resize-handle-x" data-axis="x" hidden>
                   <span class="visually-hidden">Width, in Gridfinity units</span>
+                </button>
+                <button type="button" class="resize-handle resize-handle-y" data-axis="y" hidden>
+                  <span class="visually-hidden">Depth, in Gridfinity units</span>
                 </button>
                 <button type="button" class="resize-handle resize-handle-z" data-axis="z" hidden>
                   <span class="visually-hidden">Height, in 7 mm units</span>
@@ -221,6 +226,12 @@
                   <button type="button" data-step="x:-1" aria-label="Narrower">−</button>
                   <output data-param="gx">2</output>
                   <button type="button" data-step="x:1" aria-label="Wider">+</button>
+                </div>
+                <div class="resize-param">
+                  <span>gy</span>
+                  <button type="button" data-step="y:-1" aria-label="Shallower">−</button>
+                  <output data-param="gy">1</output>
+                  <button type="button" data-step="y:1" aria-label="Deeper">+</button>
                 </div>
                 <div class="resize-param">
                   <span>gz</span>
@@ -579,10 +590,11 @@ wrote out/gridfinity_bin.stl</pre>
         <div class="container credits-inner">
           <header class="section-header" data-reveal>
             <p class="eyebrow">Open source</p>
-            <h2 id="credits-title">Built on the work of the people who made the standards.</h2>
+            <h2 id="credits-title">Built on the work of the people who made or recreated the standards.</h2>
             <p class="section-lede">
-              Where a system has a reference implementation, the parts call it instead of re-deriving it. The
-              code here is MIT; each part names its source and carries that source's licence.
+              Some of these projects define a standard; most recreate one as parametric code. Where a system
+              has such an implementation, the parts call it instead of re-deriving it. The code here is MIT;
+              each part names its source and carries that source's licence.
             </p>
             <a class="text-link" href="{{repo}}#licensing">How the licences apply</a>
           </header>

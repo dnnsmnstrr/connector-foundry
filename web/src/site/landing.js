@@ -10,7 +10,7 @@ import { reducedMotion, watchHeader, whenNear } from "./common.js";
 import { mountGallery } from "./demos/gallery.js";
 import { mountHoles } from "./demos/holes.js";
 import { mountJoints } from "./demos/joints.js";
-import { mountPalette } from "./demos/palette.js";
+import { createPaletteDialog, mountPalette } from "./demos/palette.js";
 import { mountResize } from "./demos/resize.js";
 import { mountTerminal } from "./demos/terminal.js";
 import { HERO_PAIRS } from "./heroPairs.js";
@@ -24,6 +24,19 @@ const FALLBACK_PAIR_MS = 4500;
 /** @param {string} selector */
 const $ = (selector) => /** @type {HTMLElement} */ (document.querySelector(selector));
 
+// The palette demo as the page has it, copied before the demo runs: the
+// palette that floats over the page is built from the copy.
+const paletteDemo = $('[data-demo="palette"]');
+const paletteTemplate = /** @type {HTMLElement} */ (paletteDemo.cloneNode(true));
+let paletteMounted = false;
+function mountPaletteDemo() {
+  if (paletteMounted) return;
+  paletteMounted = true;
+  mountPalette(paletteDemo, { still: motion.matches });
+}
+/** @type {ReturnType<typeof createPaletteDialog> | null} */
+let floatingPalette = null;
+
 document.documentElement.classList.add("js");
 watchHeader();
 reveal();
@@ -35,23 +48,43 @@ modifierKeys();
 whenNear($('[data-demo="resize"]'), () => mountResize($('[data-demo="resize"]')));
 whenNear($('[data-demo="joints"]'), () => mountJoints($('[data-demo="joints"]'), { still: motion.matches }));
 whenNear($('[data-demo="holes"]'), () => mountHoles($('[data-demo="holes"]')));
-whenNear($('[data-demo="palette"]'), () =>
-  mountPalette($('[data-demo="palette"]'), { still: motion.matches }),
-);
+whenNear(paletteDemo, mountPaletteDemo);
 whenNear($('[data-demo="terminal"]'), () =>
   mountTerminal($('[data-demo="terminal"]'), { still: motion.matches }),
 );
 mountGallery($("[data-gallery-filters]"), $("[data-gallery]"));
 
-// Cmd/Ctrl+K, the app's palette key, goes to the palette demo here — the
-// same chord the app reads (lib/isEditableTarget.js).
+// Cmd/Ctrl+K, the app's palette key (the same chord the app reads,
+// lib/isEditableTarget.js): near the palette demo it scrolls there, from
+// anywhere else the palette opens over the page — and pressed again, it
+// closes, as in the app.
 document.addEventListener("keydown", (event) => {
   if (!paletteShortcut(event)) return;
   event.preventDefault();
-  const input = /** @type {HTMLInputElement} */ (document.querySelector("[data-palette-input]"));
-  input.scrollIntoView({ block: "center", behavior: motion.matches ? "auto" : "smooth" });
-  input.focus({ preventScroll: true });
+  if (floatingPalette?.isOpen()) {
+    floatingPalette.close();
+    return;
+  }
+  if (isNear(paletteDemo)) {
+    mountPaletteDemo();
+    const input = /** @type {HTMLInputElement} */ (paletteDemo.querySelector("[data-palette-input]"));
+    input.scrollIntoView({ block: "center", behavior: motion.matches ? "auto" : "smooth" });
+    input.focus({ preventScroll: true });
+    return;
+  }
+  floatingPalette ??= createPaletteDialog(paletteTemplate);
+  floatingPalette.open();
 });
+
+/**
+ * Whether `element` is within about a screen of the viewport — close
+ * enough that scrolling to it beats a palette over the page.
+ * @param {Element} element
+ */
+function isNear(element) {
+  const box = element.getBoundingClientRect();
+  return box.bottom > -window.innerHeight * 0.5 && box.top < window.innerHeight * 1.5;
+}
 
 // Sections fade up as they scroll in. Whatever is on screen at load is
 // shown at once.
@@ -80,6 +113,13 @@ function hero() {
   const stage = $("[data-hero-stage]");
   const canvas = /** @type {HTMLCanvasElement} */ (stage.querySelector("canvas"));
   const pager = $("[data-hero-pager]");
+  // What each pair puts in each reel. A word two pairs share (openGrid) is
+  // one span, so it stays put when the pairs change rather than sliding
+  // out and back in as itself.
+  const wordOf = {
+    base: (/** @type {number} */ i) => HERO_PAIRS[i].base.words,
+    attached: (/** @type {number} */ i) => `${HERO_PAIRS[i].attached.words}.`,
+  };
   const reels = {
     base: $('[data-reel="base"]'),
     attached: $('[data-reel="attached"]'),
@@ -87,13 +127,13 @@ function hero() {
   for (const [kind, reel] of Object.entries(reels)) {
     // Every word is in the reel from the start, so its width (the longest
     // word's) never changes; index.html has the first pair's.
-    HERO_PAIRS.forEach((pair, i) => {
-      if (i === 0) return;
+    const words = [...new Set(HERO_PAIRS.map((_, i) => wordOf[kind](i)))];
+    for (const text of words.slice(1)) {
       const word = document.createElement("span");
       word.className = "reel-word";
-      word.textContent = kind === "base" ? pair.base.words : `${pair.attached.words}.`;
+      word.textContent = text;
       reel.append(word);
-    });
+    }
   }
   const buttons = HERO_PAIRS.map((pair, i) => {
     const button = document.createElement("button");
@@ -114,16 +154,16 @@ function hero() {
 
   let current = 0;
   function show(index) {
-    if (index !== current) {
-      for (const reel of Object.values(reels)) {
-        const words = [...reel.children];
-        words[current].classList.remove("is-current");
-        words[current].classList.add("is-leaving");
-        const leaving = words[current];
-        window.setTimeout(() => leaving.classList.remove("is-leaving"), 700);
-        words[index].classList.remove("is-leaving");
-        words[index].classList.add("is-current");
-      }
+    for (const [kind, reel] of Object.entries(reels)) {
+      const words = [...reel.children];
+      const from = words.find((word) => word.textContent === wordOf[kind](current));
+      const to = words.find((word) => word.textContent === wordOf[kind](index));
+      if (!from || !to || from === to) continue;
+      from.classList.remove("is-current");
+      from.classList.add("is-leaving");
+      window.setTimeout(() => from.classList.remove("is-leaving"), 700);
+      to.classList.remove("is-leaving");
+      to.classList.add("is-current");
     }
     current = index;
     buttons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === index)));

@@ -13,6 +13,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import meshesUrl from "./assets/hero-parts.bin?url";
 import { decodeMeshes } from "./heroMeshes.js";
+import { meshNames } from "./heroPairs.js";
 
 /** @typedef {import("./heroPairs.js").HeroPair} HeroPair */
 
@@ -110,8 +111,9 @@ function gridMaterial() {
  * OpenSCAD frame (Z up), centred and scaled by `fit`.
  */
 function buildPair(meshes, pair) {
-  const base = meshes.get(`${pair.key}/base`);
-  const attached = meshes.get(`${pair.key}/attached`);
+  const names = meshNames(pair);
+  const base = meshes.get(names.base);
+  const attached = meshes.get(names.attached);
   if (!base || !attached) throw new Error(`hero-parts.bin has no ${pair.key}`);
   const baseGeometry = buildGeometry(base.positions, base.indices);
   const attachedGeometry = buildGeometry(attached.positions, attached.indices);

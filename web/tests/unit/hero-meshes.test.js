@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 import { decodeMeshes, encodeMeshes, indexStl } from "../../src/site/heroMeshes.js";
-import { HERO_PAIRS } from "../../src/site/heroPairs.js";
+import { HERO_PAIRS, meshNames } from "../../src/site/heroPairs.js";
 
 // A binary STL of these triangles, each three [x, y, z] corners.
 function binaryStl(triangles) {
@@ -93,23 +93,36 @@ test("a file that is not a hero mesh file is refused", () => {
 test("hero-parts.bin has every pair, the attached part on its base's top slot", () => {
   const bytes = fs.readFileSync(new URL("../../src/site/assets/hero-parts.bin", import.meta.url));
   const meshes = decodeMeshes(arrayBuffer(bytes));
-  const zRange = (mesh) => {
+  // The mesh's extent along one axis (0 = X, 1 = Y, 2 = Z).
+  const range = (mesh, axis) => {
     let min = Infinity;
     let max = -Infinity;
-    for (let i = 2; i < mesh.positions.length; i += 3) {
+    for (let i = axis; i < mesh.positions.length; i += 3) {
       min = Math.min(min, mesh.positions[i]);
       max = Math.max(max, mesh.positions[i]);
     }
     return { min, max };
   };
   for (const pair of HERO_PAIRS) {
-    const base = meshes.get(`${pair.key}/base`);
-    const attached = meshes.get(`${pair.key}/attached`);
+    const names = meshNames(pair);
+    const base = meshes.get(names.base);
+    const attached = meshes.get(names.attached);
     assert.ok(base && attached, `${pair.key} is in hero-parts.bin`);
     assert.ok(base.indices.length > 0 && attached.indices.length > 0, pair.key);
     // Every hero base has its "mount" slot on its top face, so attach()
     // puts the attached part's underside exactly there.
-    assert.ok(Math.abs(zRange(attached).min - zRange(base).max) < 0.01, `${pair.key} sits on its base`);
+    assert.ok(Math.abs(range(attached, 2).min - range(base, 2).max) < 0.01, `${pair.key} sits on its base`);
+    // A mount on something, never a plate balanced on a peg: the attached
+    // part stays within its base's footprint (heroPairs.js).
+    for (const axis of [0, 1]) {
+      const on = range(base, axis);
+      const top = range(attached, axis);
+      assert.ok(
+        top.min >= on.min - 0.5 && top.max <= on.max + 0.5,
+        `${pair.key}: ${pair.attached.part} reaches past ${pair.base.part} along ${"XY"[axis]}`,
+      );
+    }
   }
-  assert.equal(meshes.size, HERO_PAIRS.length * 2, "no meshes for pairs that are gone");
+  const expected = new Set(HERO_PAIRS.flatMap((pair) => Object.values(meshNames(pair))));
+  assert.deepEqual([...meshes.keys()].sort(), [...expected].sort(), "no meshes for pairs that are gone");
 });

@@ -3,7 +3,8 @@
 // "oib" finds Open in Bench here exactly as it does there. Choosing one
 // opens it where it lives: a part on the Bench, a tab of the app, a guide
 // or a link; a command that only means something inside the app opens
-// the app.
+// the app. The same palette also floats over the page
+// (createPaletteDialog()), for Cmd/Ctrl+K far from the demo.
 import siteData from "virtual:site-data";
 import {
   BUILTIN_COMMANDS,
@@ -110,10 +111,15 @@ function highlight(text, query) {
 }
 
 /**
- * @param {HTMLElement} root the demo's container
- * @param {{ still: boolean }} options still: no typing tour
+ * @param {HTMLElement} root the palette's container: its search box, list and footer
+ * @param {object} options
+ * @param {boolean} options.still no typing tour (reduced motion, or the floating palette)
+ * @param {string} [options.idPrefix] its options' ids, unique on the page
+ * @param {boolean} [options.inDialog] Esc is left to the dialog, which closes on it
+ * @param {(command: DemoCommand) => void} [options.onRun] called just before a command runs
+ * @returns {{ input: HTMLInputElement, reset(): void }}
  */
-export function mountPalette(root, { still }) {
+export function mountPalette(root, { still, idPrefix = "palette-option", inDialog = false, onRun }) {
   const input = /** @type {HTMLInputElement} */ (root.querySelector("[data-palette-input]"));
   const list = /** @type {HTMLElement} */ (root.querySelector("[data-palette-results]"));
   const footer = /** @type {HTMLElement} */ (root.querySelector("[data-palette-footer]"));
@@ -121,7 +127,9 @@ export function mountPalette(root, { still }) {
   /** @type {DemoCommand[]} */
   let shown = [];
   let selected = 0;
-  let touched = still;
+  // Someone already in the search box (Cmd/Ctrl+K got there before the
+  // demo started) gets no tour typing over them.
+  let touched = still || root.contains(document.activeElement);
   let tourTimer = 0;
 
   function render() {
@@ -172,7 +180,7 @@ export function mountPalette(root, { still }) {
   function option(command, index, query) {
     const item = document.createElement("li");
     item.className = "palette-option";
-    item.id = `palette-option-${index}`;
+    item.id = `${idPrefix}-${index}`;
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", "false");
     if (command.thumbnail) {
@@ -216,9 +224,9 @@ export function mountPalette(root, { still }) {
   function select(index, scroll = true) {
     selected = index;
     for (const item of list.querySelectorAll('[role="option"]')) {
-      item.setAttribute("aria-selected", String(item.id === `palette-option-${index}`));
+      item.setAttribute("aria-selected", String(item.id === `${idPrefix}-${index}`));
     }
-    const active = list.querySelector(`#palette-option-${index}`);
+    const active = list.querySelector(`#${idPrefix}-${index}`);
     if (active) {
       input.setAttribute("aria-activedescendant", active.id);
       if (scroll) active.scrollIntoView({ block: "nearest" });
@@ -237,6 +245,7 @@ export function mountPalette(root, { still }) {
   }
 
   function run(command) {
+    onRun?.(command);
     if (command.href.startsWith("#")) {
       document.querySelector(command.href)?.scrollIntoView();
       return;
@@ -257,7 +266,7 @@ export function mountPalette(root, { still }) {
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (shown[selected]) run(shown[selected]);
-    } else if (event.key === "Escape") {
+    } else if (event.key === "Escape" && !inDialog) {
       if (input.value) {
         event.preventDefault();
         input.value = "";
@@ -315,4 +324,61 @@ export function mountPalette(root, { still }) {
       started = false;
     }
   });
+
+  return {
+    input,
+    reset() {
+      input.value = "";
+      selected = 0;
+      render();
+    },
+  };
+}
+
+/**
+ * The palette over the page, as the app floats its own: a native modal
+ * <dialog> built from a copy of the demo's markup taken before the demo
+ * ran. Esc clears the search, then closes; so does a click beside it, and
+ * running a command.
+ * @param {HTMLElement} template the demo's container, as the page has it
+ * @returns {{ open(): void, close(): void, isOpen(): boolean }}
+ */
+export function createPaletteDialog(template) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "palette-dialog";
+  dialog.setAttribute("aria-label", "Command palette");
+  const panel = /** @type {HTMLElement} */ (template.cloneNode(true));
+  panel.removeAttribute("data-demo");
+  panel.removeAttribute("data-reveal");
+  const list = /** @type {HTMLElement} */ (panel.querySelector("[data-palette-results]"));
+  list.id = "palette-dialog-results";
+  panel.querySelector("[data-palette-input]")?.setAttribute("aria-controls", list.id);
+  dialog.append(panel);
+  document.body.append(dialog);
+  const palette = mountPalette(panel, {
+    still: true,
+    idPrefix: "palette-dialog-option",
+    inDialog: true,
+    onRun: () => dialog.close(),
+  });
+  dialog.addEventListener("cancel", (event) => {
+    if (!palette.input.value) return;
+    event.preventDefault();
+    palette.reset();
+  });
+  // A click on the backdrop lands on the dialog itself, outside its panel.
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  return {
+    open() {
+      palette.reset();
+      dialog.showModal();
+      palette.input.focus();
+    },
+    close() {
+      dialog.close();
+    },
+    isOpen: () => dialog.open,
+  };
 }

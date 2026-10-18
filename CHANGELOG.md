@@ -10,10 +10,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 ### Website
 
 - **A landing page** at https://dnnsmnstrr.github.io/connector-foundry/ that shows what Connector
-  Foundry does: real catalogue parts from different systems joining in 3D (drag to turn them),
-  the Library's resize handles, the Bench's five joints and the Holes tab's snapping to try out
-  on the page — the resize and command palette demos run the app's own code — the whole parts
-  gallery with a filter by system, and the downloads for your computer.
+  Foundry does: real catalogue parts from Gridfinity, openGrid, the Honeycomb Storage Wall,
+  Multiboard and GoPro joining in 3D (drag to turn them), the Library's resize handles, the
+  Bench's five joints and the Holes tab's snapping to try out on the page — the resize and
+  command palette demos run the app's own code, and Cmd/Ctrl+K opens that palette anywhere on
+  the page — the whole parts gallery with a filter by system, and the downloads for your
+  computer.
 - **The web app moved to `/app/`**: https://dnnsmnstrr.github.io/connector-foundry/app/. Links
   from before — a shared bench, a bookmark of a tab — are forwarded there, bench and all. The
   desktop app is unchanged.
