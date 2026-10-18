@@ -2110,6 +2110,23 @@ html:has(.palette-dialog[open]) {
   word-break: break-word;
 }
 
+/* terminal.js types the session over an unseen copy of all of it, the two
+   in one grid cell, so the box keeps the whole session's height and the
+   page below it never moves (see the comment there). Only once it has
+   mounted: the static markup's prompt and text would be two cells. */
+.terminal-body.is-stacked {
+  display: grid;
+}
+
+.terminal-body.is-stacked > * {
+  grid-area: 1 / 1;
+}
+
+.terminal-ghost {
+  visibility: hidden;
+  user-select: none;
+}
+
 .terminal-prompt {
   color: var(--green);
 }

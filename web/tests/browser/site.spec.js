@@ -24,6 +24,32 @@ test("the landing page explains the parts and leads into the app", async ({ page
   await expect(page.locator(".part-card a").first()).toHaveAttribute("href", /^\/app\/#mode=bench&bench=/);
 });
 
+test("the terminal demo keeps one height as it types, so the Download section below stays put", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const terminal = page.locator("[data-terminal]");
+  await terminal.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+  await expect(terminal.locator(".terminal-cursor")).toBeVisible();
+  const typing = await terminal.evaluate((element) => element.offsetHeight);
+  // A sliver left at the top of the window, around the threshold where the
+  // demo starts and stops: when its height followed the text, starting over
+  // shrank it out of view, showing it all brought it back, every frame.
+  const heights = await terminal.evaluate(async (element) => {
+    const box = element.closest("[data-demo]").getBoundingClientRect();
+    window.scrollBy({ top: box.bottom - box.height * 0.1, behavior: "instant" });
+    const seen = new Set();
+    for (let frame = 0; frame < 40; frame++) {
+      await new Promise((resolve) => {
+        requestAnimationFrame(resolve);
+      });
+      seen.add(element.offsetHeight);
+    }
+    return [...seen];
+  });
+  expect(heights).toEqual([typing]);
+});
+
 // The rest with the demos still (prefers-reduced-motion), as a visitor
 // who asked for that sees them: the hero's software-rendered WebGL loop
 // would otherwise slow every test it shares a machine with.
