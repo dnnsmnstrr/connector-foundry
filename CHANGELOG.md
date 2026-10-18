@@ -3,7 +3,28 @@
 What changed in each release of Connector Foundry: the web app, the desktop apps, the CLI and the
 parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
-runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/.
+runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
+
+## Unreleased
+
+### Website
+
+- **A landing page** at https://dnnsmnstrr.github.io/connector-foundry/ that shows what Connector
+  Foundry does: real catalogue parts from Gridfinity, openGrid, the Honeycomb Storage Wall,
+  Multiboard and GoPro joining in 3D (drag to turn them), the Library's resize handles, the
+  Bench's five joints and the Holes tab's snapping to try out on the page — the resize and
+  command palette demos run the app's own code, and Cmd/Ctrl+K opens that palette anywhere on
+  the page — the whole parts gallery with a filter by system, and the downloads for your
+  computer.
+- **The web app moved to `/app/`**: https://dnnsmnstrr.github.io/connector-foundry/app/. Links
+  from before — a shared bench, a bookmark of a tab — are forwarded there, bench and all. The
+  desktop app is unchanged.
+- **Guides**, on the website and in `docs/`:
+  [getting started](https://dnnsmnstrr.github.io/connector-foundry/docs/getting-started/),
+  [installing the desktop app](https://dnnsmnstrr.github.io/connector-foundry/docs/desktop/) and
+  [the command line](https://dnnsmnstrr.github.io/connector-foundry/docs/cli/) are new; the Bench,
+  Holes, Joints, user overrides and accuracy pages are on the website too. They are the Markdown
+  files in `docs/`, so GitHub shows the same text.
 
 ## 0.3.0 — 2026-10-16
 

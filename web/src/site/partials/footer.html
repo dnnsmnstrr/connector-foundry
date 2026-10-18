@@ -1,0 +1,46 @@
+<!-- The website's footer, on the landing page and every guide
+     (scripts/vite-plugin-site.mjs fills in {{base}} and {{repo}}). -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <a class="site-brand" href="{{base}}">
+        <img src="/desktop/icon.svg" alt="" width="30" height="30" />
+        <span>Connector Foundry</span>
+      </a>
+      <p>Parametric, printable mounting parts that fit together across systems. Free and open source.</p>
+    </div>
+    <nav class="site-footer-links" aria-label="Footer">
+      <div>
+        <h2>Use it</h2>
+        <ul>
+          <li><a href="{{base}}app/">Web app</a></li>
+          <li><a href="{{base}}#download">Desktop app</a></li>
+          <li><a href="{{base}}docs/cli/">Command line</a></li>
+          <li><a href="{{base}}#parts">All parts</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Learn</h2>
+        <ul>
+          <li><a href="{{base}}docs/getting-started/">Getting started</a></li>
+          <li><a href="{{base}}docs/desktop/">Installing the desktop app</a></li>
+          <li><a href="{{base}}docs/">All guides</a></li>
+          <li><a href="{{repo}}/blob/main/CHANGELOG.md">What's new</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="{{repo}}">Source on GitHub</a></li>
+          <li><a href="{{repo}}/releases">Releases</a></li>
+          <li><a href="{{repo}}/issues/new">Report an issue</a></li>
+          <li><a href="{{repo}}#licensing">Licensing</a></li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+  <p class="site-footer-legal">
+    © 2026 Dennis Muensterer. The code is MIT-licensed; parts built on other people's libraries carry their
+    licence, listed with each part.
+  </p>
+</footer>

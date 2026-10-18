@@ -9,8 +9,10 @@ on:
       - "parts/**"
       - "assemblies/**"
       - "catalogue.yaml"
-      # The gallery renders are the command palette's part thumbnails.
-      - "docs/img/**"
+      # The guides are pages of the website (web/scripts/build-docs.mjs), and
+      # the gallery renders are the parts' pictures in the app and on the
+      # landing page.
+      - "docs/**"
       - "vendor/**"
       - ".github/workflows/deploy-web.yml"
   workflow_dispatch:

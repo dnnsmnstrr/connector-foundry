@@ -1,0 +1,529 @@
+/* The website's shared base: the landing page (landing.css) and the
+   guides (docs.css) both start from here. Dark only, like the app; the
+   palette is the app icon's (web/desktop/icon.svg): charcoal, a molten
+   orange and pale machined metal. Green is the app's slot-marker colour,
+   used where the site points at a slot. */
+
+:root {
+  color-scheme: dark;
+  --bg: #0d0f12;
+  --bg-raised: #12151a;
+  --surface: #161a20;
+  --surface-2: #1c2129;
+  --surface-3: #232933;
+  --border: #252b35;
+  --border-strong: #343c49;
+  --text: #eceef2;
+  --text-2: #b3b9c5;
+  --text-3: #7f8796;
+  --orange: #ff983c;
+  --orange-hi: #ffbc66;
+  --orange-lo: #ee6b27;
+  --orange-glow: rgb(255 152 60 / 0.35);
+  --metal: #e5edf0;
+  --metal-lo: #aabfc9;
+  --steel: #617985;
+  --green: #2ecc71;
+  --blue: #8ea3f2;
+  --radius-lg: 22px;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --font:
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --container: 1180px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --header-height: 64px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 100%;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-padding-top: calc(var(--header-height) + 16px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  overflow-x: clip;
+}
+
+img,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--orange-hi);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: #ffd6a0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--orange-hi);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgb(255 152 60 / 0.35);
+  color: #fff;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.42em;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.82em;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  vertical-align: 0.08em;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--orange);
+  color: #1a0f05;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.button {
+  --button-bg: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 44px;
+  padding: 0.65rem 1.15rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 0.97rem;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.button:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.button-primary {
+  background: linear-gradient(160deg, var(--orange-hi), var(--orange) 45%, var(--orange-lo));
+  color: #1d1006;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 8px 24px -10px var(--orange-glow);
+}
+
+.button-primary:hover {
+  color: #1d1006;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 2px 4px rgb(0 0 0 / 0.4),
+    0 14px 34px -10px rgb(255 152 60 / 0.6);
+}
+
+.button-secondary {
+  border-color: var(--border-strong);
+  background: rgb(255 255 255 / 0.03);
+  color: var(--text);
+}
+
+.button-secondary:hover {
+  border-color: #4a5464;
+  background: rgb(255 255 255 / 0.07);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.button-small {
+  min-height: 36px;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.88rem;
+}
+
+.button-large {
+  min-height: 50px;
+  padding: 0.8rem 1.45rem;
+  font-size: 1.02rem;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: var(--text-2);
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+
+.icon-button:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  color: var(--orange-hi);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.text-link::after {
+  content: "→";
+  transition: transform 0.2s var(--ease-out);
+}
+
+.text-link:hover::after {
+  transform: translateX(3px);
+}
+
+.eyebrow {
+  margin-bottom: 0.9rem;
+  color: var(--orange);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12em 0.55em;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.badge-exact {
+  border-color: rgb(46 204 113 / 0.4);
+  background: rgb(46 204 113 / 0.1);
+  color: #7ee2a8;
+}
+
+.badge-parametric {
+  border-color: rgb(255 188 102 / 0.4);
+  background: rgb(255 152 60 / 0.1);
+  color: var(--orange-hi);
+}
+
+/* ----------------------------------------------------------------- header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid transparent;
+  background: rgb(13 15 18 / 0.72);
+  -webkit-backdrop-filter: saturate(160%) blur(16px);
+  backdrop-filter: saturate(160%) blur(16px);
+  transition:
+    border-color 0.3s,
+    background-color 0.3s;
+}
+
+.site-header.is-scrolled,
+.docs-page .site-header {
+  border-bottom-color: var(--border);
+  background: rgb(13 15 18 / 0.86);
+}
+
+.site-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  height: var(--header-height);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.docs-page .site-header-inner {
+  max-width: none;
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  font-weight: 750;
+  font-size: 1.02rem;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-brand:hover {
+  color: #fff;
+}
+
+.site-brand img {
+  width: 30px;
+  height: 30px;
+  margin: -2px;
+}
+
+.site-nav {
+  margin-left: auto;
+}
+
+.site-nav ul {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav a {
+  display: block;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 0.92rem;
+  font-weight: 550;
+  text-decoration: none;
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text);
+}
+
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Below this the landing page's own sections are a scroll away, so the
+   header keeps the brand, the guides and the way into the app. */
+@media (max-width: 760px) {
+  .site-nav-landing {
+    display: none;
+  }
+  .site-header-inner {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .site-header .site-brand span {
+    display: none;
+  }
+  .site-nav {
+    margin-left: 0;
+  }
+  .site-header-actions {
+    margin-left: auto;
+  }
+}
+
+/* ----------------------------------------------------------------- footer */
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-raised), var(--bg));
+}
+
+.site-footer-inner {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) 2fr;
+  gap: 3rem;
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 4rem var(--gutter) 2.5rem;
+}
+
+.site-footer-brand p {
+  max-width: 30ch;
+  margin-top: 1rem;
+  color: var(--text-3);
+  font-size: 0.92rem;
+}
+
+.site-footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.site-footer-links h2 {
+  margin-bottom: 0.9rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.site-footer-links ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer-links a {
+  color: var(--text-3);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.site-footer-links a:hover {
+  color: var(--text);
+}
+
+.site-footer-legal {
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 1.5rem var(--gutter) 2.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 760px) {
+  .site-footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    padding-top: 3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

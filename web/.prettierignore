@@ -3,6 +3,8 @@
 # otherwise format:check fails after any local `npm run build`.
 dist/
 desktop/generated/
+# The website's guides, rendered from ../docs/*.md (scripts/build-docs.mjs).
+docs/
 package-lock.json
 public/
 # Prose: Prettier would rewrap tables and lists the author laid out by hand.

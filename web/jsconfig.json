@@ -12,5 +12,12 @@
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["src/lib/**/*.js", "src/*.jsx", "src/components/**/*.jsx", "src/hooks/**/*.js"]
+  "include": [
+    "src/lib/**/*.js",
+    "src/*.jsx",
+    "src/components/**/*.jsx",
+    "src/hooks/**/*.js",
+    "src/site/**/*.js",
+    "src/site/**/*.d.ts"
+  ]
 }

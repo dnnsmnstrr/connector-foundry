@@ -94,6 +94,61 @@ If the worker itself dies (a script error, a message that can't be deserialised)
 waiting on it is rejected with a message saying so and the worker is discarded, so the next
 render starts a fresh one — a request whose worker is gone would otherwise hang forever.
 
+## The website: landing page, app and guides
+
+The build has three kinds of page, all from this one Vite project (a multi-page build,
+`appType: "mpa"`, so a mistyped path is a 404 rather than the landing page):
+
+| Path | Page | Source |
+| --- | --- | --- |
+| `/` | The landing page | `index.html`, `src/site/landing.js` |
+| `/app/` | The app | `app/index.html`, `src/main.jsx` |
+| `/docs/`, `/docs/<guide>/` | The guides | the repository's `docs/*.md`, rendered by `scripts/build-docs.mjs` |
+
+On GitHub Pages all three sit under `/connector-foundry/`. The app lived at the root until the
+landing page took it, so `index.html` forwards any URL whose hash carries app state (a `=` in it:
+`#mode=bench&bench=…`) to `app/` before anything paints — old bench links and bookmarks still open
+the app. The desktop shell never shows the landing page: `desktop/paths.cjs` serves
+`app/index.html` at `foundry://app/`, so its URL and every bench link written into it are as
+before.
+
+`scripts/vite-plugin-site.mjs` ties the pages together:
+
+- It renders the guides (`build-docs.mjs`) whenever Vite starts, and again under `npm run dev`
+  when one changes. Which guides are published, under what name and in what order is
+  `DOC_GROUPS` in that script; the rest of `docs/` (packaging notes, deferred work) is linked on
+  GitHub. A link between published guides points at the website's page, any other relative link
+  at the file on GitHub, and headings get GitHub's ids, so a `#fragment` works on both. The
+  generated `docs/` folder here is ignored by Git, like `public/`.
+- It puts the shared header and footer (`src/site/partials/`) into every page that has
+  `<!-- site:header -->` / `<!-- site:footer -->`, and fills `{{base}}` and `{{repo}}` in links
+  (Vite rewrites asset URLs for the Pages base, but not `<a href>`).
+- It fills the landing page's catalogue placeholders — the parts gallery, the system list, the
+  counts, the version — from `public/catalogue.json` at build time, so the page lists exactly the
+  parts the app does, with links that open each on the Bench (`benchUrlState.js`'s own
+  `encodeTree()`). The same facts reach the page's scripts as `virtual:site-data` (typed in
+  `src/site/site-data.d.ts`).
+
+The landing page's demos run the app's own code rather than imitations of it: the Library demo
+drives a real catalogue entry through `lib/resize.js` (its width, depth and height handles,
+snapping, bounds and drag label are the Library's; only the render is pretend), and the palette
+demo ranks `commandCatalog.js`'s commands with `commands.js`. Cmd/Ctrl+K on the page scrolls to
+the palette demo when it is within about a screen, and otherwise opens the same palette over the
+page in a modal `<dialog>`, as the app does.
+
+The hero's 3D view shows real parts: four pairs (`src/site/heroPairs.js`), each a base part with
+a smaller part attached to its `"mount"` slot — a mount on something, never a plate balanced on
+a peg, which a unit test holds them to. The openGrid snaps are only ever the base: attached to
+another part they would be too deeply nested for the browser's OpenSCAD (see "Known limit —
+nesting depth"). `scripts/hero-parts.mjs` renders the pairs through openscad-wasm in Node into
+`src/site/assets/hero-parts.bin` (about 80 KB, a base shared by two pairs stored once;
+`src/site/heroMeshes.js` has the format). That file is committed, like the gallery renders in
+`docs/img/`: after changing a hero part or the pair list, run
+`npm run sync-scad && node scripts/hero-parts.mjs` (a unit test fails until you do). three.js and
+the meshes load once the page is idle; without WebGL the page shows the parts' gallery renders
+instead. Every demo starts only when it scrolls near, stops looping off screen, and stays still
+under `prefers-reduced-motion`.
+
 ## Module layout
 
 Shared UI pieces live in `src/components/`; everything with no React in it lives in `src/lib/`.
@@ -144,6 +199,11 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
+| `index.html`, `src/site/landing.js`, `landing.css`, `site.css`, `common.js`, `partials/` | The website's landing page (see "The website" above): the hero's headline and pager, scroll-in, the gallery filter, the platform detection behind the download buttons; the styles every page of the site shares, and its header and footer |
+| `src/site/hero.js`, `heroPairs.js`, `heroMeshes.js`, `assets/hero-parts.bin` | The hero's 3D view: the pairs, their meshes packed small (indexed, 16-bit), and the scene that drops each attached part onto its base's slot marker, turns the pair and follows the drag |
+| `src/site/demos/` | The landing page's demos: `resize.js` (lib/resize.js on an isometric bin), `joints.js` (the five joints as cut-aways), `holes.js` (a plate's snap points and hole presets), `palette.js` (the app's commands, ranked by lib/commands.js), `terminal.js`, `gallery.js` |
+| `src/site/docs.js`, `docs.css`, `scripts/build-docs.mjs` | The guides: Markdown from `../docs/` to pages with a guide list, "On this page" and previous/next; copy buttons and the list that follows the reader |
+| `scripts/vite-plugin-site.mjs`, `scripts/hero-parts.mjs` | The pages as build inputs, the shared header and footer, the landing page's catalogue placeholders and `virtual:site-data`; rendering the hero's parts |
 
 ## Shell (`src/App.jsx`)
 
@@ -1140,6 +1200,9 @@ things specific to the web implementation:
 npm install
 npm run dev
 ```
+
+The dev server opens on the landing page; the app is at `/app/`, the guides at `/docs/`. A
+`/#mode=…` URL from before the move still lands in the app.
 
 ## Licensing note
 

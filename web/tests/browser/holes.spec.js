@@ -106,7 +106,7 @@ async function pull(page, id, away, px) {
 test("the Holes tab opens on 3, takes a catalogue part, and exports the base as .scad", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   // The shell's keys listen once the app is up; a press before that (a
   // busy machine running the suite in parallel) would go nowhere.
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
@@ -155,7 +155,7 @@ test("the Holes tab opens on 3, takes a catalogue part, and exports the base as 
 test("the Library's Add Holes opens the part, with its parameters, in the Holes tab", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   await page.getByRole("spinbutton", { name: "w", exact: true }).fill("55");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
@@ -182,7 +182,7 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
 test("a click on a face drills a snapped hole and the render carries it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
@@ -358,7 +358,7 @@ test("deleting a hole while the guide lines are on the holed mesh doesn't crash 
   );
   const errors = [];
   page.on("pageerror", (err) => errors.push(err.message));
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
@@ -404,7 +404,7 @@ test("deleting a hole while the guide lines are on the holed mesh doesn't crash 
 test("an imported mesh is drilled through import() with its bytes mounted alongside", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   await page.locator("input[type=file]").click();
@@ -435,7 +435,7 @@ test("an imported mesh is drilled through import() with its bytes mounted alongs
 test("a 3MF is unpacked, scaled by its unit and grounded on the grid", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   await page.locator("input[type=file]").click();
@@ -490,7 +490,7 @@ test("a rectangle's handles resize it from the opposite edge, with Alt from its 
   page.on("pageerror", (err) => errors.push(err.message));
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -568,7 +568,7 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   page.on("pageerror", (err) => errors.push(err.message));
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -643,7 +643,7 @@ test("a click on the move handle is the click on the hole under it: Shift takes 
   page.on("pageerror", (err) => errors.push(err.message));
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -681,7 +681,7 @@ test("a hole's focused handle steps its size, a run of steps one undo step; a cl
   page.on("pageerror", (err) => errors.push(err.message));
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -746,7 +746,7 @@ test("a hole's focused handle steps its size, a run of steps one undo step; a cl
 test("a hole size that doesn't render offers its undo by the error", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, { failing: "square([28, 10]" });
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -781,7 +781,7 @@ test("a hole size that doesn't render offers its undo by the error", async ({ pa
 test("an undone pick leaves its redo on the start picker", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await page.keyboard.press("ControlOrMeta+z");
@@ -795,7 +795,7 @@ test("an undone pick leaves its redo on the start picker", async ({ page }) => {
 test("Cmd/Ctrl+Z on the start picker brings back the model Pick another model dropped", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   const plate = page.getByRole("heading", { name: "Flat plate", exact: true });
   const start = page.getByRole("heading", { name: "Drill screw holes" });
@@ -828,7 +828,7 @@ test("after a handle commit, typing a base parameter still waits for the typing 
 }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
@@ -863,7 +863,7 @@ test("an open View menu keeps the plain keys: they don't nudge or delete the hol
 }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
@@ -887,7 +887,7 @@ test("the sidebar's Grid is the viewer's, and the arrows nudge by it straight af
 }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
@@ -916,7 +916,7 @@ test("the sidebar's Grid is the viewer's, and the arrows nudge by it straight af
 test("the header's hint keeps two lines, so selecting holes never moves the viewer", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
@@ -971,7 +971,7 @@ test("the header's hint keeps two lines, so selecting holes never moves the view
 test("a small hole's move handle shows its readout clear of the rim handles around it", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=holes");
+  await page.goto("/app/#mode=holes");
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");

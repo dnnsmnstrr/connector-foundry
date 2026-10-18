@@ -31,3 +31,6 @@ web/test-results/
 web/playwright-report/
 web/release/
 web/desktop/generated/
+
+# Website guides, generated from docs/*.md by web/scripts/build-docs.mjs.
+web/docs/

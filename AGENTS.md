@@ -17,7 +17,8 @@ lib/*.scad ──── shared conventions (slots, joints, constants), included 
 parts/<system>/*.scad ── one file per part; thin wrappers around vendor/ where an upstream exists
 vendor/ ─────── upstream libraries as git submodules (BOSL2, gridfinity-rebuilt, ...). Never edit.
 references.yaml + tools/ ── `make verify`: compare parts against other people's models
-web/ ────────── React app (Library, Bench, Holes tabs) + Electron wrapper (web/desktop/)
+web/ ────────── the website: landing page (/), React app (/app/: Library, Bench, Holes),
+                 guides (/docs/, rendered from docs/*.md); Electron wrapper (web/desktop/)
 ```
 
 - `catalogue.yaml` is the single source of truth for what parts exist. Its header documents every
@@ -27,13 +28,20 @@ web/ ────────── React app (Library, Bench, Holes tabs) + Ele
 - Where the web app needs to know a geometric fact without rendering (slot positions, mount
   offsets, where a resize handle's next render will land), it mirrors the `.scad` logic in
   `web/src/lib/` and a Python test holds the two together. Change both sides or neither.
+- The website is one Vite build with three kinds of page: the landing page at the root, the app
+  at `/app/` (old `/#mode=…` links are forwarded there; the desktop shell serves the app at its
+  own root), and the guides at `/docs/`, generated from `docs/*.md` (`DOC_GROUPS` in
+  `web/scripts/build-docs.mjs` says which). The landing page's catalogue figures are filled in at
+  build time, and its demos import the app's `lib/` code; its 3D hero shows committed meshes
+  (`web/scripts/hero-parts.mjs` re-renders them). `web/README.md`, "The website", has the rest.
 
 Deeper reading, by topic:
 
 | Topic | Document |
 | --- | --- |
+| Using it: the app, the desktop app, the CLI | `docs/GETTING_STARTED.md`, `docs/DESKTOP.md`, `docs/CLI.md` (also on the website) |
 | Parts, slot convention, catalogue table, licensing | `README.md` |
-| Web app internals, module-by-module table, the WASM limits | `web/README.md` |
+| Web app internals, module-by-module table, the WASM limits, the website | `web/README.md` |
 | Joints, Bench, Holes, overrides, accuracy checks | `docs/JOINTS.md`, `docs/BENCH.md`, `docs/HOLES.md`, `docs/OVERRIDES.md`, `docs/ACCURACY.md` |
 | Desktop packaging | `docs/MACOS.md`, `docs/WINDOWS.md` |
 | Deferred work | `docs/IMPROVEMENTS.md` |
@@ -77,6 +85,10 @@ Which ones to add on top of `make check`:
 - Changed web UI behaviour: `npm run test:browser`. A new test that clicks an export button must
   name the bench first (the name prompt opens otherwise and `waitForEvent("download")` times out).
 - Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`.
+- Changed a guide the website publishes, or the landing page: `npm test` checks every link and
+  `#fragment` in the published guides and that the hero's meshes match its pair list
+  (`web/tests/unit/build-docs.test.js`, `hero-meshes.test.js`); `npm run test:browser` runs
+  `site.spec.js`. Changed a hero part or the pair list: `node scripts/hero-parts.mjs` in `web/`.
 
 ## Rules that are easy to break
 
@@ -178,7 +190,8 @@ do the same for the new one. `docs/HOLES.md` and `docs/JOINTS.md` list what exis
   `catalogue:` …) and a body that says why. One logical change per commit.
 - **Docs move with the code**: a user-visible change gets a line under `CHANGELOG.md`'s
   Unreleased; a new module gets its row in `web/README.md`; a new field, preset or joint gets
-  its entry in the matching `docs/` page.
+  its entry in the matching `docs/` page. The user-facing pages in `docs/` are the website's
+  guides too, so a renamed heading is a broken link there as well (the test above says which).
 - **Releasing**: bump `web/package.json` and `pyproject.toml`, add the CHANGELOG section, run the
   `desktop.yml` workflow on `main` and wait for it to pass (the Windows desktop tests run nowhere
   else before a tag), then push the `v<version>` tag.

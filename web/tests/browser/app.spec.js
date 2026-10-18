@@ -122,7 +122,7 @@ for (const [platform, width] of [
       platform,
     );
     await mockWorker(page, true);
-    await page.goto("/");
+    await page.goto("/app/");
     await expect(page.locator("html")).toHaveClass(new RegExp(`desktop-${platform}`));
     // openGrid's Board; Skådis has a Board too.
     const openGrid = page
@@ -167,7 +167,7 @@ for (const [platform, width] of [
 
 test("header links to the source in a new tab", async ({ page }) => {
   await catalogue(page);
-  await page.goto("/");
+  await page.goto("/app/");
   const source = page.getByRole("link", { name: "GitHub", exact: true });
   await expect(source).toHaveAttribute("href", "https://github.com/dnnsmnstrr/connector-foundry");
   await expect(source).toHaveAttribute("target", "_blank");
@@ -176,7 +176,7 @@ test("header links to the source in a new tab", async ({ page }) => {
 test("the sidebar's edge resizes it, within limits, and the width sticks", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   const handle = page.getByRole("separator", { name: "Resize sidebar" });
   const sidebarWidth = () =>
     page.locator("aside.sidebar").evaluate((el) => Math.round(el.getBoundingClientRect().width));
@@ -233,7 +233,7 @@ test("the sidebar's edge resizes it, within limits, and the width sticks", async
 test("selection changes and failed renders cannot download a previous part", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect.poll(() => jobCount(page)).toBe(1);
   await finish(page, 0);
   const download = page.getByRole("button", { name: "Download STL", exact: true });
@@ -256,7 +256,7 @@ test("selection changes and failed renders cannot download a previous part", asy
 test("parameter edits re-render on their own and cancel obsolete previews", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect.poll(() => jobCount(page)).toBe(1);
   await finish(page, 0);
   const download = page.getByRole("button", { name: "Download STL", exact: true });
@@ -292,7 +292,7 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
 test("worker failure and user cancellation allow another render", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect.poll(() => jobCount(page)).toBe(1);
   await page.evaluate(() => window.__renders.jobs[0].worker.onerror({ message: "test crash" }));
   await expect(page.getByRole("alert")).toContainText("worker failed: test crash");
@@ -309,7 +309,7 @@ test("worker failure and user cancellation allow another render", async ({ page 
 test("printer settings invalidate downloads and refresh the preview", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect.poll(() => jobCount(page)).toBe(1);
   await finish(page, 0);
   const download = page.getByRole("button", { name: "Download STL", exact: true });
@@ -348,7 +348,7 @@ test("printer settings invalidate downloads and refresh the preview", async ({ p
 test("Bench edits keep explicit exports while discarding the obsolete preview", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   await importConfig(page, config());
   await expect.poll(() => jobCount(page)).toBe(1); // root extents
   await finish(page, 0);
@@ -375,7 +375,7 @@ test("Bench edits keep explicit exports while discarding the obsolete preview", 
 test("Bench state survives mode switches and URL reload", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
   // The name is bench state too; set, it also lets the export below start
   // without the name prompt a fresh bench shows first.
@@ -403,7 +403,7 @@ test("Bench state survives mode switches and URL reload", async ({ page }) => {
 test("embedded imported meshes survive config export and reload", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/#mode=bench");
+  await page.goto("/app/#mode=bench");
   const doc = config({ partId: "imported:test", params: {} });
   doc.imports = [
     {
@@ -435,7 +435,7 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
 }) => {
   test.setTimeout(120_000);
   await catalogue(page);
-  await page.goto("/");
+  await page.goto("/app/");
   const libraryDownload = page.getByRole("button", { name: "Download STL", exact: true });
   await expect(libraryDownload).toBeEnabled({ timeout: 90_000 });
   const first = page.waitForEvent("download");
@@ -465,7 +465,7 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
 test("a STEP file is tessellated in the browser and offered for slot placement", async ({ page }) => {
   test.setTimeout(120_000);
   await catalogue(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByTitle("Bench (2)").click();
   await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
@@ -505,7 +505,7 @@ test("a STEP file is tessellated in the browser and offered for slot placement",
 test("a multi-body STEP file asks which body to import", async ({ page }) => {
   test.setTimeout(120_000);
   await catalogue(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await page.getByTitle("Bench (2)").click();
   await page.getByRole("option", { name: "Import STL / STEP / 3MF…", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
@@ -534,7 +534,7 @@ function extents(bytes) {
 test("number fields step by their arrows and the wheel, finer with Shift", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   // By its wrapper: once w differs from its default, the label's reset
   // button joins the field's accessible name.
   const wrap = page.locator(".decimal-input").first();
@@ -568,7 +568,7 @@ test("number fields step by their arrows and the wheel, finer with Shift", async
 test("/ jumps to the Library's part search from any mode", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   const search = page.getByRole("searchbox", { name: "Search parts" });
   await search.fill("post");
   await page.keyboard.press("Tab");
@@ -599,7 +599,7 @@ test("/ jumps to the Library's part search from any mode", async ({ page }) => {
 test("? opens the shortcuts sheet and puts it away again; in a field it is a character", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page, true);
-  await page.goto("/");
+  await page.goto("/app/");
   const search = page.getByRole("searchbox", { name: "Search parts" });
   await expect(search).toBeVisible();
   const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });

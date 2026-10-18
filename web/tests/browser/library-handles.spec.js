@@ -87,7 +87,7 @@ const center = (box) => [box.x + box.width / 2, box.y + box.height / 2];
 async function openPlate(page) {
   await catalogue(page);
   await mockWorker(page);
-  await page.goto("/");
+  await page.goto("/app/");
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
   await expect.poll(() => jobCount(page)).toBe(1);
   await finish(page, 0);
@@ -661,7 +661,7 @@ test("a size box closed as it opened changes nothing, even for a value off the 0
 }) => {
   await catalogue(page);
   await mockWorker(page, false, wideCubeBytes);
-  await page.goto("/");
+  await page.goto("/app/");
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
   await expect.poll(() => jobCount(page)).toBe(1);
   await finish(page, 0);
