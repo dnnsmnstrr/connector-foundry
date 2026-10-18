@@ -22,14 +22,19 @@ import { pathOf, svg } from "../common.js";
 
 const VIEW = { width: 520, height: 330 };
 // px of the drawing per mm, and where the middle of the bin's underside
-// sits: the largest bin the demo allows (gx 5, gz 6) just fills the frame.
-const SCALE = 1.85;
-const ORIGIN = [VIEW.width / 2, 207];
+// sits: the largest bin the demo allows (gx 4, gy 3, gz 6) just fills the
+// frame.
+const SCALE = 1.65;
+const ORIGIN = [VIEW.width / 2, 200];
 const COS = Math.cos(Math.PI / 6);
 const SIN = Math.sin(Math.PI / 6);
-// Kept smaller than the catalogue's own bounds (gx 8, gz 20), which
-// would not fit the frame.
-const DEMO_MAX = { gx: 5, gz: 6 };
+// Kept smaller than the catalogue's own bounds (8 x 8 x 20), which would
+// not fit the frame.
+const DEMO_MAX = { gx: 4, gy: 3, gz: 6 };
+// The handles the demo shows: one per axis, as the app's keyboard stops
+// are (a corner drives two parameters, which a stepper can't show).
+const HANDLES = new Set(["x+", "y+", "z+"]);
+const AXIS_NAMES = { x: "Width", y: "Depth", z: "Height" };
 const RENDER_MS = 380;
 const GROW_MS = 420;
 
@@ -92,15 +97,16 @@ export function mountResize(root) {
   /** @type {Record<string, HTMLElement>} */
   const handleButtons = {
     x: /** @type {HTMLElement} */ (root.querySelector('[data-axis="x"]')),
+    y: /** @type {HTMLElement} */ (root.querySelector('[data-axis="y"]')),
     z: /** @type {HTMLElement} */ (root.querySelector('[data-axis="z"]')),
   };
 
   const part = siteData.resizePart;
   let params = { ...part.defaults, gx: 2 };
-  // The depth handle stays off: one row of units fits the frame.
-  const axes = resizeAxes(part, params)
-    .filter((axis) => axis.axis === "x" || axis.axis === "z")
-    .map((axis) => ({ ...axis, max: Math.min(axis.max, DEMO_MAX[axis.param] ?? axis.max) }));
+  const axes = resizeAxes(part, params).map((axis) => ({
+    ...axis,
+    max: Math.min(axis.max, DEMO_MAX[axis.param] ?? axis.max),
+  }));
 
   let box = renderedBox(params); // what is drawn as the solid
   /** @type {Box | null} */
@@ -119,24 +125,17 @@ export function mountResize(root) {
   const solid = svg("g", { class: "resize-solid" }, art);
   const ghostLines = svg("g", { class: "resize-ghost" }, art);
 
-  // The floor: a Gridfinity baseplate's 42 mm grid, which the bin's feet
-  // sit in.
-  for (let i = -3; i <= 3; i++) {
-    const x = i * 42;
-    svg(
-      "line",
-      { x1: iso(x, -84, 0)[0], y1: iso(x, -84, 0)[1], x2: iso(x, 84, 0)[0], y2: iso(x, 84, 0)[1] },
-      floor,
-    );
-  }
-  for (let j = -2; j <= 2; j++) {
-    const y = j * 42 - 21;
-    svg(
-      "line",
-      { x1: iso(-126, y, 0)[0], y1: iso(-126, y, 0)[1], x2: iso(126, y, 0)[0], y2: iso(126, y, 0)[1] },
-      floor,
-    );
-  }
+  // The floor: lines every half grid unit. The bin grows about its
+  // centre, as in the app, so the edges between its feet fall on
+  // multiples of 42 mm for an even count and between them for an odd one;
+  // a 21 mm grid has a line under every edge either way.
+  const floorLine = (from, to) => {
+    const [x1, y1] = iso(...from);
+    const [x2, y2] = iso(...to);
+    svg("line", { x1, y1, x2, y2 }, floor);
+  };
+  for (let i = -7; i <= 7; i++) floorLine([i * 21, -105, 0], [i * 21, 105, 0]);
+  for (let j = -5; j <= 5; j++) floorLine([-147, j * 21, 0], [147, j * 21, 0]);
 
   function drawSolid() {
     solid.replaceChildren();
@@ -145,8 +144,8 @@ export function mountResize(root) {
     const footH = 4.75;
     // The feet follow the units the bin is growing to, each one stretching
     // with it, rather than popping in halfway through the animation.
-    const units = params.gx;
-    const unit = (x1 - x0) / units;
+    const unitX = (x1 - x0) / params.gx;
+    const unitY = (y1 - y0) / params.gy;
     shadow.setAttribute(
       "d",
       pathOf([
@@ -156,20 +155,17 @@ export function mountResize(root) {
         iso(x0 - 2, y1 + 6, 0),
       ]),
     );
-    // Feet, back to front: one per grid unit, each with the chamfered
-    // profile a Gridfinity base has.
-    for (let i = 0; i < units; i++) {
-      const fx0 = x0 + i * unit;
-      block(solid, [fx0 + 3.2, y0 + 3.2, 0], [fx0 + unit - 3.2, y1 - 3.2, 2.2], {
-        left: "bin-foot-left",
-        right: "bin-foot-right",
-        top: "bin-foot-top",
-      });
-      block(solid, [fx0 + 1.4, y0 + 1.4, 2.2], [fx0 + unit - 1.4, y1 - 1.4, footH], {
-        left: "bin-foot-left",
-        right: "bin-foot-right",
-        top: "bin-foot-top",
-      });
+    // Feet, one per grid unit, each with the stepped profile a Gridfinity
+    // base has, drawn back to front: a foot further along X or Y is nearer.
+    const feet = [];
+    for (let i = 0; i < params.gx; i++) for (let j = 0; j < params.gy; j++) feet.push([i, j]);
+    feet.sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
+    const footFaces = { left: "bin-foot-left", right: "bin-foot-right", top: "bin-foot-top" };
+    for (const [i, j] of feet) {
+      const fx0 = x0 + i * unitX;
+      const fy0 = y0 + j * unitY;
+      block(solid, [fx0 + 3.2, fy0 + 3.2, 0], [fx0 + unitX - 3.2, fy0 + unitY - 3.2, 2.2], footFaces);
+      block(solid, [fx0 + 1.4, fy0 + 1.4, 2.2], [fx0 + unitX - 1.4, fy0 + unitY - 1.4, footH], footFaces);
     }
     block(solid, [x0, y0, footH], [x1, y1, h], { left: "bin-left", right: "bin-right", top: "bin-top" });
     // The opening, and the two inner walls a view from this side sees.
@@ -216,7 +212,7 @@ export function mountResize(root) {
 
   /** The handles where the app puts them, on the box being shown. */
   function currentHandles(onBox = ghost ?? box) {
-    return handlesForBox(onBox, axes).filter((handle) => handle.id === "x+" || handle.id === "z+");
+    return handlesForBox(onBox, axes).filter((handle) => HANDLES.has(handle.id));
   }
 
   function placeHandles() {
@@ -230,9 +226,10 @@ export function mountResize(root) {
       button.setAttribute("aria-valuenow", String(value));
       button.setAttribute("aria-valuemin", String(axis.min));
       button.setAttribute("aria-valuemax", String(axis.max));
+      const index = { x: 0, y: 1, z: 2 }[handle.axes[0]];
       button.setAttribute(
         "aria-valuetext",
-        `${axis.param} ${value}, ${formatMm(handle.axes[0] === "z" ? box.max[2] : box.max[0] - box.min[0])} mm`,
+        `${axis.param} ${value}, ${formatMm(box.max[index] - box.min[index])} mm`,
       );
     }
   }
@@ -300,8 +297,7 @@ export function mountResize(root) {
         ghost = null;
         busy = false;
         status.classList.remove("is-rendering");
-        const size = [to.max[0] - to.min[0], to.max[2]].map(formatMm);
-        status.textContent = `Rendered: W ${size[0]} mm, H ${size[1]} mm`;
+        status.textContent = "Rendered";
         draw();
       };
       requestAnimationFrame(grow);
@@ -321,7 +317,7 @@ export function mountResize(root) {
   for (const [key, button] of Object.entries(handleButtons)) {
     button.hidden = false;
     button.setAttribute("role", "slider");
-    button.setAttribute("aria-label", key === "x" ? "Width" : "Height");
+    button.setAttribute("aria-label", AXIS_NAMES[key]);
     /** @type {{ id: number, x: number, y: number, handle: ResizeHandle, result: any } | null} */
     let drag = null;
     button.addEventListener("pointerdown", (event) => {
@@ -337,9 +333,14 @@ export function mountResize(root) {
       const perPixel = VIEW.width / stage.clientWidth;
       const dx = (event.clientX - drag.x) * perPixel;
       const dy = (event.clientY - drag.y) * perPixel;
-      const travel = key === "z" ? -dy / SCALE : (dx * COS + dy * SIN) / SCALE;
+      // +X runs down to the right on the drawing, +Y down to the left, +Z up.
+      const travel = {
+        x: (dx * COS + dy * SIN) / SCALE,
+        y: (-dx * COS + dy * SIN) / SCALE,
+        z: -dy / SCALE,
+      }[key];
       const point = [...drag.handle.point];
-      point[key === "z" ? 2 : 0] += travel;
+      point[{ x: 0, y: 1, z: 2 }[key]] += travel;
       drag.result = dragResize({ handle: drag.handle, axes, box, startParams: params, point });
       if (!drag.result) return;
       ghost = drag.result.box;

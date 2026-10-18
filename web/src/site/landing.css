@@ -161,9 +161,12 @@
    sits in the same grid cell, so the reel is as wide as its longest word
    and the line never reflows as they change; nothing follows a reel on
    its line, so the spare width is invisible. */
+/* Aligned by baseline, which an inline grid takes from its first word:
+   aligned by its bottom edge, the descender padding below lifted the word
+   above the "to" in front of it. */
 .reel {
   display: inline-grid;
-  vertical-align: bottom;
+  vertical-align: baseline;
 }
 
 .reel-word {
@@ -1011,6 +1014,15 @@
     box-shadow 0.15s;
 }
 
+/* The cursors point the way each handle's axis runs on the drawing. */
+.resize-handle-x {
+  cursor: nwse-resize;
+}
+
+.resize-handle-y {
+  cursor: nesw-resize;
+}
+
 .resize-handle-z {
   cursor: ns-resize;
 }
@@ -1685,6 +1697,54 @@
 
 .palette-footer kbd {
   font-size: 0.7rem;
+}
+
+/* The palette over the page (Cmd/Ctrl+K far from the demo), near the top
+   of the window as the app floats its own. Its panel is a copy of the
+   demo's, so the styles above dress it too. */
+.palette-dialog {
+  width: min(660px, calc(100vw - 2 * var(--gutter)));
+  max-width: none;
+  max-height: none;
+  margin: min(14vh, 120px) auto auto;
+  padding: 0;
+  overflow: visible;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+.palette-dialog[open] {
+  animation: palette-in 0.22s var(--ease-out);
+}
+
+.palette-dialog::backdrop {
+  background: rgb(4 6 9 / 0.62);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: backdrop-in 0.22s ease-out;
+}
+
+.palette-dialog .palette-results {
+  height: min(330px, 55vh);
+}
+
+/* The page behind stays where it is while the palette is up. */
+html:has(.palette-dialog[open]) {
+  overflow: hidden;
+}
+
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* ----------------------------------------------------------------- parts */

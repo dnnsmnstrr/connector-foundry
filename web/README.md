@@ -130,17 +130,24 @@ before.
   `src/site/site-data.d.ts`).
 
 The landing page's demos run the app's own code rather than imitations of it: the Library demo
-drives a real catalogue entry through `lib/resize.js` (its handles, snapping, bounds and drag
-label are the Library's; only the render is pretend), and the palette demo ranks
-`commandCatalog.js`'s commands with `commands.js`. The hero's 3D view shows real parts: four
-pairs (`src/site/heroPairs.js`), each a base part with a part from another system attached to its
-`"mount"` slot, rendered by `scripts/hero-parts.mjs` through openscad-wasm in Node into
-`src/site/assets/hero-parts.bin` (about 60 KB; `src/site/heroMeshes.js` has the format). That file
-is committed, like the gallery renders in `docs/img/`: after changing a hero part or the pair
-list, run `npm run sync-scad && node scripts/hero-parts.mjs` (a unit test fails until you do).
-three.js and the meshes load once the page is idle; without WebGL the page shows the parts'
-gallery renders instead. Every demo starts only when it scrolls near, stops looping off screen,
-and stays still under `prefers-reduced-motion`.
+drives a real catalogue entry through `lib/resize.js` (its width, depth and height handles,
+snapping, bounds and drag label are the Library's; only the render is pretend), and the palette
+demo ranks `commandCatalog.js`'s commands with `commands.js`. Cmd/Ctrl+K on the page scrolls to
+the palette demo when it is within about a screen, and otherwise opens the same palette over the
+page in a modal `<dialog>`, as the app does.
+
+The hero's 3D view shows real parts: four pairs (`src/site/heroPairs.js`), each a base part with
+a smaller part attached to its `"mount"` slot — a mount on something, never a plate balanced on
+a peg, which a unit test holds them to. The openGrid snaps are only ever the base: attached to
+another part they would be too deeply nested for the browser's OpenSCAD (see "Known limit —
+nesting depth"). `scripts/hero-parts.mjs` renders the pairs through openscad-wasm in Node into
+`src/site/assets/hero-parts.bin` (about 80 KB, a base shared by two pairs stored once;
+`src/site/heroMeshes.js` has the format). That file is committed, like the gallery renders in
+`docs/img/`: after changing a hero part or the pair list, run
+`npm run sync-scad && node scripts/hero-parts.mjs` (a unit test fails until you do). three.js and
+the meshes load once the page is idle; without WebGL the page shows the parts' gallery renders
+instead. Every demo starts only when it scrolls near, stops looping off screen, and stays still
+under `prefers-reduced-motion`.
 
 ## Module layout
 

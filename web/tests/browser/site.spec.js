@@ -59,18 +59,46 @@ test.describe("with reduced motion", () => {
       "Outside: W 125.5 × H 24.55 × D 41.5 mm",
     );
     await expect(width).toHaveAttribute("aria-valuenow", "3");
+    const depth = page.getByRole("slider", { name: "Depth" });
+    await depth.focus();
+    await page.keyboard.press("ArrowUp");
+    await expect(page.locator('output[data-param="gy"]')).toHaveText("2");
+    await expect(page.locator("[data-resize-dimensions]")).toHaveText(
+      "Outside: W 125.5 × H 24.55 × D 83.5 mm",
+    );
   });
 
-  test("Cmd/Ctrl+K goes to the palette demo, which finds the app's commands", async ({ page }) => {
+  test("Cmd/Ctrl+K far from the palette demo opens the palette over the page", async ({ page }) => {
     await page.goto("/");
     await page.keyboard.press("ControlOrMeta+k");
-    const input = page.getByRole("combobox", { name: "Search the app's commands and parts" });
+    const dialog = page.getByRole("dialog", { name: "Command palette" });
+    await expect(dialog).toBeVisible();
+    const input = dialog.getByRole("combobox", { name: "Search the app's commands and parts" });
     await expect(input).toBeFocused();
     await input.fill("oib");
-    await expect(page.getByRole("option").first()).toContainText("Open in Bench");
+    await expect(dialog.getByRole("option").first()).toContainText("Open in Bench");
     await input.fill("gf bin");
-    await expect(page.getByRole("option").first()).toContainText("Bin");
-    await expect(page.locator(".palette-footer")).toContainText("opens it on the Bench");
+    await expect(dialog.getByRole("option").first()).toContainText("Bin");
+    await expect(dialog.locator(".palette-footer")).toContainText("opens it on the Bench");
+    // Esc clears the search first, then closes, as in the app.
+    await page.keyboard.press("Escape");
+    await expect(input).toHaveValue("");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test("Cmd/Ctrl+K near the palette demo scrolls to it instead", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".palette-section .section-header").scrollIntoViewIfNeeded();
+    await page.keyboard.press("ControlOrMeta+k");
+    const input = page
+      .locator('[data-demo="palette"]')
+      .getByRole("combobox", { name: "Search the app's commands and parts" });
+    await expect(input).toBeFocused();
+    await expect(input).toBeInViewport();
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
   });
 
   test("the guides are pages of their own, with their navigation", async ({ page }) => {
