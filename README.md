@@ -5,15 +5,22 @@ Arca-style plates and tripod threads, DeckMate, BitBeam, 2020 extrusion — as p
 parts that share one slot convention, so any of them can be combined with any other. Export a
 single part as STL, or compose several in the browser and export the result.
 
+**Website: [dnnsmnstrr.github.io/connector-foundry](https://dnnsmnstrr.github.io/connector-foundry/)**
+— what it does, the parts, the downloads and the guides. New here? Start with
+[Getting started](docs/GETTING_STARTED.md).
+
 Three ways to get a part from the same `.scad` sources:
 
-- **Browser app** (`web/`) — pick a part, set parameters, preview, export STL; combine parts on the
-  Bench. Runs entirely client-side via `openscad-wasm`. The primary way to use this. As in
-  TinkerCAD, the selected part has square handles to drag to a new size, or click to type one
-  (on the Bench, the base part; in the Holes tab, a cutout); Cmd/Ctrl+Z undoes in every tab, and
-  `?` lists every shortcut. The 3D view's **Helpers** button (or `H`) hides the grid, slot
-  markers, hole outlines, guides and handles to show just the model.
-- **CLI** (`cli/foundry.py`) — `foundry render gridfinity/base --gx 2 --magnets -o out/`
+- **Browser app** ([open it](https://dnnsmnstrr.github.io/connector-foundry/app/); source in
+  `web/`) — pick a part, set parameters, preview, export STL; combine parts on the Bench. Runs
+  entirely client-side via `openscad-wasm`. The primary way to use this, also as a
+  [desktop app](docs/DESKTOP.md) for macOS and Windows. As in TinkerCAD, the selected part has
+  square handles to drag to a new size, or click to type one (on the Bench, the base part; in the
+  Holes tab, a cutout); Cmd/Ctrl+Z undoes in every tab, and `?` lists every shortcut. The 3D
+  view's **Helpers** button (or `H`) hides the grid, slot markers, hole outlines, guides and
+  handles to show just the model.
+- **CLI** (`cli/foundry.py`) — `foundry render gridfinity/base --gx 2 --magnets -o out/`; see
+  [the command line guide](docs/CLI.md).
 - **OpenSCAD** — open anything under `parts/` or `assemblies/` in the GUI.
 
 ## Where the geometry comes from
@@ -62,11 +69,15 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest tests/
 ```
 
+The CLI needs an OpenSCAD development snapshot; [the command line guide](docs/CLI.md) says where
+to get one and how to point `foundry` at it.
+
 Web app: `cd web && npm install && npm run dev`. No local OpenSCAD needed — it compiles the same
-sources in a Web Worker. See `web/README.md` for the internals. Already cloned without
+sources in a Web Worker. The dev server opens on the website's landing page; the app is at
+`/app/` and the guides at `/docs/`. See `web/README.md` for the internals. Already cloned without
 submodules? `git submodule update --init --recursive`.
 
-Desktop app: download it for
+Desktop app ([installing it](docs/DESKTOP.md)): download it for
 [Apple Silicon](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-apple-silicon.dmg)
 or [Intel](https://github.com/dnnsmnstrr/connector-foundry/releases/latest/download/Connector-Foundry-mac-intel.dmg)
 Macs, or the Windows installer for
@@ -218,7 +229,8 @@ cli/             foundry.py — render/build/preview/goldens/readme CLI
 tools/           reference cache + the comparison engine behind `make verify`
 references.yaml  what each part is checked against, and how
 tests/           soundness, anchors, recorded dimensions, reference checks
-web/             browser app (openscad-wasm)
+web/             browser app (openscad-wasm), and the website around it: landing page, guides
+docs/            guides (also published on the website) and packaging notes
 vendor/          upstream implementations, as git submodules
 refs/            reference cache (gitignored)
 ```

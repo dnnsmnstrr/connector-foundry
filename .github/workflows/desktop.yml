@@ -234,9 +234,10 @@ jobs:
           prompt (choosing "all users" asks for one), and can be removed from
           Settings → Apps like any other program.
 
-          Verify downloads against `SHA256SUMS.txt`.
+          Verify downloads against `SHA256SUMS.txt`. Step by step, with updating
+          and removing the app: https://dnnsmnstrr.github.io/connector-foundry/docs/desktop/
 
-          The web version runs at https://dnnsmnstrr.github.io/connector-foundry/.
+          The web version runs at https://dnnsmnstrr.github.io/connector-foundry/app/.
           NOTES
           gh release create "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
