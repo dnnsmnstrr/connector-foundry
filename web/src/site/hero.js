@@ -75,7 +75,12 @@ function partMaterial(color) {
 }
 
 // A faint grid on the plate, fading out with distance — the app's viewer
-// floor, without the hard edge a GridHelper has.
+// floor, without the hard edge a GridHelper has — and towards the canvas's
+// edges. Distance alone is not enough: with the camera in close on a pair,
+// the view reaches about 1.4 units to either side of it and the grid 2.2,
+// so the canvas cut its lines off square while they were still 40% on.
+// Gone by the edges, the floor leaves the stage's surroundings to the
+// page's own grid and glow (landing.css, .hero-backdrop::before).
 function gridMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -83,15 +88,18 @@ function gridMaterial() {
     uniforms: { uColor: { value: new THREE.Color(0x9aa8b8) }, uRadius: { value: 2.2 } },
     vertexShader: /* glsl */ `
       varying vec2 vPos;
+      varying vec4 vClip;
       void main() {
         vec4 world = modelMatrix * vec4(position, 1.0);
         vPos = world.xz;
         gl_Position = projectionMatrix * viewMatrix * world;
+        vClip = gl_Position;
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 uColor;
       uniform float uRadius;
       varying vec2 vPos;
+      varying vec4 vClip;
       float lines(float spacing) {
         vec2 cell = vPos / spacing;
         vec2 g = abs(fract(cell - 0.5) - 0.5) / fwidth(cell);
@@ -99,6 +107,9 @@ function gridMaterial() {
       }
       void main() {
         float fade = 1.0 - smoothstep(uRadius * 0.2, uRadius, length(vPos));
+        // Where the fragment is on the canvas, -1 to 1 across and up: gone
+        // by the edges, whatever the camera's distance and tilt.
+        fade *= 1.0 - smoothstep(0.55, 1.0, length(vClip.xy / vClip.w));
         float alpha = (lines(0.14) * 0.22 + lines(0.7) * 0.45) * fade;
         if (alpha < 0.004) discard;
         gl_FragColor = vec4(uColor, alpha);
