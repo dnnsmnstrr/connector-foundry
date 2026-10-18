@@ -740,6 +740,18 @@ a.mode-tab {
   display: none;
 }
 
+/* The nav's "Restart to update" once a desktop update has downloaded
+   (components/UpdateNotice.jsx): the active tab's colours, so it reads as
+   something to do rather than one more link. */
+.mode-tab.update-tab {
+  background: #24304a;
+  color: #cdd7f5;
+}
+
+.mode-tab.update-tab:hover {
+  background: #2c3a5a;
+}
+
 .render-spinner {
   width: 0.85rem;
   height: 0.85rem;
@@ -1996,6 +2008,31 @@ a.bench-modal-header-button {
 
 .settings-backup-error {
   margin: 0.5rem 0 0;
+}
+
+/* Settings > Updates (components/UpdateSettings.jsx): the version and
+   where the updater stands, then its buttons, the release link among them
+   looking like one. */
+.settings-update-status {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.settings-backup a.bench-modal-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.settings-update-restart {
+  background: #24304a;
+  border-color: #35407a;
+  color: #cdd7f5;
+}
+
+.settings-update-restart:hover {
+  background: #2c3a5a;
 }
 
 /* Settings > Coding agents (components/McpSettings.jsx): the address and

@@ -67,10 +67,11 @@ and notices. No Node, Python, OpenSCAD installation or network is needed to use 
 an Apple Silicon (`macos-15`), an Intel (`macos-15-intel`) and a Windows
 (`windows-latest`) runner. A manual run keeps the DMG/ZIP and the Windows
 installer as workflow artifacts for 14 days. Pushing a version tag also
-publishes the two DMGs and the installer, with `SHA256SUMS.txt`, as a GitHub
-release. They are named without a version (`Connector-Foundry-mac-apple-silicon.dmg`,
-`Connector-Foundry-mac-intel.dmg`, `Connector-Foundry-windows-x64-setup.exe`), so
-`releases/latest/download/<name>` always links to the newest build:
+publishes the two DMGs, the two ZIPs and the installer, with `SHA256SUMS.txt`
+and `latest.json`, as a GitHub release. They are named without a version
+(`Connector-Foundry-mac-apple-silicon.dmg`, `Connector-Foundry-mac-intel.dmg`,
+`Connector-Foundry-windows-x64-setup.exe`), so `releases/latest/download/<name>`
+always links to the newest build:
 
 ```sh
 npm --prefix web version 0.2.0 --no-git-tag-version   # bump web/package.json
@@ -83,6 +84,32 @@ The tag must equal `v` + the `web/package.json` version, or the build fails
 before packaging. Release builds are
 ad-hoc signed and not notarized: the release notes tell users to allow the app
 once under System Settings → Privacy & Security → Open Anyway.
+
+## How the app updates itself
+
+Electron's `autoUpdater` is Squirrel.Mac on macOS, which installs an update
+only if it is signed by the same Developer ID as the running app; ad-hoc
+signed builds have none, so `web/desktop/updates.cjs` does the work itself.
+The release job writes `latest.json` (`web/scripts/release-manifest.mjs`):
+the version and each update file's size and SHA-256. The app fetches it from
+`releases/latest/download/`, and when it names a newer version downloads its
+ZIP from that release's tag, checks the size and checksum, unpacks it with
+`ditto` and checks the bundle inside (identifier, version, `codesign
+--verify --deep --strict`). **Restart to update** writes the version it is
+installing to `pending-update.json` in the profile, starts a detached
+`/bin/sh` script (`MAC_SWAP_SCRIPT` in `web/desktop/update-manifest.cjs`) and
+quits; the script waits for the process to exit, moves the old bundle aside
+and the new one into its place (moving the old one back if that fails) and
+opens the app again. The next launch compares its version with the pending
+one, to say "Updated to …" or that the update didn't take. A file the app
+downloads carries no quarantine flag, so Gatekeeper doesn't ask again.
+
+It can't replace a bundle in a folder the user can't write to, one macOS
+runs translocated (opened from Downloads without moving it) or one on the
+DMG; Settings → Updates says so and links the release page. Tried end to
+end on macOS 27 with a 0.4.0 build updating to a 0.4.1 build from a local
+copy of the release (2026-10-18); not yet in `/Applications` through a real
+release, where macOS's App Management protection could still object.
 
 ## Install and update from the repository
 

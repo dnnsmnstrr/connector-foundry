@@ -7,6 +7,17 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Desktop
+
+- **The desktop app updates itself.** It checks GitHub for a new release shortly after it starts
+  and twice a day, downloads it in the background, checks it against the release's checksums and
+  shows **Restart to update** in the header; the restart installs it and reopens the app on the tab
+  and bench you had, and otherwise it installs when you quit. **Settings → Updates** shows the
+  version, checks by hand and turns the automatic checks off; on a Mac it is also **Check for
+  Updates…** in the app menu, and the command palette has all three. Releases now include the
+  macOS ZIPs and a `latest.json` for the updater. Updating from 0.4.0 still takes a download by
+  hand, since 0.4.0 has no updater.
+
 ### Parts
 
 - **MOD-GRID pin, reshaped so it bends instead of breaking.** The designer's pin has barbs 6.9mm
