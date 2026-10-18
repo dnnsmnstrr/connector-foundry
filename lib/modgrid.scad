@@ -3,12 +3,14 @@
 //
 // MOD-GRID is by 3dedc (TinyToolShop), published as MakerWorld model
 // 2811701 under CC BY-NC-SA 4.0 — NOT MIT, see the README's
-// "Licensing". Nothing here imports the designer's files: the numbers
-// below are measured off their v4 STLs (the 4x12 grid, the "Modular
-// connector" and the 4mm, 6mm and Leatherman bit holders) and the
-// geometry is rebuilt from them, so a grid can take any size and the pin
-// can go on any part. references.yaml holds the rebuilt parts to those
-// files.
+// "Licensing". Nothing here imports the designer's files: the grid's
+// numbers below are measured off their v4 STLs (the 4x12 grid, and the
+// 4mm, 6mm and Leatherman bit holders' bodies in
+// parts/modgrid/bit_holder.scad) and the geometry is rebuilt from them,
+// so a grid can take any size. The pin is the designer's idea but our
+// own shape (see below), so it can go on any part and survive a print.
+// references.yaml holds the rebuilt parts to those files, and the pin to
+// the designer's grid.
 //
 // The grid is a 3mm plate with 5mm square holes through it on an 8mm
 // pitch, and 1.5mm of plate past the outer cells (so 3mm of wall between
@@ -18,12 +20,31 @@
 // Every accessory carries the same 2x1 pin: two snap pegs, one per hole,
 // in two neighbouring holes of a row. Each peg is a U turned upside
 // down — two legs either side of a slot, each leg ending in a barb that
-// springs out under the grid. The legs taper out from the root down to
-// the barbs, 4.48 to 4.9mm across, and the barbs stand 3.548mm below the
-// root: 0.548mm under a 3mm grid's back. Their tips are rounded, 1mm,
-// at both ends of the peg, so a peg finds its way into the square hole.
-// A peg is 5mm deep along the hole (the connector, the Leatherman
-// holder; the hex bit holders' are 4.9).
+// springs out under the grid.
+//
+// The designer's pin (v4, on every one of their accessories) has barbs
+// 6.9mm across for the 5mm hole: each leg has to bend 0.95mm inward to
+// get through, on a leg about 3mm long and thinnest (0.8mm) at its root.
+// A plane-stress model of that profile puts the root at 8% strain on
+// the way in, about twice what printed PLA takes, and printed, the legs
+// snapped off instead of bending. So the pin here keeps the designer's
+// layout and is reshaped to bend:
+//
+// - The barbs stand 0.3mm past each wall (MODGRID_PIN_GRIP), and the
+//   legs are 0.65mm thick and run up to 0.25mm short of the root: the
+//   same model puts them at 2.3% strain, with a sixth of the force per
+//   leg (about 10 N against 57 in PLA).
+// - A 30° lead-in (from the peg's axis) takes them into the hole
+//   gently; a 45° latch face behind it, set to cross the hole's back
+//   edge 0.1mm outside the wall (MODGRID_PIN_PRELOAD), holds them. Once
+//   seated, each leg is still bent that 0.1mm against the edge, which
+//   pulls the part flush onto the grid and centres it: no rattle, on a
+//   grid printed anywhere from 2.9 to 3.1mm thick. Pulling it out takes
+//   nearly twice the push.
+// - 0.2mm of room either side of the legs, and 0.1mm along the hole (the
+//   peg is 4.8mm deep): only the barbs touch the hole on the way in.
+//   Each end of a peg's tips is rounded 1mm along the hole, so the peg
+//   finds its way into the square hole.
 //
 // Frame for everything in this file (the "profile frame", the way the
 // designer models and prints an accessory): the profile in XY, extruded
@@ -39,27 +60,33 @@ MODGRID_T        = 3;    // plate thickness
 MODGRID_EDGE     = 1.5;  // plate past the outer cells' 8mm squares
 MODGRID_CORNER_R = 3;
 
-// The pin. Measured on the v4 connector, and the same to within 0.01mm
-// on every bit holder. The two pegs' centres are 8.1mm apart, 0.1 more
-// than the holes': the outer legs come within 0.03mm of their holes'
-// outer walls at the grid's back, the inner ones keep 0.13.
-MODGRID_PIN_SPREAD = 8.1;
-MODGRID_PIN_ROOT   = 2.24;   // half the peg's width at the root
-MODGRID_PIN_LEDGE  = 2.45;   // half its width where the barbs start
-MODGRID_PIN_BARB   = 3.45;   // half its width over the barbs
-MODGRID_PIN_DROP   = 3.548;  // root to the barbs' flat tops
-MODGRID_PIN_LEN    = 5.298;  // root to the tips; the barbs' faces are 45°
-MODGRID_PIN_SLOT   = 1.45;   // half the slot between the legs
-MODGRID_PIN_SLOT_TOP = 0.3;  // the slot stops this far short of the root
-MODGRID_PIN_SLOT_R = 1;      // with its two top corners rounded this much
-MODGRID_PIN_TIP_R  = 1;      // the tips' rounding, at each end of the peg
-MODGRID_PIN_DEPTH  = 5;      // along the hole
+// The pin. Its two pegs sit on the holes' 8mm pitch, so every leg meets
+// its wall the same.
+MODGRID_PIN_BODY    = 2.3;   // half the peg's width, root to latch
+MODGRID_PIN_GRIP    = 0.3;   // each barb's crest past its hole's wall
+MODGRID_PIN_PRELOAD = 0.1;   // the latch face past the wall at the grid's back
+MODGRID_PIN_LATCH   = 45;    // the latch face, degrees from the peg's axis
+MODGRID_PIN_LEAD    = 30;    // the lead-in, degrees from the axis
+MODGRID_PIN_TIP     = 2.1;   // half the width at the tips
+MODGRID_PIN_SLOT    = 1.65;  // half the slot between the legs
+MODGRID_PIN_SLOT_TOP = 0.25; // the slot stops this far short of the root
+MODGRID_PIN_SLOT_R  = 0.4;   // with its two top corners rounded this much
+MODGRID_PIN_TIP_R   = 1;     // the tips' rounding, at each end of the peg
+MODGRID_PIN_DEPTH   = 4.8;   // along the hole
+
+// Where those put the barbs: half the width over them, and how far below
+// the root the latch face starts, the crest is and the tips are (2.7,
+// 3.2 and 4.41mm: the tips stand 1.41mm out of a 3mm grid's back).
+MODGRID_PIN_CREST = MODGRID_HOLE / 2 + MODGRID_PIN_GRIP;
+MODGRID_PIN_LATCH_TOP = MODGRID_T - (MODGRID_HOLE / 2 + MODGRID_PIN_PRELOAD - MODGRID_PIN_BODY) / tan(MODGRID_PIN_LATCH);
+MODGRID_PIN_DROP = MODGRID_T + (MODGRID_PIN_GRIP - MODGRID_PIN_PRELOAD) / tan(MODGRID_PIN_LATCH);
+MODGRID_PIN_LEN  = MODGRID_PIN_DROP + (MODGRID_PIN_CREST - MODGRID_PIN_TIP) / tan(MODGRID_PIN_LEAD);
 
 // Width over the barbs of a pair, the pin's footprint across.
-MODGRID_PIN_W = MODGRID_PIN_SPREAD + 2 * MODGRID_PIN_BARB;
+MODGRID_PIN_W = MODGRID_PITCH + 2 * MODGRID_PIN_CREST;
 
 // The same for a pin of 1 or 2 pegs.
-function modgrid_pin_width(pegs = 2) = pegs == 1 ? 2 * MODGRID_PIN_BARB : MODGRID_PIN_W;
+function modgrid_pin_width(pegs = 2) = pegs == 1 ? 2 * MODGRID_PIN_CREST : MODGRID_PIN_W;
 
 // A grid of cols x rows holes, the plate on z = 0 to MODGRID_T, centred
 // on the origin in XY. (Not in the profile frame: it is the grid itself.)
@@ -81,14 +108,12 @@ module modgrid_grid_plate(cols, rows) {
 // far up past y = 0, into the body the peg is unioned with, so the two
 // do not meet on a shared face.
 module modgrid_peg_profile(overlap = 0) {
-    tip = MODGRID_PIN_BARB - (MODGRID_PIN_LEN - MODGRID_PIN_DROP);
     difference() {
         polygon([
-            [-MODGRID_PIN_ROOT, overlap], [-MODGRID_PIN_ROOT, 0],
-            [-MODGRID_PIN_LEDGE, -MODGRID_PIN_DROP], [-MODGRID_PIN_BARB, -MODGRID_PIN_DROP],
-            [-tip, -MODGRID_PIN_LEN], [tip, -MODGRID_PIN_LEN],
-            [MODGRID_PIN_BARB, -MODGRID_PIN_DROP], [MODGRID_PIN_LEDGE, -MODGRID_PIN_DROP],
-            [MODGRID_PIN_ROOT, 0], [MODGRID_PIN_ROOT, overlap],
+            [-MODGRID_PIN_BODY, overlap], [-MODGRID_PIN_BODY, -MODGRID_PIN_LATCH_TOP],
+            [-MODGRID_PIN_CREST, -MODGRID_PIN_DROP], [-MODGRID_PIN_TIP, -MODGRID_PIN_LEN],
+            [MODGRID_PIN_TIP, -MODGRID_PIN_LEN], [MODGRID_PIN_CREST, -MODGRID_PIN_DROP],
+            [MODGRID_PIN_BODY, -MODGRID_PIN_LATCH_TOP], [MODGRID_PIN_BODY, overlap],
         ]);
         // The slot, run out past the tips so only its top corners round.
         offset(r = MODGRID_PIN_SLOT_R) offset(delta = -MODGRID_PIN_SLOT_R)
@@ -103,7 +128,7 @@ module modgrid_peg_profile(overlap = 0) {
 module modgrid_peg(depth = MODGRID_PIN_DEPTH, overlap = 0) {
     assert(depth >= 2 * MODGRID_PIN_TIP_R, "a peg must be at least 2mm deep");
     r = MODGRID_PIN_TIP_R;
-    w = 2 * MODGRID_PIN_BARB + 2;
+    w = 2 * MODGRID_PIN_CREST + 2;
     y0 = -MODGRID_PIN_LEN + r;
     // render(): OpenSCAD's preview (the README gallery, the GUI) draws an
     // intersection with see-through patches unless it is merged first.
@@ -119,12 +144,11 @@ module modgrid_peg(depth = MODGRID_PIN_DEPTH, overlap = 0) {
 }
 
 // The 2x1 pin: a peg for each of two neighbouring holes in a row,
-// centred on x = 0. With pegs = 1, a single peg on x = 0, for one hole:
-// centred in it, its legs keep 0.08mm from the walls at the grid's back
-// either side. With rows > 1, one more set every MODGRID_PITCH along z,
-// for a part that spans that many rows of the grid.
+// centred on x = 0. With pegs = 1, a single peg on x = 0, for one hole.
+// With rows > 1, one more set every MODGRID_PITCH along z, for a part
+// that spans that many rows of the grid.
 module modgrid_pin(depth = MODGRID_PIN_DEPTH, rows = 1, overlap = 0, pegs = 2) {
     assert(pegs == 1 || pegs == 2, "pegs must be 1 or 2");
-    for (k = [0 : rows - 1], x = pegs == 1 ? [0] : [-1, 1] * MODGRID_PIN_SPREAD / 2)
+    for (k = [0 : rows - 1], x = pegs == 1 ? [0] : [-1, 1] * MODGRID_PITCH / 2)
         translate([x, 0, k * MODGRID_PITCH]) modgrid_peg(depth, overlap);
 }

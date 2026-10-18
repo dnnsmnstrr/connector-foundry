@@ -134,17 +134,14 @@ sources:
   # MOD-GRID's own files (3dedc / TinyToolShop, MakerWorld model 2811701,
   # CC BY-NC-SA 4.0), v4: what parts/modgrid/ is rebuilt from. MakerWorld
   # only hands them to a logged-in user, so nothing can fetch them:
-  # download the model's files and copy these five into
+  # download the model's files and copy these four into
   # refs/manual/modgrid/ under the names below (the designer's own name
-  # after each). Without them, their checks are skipped.
+  # after each). Without them, their checks are skipped. (Their "Modular
+  # connector" is not among them: our pin is reshaped, see
+  # lib/modgrid.scad, so there is nothing of it to compare.)
   modgrid-grid:
     kind: file
     path: refs/manual/modgrid/grid-4x12.stl              # "MOD-GRID 4x12 .stl"
-    license: CC-BY-NC-SA-4.0 (MOD-GRID by 3dedc)
-
-  modgrid-connector:
-    kind: file
-    path: refs/manual/modgrid/connector.stl              # "MOD-GRID Modular connector v4.stl"
     license: CC-BY-NC-SA-4.0 (MOD-GRID by 3dedc)
 
   modgrid-bits-4mm:
@@ -917,8 +914,9 @@ shape_checks:
   # middle where the file has them. Ours are made symmetric where the
   # designer's are a tenth or less off it, and their curves are circles
   # where the designer's are drawn freehand, which is what keeps the
-  # section IoUs short of 1: the profiles are a few square millimetres
-  # around thin legs, so 0.01mm all round the outline is 1-2% of them.
+  # section IoUs short of 1. The pin is not the designer's (theirs snaps
+  # off when printed; lib/modgrid.scad has ours and why), so it has no
+  # shape check: the fit checks below hold it to their grid and ours.
   #
   # The grid: the designer's holes are 0.4885mm off its plate's centre
   # across its length (rows of holes 5.01 and 5.98 from the ends, 5.5
@@ -941,44 +939,28 @@ shape_checks:
       max_surface_max_mm: 0.55
       min_section_iou: 0.98
 
-  # The connector is the designer's two pegs alone, so ours with plate 0.
-  # Its pegs are joined by a 0.025mm sliver at their roots, which ours
-  # does without: no surface distance limits, since the sliver's faces
-  # stand up to 1.8mm from anything of ours, but volume and sections
-  # (through the tips' rounding at 0.1 and 4.9, and the straight middle)
-  # are as tight as the bit holders'.
-  - id: modgrid/connector
-    part: modgrid/connector
-    params: {plate: 0}
-    reference_source: modgrid-connector
-    ours: |
-      include <{repo}/parts/modgrid/connector.scad>
-      translate([-39.5305, -5.003, 0]) rotate([-90, 0, 0]) translate([0, -5 / 2, -5.298 / 2])
-          modgrid_connector(plate = 0, anchor = CENTER);
-    reference: |
-      import("{modgrid-connector}");
-    align: none
-    sections_z: [0.1, 0.5, 2.5, 4.5, 4.9]
-    tolerances:
-      max_bbox_mm: 0.01
-      max_volume_pct: 0.5
-      min_section_iou: 0.98
-
-  # The bit holders: sections through the pin (0.5 to 4.5) and above it,
-  # where the body is all there is (6.5, 7.5). The 4mm's right socket is
-  # 0.1mm further out in the designer's file than its left; ours has both
-  # where the left one is.
+  # The bit holders' bodies: both sides are cut off 0.05mm above the
+  # pin's root, so the pin under them (ours, not the designer's) is out
+  # of it, and sectioned at both ends and in the middle. The 4mm's right
+  # socket is 0.1mm further out in the designer's file than its left;
+  # ours has both where the left one is.
   - id: modgrid/bit-holder-4mm
     part: modgrid/bit_holder
     reference_source: modgrid-bits-4mm
     ours: |
       include <{repo}/parts/modgrid/bit_holder.scad>
-      translate([2.766, -6.98, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (7.05 - 5.298) / 2])
-          modgrid_bit_holder(bit = "4mm", anchor = CENTER);
+      intersection() {{
+          translate([2.766, -6.98, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (7.05 - MODGRID_PIN_LEN) / 2])
+              modgrid_bit_holder(bit = "4mm", anchor = CENTER);
+          translate([-50, -6.98 + 0.05, -50]) cube(100);
+      }}
     reference: |
-      import("{modgrid-bits-4mm}");
+      intersection() {{
+          import("{modgrid-bits-4mm}");
+          translate([-50, -6.98 + 0.05, -50]) cube(100);
+      }}
     align: none
-    sections_z: [0.5, 2.5, 4.5, 6.5, 7.5]
+    sections_z: [0.5, 4, 7.5]
     tolerances:
       max_bbox_mm: 0.02
       max_volume_pct: 0.5
@@ -995,12 +977,18 @@ shape_checks:
     reference_source: modgrid-bits-6mm
     ours: |
       include <{repo}/parts/modgrid/bit_holder.scad>
-      translate([-4.009, -40.4, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (9.8 - 5.298) / 2])
-          modgrid_bit_holder(bit = "6mm", anchor = CENTER);
+      intersection() {{
+          translate([-4.009, -40.4, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (9.8 - MODGRID_PIN_LEN) / 2])
+              modgrid_bit_holder(bit = "6mm", anchor = CENTER);
+          translate([-50, -40.4 + 0.05, -50]) cube(100);
+      }}
     reference: |
-      import("{modgrid-bits-6mm}");
+      intersection() {{
+          import("{modgrid-bits-6mm}");
+          translate([-50, -40.4 + 0.05, -50]) cube(100);
+      }}
     align: none
-    sections_z: [0.5, 2.5, 4.5, 6.5, 7.5]
+    sections_z: [0.5, 4, 7.5]
     tolerances:
       max_bbox_mm: 0.02
       max_volume_pct: 0.5
@@ -1012,12 +1000,18 @@ shape_checks:
     reference_source: modgrid-bits-leatherman
     ours: |
       include <{repo}/parts/modgrid/bit_holder.scad>
-      translate([21.4955, -24.649, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (9.9 - 5.298) / 2])
-          modgrid_bit_holder(bit = "leatherman", anchor = CENTER);
+      intersection() {{
+          translate([21.4955, -24.649, 0]) rotate([-90, 0, 0]) translate([0, -8 / 2, (9.9 - MODGRID_PIN_LEN) / 2])
+              modgrid_bit_holder(bit = "leatherman", anchor = CENTER);
+          translate([-50, -24.649 + 0.05, -50]) cube(100);
+      }}
     reference: |
-      import("{modgrid-bits-leatherman}");
+      intersection() {{
+          import("{modgrid-bits-leatherman}");
+          translate([-50, -24.649 + 0.05, -50]) cube(100);
+      }}
     align: none
-    sections_z: [0.5, 2.5, 4.5, 6.5, 7.5]
+    sections_z: [0.5, 4, 7.5]
     tolerances:
       max_bbox_mm: 0.02
       max_volume_pct: 0.5
@@ -1662,11 +1656,14 @@ fit_checks:
       clearance_mm: [0.0, 0.5]
 
   # MOD-GRID: a pin seated in a grid — the pegs' roots on the grid's
-  # front, the pegs down through two neighbouring holes of a row, the
-  # barbs 0.548mm clear of the 3mm grid's back. The outer legs widen to
-  # 0.03mm short of their holes' outer walls at the back, the inner ones
-  # to 0.13 short of theirs. Along the hole a 5mm peg fills the 5mm hole,
-  # touching both walls: clearance 0, and nothing overlapping.
+  # front, the pegs down through two neighbouring holes of a row. Each
+  # leg's latch face crosses its hole's back edge 0.1mm outside the wall
+  # (lib/modgrid.scad, MODGRID_PIN_PRELOAD): in a print the leg stays
+  # bent that much, pulling the part flush; unbent, as here, it is a
+  # 0.1 x 0.1mm triangle of overlap along the 4.8mm peg, 0.024mm3 per
+  # leg. So the interference is that and no more: 0.096mm3 for four
+  # legs. Anything else would be the legs or the depth binding in the
+  # hole, which have 0.2 and 0.1mm of room either side.
   - id: modgrid/connector-in-grid
     part: modgrid/connector
     why: >
@@ -1679,12 +1676,10 @@ fit_checks:
       include <{repo}/parts/modgrid/grid.scad>
       modgrid_grid(cols = 2, rows = 1, anchor = BOTTOM);
     expect:
-      max_interference_mm3: 0.01
+      max_interference_mm3: 0.1
       clearance_mm: [0.0, 0.1]
 
-  # A single peg, centred in one hole: its legs keep 0.08mm from both
-  # walls at the grid's back, and it fills the hole along its depth as
-  # the pair's pegs do.
+  # A single peg, centred in one hole: two legs' preload, 0.048mm3.
   - id: modgrid/single-peg-in-grid
     part: modgrid/connector
     params: {pegs: 1}
@@ -1698,7 +1693,7 @@ fit_checks:
       include <{repo}/parts/modgrid/grid.scad>
       modgrid_grid(cols = 1, rows = 1, anchor = BOTTOM);
     expect:
-      max_interference_mm3: 0.01
+      max_interference_mm3: 0.05
       clearance_mm: [0.0, 0.1]
 
   # The same in the designer's 4x12 grid, in its first two holes of its
@@ -1715,7 +1710,7 @@ fit_checks:
     b: |
       import("{modgrid-grid}");
     expect:
-      max_interference_mm3: 0.01
+      max_interference_mm3: 0.1
       clearance_mm: [0.0, 0.1]
 
   # And the other way round: the designer's 4mm bit holder in our grid,
