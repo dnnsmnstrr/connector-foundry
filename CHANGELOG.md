@@ -20,6 +20,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **MagSafe mount.** A new part: a round plate (60mm by default) with an optional pocket on its
+  bottom for an aftermarket MagSafe magnet ring (recess **ring**, which leaves the middle standing)
+  or steel disk (recess **disk**), so a phone snaps onto whatever the plate is fused to. Set the
+  insert's outside and inside diameter and its thickness (the pocket depth) to the ring you bought;
+  those come at 54 x 46, 55 x 45 and 56 x 46mm. The plate's thickness is adjustable, and **hole**
+  opens the middle right through, for a donut.
 - **MOD-GRID pin, reshaped so it bends instead of breaking.** The designer's pin has barbs 6.9mm
   across for a 5mm hole, so each leg had to bend almost a millimetre on a leg 3mm long: printed in
   PLA, the legs snapped off rather than going in. The pegs keep the designer's layout but now have
