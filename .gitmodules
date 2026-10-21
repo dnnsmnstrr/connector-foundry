@@ -25,3 +25,6 @@
 [submodule "vendor/hsw-clip"]
 	path = vendor/hsw-clip
 	url = https://github.com/geru/3d-scad-hsw-clip.git
+[submodule "vendor/goews-rebuilt"]
+	path = vendor/goews-rebuilt
+	url = https://github.com/jimfunk/goews-rebuilt-openscad.git

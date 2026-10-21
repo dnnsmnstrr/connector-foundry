@@ -205,6 +205,19 @@ sources:
       Vendored. parts/hsw/insert.scad calls its hsw_clip() directly; the
       fit check below seats it in a cell of the other upstream's wall.
 
+  goews-rebuilt:
+    kind: submodule
+    path: vendor/goews-rebuilt
+    license: CC-BY-4.0
+    url: https://github.com/jimfunk/goews-rebuilt-openscad
+    note: >
+      Vendored. parts/goews/*.scad call its tile(), grid_tile() and
+      hanger_plate() directly; the shape checks below hold each wrapper's
+      frame to upstream's own layout, and the fit checks seat a hanger in
+      a tile. GOEWS by MrExo3D (printables.com/model/1090032); this
+      OpenSCAD rebuild by jimfunk. Both are CC BY 4.0 on Printables
+      (printables.com/model/1183799 for the rebuild).
+
   skadis-tower:
     kind: git
     url: https://github.com/breckenedge/parametric-skadis-tower.git
@@ -874,6 +887,103 @@ shape_checks:
     sections_z: [0.25, 3.0, 5.5, 7.0]
     tolerances:
       max_volume_pct: 0.1
+      min_section_iou: 0.999
+
+  # GOEWS tiles and the hanger plate against upstream's own modules, at
+  # OpenSCAD's default detail on both sides (upstream's file-level $fa and
+  # $fs reach neither side through `use`). The parts are upstream's
+  # geometry, so what these hold is each wrapper's frame and envelope:
+  # ours is moved back to upstream's origin, the first unit's lower left
+  # corner. A 3 x 3 hex tile with the top filled, the generator's
+  # recommendation for a wall's top row; then one row with fill_left, the
+  # one case where a fill moves the outside box.
+  - id: goews/tile-3x3-fill-top
+    part: goews/tile
+    params: {cols: 3, rows: 3, fill_top: true}
+    reference_source: goews-rebuilt
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      translate([(goews_unit_w() / 2 + 3 * goews_unit_w()) / 2,
+                 (2 * goews_row_pitch() + goews_hex_h()) / 2, 0])
+          goews_tile(3, 3, fill_top = true, anchor = BOTTOM);
+    reference: |
+      include <{repo}/vendor/BOSL2/std.scad>
+      use <{goews-rebuilt}/tile.scad>
+      tile(columns = 3, rows = 3, fill_top = true);
+    align: none
+    sections_z: [0.5, 2.0, 3.5, 5.0, 5.75]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: goews/tile-2x1-fill-left-thick
+    part: goews/tile
+    params: {cols: 2, rows: 1, fill_left: true, cleats: thick}
+    reference_source: goews-rebuilt
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      translate([(goews_unit_w() / 2 + 2 * goews_unit_w()) / 2, goews_hex_h() / 2, 0])
+          goews_tile(2, 1, cleats = "thick", fill_left = true, anchor = BOTTOM);
+    reference: |
+      include <{repo}/vendor/BOSL2/std.scad>
+      use <{goews-rebuilt}/tile.scad>
+      tile(variant = 1, columns = 2, rows = 1, fill_left = true);
+    align: none
+    sections_z: [0.5, 2.0, 3.5, 5.0, 5.75]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: goews/grid_tile-3x2
+    part: goews/grid_tile
+    params: {cols: 3, rows: 2}
+    reference_source: goews-rebuilt
+    ours: |
+      include <{repo}/parts/goews/grid_tile.scad>
+      translate([1.5 * goews_unit_w(), goews_grid_h(), 0]) goews_grid_tile(3, 2, anchor = BOTTOM);
+    reference: |
+      include <{repo}/vendor/BOSL2/std.scad>
+      use <{goews-rebuilt}/grid_tile.scad>
+      grid_tile(columns = 3, rows = 2);
+    align: none
+    sections_z: [0.5, 2.0, 3.5, 5.0, 5.75]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # Two units, thicker cleats, the plate extended 10mm: ours turned back
+  # to stand as upstream's does (rotate([90, 0, 180]) is its own inverse).
+  # Sections are across upstream's z, up the plate: through the extension,
+  # the hanger, its bolt cutout and the plate's notch.
+  - id: goews/hanger-2-units-thick-extended
+    part: goews/hanger
+    params: {units: 2, cleats: thick, extend: 10}
+    reference_source: goews-rebuilt
+    ours: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([goews_plate_w(), 0, 0]) rotate([90, 0, 180])
+          translate([0, (goews_plate_h() + 10) / 2, 0])
+              goews_hanger(units = 2, cleats = "thick", extend = 10, anchor = BOTTOM);
+    reference: |
+      include <{repo}/vendor/BOSL2/std.scad>
+      use <{goews-rebuilt}/hanger.scad>
+      hanger_plate(variant = 1, hanger_units = 2, extend_bottom = 10);
+    align: none
+    sections_z: [5.0, 12.0, 20.0, 30.0, 34.0]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
   # A Skådis board against the tower's wall with the same slots: its
@@ -1568,6 +1678,66 @@ fit_checks:
     expect:
       max_interference_mm3: 2.0
       clearance_mm: [0.0, 0.5]
+
+  # A GOEWS hanger seated in a one-unit tile, both at their BOTTOM anchor
+  # (the tile's back at z = 0, the hanger's back at the bottom of its
+  # box, +y up the wall in both). The tile's opening starts a quarter of
+  # the unit's height up, so the hanger is lowered from its centred
+  # position to rest on it. The original cleats seat it on the 1mm rear
+  # cleats behind the opening's sides; the thicker cleats have none, and
+  # the front cleats hold it 0.1mm off the back. Either way it touches and
+  # no more. (Pulled 0.5mm straight out of either tile, it collides with
+  # the front cleats, 3mm3 and 6mm3: they are what hold it.)
+  - id: goews/hanger-in-tile
+    part: goews/hanger
+    reference_source: goews-rebuilt
+    why: >
+      A hanger has to sit in a tile's opening, behind the front cleats,
+      resting on the opening's lower edge.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, goews_plate_h() / 2 - goews_hex_h() / 4, 1]) goews_hanger(anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(1, 1, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.1]
+
+  - id: goews/hanger-in-tile-thick
+    part: goews/hanger
+    reference_source: goews-rebuilt
+    why: The same for the thicker cleats, a hanger and tile that both have them.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, goews_plate_h() / 2 - goews_hex_h() / 4, 0.1])
+          goews_hanger(cleats = "thick", anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(1, 1, cleats = "thick", anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.1]
+
+  # The same hanger on its way in: at the top of the 22mm opening (8.85mm
+  # above where it rests) and half way into the tile, it is above the
+  # front cleats and passes. The few hundredths of a mm3 it shares with
+  # the tile are where faceted edges graze.
+  - id: goews/hanger-enters-tile
+    part: goews/hanger
+    reference_source: goews-rebuilt
+    why: >
+      A hanger goes in at the top of the opening and drops behind the
+      cleats; if it collided on the way in, it could not be hung at all.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, goews_plate_h() / 2 - goews_hex_h() / 4 + 8.85, 3]) goews_hanger(anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(1, 1, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.1]
 
   # A two-tab Skådis peg hung on a board (front face at z = 0, the board
   # behind it), its tabs in the two slots of the second row (centres

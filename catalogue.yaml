@@ -764,6 +764,171 @@ parts:
       - name: two-pegs
         params: { pegs: 2 }
 
+  # GOEWS (MrExo3D, goews.ws), as jimfunk's goews-rebuilt-openscad
+  # rebuilds it: CC BY 4.0 on Printables (see README "Licensing"). Every
+  # unit carries a threaded hole that BOSL2 cuts afresh, which is most of
+  # a tile's render time.
+  - id: goews/tile
+    system: GOEWS
+    name: Hex tile
+    file: parts/goews/tile.scad
+    module: goews_tile
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D; tile() from jimfunk's goews-rebuilt-openscad (a
+      rebuild of the original's Fusion 360 model), vendored. CC BY 4.0 —
+      see README "Licensing".
+    source_url: https://github.com/jimfunk/goews-rebuilt-openscad
+    print_note: >-
+      Back on the bed, no supports. Units are 42mm across and rows 36.4mm
+      apart, every other row half a unit over, so the zig-zag edges of
+      neighbouring tiles interlock; a fill squares its edge off instead.
+      Each unit takes a hanger plate in its opening, an optional locking
+      bolt in the threaded hole above it, and a wall screw in the hole
+      below it: screw_d and head_d for the screw, countersink 0 for a
+      flat head. fill_top carries more screw holes along the top edge.
+      cleats thick only takes thick hanger plates, and original only
+      original ones. "mount" is the front.
+    anchors: [bot]
+    # parts/goews/tile.scad asserts cols and rows at least 1 and a
+    # countersink that leaves the head's 1mm recess in the 6mm tile.
+    minimums:
+      cols: 1
+      rows: 1
+      countersink: 0
+    maximums:
+      countersink: 5
+    defaults:
+      cols: 2
+      rows: 2
+      cleats: original
+      fill_top: false
+      fill_bottom: false
+      fill_left: false
+      fill_right: false
+      screw_d: 4
+      head_d: 8
+      countersink: 2
+    options:
+      cleats: [original, thick]
+    # A second row reaches the half unit a single row leaves at the left,
+    # adding 21mm to X, so the rows handle keeps two: below that, Y would
+    # move X. Rows are 42 * sqrt(3) / 2 apart. The slowest part per mm:
+    # each unit costs about 0.25s natively and 1.5s in the browser,
+    # mostly BOSL2 working out its thread again. The defaults' 2 x 2 takes
+    # 2.6s natively and 8.6s in the browser, 3 x 3 (147 x 121mm) 15s; a
+    # bigger tile is typed in, at 4 x 4 26s and 6 x 6 54s.
+    resize:
+      x: { param: cols, per: 42, step: 1, max: 3 }
+      y: { param: rows, per: 36.3731, step: 1, min: 2, max: 3 }
+    variants:
+      - name: thick
+        params: { cleats: thick }
+      # The generator's choice for a wall's top row. fill_top with
+      # fill_left but not fill_right leaves upstream's top left corner
+      # piece inside the tile as a second shell, which prints but which
+      # test_manifold.py counts as a separate solid: no variant does that.
+      - name: fill-top
+        params: { cols: 3, rows: 3, fill_top: true }
+      - name: all-edges-flat-head
+        params: { fill_top: true, fill_bottom: true, fill_left: true, fill_right: true, countersink: 0 }
+
+  - id: goews/grid_tile
+    system: GOEWS
+    name: Grid tile
+    file: parts/goews/grid_tile.scad
+    module: goews_grid_tile
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D; grid_tile() from jimfunk's goews-rebuilt-openscad,
+      vendored. CC BY 4.0 — see README "Licensing".
+    source_url: https://github.com/jimfunk/goews-rebuilt-openscad
+    print_note: >-
+      Back on the bed, no supports. The square layout: units 42 x 36.4mm
+      in plain rows, so less wall per unit than the hex tile and straight
+      edges that butt together. Same hanger plates and bolt as the hex
+      tile. Two wall screws per unit, near its top corners. cleats as for
+      the hex tile. "mount" is the front.
+    anchors: [bot]
+    # As for the hex tile.
+    minimums:
+      cols: 1
+      rows: 1
+      countersink: 0
+    maximums:
+      countersink: 5
+    defaults:
+      cols: 2
+      rows: 2
+      cleats: original
+      screw_d: 4
+      head_d: 8
+      countersink: 2
+    options:
+      cleats: [original, thick]
+    # As slow per unit as the hex tile: 2 x 2 takes 1.6s natively and 5.1s
+    # in the browser, 4 x 4 (168 x 145mm) 16s, 6 x 6 35s.
+    resize:
+      x: { param: cols, per: 42, step: 1, max: 4 }
+      y: { param: rows, per: 36.373, step: 1, max: 4 }
+    variants:
+      - name: thick-3x2
+        params: { cols: 3, rows: 2, cleats: thick }
+
+  - id: goews/hanger
+    system: GOEWS
+    name: Hanger plate
+    file: parts/goews/hanger.scad
+    module: goews_hanger
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D; hanger_plate() from jimfunk's goews-rebuilt-openscad,
+      vendored. CC BY 4.0 — see README "Licensing".
+    source_url: https://github.com/jimfunk/goews-rebuilt-openscad
+    print_note: >-
+      Print it standing on the plate's bottom edge, the way upstream
+      exports it: turn the part, or the part it is fused onto, that way in
+      the slicer. The
+      hanger goes into a tile's opening at the top and drops behind its
+      cleats; cleats has to match the tile's. units widens the plate one
+      42mm tile unit and one hanger at a time. The notch in the top edge
+      is for the tile's locking bolt, whose head then holds the plate in.
+      tolerance is the play in the tile: less hangs straighter, more goes
+      in and out more easily. extend lengthens the plate downward. The
+      plate's front is "mount", for fusing a hook, a holder or a box onto.
+    # parts/goews/hanger.scad asserts these.
+    minimums:
+      units: 1
+      tolerance: 0
+      extend: 0
+    defaults:
+      units: 1
+      cleats: original
+      plate: 3
+      bolt_notch: true
+      tolerance: 0.15
+      extend: 0
+    options:
+      cleats: [original, thick]
+    # Hung on a wall, the plate's up is +y: on the side of a box, the
+    # Bench starts it the right way up.
+    attached_up: [0, 1]
+    # No handle for extend: it is 0 by default, and a handle's parameter
+    # starts at one step or 0.1mm of size (tests/conftest.py's
+    # resize_bounds()). 6 units (252mm) is a wide shelf's worth of hangers
+    # and renders in 1.5s in the browser, a 20mm plate included.
+    resize:
+      x: { param: units, per: 42, step: 1, max: 6 }
+      z: { param: plate, per: 1, min: 1, max: 20 }
+    variants:
+      - name: thick-two-units
+        params: { units: 2, cleats: thick }
+      - name: extended-no-notch
+        params: { extend: 10, plate: 5, bolt_notch: false }
+
   # MOD-GRID (3dedc / TinyToolShop, CC BY-NC-SA 4.0 — see README
   # "Licensing"): rebuilt from the designer's v4 STLs, not imported, and
   # the pin reshaped to bend instead of snapping (lib/modgrid.scad).
