@@ -215,6 +215,7 @@ test("every preset has a usable spec and a drawable screw", () => {
           "pinhole",
           "klippt",
           "deckmate",
+          "magsafe",
         ].includes(preset.spec.kind),
         `${preset.id} kind`,
       );
@@ -1190,6 +1191,97 @@ test("a DeckMate socket is cut by lib/deckmate.scad in the slots' frame", () => 
   });
   // Its outline closes — the rounded square with both notches — with the arrow.
   assert.ok(slotOutline(doc.holes[0]).length > 36);
+});
+
+test("a MagSafe puck's pocket runs its cable channel the way it is turned; a ring's leaves the middle", () => {
+  let { doc } = addHole(plateDoc(), {
+    point: [10, 10, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("magsafe-puck").spec,
+    presetId: "magsafe-puck",
+  });
+  ({ doc } = addHole(doc, {
+    point: [-10, -10, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("magsafe-ring-56").spec,
+    presetId: "magsafe-ring-56",
+  }));
+  const scad = holesToScad(doc, partsById, { throughLength: 50 });
+  // Plain OpenSCAD: no library, no BOSL2.
+  assert.doesNotMatch(scad, /BOSL2|^use /m);
+  const [puck, ring] = doc.holes;
+  // The puck: its pocket, and the channel along the slots' frame's +Y
+  // from the centre to 30 mm past the rim, as deep as the pocket.
+  assert.deepEqual(cutterLines(puck, 50), [
+    "multmatrix([[1, 0, 0, 10], [0, 1, 0, 10], [0, 0, 1, 4], [0, 0, 0, 1]]) {",
+    "    translate([0, 0, -5.5]) cylinder(d = 56.3, h = 6.5, $fn = 128);",
+    "    translate([-2.5, 0, -5.5]) cube([5, 58.15, 6.5]);",
+    "}",
+  ]);
+  // The ring: an annulus whose middle is cut clear through both faces of
+  // the pocket, so it stands whole; no channel, and no direction.
+  assert.deepEqual(cutterLines(ring, 50).slice(1), [
+    "    translate([0, 0, -1.2]) difference() {",
+    "        cylinder(d = 56.2, h = 2.2, $fn = 128);",
+    "        translate([0, 0, -1]) cylinder(d = 45.8, h = 4.2, $fn = 128);",
+    "    }",
+    "}",
+  ]);
+  // A ring with no middle is a steel disc's pocket.
+  const disc = { ...ring, spec: normalizeSpec({ ...ring.spec, innerDiameter: 0 }) };
+  assert.equal(
+    cutterLines(disc, 50)[1],
+    "    translate([0, 0, -1.2]) cylinder(d = 56.2, h = 2.2, $fn = 128);",
+  );
+  assert.equal(holeLabel(disc), "MagSafe ring disc Ø56.2 × 1.2");
+  // No width (or no length) is no channel.
+  const bare = { ...puck, spec: normalizeSpec({ ...puck.spec, cable: 0 }) };
+  assert.equal(cutterLines(bare, 50).length, 3);
+  assert.equal(holeLabel(bare), "MagSafe puck Ø56.3 × 5.5, no cable channel");
+
+  assert.equal(holeLabel(puck), "MagSafe puck Ø56.3 × 5.5, 5 mm cable channel");
+  assert.equal(holeLabel(ring), "MagSafe ring Ø56.2/45.8 × 1.2");
+  assert.equal(holeMeta(puck), "5.5 mm deep, turned 0°");
+  assert.equal(holeMeta(ring), "1.2 mm deep");
+  assert.equal(holeFootprintRadius(puck.spec), 28.15);
+
+  // Only the puck turns (and flips over with the part); the ring is round.
+  const turned = rotateHoles(doc, [puck.id, ring.id], 90);
+  assert.equal(turned.holes[0].spec.spin, 90);
+  assert.equal(turned.holes[1].spec.spin, 0);
+  assert.equal(holeLabel(turned.holes[0]), "MagSafe puck Ø56.3 × 5.5, 5 mm cable channel, 90°");
+  assert.equal(flipHoles(doc, 4).holes[0].spec.spin, 180);
+  assert.equal(flipHoles(doc, 4).holes[1].spec.spin, 0);
+  // Turned, it is still the preset; resized, it is not.
+  assert.ok(specMatchesPreset({ ...puck.spec, spin: 270 }, "magsafe-puck"));
+  assert.ok(!specMatchesPreset({ ...puck.spec, cable: 6 }, "magsafe-puck"));
+  assert.ok(!specMatchesPreset({ ...puck.spec, insert: "ring" }, "magsafe-puck"));
+
+  // The outline: the rim broken by the channel, the channel and the
+  // arrow — closed, so the channel's end is a segment across it.
+  const outline = slotOutline(puck);
+  const ends = outline.filter((seg) => Math.abs(seg.a[1] - seg.b[1]) < 1e-9 && seg.a[1] > 10 + 58);
+  assert.equal(ends.length, 1);
+  assert.ok(Math.abs(ends[0].a[1] - (10 + 28.15 + 30)) < 1e-9);
+  assert.deepEqual(slotOutline(ring), []);
+
+  // A pocket's floor takes a hole (a screw through the puck's floor).
+  assert.equal(holeAtSpot(puck, [10, 10, -1.5], [0, 0, 1]), false);
+  assert.equal(holeAtSpot(puck, [20, 10, 4], [0, 0, 1]), true);
+
+  // Never through, never no size; an unknown insert is a puck; anything
+  // that isn't a field of the kind is dropped.
+  const n = normalizeSpec({ kind: "magsafe", insert: "lid", depth: 0, diameter: -3, head: "hex" });
+  assert.deepEqual(n, {
+    kind: "magsafe",
+    insert: "puck",
+    diameter: 56.3,
+    innerDiameter: 45.8,
+    depth: 0.1,
+    cable: 5,
+    cableLength: 30,
+    spin: 0,
+  });
 });
 
 test("a KLIPPT channel is cut by lib/klippt.scad in the slots' frame, with a pocket or a run-out", () => {

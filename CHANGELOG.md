@@ -18,8 +18,22 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   macOS ZIPs and a `latest.json` for the updater. Updating from 0.4.0 still takes a download by
   hand, since 0.4.0 has no updater.
 
+### Holes tab
+
+- **MagSafe pockets.** A new MagSafe preset group: a pocket Apple's MagSafe charger sits in flush,
+  with a channel for its cable that turns to run out to whichever edge you point it at, and grooves
+  for the 56 × 46 mm and 55 × 45 mm metal rings that make a case MagSafe-compatible, the middle left
+  standing. The sidebar's **Insert** menu switches a pocket between puck and ring; sizes, depth and
+  the cable channel's width and length are all editable.
+
 ### Parts
 
+- **MagSafe mount.** A new part: a round plate (60mm by default) with an optional pocket on its
+  bottom for an aftermarket MagSafe magnet ring (recess **ring**, which leaves the middle standing)
+  or steel disk (recess **disk**), so a phone snaps onto whatever the plate is fused to. Set the
+  insert's outside and inside diameter and its thickness (the pocket depth) to the ring you bought;
+  those come at 54 x 46, 55 x 45 and 56 x 46mm. The plate's thickness is adjustable, and **hole**
+  opens the middle right through, for a donut.
 - **MOD-GRID pin, reshaped so it bends instead of breaking.** The designer's pin has barbs 6.9mm
   across for a 5mm hole, so each leg had to bend almost a millimetre on a leg 3mm long: printed in
   PLA, the legs snapped off rather than going in. The pegs keep the designer's layout but now have

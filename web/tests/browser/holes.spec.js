@@ -329,6 +329,42 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
 });
 
+test("a MagSafe pocket takes a charger puck with its cable channel, or a ring", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
+  await drillAtFaceCenter(page);
+  const lastJob = async () => (await jobs(page)).at(-1);
+
+  // The puck: its pocket, and a cable channel the way the arrow points.
+  await page.getByRole("searchbox", { name: "Search hole types" }).fill("magsafe");
+  await expect(page.locator(".holes-presets").getByRole("option")).toHaveCount(3);
+  await page.getByRole("option", { name: /^MagSafe charger puck/ }).click();
+  await expect(page.getByRole("combobox", { name: "Insert" })).toHaveValue("puck");
+  await expect(page.getByRole("spinbutton", { name: "Cable channel (mm)" })).toHaveValue("5");
+  await expect(page.getByRole("spinbutton", { name: "Inner diameter (mm)" })).toHaveCount(0);
+  await expect(page.locator(".holes-row").first()).toContainText("1. MagSafe charger puck");
+  await expect.poll(async () => (await lastJob()).scadSource).toContain("cylinder(d = 56.3, h = 6.5");
+  expect((await lastJob()).scadSource).toContain("cube([5, 58.15, 6.5]);");
+  // It turns, and turned it is still the preset.
+  await page.getByRole("button", { name: "Turn the cable channel 90° clockwise" }).click();
+  await expect(page.locator(".holes-row").first()).toContainText("turned 270°");
+  await expect(page.locator(".holes-row").first()).not.toContainText("(edited)");
+
+  // A ring instead: its own sizes come along, the middle stands, and
+  // the channel and the direction go.
+  await page.getByRole("combobox", { name: "Insert" }).selectOption("ring");
+  await expect(page.getByRole("spinbutton", { name: "Inner diameter (mm)" })).toHaveValue("45.8");
+  await expect(page.getByRole("spinbutton", { name: "Depth (mm)" })).toHaveValue("1.2");
+  await expect(page.getByRole("spinbutton", { name: "Cable channel (mm)" })).toHaveCount(0);
+  await expect(page.getByRole("spinbutton", { name: "Direction (°)" })).toHaveCount(0);
+  await expect.poll(async () => (await lastJob()).scadSource).toContain("cylinder(d = 45.8, h = 4.2");
+  expect((await lastJob()).scadSource).not.toContain("cube(");
+});
+
 // A holed render with many more triangles than the plain base, so a
 // guide face picked on it has an index the base doesn't have.
 const detailed = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4, 20, 20, 1)), { binary: true });

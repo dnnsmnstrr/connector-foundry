@@ -404,6 +404,37 @@ klippt/clip_mount:
     - 15.0
     - 8.752
     volume_mm3: 2644.42
+magsafe/mount:
+  default:
+    bbox:
+    - 60.0
+    - 60.0
+    - 4.0
+    volume_mm3: 11305.19
+  donut:
+    bbox:
+    - 60.0
+    - 60.0
+    - 4.0
+    volume_mm3: 6391.39
+  magnet-ring:
+    bbox:
+    - 60.0
+    - 60.0
+    - 4.0
+    volume_mm3: 10456.36
+  steel-disk:
+    bbox:
+    - 60.0
+    - 60.0
+    - 4.0
+    volume_mm3: 8816.72
+  thick-magnet-ring:
+    bbox:
+    - 60.0
+    - 60.0
+    - 4.0
+    volume_mm3: 9183.11
 modgrid/bit_holder:
   4mm-two-rows:
     bbox:

@@ -1134,6 +1134,59 @@ parts:
       - name: three-eighths
         params: { size: "3/8", diameter: 24, depth: 10 }
 
+  - id: magsafe/mount
+    system: MagSafe
+    name: MagSafe mount
+    file: parts/magsafe/mount.scad
+    module: magsafe_mount
+    confidence: parametric
+    source: >-
+      Generic geometry, sized for the aftermarket MagSafe rings sold to go
+      in it (54 x 46, 55 x 45 and 56 x 46mm); Apple's own ring is about
+      54.1mm across. No published standard for the inserts to check against.
+    print_note: >-
+      A round plate with an optional pocket on its bottom for a MagSafe
+      magnet ring or steel disk, glued or pressed in; the phone goes on that
+      face, and "mount" on top is where the plate is fused to something.
+      recess ring leaves the middle standing, disk cuts it all; set
+      insert_od, insert_id and recess_depth to your insert's own size (the
+      pocket is FIT_CLEARANCE bigger) and diameter to leave a rim round it.
+      hole opens the middle right through, for a donut. Print it pocket up
+      (flip it in the slicer); a plain plate prints either way up.
+    anchors: [bot]
+    # parts/magsafe/mount.scad asserts these; the pocket's floor and rim
+    # also depend on the insert, which only the module can check.
+    minimums:
+      thickness: 1
+      recess_depth: 0.2
+      hole: 0
+    defaults:
+      diameter: 60
+      thickness: 4
+      recess: none
+      recess_depth: 1
+      insert_od: 56
+      insert_id: 46
+      hole: 0
+    options:
+      recess: [none, ring, disk]
+    # Renders in well under a second at any size. The handles stop where
+    # the default insert still fits: a 58mm plate leaves a 0.85mm rim round
+    # its 56.3mm pocket, and a 2mm plate a 1mm floor under its 1mm pocket.
+    # A smaller plain plate can still be typed into the field.
+    resize:
+      xy: { param: diameter, min: 58, max: 200 }
+      z: { param: thickness, min: 2 }
+    variants:
+      - name: magnet-ring
+        params: { recess: ring }
+      - name: steel-disk
+        params: { recess: disk }
+      - name: thick-magnet-ring
+        params: { recess: ring, recess_depth: 2.5 }
+      - name: donut
+        params: { recess: ring, hole: 36 }
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam
