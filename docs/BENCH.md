@@ -48,9 +48,9 @@ attached part has:
 parameters open in the sidebar), or **Select root** beside its name in the sidebar: its name,
 **Crop** and Deselect appear in the viewer's toolbar. Delete, Backspace, `M` and the arrow keys
 leave a selected base alone — removing it would remove everything. A base part whose size the
-catalogue knows (the Gridfinity parts, openGrid and Skådis boards, HSW walls, MOLLE panels,
-BitBeam beams and plates, Basics plates and posts, the 2020 rail…) gets small square handles, as
-in TinkerCAD:
+catalogue knows (the Gridfinity parts, openGrid and Skådis boards, HSW walls, GOEWS tiles and
+hanger plates, MOLLE panels, BitBeam beams and plates, Basics plates and posts, the 2020 rail…)
+gets small square handles, as in TinkerCAD:
 
 - **Drag** one to resize. An outline shows the new size, with a label like "W 126 mm · gx 3 (+21
   each side)", and the part renders once, when you let go. Width and depth grow on both sides, so

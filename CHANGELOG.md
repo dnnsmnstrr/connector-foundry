@@ -28,6 +28,15 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **GOEWS.** A new system: MrExo3D's Greatly Over Engineered Wall System, the wall tiles on
+  Gridfinity's 42mm units that hanger plates hang in, as jimfunk's OpenSCAD rebuild draws them. A
+  **hex tile** of interlocking hexagonal units, any of its four edges optionally filled flat; a
+  **grid tile** of square units that butt together; and the **hanger plate**, one to six units
+  wide, for fusing whatever you want to hang onto. Each comes with the original cleats or the
+  rebuild's thicker ones, which hold about 60% more weight; tiles and plates have to match. Tiles
+  take your screw size and countersink, and every unit has the threaded hole for GOEWS's locking
+  bolt. A tile takes a while to render, about 1.5 seconds per unit in the browser, so the resize
+  handles stop at 3 x 3 (hex) and 4 x 4 (grid); type a bigger size into the sidebar.
 - **MagSafe mount.** A new part: a round plate (60mm by default) with an optional pocket on its
   bottom for an aftermarket MagSafe magnet ring (recess **ring**, which leaves the middle standing)
   or steel disk (recess **disk**), so a phone snaps onto whatever the plate is fused to. Set the

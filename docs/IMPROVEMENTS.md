@@ -15,6 +15,20 @@ printer settings and an imported part.
 
 Deferred deliberately; no change to `.scad` export behavior in this review.
 
+## The rest of GOEWS, and faster tiles
+
+`parts/goews/` has the two tiles and the hanger plate. jimfunk's rebuild (`vendor/goews-rebuilt`)
+also draws the locking bolt (`bolt.scad`), hooks, racks, shelves, bins, cups and cable clips, each a
+hanger plate with something on it; the bolt is the one a Bench cannot make from the plate. Its
+tiles also take a skip list (units left out around a socket), which `goews_tile()` does not pass
+on yet.
+
+A tile renders slowly: about 0.25 s per unit natively and 1.5 s in the browser, most of it BOSL2
+evaluating the 14 mm thread again for every unit. Nothing outside upstream's per-unit module can
+share that work, so the resize handles stop at 3 x 3 (hex) and 4 x 4 (grid). An upstream option
+to cut the thread once per tile, or to leave it out for walls hung without bolts, would lift
+that.
+
 ## Resize handles on attached Bench parts
 
 Only the Bench's root has resize handles; a selected attached part says "Resize in the
