@@ -82,6 +82,24 @@
 // The 2020 socket (kind "extrusion", lib/exsocket.scad) takes the end of
 // a 20-series aluminium extrusion; its presets differ only in the keys
 // into the rail's slots.
+//
+// The MagSafe pockets (kind "magsafe") take a MagSafe insert, so the
+// part holds a phone (parts/magsafe/mount.scad is the same thing as a
+// part of its own). No published standard covers any of it; the sizes
+// are measured ones:
+//   - Apple's charger puck: 55.92 × 5.29 mm (the 15 W A2104, as
+//     measured for 3D-printed docks; the 25 W A2580 is 55.5 × 4.45 by
+//     ChargerLab's teardown, and sits in the same pocket a little
+//     below the surface). Its pocket is 0.4 mm over across, not 0.2: a
+//     charger is taken out again, so it drops in rather than pressing,
+//     and 0.2 mm deeper. Its cable leaves the rim at the back; the
+//     5 mm channel clears the cable's 3–4 mm and is worth checking
+//     against your own cable's strain relief.
+//   - Metal rings, sold to make a case or a mount MagSafe-compatible:
+//     56 × 46 × 1 mm steel rings (and magnet rings of the same outline,
+//     1.5 or 2.5 mm thick), and 55 × 45 × 0.55 mm stickers. Their
+//     pockets follow the disc magnets': 0.2 mm over across (the standing
+//     middle 0.2 under) and 0.2 mm deeper.
 
 export const HEAD_STYLES = [
   { value: "none", label: "None (plain hole)" },
@@ -393,6 +411,28 @@ function potMagnet(id, name, short, d, h, nominal) {
   };
 }
 
+// A MagSafe insert's pocket (screwHoles.js's kind "magsafe"). Every field
+// is set whichever the insert, so normalizeSpec() keeps the preset as it
+// is; a ring's cable fields are the puck's, unused.
+function magsafe(id, name, short, insert, sizes) {
+  return {
+    id,
+    name,
+    short,
+    group: "MagSafe",
+    spec: { kind: "magsafe", insert, cable: 5, cableLength: 30, spin: 0, ...sizes },
+    screw: { style: "magsafe" },
+  };
+}
+
+// The sidebar's insert choice, and the preset whose sizes a hole takes
+// when it is switched to that insert: a charger's pocket is no size for a
+// ring.
+export const MAGSAFE_INSERT_OPTIONS = [
+  { value: "puck", label: "Charger puck", presetId: "magsafe-puck" },
+  { value: "ring", label: "Metal or magnet ring", presetId: "magsafe-ring-56" },
+];
+
 // A Skådis slot, upright: a 5 × 15 mm pill, 0.2 mm over across.
 function skadis(id, name, short) {
   const width = 5.2;
@@ -594,6 +634,21 @@ export const SCREW_PRESETS = [
   pocket("magnet-pot-25x4-5", "25 × 4.5 mm pot magnet", "Pot 25", 25, 4.5),
   potMagnet("magnet-pot-25x4-5-m4", "25 × 4.5 mm pot magnet, M4 screw through", "Pot 25 M4", 25, 4.5, 4),
   pocket("bearing-608", "608 bearing (22 × 7 mm)", "608", 22, 7),
+  magsafe("magsafe-puck", "MagSafe charger puck, with its cable channel", "Puck", "puck", {
+    diameter: 56.3,
+    innerDiameter: 45.8,
+    depth: 5.5,
+  }),
+  magsafe("magsafe-ring-56", "MagSafe metal ring, 56 × 46 × 1 mm", "Ring 56", "ring", {
+    diameter: 56.2,
+    innerDiameter: 45.8,
+    depth: 1.2,
+  }),
+  magsafe("magsafe-ring-55", "MagSafe ring sticker, 55 × 45 × 0.55 mm", "Ring 55", "ring", {
+    diameter: 55.2,
+    innerDiameter: 44.8,
+    depth: 0.8,
+  }),
   klippt("klippt-pocket", "KLIPPT channel, drop-in pocket", "Pocket", true),
   klippt("klippt-open", "KLIPPT channel, open end", "Run-out", false),
   {

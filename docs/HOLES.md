@@ -25,8 +25,8 @@ countersink (with its angle), or a hex pocket for a nut trap — from a preset o
 presets cover the usual suspects, each drawn as a cross-section so you can see what it cuts:
 M2–M6 socket caps (ISO 4762), M3–M6 countersunk (ISO 10642), button heads (ISO 7380), heat-set
 insert bores, thread-forming core holes for a machine screw straight into plastic, nut traps
-(ISO 4032), wood screws and their pilots, a plain hole, a dowel, and a **BitBeam / LEGO Technic
-pin hole** — a beam's own hole (Ø4.8 with the groove a pin's tip clicks into, `lib/pinhole.scad`,
+(ISO 4032), wood screws and their pilots, a plain hole, a dowel, MagSafe charger and ring pockets,
+and a **BitBeam / LEGO Technic pin hole** — a beam's own hole (Ø4.8 with the groove a pin's tip clicks into, `lib/pinhole.scad`,
 checked against bitbeam-lib's beam), one beam (8 mm) deep with a groove at its bottom too, or through. Clearances are ISO 273 medium;
 treat every one as a starting point for your printer and measure the first print. The presets are
 grouped by kind under headings that open and close (closed but for the group of the preset in use,
@@ -148,6 +148,20 @@ The **Magnets & bearings** presets are round pockets for 6×2, 8×3 and 10×3 mm
 25×4.5 mm pot magnet and a 608 bearing, each 0.2 mm over in diameter and depth. The pot magnet
 also comes with an M4 clearance hole through the pocket's floor, for the screw through its
 countersunk centre.
+
+The **MagSafe** presets make any face hold a phone. **MagSafe charger puck** is a pocket Apple's
+MagSafe charger sits in flush (Ø56.3 × 5.5 mm: the 15 W puck's 55.92 × 5.29 mm, 0.4 mm over across
+so it lifts out again; the slimmer 25 W puck sits a little lower in it), with a channel for the
+cable, which leaves the puck's rim at its back: 5 mm wide, as deep as the pocket and running 30 mm
+past the rim, the way the arrow points — turn it towards the edge the cable should leave by, and
+check the width against your cable's strain relief. **MagSafe metal ring** (56 × 46 × 1 mm) and
+**MagSafe ring sticker** (55 × 45 × 0.55 mm) are grooves for the rings sold to make a case
+MagSafe-compatible, with the middle left standing; glue or press the ring in and a MagSafe phone
+or case holds on to the part. Each is 0.2 mm over across (the middle 0.2 under) and 0.2 mm deeper,
+as the magnet pockets are. The **Insert** menu switches a pocket between puck and ring, bringing
+that insert's usual size along; a ring's inner diameter of 0 cuts the whole disc, for a steel
+disc. Magnet rings come in the same outlines, 1.5 or 2.5 mm thick: set the depth to match.
+`magsafe/mount` is the same pocket on a round plate of its own.
 
 Two print options go on the holes they make sense for. **Chamfer** (round, rectangle and 2020
 cutouts) bevels the opening at 45°, as a lead-in and to absorb the flared first layers of a hole

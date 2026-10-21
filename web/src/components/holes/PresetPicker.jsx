@@ -141,6 +141,10 @@ function describe(spec) {
     return `KLIPPT clip channel: slides onto a KLIPPT base; ${spec.pocket ? "a drop-in pocket at the entry" : `open, ${spec.runout} mm lead-in`}, ${spec.clearance} mm clearance a side`;
   if (spec.kind === "deckmate")
     return `A DeckMate Innie's own socket, cut into the part: a DeckMate Outie pushes in and slides along to seat, as in an Innie; the floor ${spec.extraDepth} mm deeper than an Innie's`;
+  if (spec.kind === "magsafe")
+    return spec.insert === "ring"
+      ? `Pocket for a MagSafe metal or magnet ring: Ø${spec.diameter} mm, the middle standing Ø${spec.innerDiameter} mm, ${spec.depth} mm deep`
+      : `Pocket for Apple's MagSafe charger: Ø${spec.diameter} mm, ${spec.depth} mm deep, with a ${spec.cable} mm channel for its cable`;
   if (spec.kind === "pinhole")
     return `BitBeam pin hole: Ø4.8 with the groove a Technic pin clicks into, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
   if (spec.kind === "cylinder")
