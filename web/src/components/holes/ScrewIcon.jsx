@@ -27,6 +27,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
   if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "klippt") return <KlipptIcon title={title} className={className} />;
   if (spec.kind === "deckmate") return <DeckMateIcon title={title} className={className} />;
+  if (spec.kind === "magsafe") return <MagSafeIcon spec={spec} title={title} className={className} />;
   const s = scaleFor(spec, screw);
   const px = (mm) => mm * s;
   const shankW = px(spec.diameter);
@@ -704,6 +705,50 @@ function DeckMateIcon({ title, className }) {
         <polygon points={at(rail)} />
         <rect x={CX - 13.25 * s} y={SURFACE_Y - 7} width={26.5 * s} height={7} rx="0.8" />
       </g>
+    </svg>
+  );
+}
+
+// A MagSafe pocket in section, through its centre: a charger puck seated
+// flush in its pocket, or a ring's two sides each in its own groove with
+// the middle standing between them. Drawn to a fixed scale (the inserts
+// are all about 56 mm across), the depth stretched to show.
+function MagSafeIcon({ spec, title, className }) {
+  const s = 40 / 56;
+  const outer = Math.min(spec.diameter, 60) * s;
+  const ring = spec.insert === "ring";
+  // A ring's 1 mm and a puck's 5.5 mm, both kept visible.
+  const depth = ring ? 6 : 9;
+  const inner = ring && spec.innerDiameter > 0 ? Math.min(spec.innerDiameter * s, outer - 4) : 0;
+  const cut = [rect(CX - outer / 2, SURFACE_Y - 1, outer, depth + 1)];
+  // The insert, a hair inside its pocket: the puck with its domed top
+  // flat at the surface, or the ring's two sides.
+  const insert = ring
+    ? [
+        rect(CX - outer / 2 + 0.6, SURFACE_Y + 0.6, (outer - inner) / 2 - 1.2, depth - 1.2, { rx: 0.4 }),
+        rect(CX + inner / 2 + 0.6, SURFACE_Y + 0.6, (outer - inner) / 2 - 1.2, depth - 1.2, { rx: 0.4 }),
+      ]
+    : [rect(CX - outer / 2 + 0.8, SURFACE_Y, outer - 1.6, depth - 0.8, { rx: 1.5 })];
+  return (
+    <svg
+      className={className ? `screw-icon ${className}` : "screw-icon"}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={SIZE}
+      height={SIZE}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : "true"}
+      focusable="false"
+    >
+      {title && <title>{title}</title>}
+      <g className="screw-icon-material">
+        <rect x="2" y={SURFACE_Y} width={SIZE - 4} height={BOTTOM_Y - SURFACE_Y} rx="1.5" />
+      </g>
+      <g className="screw-icon-cut">{cut}</g>
+      {/* The middle a ring's groove leaves standing, back up to the surface. */}
+      {inner > 0 && (
+        <g className="screw-icon-material">{rect(CX - inner / 2, SURFACE_Y - 1, inner, depth + 1)}</g>
+      )}
+      <g className="screw-icon-fastener">{insert}</g>
     </svg>
   );
 }

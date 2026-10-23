@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { HEAD_STYLES, LOCK_SIDES } from "../../lib/screwPresets.js";
+import { HEAD_STYLES, LOCK_SIDES, MAGSAFE_INSERT_OPTIONS, getPreset } from "../../lib/screwPresets.js";
 import { DECKMATE, EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
@@ -16,7 +16,9 @@ import RotationInput from "../RotationInput.jsx";
 // (up to a pill) and which way it is turned. For a 2020 socket: how far
 // the rail goes in, the clearance, the keys and which way it is turned.
 // For a DeckMate socket: how much deeper than the Innie, and which way
-// it is turned.
+// it is turned. For a MagSafe pocket: the insert (a charger puck or a
+// ring), its size and depth, and a puck's cable channel and the way it
+// runs.
 //
 // One component for the "new holes" spec, a selected hole's own, and
 // several selected holes at once:
@@ -80,17 +82,19 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
-    spec.kind === "deckmate"
-      ? "Which way the Outie slides to seat once it is pushed in. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
-      : spec.kind === "klippt"
-        ? "Which way the base slides in to seat. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
-        : spec.kind === "extrusion"
-          ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
-          : spec.kind === "rectangle"
-            ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
-            : spec.kind === "thread"
-              ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
-              : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
+    spec.kind === "magsafe"
+      ? "Which way the cable channel runs out of the pocket — towards the edge the cable should leave by. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+      : spec.kind === "deckmate"
+        ? "Which way the Outie slides to seat once it is pushed in. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+        : spec.kind === "klippt"
+          ? "Which way the base slides in to seat. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+          : spec.kind === "extrusion"
+            ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
+            : spec.kind === "rectangle"
+              ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
+              : spec.kind === "thread"
+                ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+                : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
     <label className="field holes-direction-field" htmlFor={`${id}-spin`} title={spinTitle}>
       <span className="field-label">Direction (°)</span>
@@ -409,6 +413,95 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     );
   }
 
+  if (spec.kind === "magsafe") {
+    const insertMixed = isMixed("insert");
+    const puck = !insertMixed && spec.insert === "puck";
+    const ring = !insertMixed && spec.insert === "ring";
+    // A switch of insert brings that insert's sizes along (its first
+    // preset's): a charger puck's pocket is no size for a ring.
+    const setInsert = (insert) => {
+      const option = MAGSAFE_INSERT_OPTIONS.find((o) => o.value === insert);
+      const sizes = option && getPreset(option.presetId)?.spec;
+      set(
+        sizes
+          ? { insert, diameter: sizes.diameter, innerDiameter: sizes.innerDiameter, depth: sizes.depth }
+          : { insert },
+      );
+    };
+    return (
+      <div className="holes-spec">
+        <label
+          className="field"
+          htmlFor={`${id}-insert`}
+          title="What goes in the pocket: Apple's MagSafe charger, its cable run out through a channel, or a metal or magnet ring that a MagSafe phone or case holds on to. Switching takes that insert's usual size."
+        >
+          <span className="field-label">Insert</span>
+          <MixedSelect
+            id={`${id}-insert`}
+            value={spec.insert}
+            mixed={insertMixed}
+            options={MAGSAFE_INSERT_OPTIONS}
+            onChange={setInsert}
+          />
+        </label>
+        <div className="holes-spec-grid">
+          <label
+            className="field"
+            htmlFor={`${id}-ms-d`}
+            title="The pocket across: the insert's own size plus the fit (a little more for a charger that comes out again)."
+          >
+            <span className="field-label">Diameter (mm)</span>
+            <DecimalInput id={`${id}-ms-d`} min="0.1" step="0.1" {...numberProps("diameter")} />
+          </label>
+          {ring && (
+            <label
+              className="field"
+              htmlFor={`${id}-ms-id`}
+              title="The middle left standing inside the ring: its inside diameter, less the fit. 0 cuts the whole disc, for a steel disc."
+            >
+              <span className="field-label">Inner diameter (mm)</span>
+              <DecimalInput id={`${id}-ms-id`} min="0" step="0.1" {...numberProps("innerDiameter")} />
+            </label>
+          )}
+          <label
+            className="field"
+            htmlFor={`${id}-ms-depth`}
+            title="How deep the pocket goes: the insert's thickness and a little, so it sits flush or a hair below."
+          >
+            <span className="field-label">Depth (mm)</span>
+            <DecimalInput id={`${id}-ms-depth`} min="0.1" step="0.1" {...numberProps("depth")} />
+          </label>
+          {puck && (
+            <label
+              className="field"
+              htmlFor={`${id}-ms-cable`}
+              title="The cable channel's width, as deep as the pocket: wide enough for the cable where it leaves the puck. 0 for none."
+            >
+              <span className="field-label">Cable channel (mm)</span>
+              <DecimalInput id={`${id}-ms-cable`} min="0" step="0.5" {...numberProps("cable")} />
+            </label>
+          )}
+          {puck && (
+            <label
+              className="field"
+              htmlFor={`${id}-ms-run`}
+              title="How far the channel runs on past the pocket's rim — far enough to leave the part's edge."
+            >
+              <span className="field-label">Channel length (mm)</span>
+              <DecimalInput id={`${id}-ms-run`} min="0" step="1" {...numberProps("cableLength")} />
+            </label>
+          )}
+        </div>
+        {puck && spinField}
+        <p className="muted holes-params-note">
+          {ring
+            ? "A pocket for a MagSafe metal or magnet ring, glued or pressed in flush, the middle left standing: a MagSafe phone or case then holds on to the part. The point you click is the ring's centre."
+            : "A pocket Apple's MagSafe charger sits in, flush with the face, so a phone charges on the part. The point you click is the puck's centre; the arrow is the way the cable channel runs — point it at an edge, and make it long enough to leave the part."}
+        </p>
+      </div>
+    );
+  }
+
   if (spec.kind === "pinhole") {
     return (
       <div className="holes-spec">
@@ -604,6 +697,7 @@ function directionName(kind, count) {
     extrusion: ["socket", "sockets"],
     klippt: ["channel", "channels"],
     deckmate: ["socket", "sockets"],
+    magsafe: ["cable channel", "cable channels"],
   }[kind] ?? ["slot", "slots"];
   return count > 1 ? `the ${count} ${many}` : `the ${one}`;
 }

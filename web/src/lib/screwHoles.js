@@ -118,6 +118,21 @@
 //   teardrop   on a wall, the bolt hole cut as a teardrop pointing up
 //   spin       which way the square is turned on its face, as for a slot
 //
+// "magsafe" — a pocket for a MagSafe insert (no library: two cylinders
+// and a box). The point is the insert's centre.
+//   insert         "puck": a charger puck's pocket, with a channel for its
+//                  cable, which leaves the puck's rim at its back (the
+//                  pocket's floor) | "ring": an annulus for a metal or
+//                  magnet ring, the middle left standing
+//   diameter       the pocket's outside diameter, mm
+//   innerDiameter  a ring's: the standing middle's diameter (0 cuts the
+//                  whole disc, for a steel disc)
+//   depth          how deep the pocket goes (never through: the insert
+//                  would have nothing to sit on)
+//   cable          a puck's cable channel width, mm; 0 = none
+//   cableLength    how far the channel runs on past the pocket's rim
+//   spin           which way the cable channel runs (a puck's only)
+//
 // The slots and the thread are the openGrid connector cuts
 // (isConnector()): all three come from this repo's libraries and have a
 // direction on their face. A rectangle and a 2020 socket have a
@@ -155,7 +170,9 @@ export const HOLE_KINDS = [
   "pinhole",
   "klippt",
   "deckmate",
+  "magsafe",
 ];
+export const MAGSAFE_INSERTS = ["puck", "ring"];
 export const LOCK_SIDES = ["left", "right", "both", "none"];
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -221,6 +238,21 @@ export const DECKMATE = Object.freeze({
   extraDepth: 0.3,
 });
 
+// A MagSafe pocket's defaults: what a hole of kind "magsafe" with fields
+// missing gets — the charger puck preset's (screwPresets.js has the
+// sizes and where they come from) and a 56 x 46 ring's middle.
+export const MAGSAFE = Object.freeze({
+  diameter: 56.3,
+  innerDiameter: 45.8,
+  depth: 5.5,
+  cable: 5,
+  cableLength: 30,
+});
+// Facets on a MagSafe pocket's circles: at 56 mm across, ROUND_FN's 64
+// leaves the flats 0.03 mm inside the circle, a tenth of the fit a
+// pressed-in ring has; 128 brings it under 0.01.
+const MAGSAFE_FN = 128;
+
 // A BitBeam pin hole's numbers (lib/constants.scad's BITBEAM_HOLE_DIA and
 // BITBEAM_UNIT, lib/pinhole.scad's groove), for the viewer and the icon.
 export const PINHOLE = Object.freeze({ diameter: 4.8, grooveDiameter: 5, unit: 8 });
@@ -267,7 +299,17 @@ export function isConnector(spec) {
 // a 2020 socket. What the quarter-turn buttons turn and a flip turns
 // over with the part.
 export function hasDirection(spec) {
-  return isConnector(spec) || ["rectangle", "extrusion", "klippt", "deckmate"].includes(spec?.kind);
+  return (
+    isConnector(spec) ||
+    ["rectangle", "extrusion", "klippt", "deckmate"].includes(spec?.kind) ||
+    isMagSafePuck(spec)
+  );
+}
+
+// A MagSafe pocket for a charger puck: the one with a cable channel, and
+// so a direction (a ring's pocket is round all the way).
+export function isMagSafePuck(spec) {
+  return spec?.kind === "magsafe" && spec.insert === "puck";
 }
 
 // A rectangle's corner radius as cut: never more than half its narrower
@@ -346,6 +388,20 @@ export function normalizeSpec(spec) {
       extraDepth: Math.min(2, n(spec?.extraDepth, DECKMATE.extraDepth)),
       spin: normalizeSpin(spec?.spin),
     };
+  if (kind === "magsafe") {
+    // Every field whichever the insert, so switching a hole from puck to
+    // ring and back keeps the other's numbers.
+    return {
+      kind,
+      insert: MAGSAFE_INSERTS.includes(spec?.insert) ? spec.insert : "puck",
+      diameter: Math.max(0.1, n(spec?.diameter, MAGSAFE.diameter)),
+      innerDiameter: n(spec?.innerDiameter, MAGSAFE.innerDiameter),
+      depth: Math.max(0.1, n(spec?.depth, MAGSAFE.depth)),
+      cable: n(spec?.cable, MAGSAFE.cable),
+      cableLength: n(spec?.cableLength, MAGSAFE.cableLength),
+      spin: normalizeSpin(spec?.spin),
+    };
+  }
   if (kind === "pinhole") {
     return {
       kind,
@@ -761,6 +817,8 @@ export function holeFootprintRadius(spec) {
   // The seated base's neck: the outline shows the rest.
   if (spec.kind === "klippt") return 9;
   if (spec.kind === "deckmate") return DECKMATE.half;
+  // The pocket: a puck's cable channel shows in its outline.
+  if (spec.kind === "magsafe") return spec.diameter / 2;
   if (spec.kind === "extrusion") return EXTRUSION.profile / 2 + spec.clearance;
   return Math.max(spec.diameter, spec.headDiameter) / 2;
 }
@@ -783,7 +841,7 @@ const FLOOR_BELOW_MM = 0.01;
  */
 export function holeAtSpot(hole, point, normal) {
   if (distance(hole.point, point) >= Math.max(1, holeFootprintRadius(hole.spec))) return false;
-  if (!normal || (hole.spec.kind !== "rectangle" && hole.spec.kind !== "cylinder")) return true;
+  if (!normal || !["rectangle", "cylinder", "magsafe"].includes(hole.spec.kind)) return true;
   const n = unit(hole.normal);
   const below = -dot([point[0] - hole.point[0], point[1] - hole.point[1], point[2] - hole.point[2]], n);
   return !(dot(unit(normal), n) > 0.999 && below > FLOOR_BELOW_MM);
@@ -909,6 +967,7 @@ export function holeLabel(hole, presetName = null) {
   if (s.kind === "klippt")
     return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "deckmate") return `DeckMate socket${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+  if (s.kind === "magsafe") return magSafeLabel(s);
   if (s.kind === "extrusion")
     return `2020 socket ${depth}${s.keys ? ", keyed" : ""}${hasBolt(s) ? ", M5 bolt" : ""}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   if (s.kind === "rectangle") {
@@ -927,6 +986,26 @@ export function holeLabel(hole, presetName = null) {
   return parts.join(" ");
 }
 
+// "MagSafe puck Ø56.3 × 5.5, 5 mm cable channel" / "MagSafe ring
+// Ø56.2/45.8 × 1.2".
+function magSafeLabel(s) {
+  if (s.insert === "ring") {
+    const size =
+      s.innerDiameter > 0 ? `Ø${fmt(s.diameter)}/${fmt(s.innerDiameter)}` : `disc Ø${fmt(s.diameter)}`;
+    return `MagSafe ring ${size} × ${fmt(s.depth)}`;
+  }
+  const bits = [`MagSafe puck Ø${fmt(s.diameter)} × ${fmt(s.depth)}`];
+  bits.push(magSafeChannel(s) ? `${fmt(s.cable)} mm cable channel` : "no cable channel");
+  if (s.spin) bits.push(`${fmt(s.spin)}°`);
+  return bits.join(", ");
+}
+
+// Whether a MagSafe puck's pocket gets its cable channel: it needs a
+// width and some length past the rim.
+function magSafeChannel(s) {
+  return s.cable > 0 && s.cableLength > 0;
+}
+
 // "12.0, -3.5, 4.0" — a hole's position for the sidebar (which puts it in
 // brackets), to a tenth of a millimetre, with -0 shown as 0 (a snapped
 // coordinate can come out as a negative zero).
@@ -942,6 +1021,7 @@ export function holeMeta(hole) {
   if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion")
     return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s) || s.kind === "klippt" || s.kind === "deckmate") return `turned ${fmt(s.spin)}°`;
+  if (isMagSafePuck(s)) return `${fmt(s.depth)} mm deep, turned ${fmt(s.spin)}°`;
   return s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through";
 }
 
@@ -997,6 +1077,27 @@ export function cutterLines(hole, throughLength, extents = null) {
   } else if (s.kind === "deckmate") {
     body.push(`deckmate_socket(extra_depth = ${fmt(s.extraDepth)}, overshoot = ${fmt(OVERSHOOT_MM)});`);
     m = slotFrameMatrix(hole);
+  } else if (s.kind === "magsafe") {
+    const fn = `$fn = ${MAGSAFE_FN}`;
+    const pocket = `cylinder(d = ${fmt(s.diameter)}, h = ${fmt(s.depth + OVERSHOOT_MM)}, ${fn});`;
+    if (s.insert === "ring" && s.innerDiameter > 0) {
+      // The middle is cut from below the floor to above the overshoot,
+      // so it stands whole, up to the surface.
+      body.push(
+        `translate([0, 0, ${fmt(-s.depth)}]) difference() {`,
+        `    ${pocket}`,
+        `    translate([0, 0, -1]) cylinder(d = ${fmt(s.innerDiameter)}, h = ${fmt(s.depth + OVERSHOOT_MM + 2)}, ${fn});`,
+        "}",
+      );
+    } else body.push(`translate([0, 0, ${fmt(-s.depth)}]) ${pocket}`);
+    // The cable channel along the frame's +Y, from the centre to its
+    // length past the rim, as deep as the pocket: the cable leaves the
+    // puck at its back, on the pocket's floor, and is laid in from above.
+    if (isMagSafePuck(s) && magSafeChannel(s))
+      body.push(
+        `translate([${fmt(-s.cable / 2)}, 0, ${fmt(-s.depth)}]) cube([${fmt(s.cable)}, ${fmt(s.diameter / 2 + s.cableLength)}, ${fmt(s.depth + OVERSHOOT_MM)}]);`,
+      );
+    m = isMagSafePuck(s) ? slotFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
   } else if (s.kind === "pinhole") {
     // Blind: a groove at the bottom as well as the entry, as a beam's
     // far face has. A teardrop points along the upright frame's +Y.
@@ -1312,6 +1413,30 @@ export function slotOutline(hole) {
           ];
     const half = points.length / 2;
     loop([...notch(1), ...points.slice(0, half), ...notch(-1), ...points.slice(half)]);
+    polyline([
+      [0, -3],
+      [0, 5],
+    ]);
+    polyline([
+      [-1.8, 3.2],
+      [0, 5],
+      [1.8, 3.2],
+    ]);
+    return segments;
+  }
+  if (s.kind === "magsafe") {
+    // The pocket's rim, broken where the cable channel leaves it, the
+    // channel out to its end, and the arrow the way it runs.
+    const r = s.diameter / 2;
+    if (!magSafeChannel(s)) loop(arc(0, 0, r, 0, 2 * Math.PI, 64).slice(0, -1));
+    else {
+      const w = Math.min(s.cable / 2, r);
+      const gap = Math.asin(w / r);
+      const end = r + s.cableLength;
+      // The arc runs from the channel's left side at the rim, round, to
+      // its right side; the loop closes back down the left.
+      loop([...arc(0, 0, r, Math.PI / 2 + gap, (5 * Math.PI) / 2 - gap, 64), [w, end], [-w, end]]);
+    }
     polyline([
       [0, -3],
       [0, 5],
