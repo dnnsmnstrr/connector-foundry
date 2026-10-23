@@ -24,6 +24,11 @@ running in a Web Worker.
    A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
    under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
    relative `import()` resolves in the browser exactly as it does on disk.
+   The sources go in without their comments (`stripForBundle()`, a scanner that knows string
+   literals): comments were 2.1 of the 3.6 MB of `.scad` text, so the bundle is 2.8 MB instead of
+   4.8 (0.72 MB gzipped instead of 1.21). A comment leaves the newlines it spanned, so an OpenSCAD
+   message still names the repository's line, and each file's leading comment block — an upstream's
+   copyright and licence notice — stays.
 2. `src/hooks/useCatalogue.js` reads `catalogue.json` (the parsed `catalogue.yaml`) for the part list, default parameters, and
    confidence labels; `src/Library.jsx` renders a picker + parameter form from it — same schema
    the CLI reads.
@@ -37,10 +42,12 @@ running in a Web Worker.
 4. The resulting STL bytes — binary STL, a fifth the size of OpenSCAD's default ASCII export and
    far quicker to parse — come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
-5. `src/lib/openscad-client.js` keeps each result for five minutes, keyed on the exact
-   (file, module, parameters) triple, so switching back to a part — or to parameters tried a
-   moment ago — is instant instead of a fresh multi-second compile. Stale entries are dropped,
-   and the cache is capped at 64 MB of meshes.
+5. `src/lib/openscad-client.js` keeps each result, keyed on the exact (file, module, parameters)
+   triple, so switching back to a part — or to parameters tried a moment ago — is instant instead
+   of a fresh multi-second compile. The cache is capped at 64 MB of meshes (32 MB where the browser
+   reports 4 GB of memory or less), least recently used first, and by nothing else: a five-minute
+   expiry once threw away work that still fit, and on the Bench, where every node's own render is
+   an entry, the first edit after a pause re-rendered every node ahead of the preview.
 
 This build of `openscad-wasm` can only run `callMain` once per instance (a second call aborts
 with an opaque WASM trap), and can't run two instances concurrently either — both confirmed by
@@ -48,15 +55,20 @@ testing, not assumed. So `openscad-worker.js` spins up a fresh instance per rend
 work defensively in the worker; `openscad-client.js` now owns the cancellable FIFO
 and sends only one job at a time. Only the instance is fresh: the compiled WebAssembly module
 is reused across them (`scripts/vite-plugin-openscad-wasm-memo.mjs` — the package would otherwise
-decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). See the
-worker's header comment for the full story.
+decode and recompile its inlined 10 MB `.wasm` on every render, 40–105 ms a time). The same plugin
+cuts that `.wasm` out of the package's JavaScript, where it is a 13.8 MB base64 string, and serves
+it as an asset of its own, compiled with `WebAssembly.compileStreaming()` while it downloads: the
+worker's chunk is 67 KB instead of 13.8 MB, and the engine 3.2 MB gzipped instead of 4.5 (on a
+1.6 Mbit/s link, about 6 s sooner to a first render). See the plugin's and the worker's header
+comments for the full story.
 
-**Warm-up.** A fresh worker has to load its 13.8 MB script, fetch and decode the source bundle
-and compile the WebAssembly module before it can render anything: in headless Chromium a render
+**Warm-up.** A fresh worker has to load its script and the engine, fetch and decode the source
+bundle and compile the WebAssembly module before it can render anything: in headless Chromium a render
 posted to a fresh worker took 1040–1210 ms, the same render posted to a warmed one 495–600 ms.
 So `openscad-client.js`'s `warmRenderer()` starts a worker and sends it `{ type: "warm" }` when
 none exists and nothing is pending — once at boot (`main.jsx`, through `requestIdleCallback`
-after the first paint, or a 1.5 s timeout where there is none, i.e. Safari; not from a
+after the first paint, or a 1.5 s timeout where there is none, i.e. Safari; not with the
+browser's data saver on, where a landing on the Bench or Holes may never render; not from a
 component, where StrictMode would run it twice, and not at import, which would leak a timer into
 every unit test), and again after a stop that interrupted a render: an abort of the active job
 that nobody needs any more, or the two-minute timeout. That second warm-up is queued as a
@@ -93,6 +105,88 @@ newer `openscad-wasm` exists on npm.
 If the worker itself dies (a script error, a message that can't be deserialised), every render
 waiting on it is rejected with a message saying so and the worker is discarded, so the next
 render starts a fresh one — a request whose worker is gone would otherwise hang forever.
+
+## Phones, tablets and offline
+
+The app is meant to work on a phone or a tablet "in a pinch": find a part, size it, print it.
+
+- **Which browsers.** Safari and iOS 15.4, Chrome 93, Firefox 114, Samsung Internet 17, or newer
+  (`<dialog>`, `Array.prototype.at`, `Object.hasOwn`, module workers). Vite lowers the syntax but
+  polyfills nothing, so below that the app could only fail: `public/gate.js`, a classic ES5 script
+  `app/index.html` loads before the module (ESLint holds it to ES5), checks those and writes a
+  "this browser can't run Connector Foundry" message into `#root` instead (once `#root` is parsed),
+  also when a module fails to parse or throws while it loads — an error at the window before
+  main.jsx sets `__appStarted`. A chunk that fails to download gets "couldn't load, reload" instead,
+  and a stylesheet that does is ignored. A file in `public/`, not inline, because the desktop app's
+  CSP allows `'self'` scripts only. No regex lookbehind: esbuild can't lower it for the build's
+  target and turns it into a `new RegExp()` that Safari before 16.4 rejects as the chunk loads — it
+  blanked the app on iOS 15 and 16 until 2026-10. `tests/unit/no-lookbehind.test.js` keeps it out of
+  `src/`, and `scripts/check-dist-compat.mjs` (run after every build) out of everything built,
+  dependencies included, along with any syntax past ECMAScript 2022.
+- **The layout** (styles.css, the `max-width: 900px` blocks, browsers only — the desktop app keeps
+  its panes at any width): one scrolling column with the part header, the 3D view at 60% of the
+  viewport, the form and the part list last (the Library header's **Find a part** goes there).
+  600–900 px wide (a tablet in portrait), the Library's form sits beside its viewer. The nav and
+  the column keep clear of a notch and the home indicator (`env(safe-area-inset-*)`, since the
+  page asks for `viewport-fit=cover`); the nav keeps one row (the GitHub link goes under 480 px,
+  the render's Cancel shows a ✕ alone) and scrolls sideways before anything falls off it. The
+  viewer's toolbar fits one row (Helpers and Measure icon-only, no Grid select: Settings and the
+  palette set the same grid). The Bench and Holes show a **Print…** button over the viewer, since
+  their Export sections are far down the page.
+- **Touch** (`(pointer: coarse)` blocks, wherever the screen size): 44 px targets for every control
+  a finger uses, 16 px text in every field (iOS zooms into anything smaller), no double-tap zoom on
+  controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap.
+  In the viewer a tap that misses every slot marker picks the nearest one within 22 px
+  (`TOUCH_PICK_PX`) unless the model is in front of it, and the Holes tab's snap points take a tap
+  within 22 px (the viewer reports millimetres per pixel at the hit). What a mouse does by hovering
+  or holding a key has a touch path: Holes' **Measure** toggle (the Option-held measurements, from
+  the tapped spot or the selected hole), a long press on a hole in the list (Shift-click), Snapping
+  off (Shift-click on a face). The palette fits its dialog to the visual viewport once the on-screen
+  keyboard is up.
+- **Weak devices.** On a touch screen the viewer's framebuffer is bounded by area as well as by its
+  pixel ratio (2.2 million pixels, `MAX_TOUCH_FRAMEBUFFER_PX`: an iPad Pro's viewer was 4–5 million
+  MSAA pixels per frame of a flick); hover work runs once a frame; a WebGL context the browser
+  dropped and restored is drawn again at once. A render that runs out of memory says so
+  (`renderError.js`'s `WASM_MEMORY_SYMPTOMS`). With the browser's data saver on (Chromium), the
+  engine is not warmed up ahead of the first render.
+- **The service worker** (`src/sw.js`, emitted as `sw.js` at the base by
+  `scripts/vite-plugin-sw.mjs`, registered by `main.jsx` in a production build over https or on
+  localhost, never under the desktop app's `foundry://`). Its scope is the whole site, not `app/`:
+  the render worker is a script under `assets/`, and a dedicated worker is controlled by the
+  registration covering its own URL, so with an `app/` scope the engine and the bundle it fetches
+  went uncached (navigations outside `app/` pass through). GitHub Pages sends `max-age=600` with mtime ETags, so after every
+  deploy (fifty in a month) a returning phone downloaded the whole engine and bundle again. The
+  worker keeps, in Cache Storage: the page, network-first (current online, the last copy offline);
+  `assets/` (content-hashed) and `scad-bundle.json?v=<hash>` (`publicAsset.js` puts a hash of the
+  bundle's content in its URL, `__PUBLIC_VERSIONS__`), cache-first and never revalidated;
+  `catalogue.json` and `global-defaults.json` network-first; thumbnails, icons, the manifest and
+  `gate.js` stale-while-revalidate. Nothing is precached: the cache fills as the app is used, and a
+  part rendered once renders again offline. Each build's cache is `cf-<build id>`, and two
+  generations are kept: activating a build's worker deletes every `cf-*` cache but its own and the
+  previous one, and a miss in its own is looked up in the previous one and copied across — what a
+  deploy left unchanged is never downloaded again, and storage stays at about two builds' worth.
+  Lookups ignore `Vary` (Vite's preview varies on Origin). **Kill switch:** deploy a
+  `sw.js` whose install calls `skipWaiting()` and whose activate deletes every `cf-*` cache,
+  calls `self.registration.unregister()` and reloads its pages (`clients.matchAll()`,
+  `client.navigate(client.url)`); keep it deployed for a while, since a browser learns of it on
+  its next visit. The browser tests block service workers (`serviceWorkers: "block"`: a page a
+  worker answers bypasses `page.route()`), except `sw.spec.js`.
+- **Home screen.** `public/app/manifest.webmanifest` (relative URLs, so it works under either base)
+  and `public/icons/`, rendered from `desktop/icon.svg` by `npm run icons:web` and committed. Added
+  to the home screen, the app opens standalone.
+- **Printing from a phone** (`components/PrintSheet.jsx`, `lib/share.js`, `lib/threeMfWrite.js`):
+  Prusa's EasyPrint (printables.com/slice, and the Prusa app) slices in the cloud and prints to a
+  printer on Prusa Connect, but nothing can send it a model — no API, URL scheme, share target or
+  file-type registration; desktop PrusaSlicer's `prusaslicer://open` takes printables.com URLs only.
+  So **Print with EasyPrint…** (each tab, and the palette) hands the file to the device and opens
+  EasyPrint with a second tap: `share()` and `window.open()` each need and consume the tap's
+  activation (5 s in both engines), so the file's bytes are in hand before its button is enabled,
+  and a 3MF is written on the tap, synchronously. Chromium's share sheet refuses model files
+  (`share()` rejects `.stl` and `.3mf` although `canShare()` says yes: its allowlist,
+  `CHROMIUM_SHARE_EXTENSIONS`), so where `navigator.userAgentData` exists the button is a download;
+  Safari's takes them. The 3MF (core spec, millimetres, one object per body) is welded exactly from
+  the STL and zipped with three.js's fflate: a fifth of the STL's size, and on the Bench every body
+  in one file. **Send this bench to another device** shares (or copies) the bench's link.
 
 ## The website: landing page, app and guides
 
@@ -168,21 +262,21 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `desktop/mcp.cjs`, `mcp-server.cjs`, `preload.cjs`; `src/lib/desktopBridge.js`, `hooks/useDesktopMcp.js`, `components/McpSettings.jsx` | Coding agents in the desktop app (see the Shell section): the MCP server (plain Node, Node-tested), its Settings switch and the window's tool calls in the main process, the preload's `window.foundryDesktop`; on the page, the bridge's types with the Claude Code command and JSON config it copies, the live status, and Settings → Coding agents |
 | `src/hooks/useRenderActivity.js`, `components/RenderActivity.jsx` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map), and the nav's "Rendering…" status and **Cancel renders** button built on it — a component of its own, so a render starting or finishing re-renders those two elements rather than App and the whole active mode |
 | `src/lib/shortcuts.js`, `components/ShortcutsModal.jsx` | The keyboard-shortcuts sheet (`?`): every key, pointer gesture and the mouse/touch map as one table, with each platform's modifier names, checked by a unit test — a change to a key is a change to its row here |
-| `src/lib/isEditableTarget.js` | The shortcut guards: `ignoresShortcut()` for single keys, `undoShortcut()` / `ignoresUndoShortcut()` for Cmd/Ctrl+Z, `pickerUndoKey()` for a part picker's search, `paletteShortcut()` for Mod+K and `ignoresHotkey()` for a user's hotkeys (see the Shell section) |
+| `src/lib/isEditableTarget.js` | The shortcut guards: `ignoresShortcut()` for single keys, `undoShortcut()` / `ignoresUndoShortcut()` for Cmd/Ctrl+Z, `pickerUndoKey()` for a part picker's search, `paletteShortcut()` for Mod+K and `ignoresHotkey()` for a user's hotkeys (see the Shell section); `hasCoarsePointer()`, for the JSX that has to agree with the stylesheet's `(pointer: coarse)` rules |
 | `src/lib/history.js` | The undo/redo engine behind all three tabs: a stack of immutable snapshots, coalescing by key (a run of keystrokes in one field is one step), and a cached state for `useSyncExternalStore` |
 | `src/lib/librarySession.js`, `hooks/useLibraryHistory.js`, `useBenchHistory.js`, `useHolesHistory.js` | The Library's undo history as module state (the Library unmounts on every mode switch; the Bench's and Holes' histories live in their own sessions), and each tab's history state — can undo, can redo, the steps' labels — for its buttons |
 | `src/hooks/useUndoShortcuts.js`, `components/UndoRedoButtons.jsx` | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z and Ctrl+Y for the mounted tab (a part picker's search hands them to its tab itself, see the Shell section); the Undo/Redo icon pair every viewer toolbar and the empty Bench and Holes tabs show, its tooltip naming the step ("Undo resize W (⌘Z)") |
 | `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
 | `src/Library.jsx`, `src/Bench.jsx`, `src/Holes.jsx` | The three modes — see the sections below |
 | `src/hooks/useRender.js` | The preview render all three modes share: give it a key (a memoised object of the inputs, or null for nothing) and a `run(key, signal)`; it debounces, cancels the render for a replaced key through its `AbortSignal`, drops results that land after their key was replaced, and returns `{ result, key, status, error, setError, retry }` — `key` being the request the shown result came from, so a caller can tell a stale mesh from the current one (Library's download button, Holes' surface clicks) |
-| `src/lib/renderError.js` | `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change |
+| `src/lib/renderError.js` | `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change, and a render that ran out of the browser's memory (`WASM_MEMORY_SYMPTOMS`, checked after them) into one saying so |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, the Library's sidebar (the Bench's and Holes' pickers are command palette pages built from the same `catalogueUtils.js`'s `partSections()`); headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/StlViewer.jsx` | The three.js viewer every mode uses: the model, markers, guides, labels, the floating overlay, the resize handles and their ghost, the toolbar and the camera — see "3D viewer" below |
-| `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views, Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
+| `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views (`presetViewFitting()` backs them out to fit a narrow viewer), Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench root): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
-| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
+| `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus, or toggled by a tap or a click until a tap elsewhere or Escape (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/lib/benchResize.js` | The Bench root's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, and whether a node's measured extents still belong to its parameters |
@@ -198,10 +292,14 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
-| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker |
+| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker |
+| `src/lib/share.js` | Handing a file or a link to the device (see "Phones, tablets and offline"): `canShareFile()` (Chromium's share allowlist, which `canShare()` ignores), `shareOrDownload()`, `shareOrCopyLink()`, and EasyPrint's link and steps as data |
+| `src/lib/threeMfWrite.js` | 3MF export: `indexedFromStl()` welds a binary STL exactly, `write3mf()` writes core-spec 3MF (millimetres, one object per body) zipped with three.js's fflate, `stlBodiesTo3mf()` both |
+| `src/components/PrintSheet.jsx` | "Print with EasyPrint…": a row per body (Share/Download STL, 3MF), every body in one 3MF on the Bench, Open EasyPrint, the steps |
+| `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
-| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets, grouping/search/slugs and the system-order resolution |
+| `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets (the .scad bundle's URL with a hash of its content), grouping/search/slugs and the system-order resolution |
 | `index.html`, `src/site/landing.js`, `landing.css`, `site.css`, `common.js`, `partials/` | The website's landing page (see "The website" above): the hero's headline and pager, scroll-in, the gallery filter, the platform detection behind the download buttons; the styles every page of the site shares, and its header and footer |
 | `src/site/hero.js`, `heroPairs.js`, `heroMeshes.js`, `assets/hero-parts.bin` | The hero's 3D view: the pairs, their meshes packed small (indexed, 16-bit), and the scene that drops each attached part onto its base's slot marker, turns the pair and follows the drag |
 | `src/site/demos/` | The landing page's demos: `resize.js` (lib/resize.js on an isometric bin), `joints.js` (the five joints as cut-aways), `holes.js` (a plate's snap points and hole presets), `palette.js` (the app's commands, ranked by lib/commands.js), `terminal.js`, `gallery.js` |
@@ -413,14 +511,16 @@ screen.
   (one at the narrowest, three dragged wide), and the Bench's label/control rows wrap the control
   under its label, right-aligned. Checked by measuring every element against the sidebar's
   content box at 220–636 px in all three modes, with every section open. Hidden on narrow screens,
-  where the sidebar stacks above the workspace instead.
-- Narrow screens (`max-width: 768px` in `styles.css`): the two-column shell stacks into one
-  scrolling column — sidebar (capped at 45% of the viewport, scrolls inside itself) on top, then
-  the header, the 3D viewer at a fixed viewport fraction (the canvas sizes itself from its mount,
-  so it needs a real height), then the parameter form. The `[` shortcut hints and the "Settings"
-  word hide; `SidebarToggle` shows text instead of a chevron. A `(pointer: coarse)` block gives
-  every primary control a 44px hit area and skips `PartBrowser`'s and the command palette's
-  autofocus so the keyboard doesn't pop over the list; the palette's key hints and footer go.
+  where the sidebar stacks below the workspace, last in the column, instead.
+- Narrow screens (`max-width: 900px` in `styles.css`, browsers only): the two-column shell stacks
+  into one scrolling column — the header, the 3D viewer at a fixed viewport fraction (the canvas
+  sizes itself from its mount, so it needs a real height), the parameter form, and the sidebar
+  last, as part of the page's own scroll ("Phones, tablets and offline" above has the rest). The
+  viewer used to come after the sidebar, which put it below the fold on every phone, and a finger
+  on the canvas orbits rather than scrolls. The `[` shortcut hints and the "Settings" word hide;
+  `SidebarToggle` shows text instead of a chevron. `(pointer: coarse)` blocks give every control a
+  finger uses a 44px hit area and skip `PartBrowser`'s and the command palette's autofocus so the
+  keyboard doesn't pop over the list; the palette's key hints and footer go.
 - Switching to the Bench goes through one `switchToBench()` (the tab and the `2` shortcut alike).
   With the "Switching to the Bench opens the Library's selected part" setting on (off by default,
   `uiPrefs.js`), it seeds an *empty* Bench with Library's current part and parameters exactly as
@@ -565,10 +665,11 @@ app differs from it on purpose: its geometry is parametric, and a render takes a
   (`valueText`) after 300 ms, beside it, flipped or moved so it stays inside the viewer and off
   the other handles.
 - **The toolbar** (`.viewer-toolbar`, top right): the mode's `toolbar` (its Undo and Redo; the
-  Bench's selected-root chip), a Grid select when `gridControl` is set (Library: a part with a
+  Bench's selected-root chip; the Holes tab's Measure toggle), a Grid select when `gridControl` is set (Library: a part with a
   free length to drag; Bench: a selected root with one; Holes: always) — `uiPrefs.js`'s grid,
   shared with Settings → Editing; it gives up focus after a pick, so the next arrow key isn't
-  the select's — then Fit, View ▾ and Helpers. It wraps on a narrow viewer, and its controls are
+  the select's — then Fit, View ▾ and Helpers. It wraps on a narrow viewer (one row in the stacked
+  layout, which drops the Grid select and the labels beside icons), and its controls are
   44 px on a coarse pointer. Fit (or `f`) frames `fitBox` — the Bench's selection — or the model,
   keeping the direction the camera looks from; View ▾ has Home (the framing a new model gets),
   Top, Front and Right, and Top looks down from a hair off vertical so OrbitControls keeps +Y
@@ -729,8 +830,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   parameters" `<summary>` (a button in a summary toggles its `<details>` too, and the browser
   tests open those by their summaries). A selection made in the scene opens that node's
   parameters and scrolls them into view (`revealParams()`, finding the `<details>` by its
-  `data-node-params`; only the sidebar scrolls, so the stacked phone layout never scrolls the
-  viewer away from the tap). The same box drives `StlViewer`'s `highlightBox` outline (a
+  `data-node-params`; in the desktop layout only the sidebar scrolls, so the viewer stays put; in
+  the stacked layout the sidebar is part of the page below the viewer, and the parameters open in
+  place without scrolling the page). The same box drives `StlViewer`'s `highlightBox` outline (a
   `Box3Helper`; for a selected root with handles, the box they stand on, so outline and handles
   never disagree while a resize renders), `fitBox` (Fit and `F` frame the selection) and, for an
   attached part, via `boxTopCenter()`, the `overlayAnchor` its floating controls are pinned to —
@@ -1284,7 +1386,11 @@ The browser suite covers stale-download prevention, printer-setting changes,
 worker recovery and cancellation, export preservation during edits, Bench tab/URL
 restoration, the existing config round trip with an embedded mesh, and the resize
 handles and undo in each tab (`library-handles.spec.js`, `bench-handles.spec.js`,
-`holes.spec.js`: drags, arrow steps, the size box, Esc, the guard, touch). Every fake
+`holes.spec.js`: drags, arrow steps, the size box, Esc, the guard, touch), a phone's
+and a tablet's layout, targets and taps (`mobile.spec.js`, Chromium with touch, coarse-pointer
+media emulated), the EasyPrint sheet's download, share and palette paths (`print.spec.js`, the
+share sheet stubbed), and the service worker and the home-screen files (`sw.spec.js`, the one
+spec that allows service workers). Every fake
 Worker in it ignores the `{ type: "warm" }` message (see "Warm-up"). Most UI
 cases use a controllable worker to exercise delays and failures deterministically.
 A separate real `openscad-wasm` test checks the dimensions of Library and generated

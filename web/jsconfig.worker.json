@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["ES2023", "WebWorker"]
   },
-  "include": ["src/worker/**/*.js"]
+  "include": ["src/worker/**/*.js", "src/build-id.d.ts"]
 }

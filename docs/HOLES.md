@@ -16,9 +16,14 @@ adjustable; a plate with rounded corners gets its corner points where the sharp 
 Hovering a face also draws guide lines — its center and quarter lines, a radial from the center
 to each corner, and a circle of a radius you choose around the center: the crossings are snap
 points (a bolt circle of up to eight), and a click near a line or the circle lands on it, so a hole
-can go anywhere along the center line and still be exactly centered. Hold Option to see the
-pointed-at spot's distances to the face's edges and center, and the face's size; Shift-click places
-exactly where you click.
+can go anywhere along the center line and still be exactly centered. Hold Option (or turn on
+**Measure** in the 3D view's toolbar) to see the pointed-at spot's distances to the face's edges and
+center, and the face's size; Shift-click places exactly where you click.
+
+**On a touch screen** there is no hover and no Option key: a tap drills, and lands on a snap point or
+guide within a fingertip's reach of it; **Measure** shows the distances from the spot you tapped, or
+from the selected hole; turning **Snapping** off places freely; and pressing and holding a hole in
+the list adds it to the selection, as Shift-click does.
 
 Each hole has a diameter, a depth (or goes right through) and a head pocket — counterbore,
 countersink (with its angle), or a hex pocket for a nut trap — from a preset or typed in. The
@@ -168,4 +173,5 @@ none. Click the rail's axis; depth, through, clearance and direction are editabl
 
 Export the result as an
 STL, or as `.scad` — `difference() { part; holes }` over the same sources, so it keeps working
-with a native OpenSCAD.
+with a native OpenSCAD. **Print with EasyPrint…** shares or saves the STL (or a 3MF) and opens
+Prusa's EasyPrint, to print it from a phone ([Getting started](GETTING_STARTED.md#print-from-a-phone-with-easyprint)).

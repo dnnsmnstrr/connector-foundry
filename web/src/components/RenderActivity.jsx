@@ -22,9 +22,20 @@ export default function RenderActivity() {
         <span className="render-spinner" aria-hidden="true" />
         <span className="render-indicator-text">Rendering…</span>
       </span>
+      {/* On a phone the words would push the Settings gear off the nav
+          for the length of every render; the stacked layout shows the
+          cross alone (styles.css), the label stays for screen readers. */}
       {rendersInFlight > 0 && (
-        <button type="button" className="mode-tab" onClick={cancelRenders}>
-          Cancel renders
+        <button
+          type="button"
+          className="mode-tab render-cancel"
+          onClick={cancelRenders}
+          title="Cancel renders"
+        >
+          <span className="render-cancel-label">Cancel renders</span>
+          <span className="render-cancel-icon" aria-hidden="true">
+            ✕
+          </span>
         </button>
       )}
     </>

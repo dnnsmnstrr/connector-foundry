@@ -6,11 +6,13 @@ import globals from "globals";
 
 export default [
   {
-    // Build output and generated files; everything here is in .gitignore too.
+    // Build output and generated files; everything here is in .gitignore
+    // too, but for public/gate.js, which is linted below.
     ignores: [
       "dist/",
       "node_modules/",
-      "public/",
+      "public/**/*",
+      "!public/gate.js",
       "release/",
       "desktop/generated/",
       "docs/",
@@ -63,11 +65,13 @@ export default [
       "react/button-has-type": "error",
     },
   },
+  // `__PUBLIC_VERSIONS__` is a build-time constant (scripts/vite-plugin-sw.mjs)
+  // that the app and the worker both read; src/build-id.d.ts types it.
   // Browser code: the app itself.
   {
     files: ["src/**/*.{js,jsx}"],
-    ignores: ["src/worker/**"],
-    languageOptions: { globals: globals.browser },
+    ignores: ["src/worker/**", "src/sw.js"],
+    languageOptions: { globals: { ...globals.browser, __PUBLIC_VERSIONS__: "readonly" } },
     // Debug logging does not ship; console.warn/error are how the app
     // reports a recoverable problem (bad localStorage, a failed render).
     rules: { "no-console": ["error", { allow: ["warn", "error"] }] },
@@ -75,7 +79,23 @@ export default [
   // Web Workers: self, postMessage, importScripts, but no window or document.
   {
     files: ["src/worker/**/*.js"],
-    languageOptions: { globals: globals.worker },
+    languageOptions: { globals: { ...globals.worker, __PUBLIC_VERSIONS__: "readonly" } },
+  },
+  // The unsupported-browser gate: it has to parse on the engines it turns
+  // away, so it is held to ES5 (a trailing comma in a call, ES2017, once
+  // slipped in), and Prettier leaves it alone (.prettierignore), since it
+  // would add such commas back.
+  {
+    files: ["public/gate.js"],
+    languageOptions: { ecmaVersion: 5, sourceType: "script", globals: globals.browser },
+    // ES5 has no let or const, and a catch clause must name its error.
+    rules: { "no-var": "off", "prefer-const": "off", "no-unused-vars": ["error", { caughtErrors: "none" }] },
+  },
+  // The service worker: a classic script (no imports) with caches, clients
+  // and registration on top of the worker globals.
+  {
+    files: ["src/sw.js"],
+    languageOptions: { sourceType: "script", globals: globals.serviceworker },
   },
   // Node: build scripts, the Electron main process, and the tests.
   {

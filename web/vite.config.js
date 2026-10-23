@@ -3,13 +3,14 @@ import { defineConfig } from "vite";
 import openscadWasmMemoPlugin from "./scripts/vite-plugin-openscad-wasm-memo.mjs";
 import scadWatchPlugin from "./scripts/vite-plugin-scad-watch.mjs";
 import sitePlugin from "./scripts/vite-plugin-site.mjs";
+import serviceWorkerPlugin from "./scripts/vite-plugin-sw.mjs";
 
 // Three kinds of page: the landing page (index.html), the app
 // (app/index.html) and the guides (docs/, generated) — the site plugin
 // lists them as the build's inputs and fills in their shared parts.
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? "/connector-foundry/" : "/",
-  plugins: [react(), scadWatchPlugin(), openscadWasmMemoPlugin(), sitePlugin()],
+  plugins: [react(), scadWatchPlugin(), openscadWasmMemoPlugin(), sitePlugin(), serviceWorkerPlugin()],
   // Vite's default 5173 unless the launcher assigns a port through PORT
   // (the desktop app's preview does, when 5173 is taken by something else).
   server: { port: Number(process.env.PORT) || 5173 },

@@ -29,3 +29,16 @@ test("any other failure is shown as it is", () => {
     assert.equal(friendlyRenderError(message), message);
   }
 });
+
+test("an allocation failure says it was memory, in every engine's words", () => {
+  for (const message of [
+    "Aborted(unhandled exception: 12345,undefined). Build with -sASSERTIONS for more info.",
+    "RangeError: WebAssembly.instantiate(): Out of memory: Cannot allocate Wasm memory for new instance",
+    "Cannot enlarge memory arrays to size 2147483648 bytes",
+    "WebAssembly.Memory(): could not allocate memory",
+  ]) {
+    assert.match(friendlyRenderError(message), /ran out of memory/, message);
+  }
+  // The stack symptoms keep their own explanation, "memory" in the text or not.
+  assert.match(friendlyRenderError("memory access out of bounds"), /nests too deep/);
+});

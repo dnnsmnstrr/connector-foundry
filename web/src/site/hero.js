@@ -42,6 +42,19 @@ const PAIR_SIZE = 1.55;
 const TURN_SPEED = 0.28; // radians a second
 const CREASE_ANGLE = THREE.MathUtils.degToRad(32);
 
+// A phone or tablet: a finger rather than a mouse, and usually a weaker
+// GPU behind a denser screen. The view draws less for it: fewer pixels, a
+// cheaper shadow, and half the frames while nothing is being dragged.
+const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+// Device pixels per CSS pixel, at most. 2 keeps edges crisp on a desktop
+// display; a phone's 3x screen would shade nine times the pixels of a 1x
+// one for a view that is mostly plate, so 1.5 there.
+const PIXEL_RATIO_CAP = coarse ? 1.5 : 2;
+// And however dense the display, at most this many pixels a frame.
+const MAX_PIXELS = 1.2e6;
+// The least time between two draws of the tour (0: every frame).
+const DRAW_INTERVAL_MS = coarse ? 1000 / 30 : 0;
+
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const easeOut = (x) => 1 - (1 - x) ** 3;
 const easeInOut = (x) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2);
@@ -251,12 +264,15 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
     alpha: true,
     powerPreference: "low-power",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // The pixel ratio is set in resize(), where the canvas's size is known.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // The soft shadow samples its map many times a fragment; on a phone the
+  // plain one, from a map a quarter the size, is the same shadow at this
+  // distance for a fraction of the fill work.
+  renderer.shadowMap.type = coarse ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -273,7 +289,8 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
   const key = new THREE.DirectionalLight(0xffffff, 1.5);
   key.position.set(2.2, 5, 3.2);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
+  const shadowMapSize = coarse ? 512 : 1024;
+  key.shadow.mapSize.set(shadowMapSize, shadowMapSize);
   key.shadow.camera.left = -1.6;
   key.shadow.camera.right = 1.6;
   key.shadow.camera.top = 1.6;
@@ -314,6 +331,8 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
   let running = false;
   let visible = true;
   let last = 0;
+  let lastDrawn = 0;
+  let shownProgress = -1; // the --pair-progress the page has
   let spin = 0.6; // the turntable's own rotation
   let userYaw = 0;
   let yawVelocity = 0;
@@ -447,7 +466,13 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
     renderer.render(scene, camera);
     placeChips(entry, state);
     // The current pair's button fills up until the next pair (landing.css).
-    stage.style.setProperty("--pair-progress", autoplay ? (pairClock / PAIR_MS).toFixed(4) : "0");
+    // Written when it has moved a hundredth rather than every frame: each
+    // write is a style recalculation, and the bar is two pixels tall.
+    const pairProgress = autoplay ? pairClock / PAIR_MS : 0;
+    if (Math.abs(pairProgress - shownProgress) >= 0.01) {
+      shownProgress = pairProgress;
+      stage.style.setProperty("--pair-progress", pairProgress.toFixed(4));
+    }
   }
 
   function frame(now) {
@@ -470,7 +495,17 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
     } else if (!autoplay && pairClock < ASSEMBLED_AT) {
       pairClock = Math.min(ASSEMBLED_AT, pairClock + dt);
     }
-    draw();
+    // A phone draws the tour at most 30 times a second — it reads the same,
+    // for half the GPU time — while the clock above ran at full rate, so
+    // the pose stays on time. A drag draws every frame: the pair has to
+    // follow the finger.
+    if (dragging || now - lastDrawn >= DRAW_INTERVAL_MS) {
+      // Keep the beat, not the timestamp: a 60 Hz display's frames land
+      // every 16.7 ms, and "33.3 ms since the last draw" would wait for the
+      // third one (20 fps) more often than the second.
+      lastDrawn = now - (DRAW_INTERVAL_MS ? (now - lastDrawn) % DRAW_INTERVAL_MS : 0);
+      draw();
+    }
     requestAnimationFrame(frame);
   }
 
@@ -494,6 +529,12 @@ export async function createHero({ canvas, stage, pairs, chips, still, onPair })
     size.width = canvas.clientWidth;
     size.height = canvas.clientHeight;
     if (!size.width || !size.height) return;
+    // Device pixels per CSS pixel: the display's, under the cap, and never
+    // more than MAX_PIXELS a frame — a 620px stage on a 2x display would
+    // be 1.5 megapixels at full ratio.
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP, Math.sqrt(MAX_PIXELS / (size.width * size.height))),
+    );
     renderer.setSize(size.width, size.height, false);
     camera.aspect = size.width / size.height;
     camera.updateProjectionMatrix();

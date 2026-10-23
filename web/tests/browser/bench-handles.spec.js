@@ -435,13 +435,14 @@ test("a size that fails to render offers its Undo by the error", async ({ page }
   await openBench(page, plateConfig);
   await selectRoot(page).click();
   await widthHandle(page).focus();
-  // A keyboard step waits out the debounce, then the root's own render
-  // and the assembly's, one after the other.
+  // A keyboard step waits out the debounce, then the assembly's render and
+  // the root's own, one after the other (the preview first: Bench.jsx's
+  // extents effect).
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => jobCount(page)).toBe(3);
-  await finish(page, 2);
+  await finish(page, 2, "Assertion failed: too wide");
   await expect.poll(() => jobCount(page)).toBe(4);
-  await finish(page, 3, "Assertion failed: too wide");
+  await finish(page, 3);
 
   const alert = page.locator(".bench-error");
   await expect(alert).toContainText("Couldn't render that size.");
@@ -512,9 +513,9 @@ test("the error's Undo is the resize's only while the failed bench is the one it
   await widthHandle(page, "cells_x").focus();
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => jobCount(page)).toBe(4);
-  await finish(page, 3);
+  await finish(page, 3, "Assertion failed: too wide");
   await expect.poll(() => jobCount(page)).toBe(5);
-  await finish(page, 4, "Assertion failed: too wide");
+  await finish(page, 4);
   const alert = page.locator(".bench-error");
   await expect(alert.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
 

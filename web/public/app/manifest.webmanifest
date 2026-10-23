@@ -1,0 +1,15 @@
+{
+  "name": "Connector Foundry",
+  "short_name": "Foundry",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#17181b",
+  "theme_color": "#17181b",
+  "description": "Pick a 3D-printable connector part, tweak its parameters, and export an STL — rendered in the browser with OpenSCAD.",
+  "icons": [
+    { "src": "../icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "../icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

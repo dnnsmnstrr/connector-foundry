@@ -13,6 +13,17 @@
 export const WASM_STACK_SYMPTOMS =
   /table index|invalid index .* into funcref|memory access out of bounds|is not a function|null function|function signature mismatch|to a BigInt|Maximum call stack size exceeded/i;
 
+// What a render that ran out of memory looks like. The module's linear
+// memory may grow to 4 GB, so on a phone or tablet it is the browser's
+// allocation limit that gives out first: growMemory() fails, malloc
+// returns null, OpenSCAD's C++ throws, and the export's abort wrapper
+// turns that into "Aborted(unhandled exception: …)". JavaScriptCore and
+// V8 word their own allocation failures differently, hence the list.
+// Checked after the stack symptoms, which own "memory access out of
+// bounds".
+export const WASM_MEMORY_SYMPTOMS =
+  /Aborted\(unhandled exception|Aborted\(OOM|out of memory|Cannot enlarge memory|could not allocate memory|allocation failed/i;
+
 /**
  * The message to show for a failed browser render: the WASM stack-limit
  * symptoms become an explanation of what to change, anything else is
@@ -45,6 +56,13 @@ export function friendlyRenderError(message) {
       'always does: set its body to "none" to attach just the connector head. Otherwise try "fused" ' +
       "for a bolted/snap/pin joint, or fuse one of the joints in a stacked chain. The generated .scad still " +
       "renders with a native OpenSCAD install."
+    );
+  }
+  if (WASM_MEMORY_SYMPTOMS.test(message)) {
+    return (
+      "The browser most likely ran out of memory while OpenSCAD rendered this (a phone or tablet " +
+      "has far less than a computer). Close other tabs or apps and try again, try a smaller size or " +
+      "fewer parts, or download the .scad and render it with a native OpenSCAD install."
     );
   }
   return message;

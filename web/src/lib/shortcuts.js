@@ -169,6 +169,14 @@ export const SHORTCUT_SECTIONS = [
       { keys: [["Middle-drag"]], action: "Zoom" },
       { keys: [["One finger"]], action: "Touch: orbit" },
       { keys: [["Two fingers"]], action: "Touch: pinch to zoom, drag to pan" },
+      {
+        keys: [["Tap"]],
+        action: "Touch: pick a slot marker or a hole, drill a hole, open a handle's size box",
+      },
+      {
+        keys: [["Long press"]],
+        action: "Touch: on a hole in the Holes list, add it to the selection (as Shift-click does)",
+      },
     ],
   },
 ];
@@ -183,6 +191,8 @@ const POINTER_TOKENS = new Set([
   "Wheel",
   "One finger",
   "Two fingers",
+  "Tap",
+  "Long press",
   "View ▾",
   "Grid ▾",
 ]);

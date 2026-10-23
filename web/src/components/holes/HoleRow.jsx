@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef } from "react";
 import { formatPoint, holeLabel, holeMeta } from "../../lib/screwHoles.js";
 import { getPreset, specMatchesPreset } from "../../lib/screwPresets.js";
 import ScrewIcon from "./ScrewIcon.jsx";
@@ -13,7 +13,13 @@ import ScrewIcon from "./ScrewIcon.jsx";
 //
 // `hole` is the hole, `number` its place in the list (1-based), `selected`
 // whether it is in the selection; `onPick(id, shiftKey)` is a click on the
-// row (Shift adds or removes it), `onRemove(id)` the ✕.
+// row (Shift adds or removes it; so does a long press with a finger, which
+// has no Shift), `onRemove(id)` the ✕.
+
+// How long a finger rests on a row before the press means "add to the
+// selection": the usual long-press duration, longer than a tap.
+const LONG_PRESS_MS = 500;
+
 /**
  * @param {{
  *   hole: any,
@@ -25,14 +31,40 @@ import ScrewIcon from "./ScrewIcon.jsx";
  */
 function HoleRow({ hole, number, selected, onPick, onRemove }) {
   const preset = getPreset(hole.presetId);
+  const pressTimer = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
+  const longPressed = useRef(false);
+  const endPress = () => {
+    if (pressTimer.current !== null) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  };
   return (
     <li className={selected ? "holes-row is-selected" : "holes-row"}>
       <button
         type="button"
         className="holes-row-main"
         aria-pressed={selected}
-        onClick={(e) => onPick(hole.id, e.shiftKey)}
-        title={`${holeLabel(hole)} — Shift-click to select several`}
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse") return;
+          longPressed.current = false;
+          endPress();
+          pressTimer.current = setTimeout(() => {
+            pressTimer.current = null;
+            longPressed.current = true;
+            onPick(hole.id, true);
+          }, LONG_PRESS_MS);
+        }}
+        onPointerUp={endPress}
+        onPointerCancel={endPress}
+        onPointerLeave={endPress}
+        onClick={(e) => {
+          // The click that follows a long press's release would undo it.
+          if (longPressed.current) {
+            longPressed.current = false;
+            return;
+          }
+          onPick(hole.id, e.shiftKey);
+        }}
+        title={`${holeLabel(hole)} — Shift-click (or press and hold) to select several`}
       >
         <ScrewIcon spec={hole.spec} screw={preset?.screw ?? null} className="screw-icon-small" />
         <span className="holes-row-text">

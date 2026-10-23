@@ -59,6 +59,16 @@ export function isTextEntry(el) {
   return TEXT_INPUT_TYPES.has(String(el.type || "text").toLowerCase());
 }
 
+/**
+ * Whether the main pointer is a finger (or a pen): what the stylesheet's
+ * `(pointer: coarse)` rules key on, for the few places the JSX has to
+ * agree with them — a palette that must not pop the keyboard over its
+ * list, hint texts that say "tap" instead of "hover".
+ */
+export function hasCoarsePointer() {
+  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
+}
+
 // The Mac decides between Cmd and Ctrl. navigator.platform is deprecated
 // but is what main.jsx already reads, and TypeScript's DOM library has no
 // navigator.userAgentData to type-check the replacement against.

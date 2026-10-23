@@ -106,6 +106,25 @@ export function presetView(name, box) {
 }
 
 /**
+ * presetView() for a viewer of a given shape: the same framing, backed out
+ * along its own view direction when a corner of `box` would fall outside
+ * ±CONTAIN_MARGIN of it. The preset distance assumes a viewer wider than
+ * it is tall; in a narrow one (an iPad in portrait, a sidebar dragged
+ * wide) the part was clipped on both sides and its resize handles sat off
+ * the canvas until Fit was pressed. A viewer the preset already fits gets
+ * the preset unchanged, so wide ones frame exactly as before.
+ * @param {ViewName} name
+ * @param {Box} box
+ * @param {{ fovDeg: number, aspect: number }} view
+ * @returns {CameraPose}
+ */
+export function presetViewFitting(name, box, { fovDeg, aspect }) {
+  const pose = presetView(name, box);
+  const position = dollyToFit({ box, position: pose.position, target: pose.target, fovDeg, aspect });
+  return position ? { target: pose.target, position } : pose;
+}
+
+/**
  * The camera's right, up and back (target → camera) unit vectors, as
  * three's lookAt() builds them for a camera whose up is `up`.
  * @param {Vec3} position
