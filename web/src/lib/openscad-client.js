@@ -1,14 +1,22 @@
 // Promise wrapper around the OpenSCAD worker: one in-flight request per
 // id, resolved/rejected when the matching worker message arrives.
 //
-// Results are memoised for RENDER_TTL_MS, keyed on the exact
-// (file, module, parameters) triple. A render is expensive — the worker
-// spins up a fresh WASM instance and re-mounts the source bundle every
-// time — so switching between two parts, or stepping back to parameters
-// tried a moment ago, should not pay for it twice. Entries expire so a
-// long session doesn't pin every mesh it ever produced in memory.
-const RENDER_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_BYTES = 64 * 1024 * 1024;
+// Results are memoised, keyed on the exact (file, module, parameters)
+// triple. A render is expensive — the worker spins up a fresh WASM
+// instance and re-mounts the source bundle every time — so switching
+// between two parts, or stepping back to parameters tried a moment ago,
+// should not pay for it twice. The cache is bounded by bytes, least
+// recently used first, and by nothing else: a time limit (five minutes,
+// once) threw away work that still fit, and on the Bench every node's
+// standalone render is an entry, so the first edit after a pause longer
+// than that queued a render per node ahead of the one the edit was for —
+// on a phone, where one render takes seconds, half a minute of waiting.
+// A device that reports little memory (Chromium's deviceMemory; Safari
+// says nothing and keeps the full cap) gets half the room.
+const MAX_CACHE_BYTES =
+  (typeof navigator !== "undefined" && /** @type {any} */ (navigator).deviceMemory <= 4 ? 32 : 64) *
+  1024 *
+  1024;
 
 let worker = null;
 let nextId = 1;
@@ -94,9 +102,9 @@ function getWorker() {
   return worker;
 }
 
-// Warm-up. A fresh worker has to load its 13.8 MB script, fetch and
-// decode the source bundle and compile the WebAssembly module before it
-// can render. Measured in headless Chromium (dev server; a plate and a
+// Warm-up. A fresh worker has to load its script and the 10 MB OpenSCAD
+// WebAssembly, fetch and decode the source bundle and compile the module
+// before it can render. Measured in headless Chromium (dev server; a plate and a
 // 2 x 2 Gridfinity base): a render posted to a fresh worker took
 // 1040-1210 ms, the same render posted to one that had finished warming
 // 495-600 ms, and the warm-up itself about 600 ms of the worker's time
@@ -260,13 +268,10 @@ export function renderRequestKey({
 }
 
 function store(key, stl) {
-  cache.set(key, { stl, expires: Date.now() + RENDER_TTL_MS });
+  cache.set(key, { stl });
 
   let bytes = 0;
-  for (const [k, entry] of cache) {
-    if (entry.expires <= Date.now()) cache.delete(k);
-    else bytes += entry.stl.byteLength;
-  }
+  for (const entry of cache.values()) bytes += entry.stl.byteLength;
   // Map iterates in insertion order and every hit re-inserts its entry,
   // so the front of the map is the least recently used. Keep at least
   // the entry just stored, however big it is — it's the one on screen.
@@ -286,10 +291,6 @@ export function getCachedRender(request) {
   const key = renderRequestKey(request);
   const entry = cache.get(key);
   if (!entry) return null;
-  if (entry.expires <= Date.now()) {
-    cache.delete(key);
-    return null;
-  }
   cache.delete(key);
   cache.set(key, entry); // move to the back: most recently used
   return entry.stl;

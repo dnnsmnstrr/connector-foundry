@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { presetViewFitting, projectToNdc as toNdc } from "../../src/lib/viewerCamera.js";
 
 import {
   VIEW_PRESETS,
@@ -198,4 +199,26 @@ test("the camera backs out just far enough, and never closer", () => {
   const tried = [];
   dollyOutDistance((x) => (tried.push(x), x > 150), 100);
   assert.ok(tried.every((x) => x >= 100));
+});
+
+test("the Home framing backs out for a narrow viewer and is the preset for a wide one", () => {
+  const box = { min: [-20.75, -20.75, 0], max: [20.75, 20.75, 7] };
+  const cornersOf = (b) => {
+    const out = [];
+    for (const x of [b.min[0], b.max[0]])
+      for (const y of [b.min[1], b.max[1]]) for (const z of [b.min[2], b.max[2]]) out.push([x, y, z]);
+    return out;
+  };
+  const fovDeg = 45;
+  // An iPad in portrait with the desktop layout: a 297 x 938 viewer.
+  const narrow = presetViewFitting("home", box, { fovDeg, aspect: 297 / 938 });
+  for (const corner of cornersOf(box)) {
+    const ndc = toNdc(corner, { ...narrow, fovDeg, aspect: 297 / 938 });
+    assert.ok(ndc && Math.abs(ndc[0]) <= 0.95 && Math.abs(ndc[1]) <= 0.95, `corner ${corner} at ${ndc}`);
+  }
+  const preset = presetView("home", box);
+  assert.deepEqual(narrow.target, preset.target);
+  assert.ok(Math.hypot(...narrow.position) > Math.hypot(...preset.position), "backed out");
+  // A wide viewer keeps the preset exactly.
+  assert.deepEqual(presetViewFitting("home", box, { fovDeg, aspect: 1000 / 700 }), preset);
 });

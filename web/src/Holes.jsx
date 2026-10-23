@@ -31,6 +31,7 @@ import { partSections } from "./lib/catalogueUtils.js";
 import { benchName, compileToScad } from "./lib/assembly.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
 import { builtin, partCommand } from "./lib/commandCatalog.js";
+import PrintSheet from "./components/PrintSheet.jsx";
 import { chordText } from "./lib/shortcuts.js";
 import { downloadBlob } from "./lib/download.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
@@ -51,7 +52,7 @@ import {
   typedHoleSize,
 } from "./lib/holeHandles.js";
 import { getHolesSession, redoHoles, setHolesDoc, undoHoles } from "./lib/holesSession.js";
-import { ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
+import { hasCoarsePointer, ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { renderPart } from "./lib/openscad-client.js";
 import { faceMeasurements, holeGuides, holeMarkers, onFacePlane } from "./lib/holesOverlay.js";
@@ -112,9 +113,16 @@ const NOTICE_MS = 2500;
 // The arrow keys' nudge directions: [across, up] along the hole's face.
 /** @type {Record<string, number[]>} */
 const ARROW_NUDGES = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
-// No measurements (Option up, or a handle being dragged): one object, so
-// the viewer's labels and guides see the same arrays render after render.
+// No measurements (Option up and Measure off, or a handle being dragged):
+// one object, so the viewer's labels and guides see the same arrays
+// render after render.
 const NO_MEASUREMENTS = { guides: [], labels: [] };
+// How far a tap may land from a snap point and still take it, in screen
+// pixels: a fingertip's reach, against the model-scaled snapRadius a
+// mouse gets (see resolveHit()).
+const TOUCH_SNAP_PX = 22;
+
+/** @typedef {import("./components/StlViewer.jsx").SurfaceHit} SurfaceHit */
 
 // Holes mode: take a model — a catalogue part with its parameters, a
 // mesh brought in as STL/STEP/3MF, or the current bench as one mesh — and
@@ -199,6 +207,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // `hoverPoint` is the latest resolved hover point, kept in a ref so
   // moving the pointer costs no render until Option is down.
   const [altHeld, setAltHeld] = useState(false);
+  // The toolbar's Measure toggle (and the holes.measure command): the
+  // same measurements as Option held, for a finger, which has no Option
+  // key and no hover — they then follow the tapped spot or the selected
+  // hole.
+  const [measureOn, setMeasureOn] = useState(false);
+  const measuring = altHeld || measureOn;
+  const coarse = hasCoarsePointer();
   const [measurePoint, setMeasurePoint] = useState(null);
   const hoverPoint = useRef(null);
   const [benchBusy, setBenchBusy] = useState(false);
@@ -504,14 +519,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // (or exactly as it is, with Shift or snapping off). The grid is the
   // Grid setting (uiPrefs.js), the one the handles and nudges use; Off
   // is exactly where the click landed.
+  /** @param {SurfaceHit} hit */
   function resolveHit(hit) {
     if (!geometries) return null;
     const face = analyzeFace(geometries.topo, hit.faceIndex, { inset, radius });
     if (!face) return null;
     const snapping = snapOn && !hit.shiftKey;
     const grid = getGridSnap();
-    const snap = snapping ? nearestCandidate(face, hit.point, snapRadius) : null;
-    const line = snapping && !snap ? nearestGuide(face, hit.point, snapRadius, grid) : null;
+    // A fingertip lands within about 22 px of what it meant; the model's
+    // own snap radius is 7 px on a phone for a 42 mm part, so a touch
+    // reaches as far as the finger does (the viewer says what a pixel
+    // measures at the hit).
+    const reach = hit.touch && hit.mmPerPx ? Math.max(snapRadius, TOUCH_SNAP_PX * hit.mmPerPx) : snapRadius;
+    const snap = snapping ? nearestCandidate(face, hit.point, reach) : null;
+    const line = snapping && !snap ? nearestGuide(face, hit.point, reach, grid) : null;
     const point = snap
       ? snap.point
       : line
@@ -530,18 +551,19 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // it a live mesh.
   const meshIsCurrent = Boolean(doc) && preview.key?.source === doc.source;
 
+  /** @param {SurfaceHit | null} hit */
   function onSurfaceHover(hit) {
     if (!hit || !meshIsCurrent) {
       cancelPendingGuide();
       hoverPoint.current = null;
       setHover(null);
-      if (altHeld) setMeasurePoint(null);
+      if (measuring) setMeasurePoint(null);
       return;
     }
     const resolved = resolveHit(hit);
     if (!resolved) return;
     hoverPoint.current = resolved.point;
-    if (altHeld)
+    if (measuring)
       setMeasurePoint((prev) =>
         prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
       );
@@ -556,10 +578,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     setHover((prev) => (sameHover(prev, next) ? prev : next));
   }
 
+  /** @param {SurfaceHit} hit */
   function onSurfaceHit(hit) {
     if (!meshIsCurrent) return;
     const resolved = resolveHit(hit);
     if (!resolved) return;
+    // A finger never hovers, so the tap is the one place it can say
+    // where to measure from.
+    if (measuring) setMeasurePoint(resolved.point);
     proposeGuideFace(resolved.face.key, true);
     placeAt(resolved.point, resolved.face.normal, hit.shiftKey);
   }
@@ -581,10 +607,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
 
   // A click on a hole: just that one, or with Shift, toggle it in the
-  // selection.
+  // selection. With Measure on, the distances then follow the selected
+  // hole until the next tap on a face, rather than staying on a spot
+  // tapped before (a finger has no hover to move them).
   function pickHole(id, shiftKey) {
+    if (measuring) setMeasurePoint(null);
     if (shiftKey) setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
     else setSelectedIds([id]);
+  }
+
+  // The Measure toggle (the toolbar's button and the holes.measure
+  // command): turned on, it measures from the selected hole until a face
+  // is tapped.
+  function toggleMeasure() {
+    if (!measureOn) setMeasurePoint(null);
+    setMeasureOn(!measureOn);
   }
 
   function onMarkerClick(id, modifiers = {}) {
@@ -599,7 +636,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       // the hole there takes it out of the selection, as it does on the
       // face (onSurfaceHit) and on the hole's ring.
       const candidate = guideFace?.candidates.find((c) => `snap:${c.id}` === id);
-      if (candidate) placeAt(candidate.point, guideFace.normal, modifiers.shiftKey);
+      if (!candidate) return;
+      if (measuring) setMeasurePoint(candidate.point);
+      placeAt(candidate.point, guideFace.normal, modifiers.shiftKey);
     }
   }
 
@@ -613,6 +652,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // Plain click: just this one (again: none). Shift: add it to the
   // selection or take it out.
   const pickRow = useStableCallback((id, shiftKey) => {
+    if (measuring) setMeasurePoint(null);
     if (shiftKey) pickHole(id, true);
     else setSelectedIds((ids) => (ids.length === 1 && ids[0] === id ? [] : [id]));
   });
@@ -921,9 +961,37 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // --- export --------------------------------------------------------
   const exportName = doc ? doc.name?.trim() || sourceStem(doc.source, catalogueById) : "";
 
-  async function holedBuffer() {
-    return (await renderHoled(doc, catalogueById, globalOverrides)).stl;
+  /** @param {AbortSignal} [signal] */
+  async function holedBuffer(signal) {
+    return (await renderHoled(doc, catalogueById, globalOverrides, signal)).stl;
   }
+
+  // "Print with EasyPrint…" (components/PrintSheet.jsx): the holed mesh
+  // as one file. Its render is the preview's own request, so a sheet
+  // opened on a finished preview has the bytes at once; a stale preview
+  // renders first and the sheet's button waits. Closing the sheet (or
+  // leaving the tab) aborts its interest in the render, so an edit right
+  // after can cancel a stale one instead of waiting behind it, and the
+  // aborted sheet's late result is ignored.
+  const [printSheet, setPrintSheet] = useState(
+    /** @type {{ bytes: ArrayBuffer | Uint8Array | null, error?: string } | null} */ (null),
+  );
+  const printAbort = useRef(/** @type {AbortController | null} */ (null));
+  function openPrintSheet() {
+    printAbort.current?.abort();
+    const controller = (printAbort.current = new AbortController());
+    setPrintSheet({ bytes: null });
+    holedBuffer(controller.signal).then(
+      (bytes) => !controller.signal.aborted && setPrintSheet({ bytes }),
+      (err) => !controller.signal.aborted && setPrintSheet({ bytes: null, error: err.message }),
+    );
+  }
+  function closePrintSheet() {
+    printAbort.current?.abort();
+    printAbort.current = null;
+    setPrintSheet(null);
+  }
+  useEffect(() => () => printAbort.current?.abort(), []);
 
   async function downloadStl() {
     try {
@@ -991,11 +1059,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // while a handle is dragged: there Option means "from the centre", and
   // the drag's own label says what matters.
   const measurements = useMemo(() => {
-    if (!altHeld || !guideFace || handleDrag) return NO_MEASUREMENTS;
+    if (!measuring || !guideFace || handleDrag) return NO_MEASUREMENTS;
     const point =
       measurePoint ?? (selected && onFacePlane(guideFace, selected.point) ? selected.point : null);
     return faceMeasurements(guideFace, point);
-  }, [altHeld, guideFace, measurePoint, selected, handleDrag]);
+  }, [measuring, guideFace, measurePoint, selected, handleDrag]);
   // One array for the viewer while neither changes: its guides effect
   // rebuilds the lines whenever the array is a new one.
   const viewerGuides = useMemo(
@@ -1106,12 +1174,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         subtitle: snapOn ? "On" : "Off",
         run: () => setSnapOn((on) => !on),
       }),
+      builtin("holes.measure", {
+        checked: measureOn,
+        // Holding Option shows the same while it is held; it is not this
+        // toggle's key, so it is said here rather than as a key hint.
+        subtitle: `${measureOn ? "On" : "Off"}${coarse ? "" : " · or hold Option"}`,
+        run: toggleMeasure,
+      }),
       builtin("holes.flip", {
         when: doc.source.kind === "mesh",
         checked: Boolean(doc.source.flip),
         run: () => setFlip(!doc.source.flip),
       }),
       builtin("holes.downloadStl", { run: downloadStl }),
+      builtin("holes.print", { run: openPrintSheet }),
       builtin("holes.downloadScad", { run: downloadScad }),
       builtin("holes.layerling", { run: copyToLayerling }),
       builtin("holes.retry", { when: Boolean(renderError) && status !== "rendering", run: preview.retry }),
@@ -1279,8 +1355,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           <>
             <h2>{label}</h2>
             <p className="muted">
-              {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."} Click a face in the
-              scene to drill a hole.
+              {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
+              {coarse ? "Tap" : "Click"} a face in the scene to drill a hole.
             </p>
             <label
               className="field bench-name-field"
@@ -1363,8 +1439,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               />
             </label>
             <p className="muted holes-params-note">
-              Hold <kbd className="holes-key">⌥ Option</kbd> to see the pointed-at spot's distances to the
-              face's edges and center.
+              {coarse ? (
+                <>
+                  Measure, in the 3D view's toolbar, shows the tapped spot's distances to the face's edges and
+                  center.
+                </>
+              ) : (
+                <>
+                  Hold <kbd className="holes-key">⌥ Option</kbd> (or turn on Measure in the 3D view's toolbar)
+                  to see the pointed-at spot's distances to the face's edges and center.
+                </>
+              )}
             </p>
             <label
               className="field bench-offset-field holes-inset-field"
@@ -1485,6 +1570,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <div className="bench-export">
               <button
                 type="button"
+                className="download-button bench-export-button print-button"
+                onClick={openPrintSheet}
+                disabled={status === "error"}
+                title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
+              >
+                Print with EasyPrint…
+              </button>
+              <button
+                type="button"
                 className="download-button bench-export-button"
                 onClick={downloadStl}
                 disabled={status === "error"}
@@ -1548,9 +1642,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                   edit it in the sidebar; arrows nudge it, Delete removes it, Esc deselects.
                 </>
               ) : doc.holes.length === 0 ? (
+                coarse ? (
+                  <>
+                    Tap a face to drill a hole; a tap near a snap point lands on it. Measure shows distances;
+                    Snapping off places freely.
+                  </>
+                ) : (
+                  <>
+                    Click a face to drill a hole. Hover for snap points and guides, hold Option for distances;
+                    Shift-click places freely.
+                  </>
+                )
+              ) : coarse ? (
                 <>
-                  Click a face to drill a hole. Hover for snap points and guides, hold Option for distances;
-                  Shift-click places freely.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another, a
+                  hole to select it; press and hold one in the list to select several.
                 </>
               ) : (
                 <>
@@ -1599,14 +1705,27 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               onHandleStep={onHandleStep}
               onHandleSet={onHandleSet}
               toolbar={
-                <UndoRedoButtons
-                  canUndo={history.canUndo}
-                  canRedo={history.canRedo}
-                  onUndo={undo}
-                  onRedo={redo}
-                  undoLabel={history.undoLabel}
-                  redoLabel={history.redoLabel}
-                />
+                <>
+                  <UndoRedoButtons
+                    canUndo={history.canUndo}
+                    canRedo={history.canRedo}
+                    onUndo={undo}
+                    onRedo={redo}
+                    undoLabel={history.undoLabel}
+                    redoLabel={history.redoLabel}
+                  />
+                  <button
+                    type="button"
+                    className="viewer-tool viewer-measure"
+                    aria-pressed={measureOn}
+                    aria-label="Measure distances"
+                    title="Show the pointed-at (or tapped) spot's distances to the face's edges and center — what holding Option does"
+                    onClick={toggleMeasure}
+                  >
+                    <RulerIcon />
+                    <span className="viewer-tool-label">Measure</span>
+                  </button>
+                </>
               }
             >
               {selectedHoles.length > 0 && (
@@ -1665,6 +1784,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               {status === "rendering" ? "Rendering…" : "No preview yet."}
             </div>
           )}
+          {/* On a phone the Export section is far down the page: the
+              sheet is a tap away over the viewer there (styles.css shows
+              this row under 900 px only). Not while an error is up: the
+              error sits where the row does, and the sheet would only run
+              the failing render again (the palette and Export keep it). */}
+          {geometries && !(renderError || handleFailed) && (
+            <div className="viewer-actions viewer-actions-mobile">
+              <button type="button" className="download-button print-button" onClick={openPrintSheet}>
+                Print…
+              </button>
+            </div>
+          )}
           {(renderError || handleFailed) && (
             <p className="error-text bench-error" role="alert">
               {handleFailed && "Couldn't render that change. "}
@@ -1687,6 +1818,19 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         </div>
       </main>
 
+      {printSheet && (
+        <PrintSheet
+          title={exportName || "Holes"}
+          bodies={[
+            {
+              name: exportFilename(exportName, "holes", ".stl"),
+              bytes: printSheet.bytes,
+              error: printSheet.error,
+            },
+          ]}
+          onClose={closePrintSheet}
+        />
+      )}
       {importOpen && (
         <ImportFlow mode="mesh" initialFile={importFile} onCancel={endImport} onConfirm={pickImportedMesh} />
       )}
@@ -1726,4 +1870,28 @@ function useStableCallback(fn) {
   const ref = useRef(fn);
   ref.current = fn;
   return /** @type {any} */ (useCallback((...args) => ref.current(...args), []));
+}
+
+// The Measure toggle's ruler.
+function RulerIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <rect
+        x="1.5"
+        y="5.5"
+        width="13"
+        height="5"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M4.5 5.5v2.5M7.5 5.5v2M10.5 5.5v2.5"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }

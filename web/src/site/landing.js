@@ -187,7 +187,7 @@ function hero() {
   }
 
   async function load() {
-    if (!webgl()) {
+    if (!webgl() || slowNetwork()) {
       restartFallback();
       return;
     }
@@ -246,6 +246,15 @@ function webgl() {
   } catch {
     return false;
   }
+}
+
+// Data Saver on, or a 2G-class connection, where the browser says
+// (Chromium's Network Information API; the others say nothing and load the
+// view): three.js is 125 KB gzipped and the meshes 80 KB more, for a view
+// the pictures stand in for.
+function slowNetwork() {
+  const connection = /** @type {any} */ (navigator).connection;
+  return connection?.saveData === true || /2g$/.test(String(connection?.effectiveType ?? ""));
 }
 
 // A soft light follows the pointer over each demo (landing.css, .demo::after).

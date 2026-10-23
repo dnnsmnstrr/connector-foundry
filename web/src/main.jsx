@@ -15,17 +15,56 @@ if (window.location.protocol === "foundry:") {
   else if (navigator.platform.startsWith("Win")) root.classList.add("desktop-win");
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+// From here on an error is the app's, not a sign the browser can't run
+// it: public/gate.js stops reading errors as "update your browser" once
+// this is set. It runs after every module imported above has evaluated.
+/** @type {any} */ (window).__appStarted = true;
 
-// Start the render worker once the first paint is out of the way, so the
-// first render of a session doesn't also wait for the engine to load (see
-// openscad-client.js's warm-up notes). Called here, once per page load:
-// a component's effect would run twice under StrictMode, and scheduling it
-// when openscad-client.js is imported would leak a timer into every unit
-// test that imports it. Safari has no requestIdleCallback.
-if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => warmRenderer());
-else setTimeout(warmRenderer, 1500);
+// A browser the gate (public/gate.js, loaded before this module) turned
+// away has its message up already: this module only parsed by luck, and
+// the app would throw into an error boundary a few calls in.
+const unsupported = Boolean(/** @type {any} */ (window).__unsupported);
+
+if (!unsupported) {
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+
+  // Start the render worker once the first paint is out of the way, so the
+  // first render of a session doesn't also wait for the engine to load (see
+  // openscad-client.js's warm-up notes). Called here, once per page load:
+  // a component's effect would run twice under StrictMode, and scheduling it
+  // when openscad-client.js is imported would leak a timer into every unit
+  // test that imports it. Safari has no requestIdleCallback. Not with the
+  // browser's data saver on (Chromium's navigator.connection): the engine
+  // and the sources are most of the app's bytes, and a landing on the
+  // Bench or Holes may never render; the first render creates the worker
+  // on demand as it always could.
+  const saveData = /** @type {any} */ (navigator).connection?.saveData === true;
+  if (!saveData) {
+    if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => warmRenderer());
+    else setTimeout(warmRenderer, 1500);
+  }
+
+  // The service worker (src/sw.js, emitted as sw.js at the base by the
+  // build, its scope the whole site so it sees the render worker's fetches)
+  // keeps the app's chunks, the OpenSCAD engine and the .scad bundle in
+  // Cache Storage, so a returning phone loads them from disk and the app
+  // opens offline. Only where it can work and should: the production
+  // build, over https or on localhost (vite preview; the browser tests
+  // block it unless a spec allows it), and never under the desktop app's
+  // foundry:// scheme, which serves dist from disk itself.
+  const secureHost = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (import.meta.env.PROD && secureHost && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+        .catch(() => {
+          // Offline on the first visit, a blocked scheme: the app runs as
+          // it did without one.
+        });
+    });
+  }
+}

@@ -84,6 +84,9 @@ Which ones to add on top of `make check`:
   `make goldens`.
 - Changed web UI behaviour: `npm run test:browser`. A new test that clicks an export button must
   name the bench first (the name prompt opens otherwise and `waitForEvent("download")` times out).
+  Service workers are blocked in the browser tests (`playwright.config.js`: a response a worker
+  serves bypasses `page.route()`); only `sw.spec.js` allows them. A change to the layout under
+  900 px or for touch: `mobile.spec.js` covers it.
 - Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`. The
   updater's Windows install (`tests/desktop/update.test.mjs`) runs only in `desktop.yml`'s
   Windows x64 job: dispatch it for a change to `updates.cjs` or the NSIS settings.

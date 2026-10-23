@@ -68,6 +68,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--bg);
+  /* clip is Safari 16 and Chrome 90; before them, hidden still keeps the
+     page from scrolling sideways, at the price of a scroll container. */
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -178,6 +181,12 @@ code {
   max-width: calc(var(--container) + 2 * var(--gutter));
   margin-inline: auto;
   padding-inline: var(--gutter);
+  /* viewport-fit=cover (index.html) lets the page run under a phone's
+     notch and home bar, so in landscape the gutter would sit under the
+     Dynamic Island: the safe area widens it. The line above is the
+     fallback for engines without env(). The header and footer do the same. */
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
 }
 
 /* ---------------------------------------------------------------- buttons */
@@ -352,6 +361,8 @@ code {
   height: var(--header-height);
   margin-inline: auto;
   padding-inline: var(--gutter);
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
 }
 
 .docs-page .site-header-inner {
@@ -417,6 +428,24 @@ code {
   gap: 0.4rem;
 }
 
+/* Touch: a finger needs 44px where a pointer does with less, so the
+   header's button, icon and links grow to it; a mouse keeps the sizes
+   above. The landing page's own controls do the same in landing.css. */
+@media (pointer: coarse) {
+  .button-small {
+    min-height: 44px;
+  }
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .site-nav a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 /* Below this the landing page's own sections are a scroll away, so the
    header keeps the brand, the guides and the way into the app. */
 @media (max-width: 760px) {
@@ -454,6 +483,8 @@ code {
   max-width: calc(var(--container) + 2 * var(--gutter));
   margin-inline: auto;
   padding: 4rem var(--gutter) 2.5rem;
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
 }
 
 .site-footer-brand p {
@@ -495,10 +526,25 @@ code {
   color: var(--text);
 }
 
+/* Touch: each link is a row a finger can hit. The rows' own height spaces
+   them, so the list's gap goes. */
+@media (pointer: coarse) {
+  .site-footer-links ul {
+    gap: 0;
+  }
+  .site-footer-links a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .site-footer-legal {
   max-width: calc(var(--container) + 2 * var(--gutter));
   margin-inline: auto;
   padding: 1.5rem var(--gutter) 2.5rem;
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
   border-top: 1px solid var(--border);
   color: var(--text-3);
   font-size: 0.82rem;

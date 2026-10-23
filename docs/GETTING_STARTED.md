@@ -13,10 +13,16 @@ the sizes, check the part in 3D and download an STL for your slicer.
 
 The web app runs at
 [dnnsmnstrr.github.io/connector-foundry/app/](https://dnnsmnstrr.github.io/connector-foundry/app/) in
-any current desktop browser. There is nothing to install and no account to make. Parts render on
-your own computer, with OpenSCAD compiled to WebAssembly, and nothing you make is uploaded anywhere.
+any current browser, on a computer, a tablet or a phone (Safari or iOS 15.4, Chrome 93, Firefox 114,
+Samsung Internet 17, or newer). There is nothing to install and no account to make. Parts render on
+your own device, with OpenSCAD compiled to WebAssembly, and nothing you make is uploaded anywhere.
 The first render of a visit takes a few seconds longer while the engine loads; after that most parts
-render in a second or two.
+render in a second or two on a computer, a few seconds on a phone.
+
+On a phone or tablet the 3D view comes first, the part's settings under it and the part list last
+(**Find a part** goes there). Drag with one finger to turn the view, pinch to zoom, and tap a handle
+to type a size. **Add to Home Screen** opens it like an app, and once it has rendered a part it opens
+again without a connection.
 
 Want it in a window of its own, or offline? The [desktop app](DESKTOP.md) is the same app for macOS
 and Windows. To render parts from scripts, there is a [command line](CLI.md).
@@ -43,7 +49,8 @@ The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
    steps — a Gridfinity unit is 42 mm. To type an exact size instead, click a handle.
 3. **Check the outside dimensions** under the part's name: width, height and depth in millimetres, as
    rendered.
-4. **Download STL** (under the 3D view) and open the file in your slicer. With
+4. **Download STL** (under the 3D view) and open the file in your slicer, or **Print…** to print it
+   from a phone (below). With
    [Layerling](https://layerling.com/), **Copy for Layerling** skips the file and pastes the part in
    directly.
 
@@ -51,6 +58,24 @@ Each part says how far to trust it. **exact** parts come from the standard's ref
 implementation or its published specification, and are checked against someone else's model of the
 same standard (see [Accuracy checks](ACCURACY.md)). **parametric** parts are a good starting point:
 measure your hardware — the webbing on your bag, the slot in your rail — and print a test piece first.
+
+## Print from a phone with EasyPrint
+
+Prusa's [EasyPrint](https://www.printables.com/slice) slices a model in the cloud and sends it to a
+printer on Prusa Connect, all from a phone's browser or the Prusa app. No website can hand it a model
+directly (it has no way in for other sites), so **Print…** on every tab gets you there in three
+steps:
+
+1. **Share STL…** (or **Download STL**) puts the file on the phone. On an iPhone or iPad, the share
+   sheet's **Save to Files** keeps it where EasyPrint can find it; Chrome and Android save it to
+   Downloads, since Chrome's share sheet refuses model files. **3MF** is the same part a fifth of the
+   size, and on the Bench one 3MF holds every body.
+2. **Open EasyPrint** and sign in with your Prusa Account.
+3. In EasyPrint, **Models → Add… → Upload model**, pick the file, choose the printer and **Print**.
+
+The part was set up on your computer and the printer is next to your phone? On the Bench, **Send this
+bench to another device** (in the command palette) shares the bench's link, or copies it: open it on the
+phone and print from there.
 
 ## Fit it to your printer
 
@@ -99,7 +124,8 @@ solid up to its stacking lip, ready for pockets shaped like your tools.
 
 ## Find anything with Cmd/Ctrl+K
 
-**Cmd+K** on a Mac, **Ctrl+K** elsewhere, opens the command palette: type a few letters to switch
+**Cmd+K** on a Mac, **Ctrl+K** elsewhere, or the magnifier (Search) button at the top right on a
+phone or tablet, opens the command palette: type a few letters to switch
 tabs, find a part, pick a hole type, attach, export, undo, change a setting or open a guide like
 this one (`holes guide`). The first letters of words work too — `oib` is **Open in Bench**. Press
 `?` for every keyboard shortcut and the mouse and trackpad controls; **Cmd/Ctrl+Z** undoes in every
@@ -121,7 +147,9 @@ agents like Claude Code.
 
 - **The address bar is a link to your bench.** The app keeps the bench in the URL as you work, so a
   reload comes back to it and the link opens the same bench for someone else. Imported meshes are too
-  big for a link: they stay with this browser tab only.
+  big for a link: they stay with this browser tab only. **Send this bench to another device** (in
+  Cmd/Ctrl+K) shares the link through your device's share sheet, or copies it; from the desktop
+  app, the link opens the bench in the web app.
 - **Download config** (on the Bench) saves the whole bench to a `.bench.json` file, imported meshes
   included, to open again later from **Import config…**.
 - **Presets** keep benches you reuse in this browser.

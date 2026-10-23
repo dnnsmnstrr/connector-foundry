@@ -2,14 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- resizes-content: Chrome on Android shrinks the layout viewport (and
+         100dvh) for its keyboard, so a dialog's list stays above it. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#17181b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Foundry" />
     <meta
       name="description"
       content="Pick a 3D-printable connector part, tweak its parameters, and export an STL — rendered in the browser with OpenSCAD."
     />
     <title>Connector Foundry</title>
+    <link rel="icon" href="/desktop/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <!-- Before the module script: says what to update on a browser too old
+         to parse or run the app (public/gate.js). -->
+    <script src="/gate.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -366,3 +366,19 @@ test("bytesDigest tells apart buffers of equal length and honours a view's windo
   );
   assert.notEqual(client.bytesDigest(new Uint8Array(0)), client.bytesDigest(new Uint8Array(1)));
 });
+
+test("a cached result outlives a long pause: the cache is bounded by bytes, not time", async () => {
+  const first = client.renderPart(request(1));
+  await tick();
+  const bytes = workers[0].result();
+  assert.equal(await first, bytes);
+  const realNow = Date.now;
+  Date.now = () => realNow() + 60 * 60 * 1000;
+  try {
+    assert.equal(client.getCachedRender(request(1)), bytes);
+    assert.equal(await client.renderPart(request(1)), bytes);
+    assert.equal(workers[0].messages.length, 1);
+  } finally {
+    Date.now = realNow;
+  }
+});
