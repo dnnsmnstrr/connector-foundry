@@ -350,25 +350,25 @@ test("Bench edits keep explicit exports while discarding the obsolete preview", 
   await mockWorker(page);
   await page.goto("/app/#mode=bench");
   await importConfig(page, config());
-  await expect.poll(() => jobCount(page)).toBe(1); // root extents
-  await finish(page, 0);
-  await expect.poll(() => jobCount(page)).toBe(2); // assembly preview
+  // The preview first, then the root's own render for its extents (the
+  // preview is what the user waits for; Bench.jsx's extents effect).
+  await expect.poll(() => jobCount(page)).toBe(1); // assembly preview, still running
   const exported = page.waitForEvent("download");
   await page.getByRole("button", { name: "STL: root", exact: true }).click();
   await page.getByText("Root parameters", { exact: true }).click();
   await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
-  await expect.poll(() => jobCount(page)).toBe(3); // export survives the edit
-  expect(await page.evaluate(() => window.__renders.jobs[1].worker.terminated)).toBe(true);
-  expect(await page.evaluate(() => window.__renders.jobs[2].request.part)).toBe("root");
-  expect(await page.evaluate(() => window.__renders.jobs[2].request.scadSource)).toContain("w=40");
-  await finish(page, 2);
+  await expect.poll(() => jobCount(page)).toBe(2); // export survives the edit
+  expect(await page.evaluate(() => window.__renders.jobs[0].worker.terminated)).toBe(true);
+  expect(await page.evaluate(() => window.__renders.jobs[1].request.part)).toBe("root");
+  expect(await page.evaluate(() => window.__renders.jobs[1].request.scadSource)).toContain("w=40");
+  await finish(page, 1);
   expect((await exported).suggestedFilename()).toBe("bench_root.stl");
+  await expect.poll(() => jobCount(page)).toBe(3); // current assembly
+  expect(await page.evaluate(() => window.__renders.jobs[2].request.scadSource)).toContain("w=50");
+  await finish(page, 2);
   await expect.poll(() => jobCount(page)).toBe(4); // current extents
   expect(await page.evaluate(() => window.__renders.jobs[3].request.params.w)).toBe(50);
   await finish(page, 3);
-  await expect.poll(() => jobCount(page)).toBe(5); // current assembly
-  expect(await page.evaluate(() => window.__renders.jobs[4].request.scadSource)).toContain("w=50");
-  await finish(page, 4);
   await expect(page.getByRole("button", { name: "Cancel renders", exact: true })).toHaveCount(0);
 });
 

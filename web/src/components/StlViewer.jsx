@@ -23,7 +23,7 @@ import {
   handlesGrew,
   inReach,
   modelRadius,
-  presetView,
+  presetViewFitting,
   refitMode,
 } from "../lib/viewerCamera.js";
 
@@ -47,6 +47,17 @@ const GHOST_COLOR = 0xa9b9ff;
 // opening the size box. See slopFor().
 const CLICK_SLOP_PX = 5;
 const TOUCH_SLOP_PX = 10;
+// A tap that misses every slot marker picks the nearest one within this
+// many pixels of it, when nothing of the model stands in front. Markers
+// are sized in millimetres, so a 2 mm one is 5-17 px across on a phone
+// for ordinary parts — a fingertip's target is about 44 px.
+const TOUCH_PICK_PX = 22;
+// On a touch device the framebuffer is bounded by area as well as by the
+// pixel ratio: an iPad Pro's viewer at ratio 2 is 4-5 million MSAA pixels
+// per frame of a flick, which an older tablet's GPU drops frames on. The
+// ratio is lowered (never below 1) until a frame fits the budget; phones,
+// whose viewers are under it at ratio 2, are unaffected.
+const MAX_TOUCH_FRAMEBUFFER_PX = 2.2e6;
 // How far a handle's grab target sits from the point it stands for: the
 // footprint ones out past the edge, the height one above the top face on
 // a short stem. It keeps the targets off the model body and off the slot
@@ -131,7 +142,9 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
 // to onSurfacePick for a caller that does its own snapping (the Holes
 // tab, lib/snapCandidates.js). With onSurfaceHit set, a placing-mode
 // click reports the hit as it is — { point, normal (the triangle's
-// own), faceIndex, altKey, shiftKey } — instead of a clustered face
+// own), faceIndex, altKey, shiftKey, mmPerPx (the millimetres one screen
+// pixel spans at the hit, to size a snap reach to a fingertip), touch
+// (a finger or a pen rather than a mouse) } — instead of a clustered face
 // center, and onSurfaceHover gets the same record as the pointer moves
 // over the model (null once it leaves it; not called while a marker is
 // under the pointer, so snap markers don't vanish on approach).
@@ -265,7 +278,8 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
 /**
  * @typedef {number[]} Vec3 [x, y, z], model mm (callers build them with map(), so not a tuple)
  * @typedef {{ min: Vec3, max: Vec3 }} Box
- * @typedef {{ point: Vec3, normal: Vec3, faceIndex: number, altKey: boolean, shiftKey: boolean }} SurfaceHit
+ * @typedef {{ point: Vec3, normal: Vec3, faceIndex: number, altKey: boolean, shiftKey: boolean,
+ *   mmPerPx: number, touch: boolean }} SurfaceHit
  * @typedef {{ shiftKey: boolean, altKey: boolean, metaKey: boolean, ctrlKey: boolean }} ClickModifiers
  * @typedef {object} StlMarker
  * @property {string} id
@@ -459,8 +473,18 @@ export default function StlViewer({
       return;
     }
     // Capped at 2: a 3x phone screen would shade 2.25 times the pixels of
-    // a 2x one for a difference nobody sees on a part preview.
-    const applyPixelRatio = () => renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // a 2x one for a difference nobody sees on a part preview. On a touch
+    // device also by area (MAX_TOUCH_FRAMEBUFFER_PX), so it depends on
+    // the mount's size and is re-applied from resize().
+    const coarsePointer = Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+    const applyPixelRatio = () => {
+      let ratio = Math.min(window.devicePixelRatio || 1, 2);
+      if (coarsePointer) {
+        const area = Math.max(1, mount.clientWidth * mount.clientHeight);
+        ratio = Math.min(ratio, Math.max(1, Math.sqrt(MAX_TOUCH_FRAMEBUFFER_PX / area)));
+      }
+      renderer.setPixelRatio(ratio);
+    };
     applyPixelRatio();
     mount.appendChild(renderer.domElement);
 
@@ -783,6 +807,16 @@ export default function StlViewer({
       if (frameId === null) frameId = requestAnimationFrame(renderFrame);
     };
     controls.addEventListener("change", requestRender);
+    // Mobile browsers drop a WebGL context under memory pressure or when
+    // the tab goes to the background; three restores its own GL state
+    // when the context comes back but draws nothing, and frames here are
+    // on demand, so the canvas stayed blank until the next touch.
+    const onContextRestored = () => requestRender();
+    renderer.domElement.addEventListener("webglcontextrestored", onContextRestored);
+    const onVisible = () => {
+      if (!document.hidden) requestRender();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     // The ghost on screen: the running drag's preview, else the mode's
     // pending ghost prop, else nothing.
@@ -851,6 +885,7 @@ export default function StlViewer({
     // the selection the box belongs to.
     let pointerDownAt = null;
     let pointerDownSlop = CLICK_SLOP_PX;
+    let pointerDownType = "mouse";
     let pressClosesEditor = false;
     // OrbitControls' own pointerdown listener, added before this one, has
     // already taken the press by the time this runs.
@@ -860,9 +895,43 @@ export default function StlViewer({
       drags.handOff(event.pointerId);
       pointerDownAt = [event.clientX, event.clientY];
       pointerDownSlop = slopFor(event.pointerType);
+      pointerDownType = event.pointerType || "mouse";
       pressClosesEditor = editingIdRef.current !== null;
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
+    // The nearest hit-testable marker within `maxPx` of a point on screen
+    // that the model does not hide, for a tap that missed every marker's
+    // sphere: a hidden marker under the finger is no reason to pass over
+    // a visible one a little further off. Candidates are tried nearest
+    // first, so a tap usually costs one or two raycasts (one against a
+    // 200k-triangle import is about 14 ms). Its own raycaster: the shared
+    // one holds the tap's ray, which the surface pick or the model click
+    // after a miss here still needs.
+    const occlusionRay = new THREE.Raycaster();
+    const nearestMarker = (group, clientX, clientY, maxPx) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const candidates = [];
+      for (const marker of group.children) {
+        if (!marker.userData.hitTest) continue;
+        const at = toScreen([marker.position.x, marker.position.y, marker.position.z]);
+        if (!at) continue;
+        const distance = Math.hypot(at[0] - x, at[1] - y);
+        if (distance < maxPx) candidates.push({ marker, distance });
+      }
+      candidates.sort((a, b) => a.distance - b.distance);
+      const mesh = model();
+      for (const { marker } of candidates) {
+        if (!mesh) return marker;
+        const toMarker = marker.position.clone().sub(camera.position);
+        const span = toMarker.length() - marker.userData.radius;
+        occlusionRay.set(camera.position, toMarker.normalize());
+        if (!occlusionRay.intersectObject(mesh).some((hit) => hit.distance < span)) return marker;
+      }
+      return null;
+    };
 
     // A raycast hit as the raw-hit callbacks report it: the triangle's
     // own geometric normal (not an interpolated vertex normal), in world
@@ -875,6 +944,15 @@ export default function StlViewer({
         faceIndex: hit.faceIndex,
         altKey: Boolean(event?.altKey),
         shiftKey: Boolean(event?.shiftKey),
+        // Millimetres per screen pixel at the hit, so a mode can size a
+        // snap distance to a fingertip instead of to the model; and
+        // whether it was a finger (or a pen) rather than a mouse.
+        mmPerPx:
+          (hit.distance * 2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, mount.clientHeight),
+        // The event's own pointer when it says (a hover: an Apple Pencil
+        // over an iPad, a mouse on a touch laptop), else the press's. `||`,
+        // not `??`: a click no pointer made carries an empty pointerType.
+        touch: (event?.pointerType || pointerDownType) !== "mouse",
       };
     };
     const onClick = (event) => {
@@ -904,6 +982,13 @@ export default function StlViewer({
         if (hits.length) {
           callbacksRef.current?.onMarkerClick?.(hits[0].object.userData.id, modifiersOf(event));
           return;
+        }
+        if (pointerDownType !== "mouse") {
+          const near = nearestMarker(group, event.clientX, event.clientY, TOUCH_PICK_PX);
+          if (near) {
+            callbacksRef.current?.onMarkerClick?.(near.userData.id, modifiersOf(event));
+            return;
+          }
         }
       }
 
@@ -939,7 +1024,31 @@ export default function StlViewer({
     };
     renderer.domElement.addEventListener("click", onClick);
 
+    // Hover work — the marker recolour, a raycast against the whole
+    // model, the cursor, the Holes tab's hover report — runs once per
+    // frame for the latest move, not once per event: a mouse (or an Apple
+    // Pencil hovering over an iPad) reports moves faster than the display
+    // draws, and one raycast against a 200k-triangle import takes about
+    // 14 ms on a laptop, more than a frame on a tablet. The drag path
+    // below schedules its previews the same way.
+    let hoverEvent = null;
+    let hoverFrame = null;
     const onPointerMove = (event) => {
+      hoverEvent = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        buttons: event.buttons,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        pointerType: event.pointerType,
+      };
+      if (hoverFrame === null) hoverFrame = requestAnimationFrame(runHover);
+    };
+    const runHover = () => {
+      hoverFrame = null;
+      const event = hoverEvent;
+      hoverEvent = null;
+      if (!event) return;
       if (helpersHiddenRef.current) {
         renderer.domElement.style.cursor = "default";
         return;
@@ -989,6 +1098,13 @@ export default function StlViewer({
       }
     };
     const onPointerLeave = () => {
+      // A move still queued for the next frame would otherwise set the
+      // cursor and the hover after the pointer has gone.
+      if (hoverFrame !== null) {
+        cancelAnimationFrame(hoverFrame);
+        hoverFrame = null;
+        hoverEvent = null;
+      }
       if (!hoveringRef.current) return;
       hoveringRef.current = false;
       callbacksRef.current?.onSurfaceHover?.(null);
@@ -1262,6 +1378,7 @@ export default function StlViewer({
       if (!w || !h) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      applyPixelRatio();
       renderer.setSize(w, h);
       requestRender();
     };
@@ -1332,14 +1449,15 @@ export default function StlViewer({
       /** @param {import("../lib/viewerCamera.js").ViewName} name */
       preset(name) {
         const box = modelBoxRef.current;
-        if (box) applyPose(presetView(name, box), box);
+        if (box) applyPose(presetViewFitting(name, box, { fovDeg: camera.fov, aspect: camera.aspect }), box);
       },
       /** @param {Box} box */
       showModel(box) {
         const center = boxCenter(box);
         const radius = modelRadius(box);
         const mode = refitMode(fitRef.current, fitKeyRef.current, center, radius);
-        if (mode === "fit") applyPose(presetView("home", box), box);
+        if (mode === "fit")
+          applyPose(presetViewFitting("home", box, { fovDeg: camera.fov, aspect: camera.aspect }), box);
         else if (mode === "contain") {
           // Same subject, new size: the view stays where the user put it
           // (TinkerCAD never moves the camera for a resize), backing out
@@ -1529,11 +1647,14 @@ export default function StlViewer({
       dprQuery?.removeEventListener("change", onDprChange);
       observer.disconnect();
       controls.removeEventListener("change", requestRender);
+      renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
+      document.removeEventListener("visibilitychange", onVisible);
       controls.dispose();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
+      if (hoverFrame !== null) cancelAnimationFrame(hoverFrame);
       disposeModel(scene);
       disposeMarkers(scene);
       disposeGuides(scene);
@@ -1694,6 +1815,8 @@ export default function StlViewer({
         }
         object.userData.id = marker.id;
         object.userData.color = color;
+        object.userData.radius = radius;
+        object.userData.hitTest = marker.hitTest !== false;
         if (marker.hitTest === false) object.raycast = () => {};
         group.add(object);
       }
@@ -2024,7 +2147,7 @@ export default function StlViewer({
           }
         >
           <EyeIcon closed={helpersHidden} />
-          Helpers
+          <span className="viewer-helpers-label">Helpers</span>
         </button>
       </div>
       {children && !helpersHidden && (

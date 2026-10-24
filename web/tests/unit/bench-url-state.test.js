@@ -88,3 +88,21 @@ test("a stale, broken mesh left in the tab doesn't break a link that doesn't use
 function encodeTreeOf(json) {
   return Buffer.from(json).toString("base64url");
 }
+
+test("meshes that can never fit the session quota are not encoded at all", () => {
+  const assembly = sampleAssembly();
+  const partsById = samplePartsById();
+  const imported = partsById.get("imported:900");
+  partsById.set("imported:900", { ...imported, stlBytes: new ArrayBuffer(6 * 1024 * 1024) });
+  const warnings = [];
+  const realWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(" "));
+  try {
+    saveSessionImports(assembly, partsById);
+  } finally {
+    console.warn = realWarn;
+  }
+  assert.equal(globalThis.window.sessionStorage.getItem("connector-foundry:benchImports"), null);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /too big/);
+});

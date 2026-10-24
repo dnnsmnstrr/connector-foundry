@@ -3,6 +3,9 @@
    src/site/demos/*.js into the frames styled here. */
 
 .landing main {
+  /* clip is Safari 16 and Chrome 90; before them, hidden still keeps the
+     hero's glow from scrolling the page sideways (site.css, body). */
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -486,6 +489,24 @@
   .hero-pager button {
     padding: 0.32rem 0.6rem;
     font-size: 0.72rem;
+  }
+}
+
+/* Touch: the pair buttons grow to a finger's height, and on a phone the
+   second row (above) grows with them: the button, the gap and the room the
+   row had over it. */
+@media (pointer: coarse) {
+  .hero-pager button {
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 480px) {
+  .hero-stage {
+    margin-bottom: calc(44px + 0.65rem);
+  }
+  .hero-controls {
+    bottom: calc(-44px - 0.65rem);
   }
 }
 
@@ -1013,6 +1034,16 @@
   background: rgb(255 152 60 / 0.1);
 }
 
+/* Touch: the tabs, the presets and the link button grow to a finger's
+   height. */
+@media (pointer: coarse) {
+  .joint-tabs button,
+  .hole-presets button,
+  .demo-link-button {
+    min-height: 44px;
+  }
+}
+
 /* resize */
 
 .resize-stage {
@@ -1137,6 +1168,20 @@
   color: var(--text);
   font-weight: 650;
   text-align: center;
+}
+
+/* Touch: a handle a finger can find (the margin keeps its centre on the
+   drawing's point, as above) and −/+ buttons a finger can hit. */
+@media (pointer: coarse) {
+  .resize-handle {
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+  }
+  .resize-param button {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .resize-status {
@@ -1730,6 +1775,26 @@
   font-size: 0.7rem;
 }
 
+/* What only a keyboard can do — the app's ⌘ K, the demo's esc and arrow
+   keys — is told to pointers only; a touch screen reads about the app's
+   Search button instead (index.html, data-keyboard-only and
+   data-touch-only). A stylesheet default rather than the hidden attribute,
+   so one rule shows the touch copy without arguing with the browser's. */
+[data-touch-only] {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  [data-keyboard-only],
+  .palette-esc,
+  .palette-footer {
+    display: none;
+  }
+  [data-touch-only] {
+    display: inline;
+  }
+}
+
 /* The palette over the page (Cmd/Ctrl+K far from the demo), near the top
    of the window as the app floats its own. Its panel is a copy of the
    demo's, so the styles above dress it too. */
@@ -1821,6 +1886,13 @@ html:has(.palette-dialog[open]) {
   color: var(--text-3);
   font-size: 0.76rem;
   font-weight: 500;
+}
+
+/* Touch: the chips grow to a finger's height. */
+@media (pointer: coarse) {
+  .filter-chip {
+    min-height: 44px;
+  }
 }
 
 .gallery {

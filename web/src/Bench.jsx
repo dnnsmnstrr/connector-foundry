@@ -59,7 +59,10 @@ import {
   slotInDirection,
 } from "./lib/benchLayout.js";
 import { defaultBenchName, exportFilename } from "./lib/benchName.js";
-import { builtin, partCommand } from "./lib/commandCatalog.js";
+import { SITE_URL, builtin, copyLink, partCommand } from "./lib/commandCatalog.js";
+import { showCommandHud } from "./lib/commandHud.js";
+import { shareOrCopyLink, shareableAppLink } from "./lib/share.js";
+import PrintSheet from "./components/PrintSheet.jsx";
 import { chordText } from "./lib/shortcuts.js";
 import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { deletePreset, savePreset } from "./lib/benchPresets.js";
@@ -403,8 +406,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       const part = partsById.get(n.partId);
       return part.kind === "imported" || getCachedRender(requestFor(part, n)) !== null;
     });
+    // One millisecond behind the assembly render's own debounce (useRender,
+    // below): timers of equal length fire in the order they were set, and
+    // this effect is declared first, so with equal delays the edited node's
+    // standalone render would enter the worker's queue ahead of the
+    // assembly render the edit is for — the preview then waited for both,
+    // on a phone a whole render late. Its markers and selection box can
+    // follow one render later; the picture cannot.
     if (allCached || immediateTree.current === assembly) compute();
-    else timer = setTimeout(compute, RENDER_DEBOUNCE_MS);
+    else timer = setTimeout(compute, RENDER_DEBOUNCE_MS + 1);
     return () => {
       cancelled = true;
       controller.abort();
@@ -1023,6 +1033,74 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     });
   }
 
+  // "Print with EasyPrint…" (components/PrintSheet.jsx): every body
+  // rendered as its own file, named after the bench (so the name is asked
+  // for first, like every export), filled in as each render lands. Started
+  // from the tap rather than an effect: renderAssembly() closes over the
+  // bench. Closing the sheet, opening another or leaving the tab aborts
+  // its renders: the queue is first in, first out, and a sheet's renders
+  // left behind would hold up the next preview by a render per body (a
+  // download of the same body keeps its own share of a job alive).
+  const [printSheet, setPrintSheet] = useState(
+    /** @type {{ name: string, bodies: Array<{ tag: string, name: string, bytes: ArrayBuffer | null, error?: string }> } | null} */ (
+      null
+    ),
+  );
+  const printAbort = useRef(/** @type {AbortController | null} */ (null));
+  useEffect(() => () => printAbort.current?.abort(), []);
+  function openPrintSheet() {
+    withName((name) => {
+      printAbort.current?.abort();
+      const controller = (printAbort.current = new AbortController());
+      const tags = bodyTags(assembly);
+      const fill = (tag, patch) => {
+        if (controller.signal.aborted) return;
+        setPrintSheet(
+          (sheet) =>
+            sheet && {
+              ...sheet,
+              bodies: sheet.bodies.map((body) => (body.tag === tag ? { ...body, ...patch } : body)),
+            },
+        );
+      };
+      setPrintSheet({
+        name,
+        bodies: tags.map((tag) => ({ tag, name: exportFilename(name, tag, ".stl"), bytes: null })),
+      });
+      for (const tag of tags) {
+        renderAssembly(tag, { signal: controller.signal }).then(
+          (bytes) => fill(tag, { bytes }),
+          (err) => fill(tag, { error: friendlyRenderError(err.message) }),
+        );
+      }
+    });
+  }
+  function closePrintSheet() {
+    printAbort.current?.abort();
+    printAbort.current = null;
+    setPrintSheet(null);
+  }
+
+  // "Send this bench to another device": the address bar's link — the
+  // whole bench but imported meshes (benchUrlState.js) — through the share
+  // sheet where there is one (a URL, so every engine's takes it), else the
+  // clipboard. The phone by the printer is where EasyPrint runs. From the
+  // desktop app, a link to the website's app (shareableAppLink()).
+  const benchLink = () =>
+    shareableAppLink(window.location.href, {
+      desktop: document.documentElement.classList.contains("desktop"),
+      siteUrl: SITE_URL,
+    });
+  function shareBenchLink() {
+    const desktop = document.documentElement.classList.contains("desktop");
+    shareOrCopyLink(benchLink(), benchName(assembly) ?? rootPart?.name ?? "Bench", {
+      desktop,
+      copy: copyLink,
+    }).then((outcome) => {
+      if (outcome === "shared") showCommandHud("Shared");
+    });
+  }
+
   // --- Configs and presets (lib/benchConfig.js, lib/benchPresets.js) ---
   // One document serves both: "Download config" writes it to a file,
   // "Save" keeps it in the browser under a name, and loading either goes
@@ -1256,6 +1334,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           run: () => downloadBody(tag),
         }),
       ),
+      builtin("bench.print", { run: openPrintSheet }),
+      builtin("bench.shareLink", {
+        actions: [
+          { title: "Share", run: shareBenchLink },
+          { title: "Copy link", run: () => copyLink(benchLink()) },
+        ],
+      }),
       builtin("bench.downloadScad", { run: downloadScad }),
       builtin("bench.downloadConfig", { run: downloadConfig }),
       builtin("bench.layerling", { run: copyToLayerling }),
@@ -1598,6 +1683,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
             <h3>Export</h3>
             <div className="bench-export">
+              <button
+                type="button"
+                className="download-button bench-export-button print-button"
+                onClick={openPrintSheet}
+                title="Share or save every body's file and open Prusa's EasyPrint, which slices and prints from a phone"
+              >
+                Print with EasyPrint…
+              </button>
               {bodyTags(assembly).map((tag) => (
                 <button
                   type="button"
@@ -1734,6 +1827,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               {status === "rendering" ? "Rendering…" : "No preview yet."}
             </div>
           )}
+          {/* On a phone the Export section is far down the page: the
+              sheet is a tap away over the viewer there (styles.css shows
+              this row under 900 px only). Not while an error is up: the
+              error sits where the row does, and the sheet would only run
+              the failing render again (the palette and Export keep it). */}
+          {stlBuffer && !renderError && (
+            <div className="viewer-actions viewer-actions-mobile">
+              <button type="button" className="download-button print-button" onClick={openPrintSheet}>
+                Print…
+              </button>
+            </div>
+          )}
           {renderError && (
             <p className="error-text bench-error" role="alert">
               {handleFailed && "Couldn't render that size. "}
@@ -1815,6 +1920,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         />
       )}
 
+      {printSheet && (
+        <PrintSheet
+          title={printSheet.name}
+          bodies={printSheet.bodies}
+          allFileName={exportFilename(printSheet.name, null, ".3mf")}
+          onClose={closePrintSheet}
+        />
+      )}
       {pendingExport && (
         <NameBenchModal
           defaultName={defaultBenchName(assembly, partsById)}

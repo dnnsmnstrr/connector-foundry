@@ -43,12 +43,44 @@ to refuse the value with the guard's explanation is a design question, and a fie
 keystroke — typing "12" passes through "1" — so either would have to act when the edit is
 finished, not on each keystroke as the field does now.
 
+## Phones and tablets: what is left
+
+The app works on a phone (web/README.md, "Phones, tablets and offline"); these were measured or
+found on the way and left for later:
+
+- **Help text on touch.** About fifty field explanations exist only as `title=` tooltips, which a
+  touch screen never shows: the Holes spec fields (`HoleSpecFields.jsx`, 23; `RepeatFields.jsx`, 6),
+  the Bench's node tree (7), the Holes and Bench sidebars (11 and 9). `InfoTip` now opens on a tap;
+  a small `FieldLabel({ children, hint })` that renders the label with an `InfoTip` would route them
+  all through it.
+- **The first tap in Holes is blind.** A finger never hovers, so the face's snap points and guides
+  only show after the first hole is drilled. A first tap that only picks the face (snap points
+  appear, "Tap again to drill") would change the drill gesture on touch and wants its own decision.
+- **The Library's part in the address bar.** A bench travels by link (**Send this bench to another
+  device**); a Library part and its parameters do not, so sending one to a phone goes through Open
+  in Bench. A `part=` / `params=` pair in the hash, checked like a user command's `open-part`,
+  would let the Library share its link too.
+- **Imported STL assets mounted only where needed.** The bundle carries seven STL meshes (367 KB
+  gzipped) that only the DeckMate and KLIPPT parts, and the Holes tab's sockets cut from them,
+  import: shipped as files of their own and mounted per render, a phone loading any other part
+  would skip them.
+- **A share target.** Installed on Android, the app could register as a Web Share Target for STL
+  and 3MF files, so a model shared from another app opens on the Bench or in Holes.
+- **Landing page leftovers** at phone widths: `.text-link` and `.download-more a` (26 px tall),
+  `.hero-release` (35 px), the palette demo's field (27 px), the feature tabs' `1`/`2`/`3` key caps.
+- **Not verified on a real device:** downloads from an iOS home-screen app (one 2019 WebKit report
+  says they open a preview page), the Prusa app's file picker taking a shared 3MF, Apple Pencil
+  hover over the viewer, GPU frame times on an older iPad.
+
 ## Code-splitting the Holes tab and the import flow
 
 Lazy-loading the Holes mode and `ImportFlow` would take roughly 35 KB gzip off the main chunk.
-Cut, for now: the first preview on the web already waits for the 13.8 MB OpenSCAD worker, the
+Cut, for now: the first preview on the web already waits for the OpenSCAD engine (a 10.3 MB
+`.wasm`, 3.2 MB gzipped), the
 desktop app loads from disk and gains nothing, and the risks are real — a lazy chunk that fails
-to load (an old tab after a Pages deploy; chunk names are content-hashed) can blank the app or
+to load (an old tab after a Pages deploy; chunk names are content-hashed, and the service worker
+keeps only chunks a visitor has already fetched, so a lazy chunk an old tab never loaded is still
+gone after a deploy) can blank the app or
 leave an error boundary whose "Try again" cannot recover, since `React.lazy` caches the rejected
 import, and a Suspense boundary in the wrong place hides a live viewer. If it is done: only those
 two, each in its own `<Suspense fallback={null}>` at its use site (never around a viewer), with a

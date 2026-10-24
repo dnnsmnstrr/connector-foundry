@@ -52,6 +52,13 @@ export function writeUrlState({ mode, assembly }) {
   }
 }
 
+// Every mainstream browser caps an origin's sessionStorage at about 5 MB;
+// base64 is 4/3 of the bytes, so meshes past this never fit, and encoding
+// them (tens of milliseconds per megabyte on the main thread, several
+// times that on a phone, right after the import's own validation) would
+// only be thrown away by the quota error.
+export const SESSION_IMPORTS_LIMIT_BYTES = 4.5 * 1024 * 1024;
+
 // The meshes the current bench references, kept for a reload of this tab.
 // Best-effort: a mesh past the ~5 MB quota just isn't there after a
 // reload, and restoreBenchFromUrl() says so.
@@ -59,6 +66,18 @@ export function saveSessionImports(assembly, partsById) {
   try {
     if (!assembly) {
       window.sessionStorage.removeItem(SESSION_IMPORTS_KEY);
+      return;
+    }
+    let bytes = 0;
+    for (const id of new Set([assembly.root.partId, ...assembly.nodes.map((n) => n.partId)])) {
+      const part = partsById.get(id);
+      if (part?.kind === "imported") bytes += part.stlBytes?.byteLength ?? 0;
+    }
+    if (bytes * (4 / 3) > SESSION_IMPORTS_LIMIT_BYTES) {
+      window.sessionStorage.removeItem(SESSION_IMPORTS_KEY);
+      console.warn(
+        "Bench: the imported meshes are too big to keep for a reload; export a config to keep them.",
+      );
       return;
     }
     const { imports } = serializeBenchConfig(assembly, partsById);

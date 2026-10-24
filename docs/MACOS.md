@@ -158,6 +158,7 @@ Keep the transparent outer margin so it sits naturally alongside other Dock icon
 ```sh
 cd web
 npm run icon            # regenerate icons after editing desktop/icon.svg
+npm run icons:web       # the web app's home-screen icons in public/icons/ (committed)
 npm run desktop:dist    # regenerate icons and rebuild the app, DMG and ZIP
 ```
 
@@ -171,9 +172,16 @@ The `.icns` step runs only on macOS, the rest everywhere. Generated files in
 - `ConnectorFoundry.iconset/`: standard and Retina PNGs from 16 to 1024 pixels.
 - `icon.icns`: used by `electron-builder.yml` for the packaged application.
 
-The desktop launch, packaging, and desktop test commands regenerate the icon
-automatically. Commit the SVG, generator, and dependency lockfile; the raster
-outputs can always be recreated. Browser-only builds do not run this macOS step.
+The same master also renders the web app's manifest and home-screen icons
+(`public/icons/`: 192 and 512 px, a 512 px maskable icon at 74 % on #17181b, and
+the 180 px apple-touch-icon) through `scripts/web-icons.mjs`. Those are
+committed, and no build or desktop command regenerates them, so run
+`npm run icons:web` and commit the PNGs whenever `icon.svg` changes.
+
+The desktop launch, packaging, and desktop test commands regenerate the desktop
+icon automatically. Commit the SVG, generator, and dependency lockfile; the
+desktop rasters in `desktop/generated/` can always be recreated. Browser-only
+builds do not run this macOS step.
 
 ## Files and performance
 

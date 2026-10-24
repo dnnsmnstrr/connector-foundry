@@ -71,3 +71,11 @@ test("a key that isn't an identifier is refused, not pasted into the source", ()
   }
   assert.equal(scadIdentifier("_private2"), "_private2");
 });
+
+test("a lone surrogate is replaced, a pair kept — without lookbehind (Safari before 16.4)", () => {
+  assert.equal(scadSafeText("a\ud83db"), "a�b");
+  assert.equal(scadSafeText("a\ude00b"), "a�b");
+  assert.equal(scadSafeText("\ud83d"), "�");
+  assert.equal(scadSafeText("😀 ok 😀"), "😀 ok 😀");
+  assert.equal(scadSafeText("\ude00\ud83d"), "��");
+});

@@ -4,6 +4,7 @@ import { useFileDrop } from "../hooks/useFileDrop.js";
 import { SECTION_ORDER } from "../lib/commandCatalog.js";
 import { browseSections, commandRegistry, matchRanges, rankCommands } from "../lib/commands.js";
 import {
+  hasCoarsePointer,
   hasCommandModifier,
   isMacPlatform,
   paletteShortcut,
@@ -142,7 +143,28 @@ export default function CommandPalette({
     // Not the keyboard on a touch screen: it would cover the list.
     if (hasCoarsePointer()) panelRef.current?.focus();
     else inputRef.current?.focus();
+    // Once the search box is tapped, the keyboard takes the lower half of
+    // the screen; 100dvh does not shrink for it on iOS (nor on Android
+    // without the viewport's interactive-widget), so the list's last rows
+    // sat behind the keys. The visual viewport does shrink: the dialog
+    // ends a little above its bottom edge, counted from where the dialog
+    // starts (its top margin keeps clear of a notch), and never taller
+    // than the stylesheet's own limit, read back so it is written once.
+    const viewport = window.visualViewport;
+    let fit = null;
+    if (viewport && hasCoarsePointer()) {
+      fit = () => {
+        dialog.style.maxHeight = "";
+        const cssLimit = parseFloat(getComputedStyle(dialog).maxHeight) || Infinity;
+        const room = viewport.offsetTop + viewport.height - dialog.getBoundingClientRect().top - 12;
+        dialog.style.maxHeight = `${Math.max(120, Math.floor(Math.min(cssLimit, room)))}px`;
+      };
+      viewport.addEventListener("resize", fit);
+      fit();
+    }
     return () => {
+      if (fit) viewport.removeEventListener("resize", fit);
+      dialog.style.maxHeight = "";
       if (dialog.open) dialog.close();
     };
   }, []);
@@ -671,10 +693,6 @@ function Highlighted({ text, query }) {
 function caretAtEnd(input) {
   if (!input) return true;
   return input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
-}
-
-function hasCoarsePointer() {
-  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
 }
 
 // The palette renders outside the modes' error boundary (it is App's, and

@@ -51,6 +51,7 @@ import {
   partCommand,
 } from "./lib/commandCatalog.js";
 import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
+import { EASYPRINT_URL } from "./lib/share.js";
 import { claudeCodeCommand, mcpJsonConfig } from "./lib/desktopBridge.js";
 import { commandRegistry } from "./lib/commands.js";
 import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isEditableTarget.js";
@@ -654,6 +655,7 @@ export default function App() {
       builtin("app.github", { actions: linkActions(REPO_URL) }),
       builtin("app.issue", { actions: linkActions(ISSUES_URL) }),
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
+      builtin("app.easyprint", { subtitle: "printables.com/slice", actions: linkActions(EASYPRINT_URL) }),
       // The desktop app knows where it came from.
       builtin("app.releases", {
         when: !document.documentElement.classList.contains("desktop"),
@@ -784,6 +786,7 @@ export default function App() {
               initialSelection={librarySelection.current}
               sidebarCollapsed={sidebarCollapsed}
               onToggleSidebar={toggleSidebar}
+              onFindPart={jumpToLibrarySearch}
             />
           ) : mode === "holes" ? (
             <Holes

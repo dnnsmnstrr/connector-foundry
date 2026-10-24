@@ -56,7 +56,12 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.6rem 1.25rem;
+  /* Opened from a Home Screen icon, iOS lays the page under its status
+     bar (black-translucent, viewport-fit=cover): the inset keeps the
+     tabs below the clock. 0 everywhere else; the desktop shell's own
+     padding (.desktop .mode-tabs) wins. */
+  padding: max(0.6rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) 0.6rem
+    max(1.25rem, env(safe-area-inset-left));
   background: #17181b;
   border-bottom: 1px solid #2a2b2e;
   flex-shrink: 0;
@@ -236,8 +241,27 @@ textarea {
 }
 
 /* Collapsed on desktop: the toggle button IS the bar — clicking anywhere
-   on the strip expands it, and it's still one focusable button. */
-@media (min-width: 769px) {
+   on the strip expands it, and it's still one focusable button. Above the
+   stacked layout's 900 px in a browser; at every width in the desktop app,
+   which never stacks (the :root.desktop copy below mirrors this block). */
+:root.desktop .sidebar-collapsed .sidebar {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+:root.desktop .sidebar-collapsed .sidebar-toggle {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0.85rem 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+@media (min-width: 901px) {
   .sidebar-collapsed .sidebar {
     display: flex;
     flex-direction: column;
@@ -660,10 +684,19 @@ textarea {
   pointer-events: none;
 }
 
-.info-tip:hover .info-tip-text,
+.info-tip.is-open .info-tip-text,
 .info-tip-button:focus-visible + .info-tip-text {
   visibility: visible;
   opacity: 1;
+}
+
+/* Hover only where there is a hover: a phone keeps :hover on whatever was
+   tapped last, so a second tap on the "?" would not close the tip. */
+@media (hover: hover) {
+  .info-tip:hover .info-tip-text {
+    visibility: visible;
+    opacity: 1;
+  }
 }
 
 .field-differs {
@@ -1354,7 +1387,7 @@ a.mode-tab {
 
 @media (pointer: coarse) {
   .bench-root-select {
-    min-height: 32px;
+    min-height: 44px;
   }
 }
 
@@ -1909,7 +1942,7 @@ a.mode-tab {
   border-radius: 10px;
   padding: 0;
   width: min(360px, 100vw - 2rem);
-  max-height: min(80vh, 100dvh - 2rem);
+  max-height: min(80vh, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
   overflow-y: auto;
 }
 
@@ -2533,7 +2566,7 @@ a.bench-modal-header-button {
 .command-hud {
   position: fixed;
   left: 50%;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 30;
   background: #24304a;
@@ -2557,18 +2590,26 @@ a.bench-modal-header-button {
   gap: 0.4rem;
 }
 
-/* A phone: the panel takes the top of the screen, and the keys the
-   footer names aren't there. */
-@media (max-width: 768px) {
-  .command-palette,
-  .command-palette.command-palette-side {
-    margin: 0.75rem auto auto;
-    max-height: calc(100dvh - 1.5rem);
+/* A phone or a tablet in portrait: the panel takes the top of the screen
+   (clear of a notch), and the keys the footer names aren't there. Browsers
+   only: in the desktop app the top of the window is the title bar, a drag
+   area with the window controls in it, which a palette that high would
+   sit under — there it stays below the title bar at any width or zoom. */
+@media (max-width: 900px) {
+  :root:not(.desktop) .command-palette,
+  :root:not(.desktop) .command-palette.command-palette-side {
+    margin: max(0.75rem, env(safe-area-inset-top)) auto auto;
+    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
 
-  .command-palette-input {
+  :root:not(.desktop) .command-palette-input {
     font-size: 1rem;
   }
+}
+
+.desktop .command-palette,
+.desktop .command-palette.command-palette-side {
+  margin-top: max(12vh, calc(max(52px, env(titlebar-area-height, 52px)) + 0.75rem));
 }
 
 @media (pointer: coarse) {
@@ -3359,23 +3400,45 @@ a.bench-modal-header-button {
 }
 
 /* ---------------------------------------------------------------------
-   Narrow browser screens (not Electron): the two-column shell becomes one scrolling column —
-   sidebar (capped, scrolls inside itself) on top, then the part header,
-   the parameter form, and the 3D viewer at a fixed viewport fraction so
-   the canvas has a real height to size itself against.
+   Phones and tablets in portrait (browsers only, not Electron): the
+   two-column shell becomes one scrolling column — the part header, the
+   3D viewer at a fixed viewport fraction (the canvas has to have a real
+   height to size itself against), the parameter form, and the part list
+   (the sidebar) last. The viewer comes first because it is what the
+   page is for: with the list on top it started below the fold on every
+   phone (36 % of it visible in portrait, none in landscape), and a
+   finger on the canvas orbits rather than scrolls, so there was no way
+   past it but the header. Up to 900 px wide: an iPad in portrait (768-
+   834 px) got the desktop layout with a 290 px viewer; 600-900 px get
+   the form beside the viewer (below). The nav and the column keep
+   clear of a notch and the home indicator (env(); the page is laid out
+   under them by viewport-fit=cover, which Safari would otherwise inset
+   itself).
    ------------------------------------------------------------------- */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   :root:not(.desktop) .mode-tabs {
-    padding: 0.5rem 0.75rem;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) 0.5rem
+      max(0.75rem, env(safe-area-inset-left));
     gap: 0.15rem;
+  }
+
+  /* The cross alone while a render runs (RenderActivity.jsx): the words
+     pushed the Settings gear 24 px off a 375 px screen. */
+  :root:not(.desktop) .render-cancel-label {
+    display: none;
+  }
+
+  :root:not(.desktop) .render-cancel-icon {
+    display: inline;
   }
 
   :root:not(.desktop) .mode-tab {
     padding: 0.4rem 0.6rem;
   }
 
-  /* The desktop shells keep their pane layout at this width (a zoomed
-     window), but shed the header's labels like everyone else: the row
+  /* The desktop shells keep their pane layout at this width (a window at
+     its narrower sizes, or zoomed), but shed the header's labels like
+     everyone else: the row
      cannot wrap or grow, and on Windows its right end is the window
      controls', so what does not fit must go rather than slide under them. */
   .shortcut-hint,
@@ -3415,16 +3478,23 @@ a.bench-modal-header-button {
     display: none;
   }
 
+  /* Last in the column, and part of the page's own scroll rather than a
+     capped scroller of its own: the whole page scrolls past it, and a
+     drag inside it is never trapped. */
   :root:not(.desktop) .sidebar {
+    order: 2;
     border-right: none;
-    border-bottom: 1px solid #2a2b2e;
-    padding: 0.75rem 1rem 1rem;
-    max-height: 45dvh;
+    border-top: 1px solid #2a2b2e;
+    padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
     flex-shrink: 0;
   }
 
+  /* Last on the page, collapsed or not: clear of the home indicator. */
   :root:not(.desktop) .sidebar-collapsed .sidebar {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     max-height: none;
   }
 
@@ -3459,12 +3529,30 @@ a.bench-modal-header-button {
     padding: 1rem;
   }
 
+  /* One row of buttons that never wraps its labels (they broke onto
+     two and three lines at 320-390 px, 55-72 px tall); what does not
+     fit scrolls sideways under the finger. */
+  /* The padding gives a focused button's ring room inside the scroller,
+     which would clip it; the margin keeps the row where it was. */
   :root:not(.desktop) .part-header-actions {
     width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 4px;
+    margin: -4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  :root:not(.desktop) .part-header-actions::-webkit-scrollbar {
+    display: none;
   }
 
   :root:not(.desktop) .part-header-actions button {
-    flex: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   :root:not(.desktop) .workspace {
@@ -3488,9 +3576,35 @@ a.bench-modal-header-button {
   :root:not(.desktop) .viewer-panel,
   :root:not(.desktop) .bench-viewer {
     order: -1;
+    height: 60vh;
     height: 60svh;
     min-height: 260px;
     flex: none;
+  }
+
+  /* The toolbar on one 44 px row (two rows covered a quarter of the
+     viewer): the Grid select goes (Settings and the palette set the same
+     value), the Helpers and Measure buttons keep their icons only, and
+     the Bench's selection chip its first few words. */
+  :root:not(.desktop) .viewer-grid {
+    display: none;
+  }
+
+  :root:not(.desktop) .viewer-helpers-toggle,
+  :root:not(.desktop) .viewer-measure {
+    width: 44px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+  }
+
+  :root:not(.desktop) .viewer-helpers-label,
+  :root:not(.desktop) .viewer-tool-label {
+    display: none;
+  }
+
+  :root:not(.desktop) .bench-rotate-name {
+    max-width: 7rem;
   }
 
   :root:not(.desktop) .download-button,
@@ -3597,4 +3711,324 @@ a.bench-modal-header-button {
     width: 44px;
     height: 44px;
   }
+}
+
+/* ---------------------------------------------------------------------
+   Tablets in portrait (600-900 px; the stacked layout above applies):
+   the Library's form beside its viewer, both the viewer's height, under
+   the header and above the part list. An iPad mini got a 680 px viewer
+   with the form 280 px below the fold; an iPad the desktop layout's
+   290 px viewer. The Bench and Holes have no form in the grid, so the
+   viewer fills the row there as before.
+   ------------------------------------------------------------------- */
+@media (max-width: 900px) and (min-width: 600px) {
+  :root:not(.desktop) .workspace-body {
+    display: grid;
+    grid-template-columns: minmax(200px, 38%) minmax(0, 1fr);
+  }
+
+  :root:not(.desktop) .params-panel {
+    border-top: none;
+    border-right: 1px solid #2a2b2e;
+    overflow-y: auto;
+    max-height: 60vh;
+    max-height: 60svh;
+  }
+
+  :root:not(.desktop) .workspace-body > .viewer-panel {
+    order: 0;
+  }
+}
+
+/* The nav's buttons never wrap their words (a wrapped "Cancel renders"
+   grew the nav and shifted everything under it). */
+.mode-tab {
+  white-space: nowrap;
+}
+
+/* The render-cancel button's cross: shown on phones in place of its
+   label (the stacked layout above). */
+.render-cancel-icon {
+  display: none;
+}
+
+/* The Holes tab's Measure toggle, lit while on like the Helpers toggle. */
+.viewer-measure[aria-pressed="true"] {
+  background: #35407a;
+  border-color: #4a6fb5;
+}
+
+/* Text over the canvas is chrome, not copy: a finger resting on the
+   selection pill, a label or the toolbar started iOS's text selection
+   and its magnifier instead of a tap. The size box's field keeps it. */
+.viewer-canvas,
+.viewer-toolbar,
+.viewer-overlay,
+.viewer-labels,
+.viewer-handles,
+.viewer-drag-label,
+.holes-snap-hint,
+.bench-rotate-panel {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.viewer-handle-editor input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ---------------------------------------------------------------------
+   Touch screens, whatever their size (an iPad in landscape is 1180 px
+   wide and still a finger): the controls the 3300 block above does not
+   cover, measured under 44 px on a phone — DecimalInput's arrows (16 px
+   wide, the only way to step a number by touch), the parameter and
+   preset group summaries, Select all, dialog header buttons, the
+   palette's field and close button, list rows, the nav's icon buttons,
+   checkboxes. Double-tap zoom is turned off on controls, so a quick
+   second tap on ↺ or Undo acts instead of zooming the page (iOS;
+   Android already does this for device-width pages), and every text
+   field is 16 px, which iOS Safari does not zoom into on focus (the
+   stacked layout sets the same by width; an iPad in landscape needs it
+   by pointer).
+   ------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  button,
+  select,
+  summary,
+  label,
+  [role="option"],
+  [role="menuitem"],
+  .part-button,
+  .command-row {
+    touch-action: manipulation;
+  }
+
+  .decimal-input-arrows {
+    width: 2rem;
+  }
+
+  /* As specific as the base rule's, which would win otherwise and leave
+     the digits under the widened arrows. */
+  .decimal-input > input[type="text"] {
+    padding-right: 2.25rem;
+  }
+
+  .holes-select-all,
+  .bench-modal-header-button,
+  .command-palette-back,
+  .command-palette-close {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .command-palette-input {
+    min-height: 44px;
+  }
+
+  .holes-preset-group-toggle,
+  .command-row,
+  .holes-row-main,
+  .settings-system-toggle,
+  .settings-order-actions button {
+    min-height: 44px;
+  }
+
+  .bench-node-params-details summary,
+  .settings-parts summary {
+    padding: 0.75rem 0;
+  }
+
+  .settings-part-list li {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
+  .palette-tab,
+  .settings-tab,
+  .nav-link {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  .viewer-measure {
+    min-height: 44px;
+  }
+
+  input[type="checkbox"] {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+
+  /* A 44 px target around the 16 px "?", without growing the label. */
+  .info-tip-button {
+    position: relative;
+  }
+
+  /* Less below than around: the control under the label starts there, and
+     a tap on its top edge is meant for it. */
+  .info-tip-button::before {
+    content: "";
+    position: absolute;
+    inset: -14px -14px -6px;
+  }
+
+  :root:not(.desktop) .search-input,
+  :root:not(.desktop) .field input[type="text"],
+  :root:not(.desktop) .field select,
+  :root:not(.desktop) .bench-child-meta select,
+  :root:not(.desktop) .bench-offset-field input,
+  :root:not(.desktop) .bench-preset-name,
+  :root:not(.desktop) .viewer-handle-editor input[type="text"],
+  :root:not(.desktop) .viewer-grid,
+  :root:not(.desktop) .command-palette-input {
+    font-size: 1rem;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   "Print with EasyPrint…" (components/PrintSheet.jsx): a row per body
+   with its Share/Download and 3MF buttons, the EasyPrint link, the
+   steps. The Bench's and Holes' phone-only Print… button over the
+   viewer is a .viewer-actions row shown under 900 px only.
+   ------------------------------------------------------------------- */
+.print-sheet-modal {
+  width: min(440px, 100vw - 2rem);
+}
+
+.print-sheet {
+  padding: 0 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.print-sheet-intro,
+.print-sheet-note {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.print-sheet-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.print-sheet-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  background: #1c1d20;
+  border: 1px solid #2a2b2e;
+  border-radius: 6px;
+}
+
+.print-sheet-name {
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.print-sheet-error {
+  font-size: 0.78rem;
+}
+
+.print-sheet-buttons,
+.print-sheet-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.print-sheet-button {
+  position: static;
+}
+
+.print-sheet-secondary {
+  background: #2a2b2e;
+}
+
+.print-sheet-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.print-sheet-steps li + li {
+  margin-top: 0.3rem;
+}
+
+.viewer-actions-mobile {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :root:not(.desktop) .viewer-actions-mobile {
+    display: flex;
+  }
+}
+
+/* The Library header's "Find a part": only where the part list is out of
+   sight below the viewer (the stacked layout); elsewhere the list is the
+   sidebar beside it. */
+.find-part-button {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :root:not(.desktop) .find-part-button {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* A phone's nav on one row: under 480 px the GitHub link goes (the
+   palette's Help section has it), which keeps every other button on a
+   360-430 px screen through a render; narrower still, the row scrolls
+   sideways rather than pushing the Settings gear off the screen. */
+@media (max-width: 900px) {
+  :root:not(.desktop) .mode-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  :root:not(.desktop) .mode-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  :root:not(.desktop) .nav-link {
+    display: none;
+  }
+}
+
+/* A small phone's Library: Download STL and Print… on one row over the
+   viewer (with Copy for Layerling too, the row wrapped at 375 px, over a
+   resize handle and the failed-resize note). The palette's Library section
+   keeps Copy for Layerling. */
+@media (max-width: 480px) {
+  :root:not(.desktop) .viewer-actions .layerling-button {
+    display: none;
+  }
+}
+
+/* The page clear of a notch at every width, not only in the stacked
+   layout: a large iPhone in landscape is 926-956 px wide and gets the
+   two-column one, with the sensor housing over the sidebar's left edge.
+   0 everywhere else; browsers only (the desktop shell has no insets). */
+:root:not(.desktop) .shell-body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }

@@ -95,7 +95,10 @@ one that holds several bodies asks which to use. Meshes are validated and repair
 the way in (welded, winding fixed) and refused with an explanation if they have real holes. Imports
 live in your browser tab only; nothing is fetched or committed.
 
-Export walks the whole tree: one STL per body, or the generated `.scad`. Every exported file is
+Export walks the whole tree: one STL per body, or the generated `.scad`. **Print with EasyPrint…**
+renders every body and offers each as an STL, or all of them in one 3MF, to share or save and print
+from a phone with Prusa's EasyPrint ([Getting started](GETTING_STARTED.md#print-from-a-phone-with-easyprint));
+on a phone it is the **Print…** button over the 3D view. Every exported file is
 named after the bench — `<name>_<body>.stl`, `<name>.scad`, `<name>.bench.json` — so a downloads
 folder full of them says what each one is. The **Name** field at the top of the sidebar sets it;
 a bench exported without one is asked first, with a name built from its parts proposed

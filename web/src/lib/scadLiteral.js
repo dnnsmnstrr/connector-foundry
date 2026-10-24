@@ -40,7 +40,14 @@ export function scadLiteral(value) {
 // would escape in a way OpenSCAD's lexer doesn't read (see scadLiteral()).
 // eslint-disable-next-line no-control-regex -- matching control characters is the point
 const UNESCAPABLE_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
-const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+// With the u flag a well-formed pair is one code point outside this
+// range, so only a lone surrogate matches. Written without lookbehind on
+// purpose: esbuild cannot lower lookbehind for the build's Safari 14.1
+// target and quietly emits `new RegExp(...)` instead, which Safari before
+// 16.4 (March 2023) refused with a SyntaxError as the chunk loaded — a
+// blank page on iOS 15 and 16. tests/unit/no-lookbehind.test.js keeps
+// lookbehind out of the sources.
+const LONE_SURROGATE = /[\uD800-\uDFFF]/gu;
 
 // `text` with every character OpenSCAD can't take in a string literal
 // gone — also what a // comment can safely carry once its line breaks

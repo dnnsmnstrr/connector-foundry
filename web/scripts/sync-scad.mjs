@@ -14,6 +14,16 @@
 // catalogue schema never see it. A part with no render has no field and
 // shows its system's initial instead.
 //
+// The sources are shipped without their comments (stripForBundle()):
+// comments were 2.1 of the 3.6 MB of .scad text, and without them the
+// bundle gzips to about 0.7 MB instead of 1.2 MB. A comment is replaced
+// by nothing but the newlines it spanned, so every line keeps its number
+// and an OpenSCAD message in the worker's console still names the line of
+// the file in the repository. Each file's leading comment block stays: the
+// vendored upstreams' copyright and licence notices (GoProScad's, the CC
+// terms of QuackWorks and opengrid-projects, ...) must travel with the
+// source they cover.
+//
 // Bundle shape: { files: { "lib/x.scad": "<source>" }, assets: {
 // "parts/deckmate/universal_grip.stl": "<base64>" } } — `files` is
 // every .scad as text, `assets` every binary a part import()s, mounted
@@ -118,6 +128,107 @@ function stripComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
+// The text the browser gets for a file: its source without comments, line
+// for line (see the header). Walked, not regex'd like stripComments()
+// above: a string literal may hold "//" or "/*" (a URL, a glob) that a
+// regex strip would cut the string at, and a "//" inside a block comment
+// or a quote inside a line comment must not start or end anything. A line
+// comment goes up to its newline and a block comment leaves only the
+// newlines it spanned, so the stripped file has exactly the original's
+// lines; trailing whitespace goes too. The leading comment block is kept.
+export function stripForBundle(source) {
+  const headerEnd = leadingCommentEnd(source);
+  const lines = [];
+  let line = "";
+  const endLine = () => {
+    lines.push(line.trimEnd());
+    line = "";
+  };
+  // The characters that start something the scanner has to handle; the
+  // text between two of them is copied as it is.
+  const special = /["\n/]/g;
+  let i = headerEnd;
+  while (i < source.length) {
+    special.lastIndex = i;
+    const next = special.exec(source);
+    if (!next) {
+      line += source.slice(i);
+      break;
+    }
+    line += source.slice(i, next.index);
+    i = next.index;
+    if (source[i] === "\n") {
+      endLine();
+      i++;
+    } else if (source[i] === '"') {
+      const end = stringEnd(source, i);
+      line += source.slice(i, end);
+      i = end;
+    } else if (source[i + 1] === "/") {
+      const newline = source.indexOf("\n", i);
+      i = newline === -1 ? source.length : newline;
+    } else if (source[i + 1] === "*") {
+      const close = source.indexOf("*/", i + 2);
+      const end = close === -1 ? source.length : close + 2;
+      for (let k = source.indexOf("\n", i); k !== -1 && k < end; k = source.indexOf("\n", k + 1)) endLine();
+      i = end;
+    } else {
+      line += "/";
+      i++;
+    }
+  }
+  endLine();
+  return trimLineEnds(source.slice(0, headerEnd)) + lines.join("\n");
+}
+
+// The index just past the string literal opening at `start`: a backslash
+// escapes the next character (so an escaped quote does not end it). An
+// unterminated string runs to the end of the file, which OpenSCAD would
+// reject either way.
+function stringEnd(source, start) {
+  for (let i = start + 1; i < source.length; i++) {
+    if (source[i] === "\\") i++;
+    else if (source[i] === '"') return i + 1;
+  }
+  return source.length;
+}
+
+// The index just past a file's leading comment block: the comments, of
+// either kind, before its first code and its first blank line (an
+// upstream's copyright and licence notice sits there; a module's doc
+// comment after the first blank line is an ordinary comment). 0 when the
+// file starts with code.
+function leadingCommentEnd(source) {
+  let end = 0;
+  let i = 0;
+  while (i < source.length) {
+    let newlines = 0;
+    while (i < source.length && " \t\r\n".includes(source[i])) {
+      if (source[i] === "\n") newlines++;
+      i++;
+    }
+    if (end > 0 && newlines > 1) break;
+    if (source.startsWith("//", i)) {
+      const newline = source.indexOf("\n", i);
+      i = newline === -1 ? source.length : newline;
+    } else if (source.startsWith("/*", i)) {
+      const close = source.indexOf("*/", i + 2);
+      i = close === -1 ? source.length : close + 2;
+    } else {
+      break;
+    }
+    end = i;
+  }
+  return end;
+}
+
+function trimLineEnds(text) {
+  return text
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
+}
+
 // Every include/use target of `rel`'s source, resolved to a repo-relative
 // path: [{ target, resolved, shim }] where `shim` is the repo-relative
 // path of a forwarding stub to generate when a library-style name was
@@ -171,7 +282,7 @@ function collect() {
       continue;
     }
     const source = fs.readFileSync(abs, "utf8");
-    files[rel] = source;
+    files[rel] = stripForBundle(source);
     for (const { resolved, shim } of resolveIncludes(rel, source, roots)) {
       if (shim && files[shim] === undefined) {
         const hop = path.posix.relative(path.posix.dirname(shim), resolved);

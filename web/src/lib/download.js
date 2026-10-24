@@ -11,6 +11,18 @@ export function downloadBlob(data, filename, type = "application/octet-stream") 
   anchor.click();
   anchor.remove();
   // Not revoked synchronously: Safari starts the download after click()
-  // returns, and a URL revoked by then downloads an empty file.
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // returns, and a URL revoked by then downloads an empty file. On an
+  // iPhone the download waits for the user to confirm a sheet, which can
+  // take well over a second, so the URL lives a minute (FileSaver.js
+  // keeps its for 40 s for the same reason) — a few megabytes the render
+  // cache holds anyway — and goes when the page does.
+  const revoke = () => {
+    clearTimeout(timer);
+    window.removeEventListener("pagehide", revoke);
+    URL.revokeObjectURL(url);
+  };
+  const timer = setTimeout(revoke, REVOKE_AFTER_MS);
+  window.addEventListener("pagehide", revoke);
 }
+
+const REVOKE_AFTER_MS = 60_000;

@@ -7,6 +7,65 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Phones and tablets
+
+- **The web app works on a phone or a tablet.** The 3D view now comes first, with the part's
+  settings under it and the part list last (**Find a part** goes there); before, the part list
+  pushed the view below the fold on every phone. A tablet in portrait shows the settings beside
+  the view instead of a 290 px sliver of it. Every button, field and checkbox a finger uses is at
+  least 44 px, the header and the 3D view's toolbar fit one row, nothing sits under a notch or the
+  home indicator, and the nav keeps the Settings gear on screen while a part renders.
+- **Touch where a mouse used to be needed.** A tap near a slot marker or a Holes snap point takes
+  it (a fingertip's reach, not the dot's few pixels); the "?" beside a setting opens on a tap; the
+  Holes tab has a **Measure** toggle for what holding Option shows, and a long press on a hole in
+  the list adds it to the selection. A new part is framed to fit a narrow view, so its handles are
+  on screen.
+- **Add to Home Screen** opens the app like an app, and once it has rendered a part it opens again
+  without a connection.
+
+### Printing
+
+- **Print with EasyPrint…** on the Library, the Bench and the Holes tab (and in Cmd/Ctrl+K): the
+  file goes to your device — through the share sheet on an iPhone, iPad or Mac (**Save to Files**),
+  as a download in Chrome, whose share sheet refuses model files — then **Open EasyPrint**, sign in,
+  and upload it there to slice and print on a Prusa Connect printer. EasyPrint has no way for a
+  website to send it a model, so this is as direct as it gets. Each file also comes as a 3MF, a
+  fifth of the size, and on the Bench every body in one 3MF.
+- **Send this bench to another device** (Cmd/Ctrl+K) shares the bench's link, or copies it: set it
+  up on the computer, print it from the phone. From the desktop app the link opens the bench in the
+  web app.
+
+### Faster
+
+- **A third less to download, and once.** The OpenSCAD engine is downloaded as WebAssembly instead
+  of a 13.8 MB script and compiles while it downloads (3.2 MB instead of 4.5 on the wire), and the
+  part sources come without their comments (0.7 MB instead of 1.2): about 6 s sooner to a first
+  part on a slow phone connection. A returning visit loads what it has already seen from the
+  browser's cache, also after an update to the site.
+- **Edits on the Bench show sooner.** The preview renders before the edited part's own measuring
+  render, rather than after it, and parts rendered earlier are no longer rendered again after five
+  minutes.
+- On touch screens the 3D view draws at most 2.2 million pixels a frame, so turning a part on a
+  large tablet stays smooth; hovering is cheaper on big imported meshes.
+
+### Browsers
+
+- **iOS and Safari 15.4 to 16.3 no longer show a blank page.** A pattern in the app's code needed
+  Safari 16.4. Browsers older than Safari 15.4, Chrome 93, Firefox 114 or Samsung Internet 17 now
+  say what to update instead of showing nothing, and a page whose code failed to download says to
+  reload. Every build now checks its own output against that floor.
+- A render that runs out of memory (a big bench on a phone) says so, a download on an iPhone no
+  longer fails when its confirmation takes more than a second, and the 3D view redraws when a
+  phone gives its graphics back after the tab was in the background.
+
+### Website
+
+- On phones and tablets the landing page's buttons, chips, handles and footer links are
+  finger-sized, keyboard-only hints (⌘ K, esc, ↑ ↓ ↵) give way to touch wording, the 3D hero draws
+  fewer pixels and 30 frames a second while idle, and with Data Saver or a 2G connection it stays on
+  the pictures; the page keeps clear of a notch in landscape, and older browsers no longer scroll
+  it sideways.
+
 ### Desktop
 
 - **The desktop app updates itself.** It checks GitHub for a new release shortly after it starts

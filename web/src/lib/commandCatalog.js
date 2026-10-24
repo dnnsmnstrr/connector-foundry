@@ -170,6 +170,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["export", "save", "print"],
     action: "Download",
   },
+  "library.print": {
+    title: "Print with EasyPrint…",
+    section: "Library",
+    keywords: ["prusa", "easyprint", "slice", "share", "phone", "tablet", "3mf", "stl", "print"],
+    action: "Open",
+  },
   "library.layerling": {
     title: "Copy for Layerling",
     section: "Library",
@@ -254,6 +260,18 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["bench.json", "save", "export", "share"],
     action: "Download",
   },
+  "bench.print": {
+    title: "Print with EasyPrint…",
+    section: "Bench",
+    keywords: ["prusa", "easyprint", "slice", "share", "phone", "tablet", "3mf", "stl", "print", "bodies"],
+    action: "Open",
+  },
+  "bench.shareLink": {
+    title: "Send this bench to another device",
+    section: "Bench",
+    keywords: ["share", "link", "url", "phone", "copy", "airdrop", "address"],
+    action: "Share",
+  },
   "bench.layerling": {
     title: "Copy for Layerling",
     section: "Bench",
@@ -297,6 +315,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["snapping", "guides"],
     action: "Toggle",
   },
+  "holes.measure": {
+    title: "Measure distances",
+    section: "Holes",
+    keywords: ["ruler", "dimensions", "distance", "edges", "center", "option", "alt"],
+    action: "Toggle",
+  },
   "holes.flip": {
     title: "Flip the mesh upside down",
     section: "Holes",
@@ -319,6 +343,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     section: "Holes",
     keywords: ["openscad", "source", "export"],
     action: "Download",
+  },
+  "holes.print": {
+    title: "Print with EasyPrint…",
+    section: "Holes",
+    keywords: ["prusa", "easyprint", "slice", "share", "phone", "tablet", "3mf", "stl", "print"],
+    action: "Open",
   },
   "holes.layerling": {
     title: "Copy for Layerling",
@@ -378,6 +408,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     title: "Report an issue",
     section: "Help",
     keywords: ["bug", "github", "feedback", "problem"],
+    action: "Open",
+  },
+  "app.easyprint": {
+    title: "Open Prusa EasyPrint",
+    section: "Help",
+    keywords: ["printables", "slice", "prusa", "print", "cloud", "phone"],
     action: "Open",
   },
   "app.layerling": {
