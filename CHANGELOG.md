@@ -91,6 +91,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   for the 56 × 46 mm and 55 × 45 mm metal rings that make a case MagSafe-compatible, the middle left
   standing. The sidebar's **Insert** menu switches a pocket between puck and ring; sizes, depth and
   the cable channel's width and length are all editable.
+- **Export, reordered.** In the Holes tab and on the Bench, the downloads come first (Download STL;
+  the Bench's STL per body and its config), Copy for Layerling and Print with EasyPrint follow as
+  outlined buttons, and Download .scad is a link under them.
 - **System spacings in Measure.** While measuring, the selected hole can show a system's next
   holes as snap points with their distances, so a click drills the next one on pitch and the points
   move on with it: Gridfinity's magnet and screw holes (26 mm), openGrid (28 mm), Skådis

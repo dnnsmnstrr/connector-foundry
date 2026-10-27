@@ -1709,15 +1709,6 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <div className="bench-export">
               <button
                 type="button"
-                className="download-button bench-export-button print-button"
-                onClick={openPrintSheet}
-                disabled={status === "error"}
-                title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
-              >
-                Print with EasyPrint…
-              </button>
-              <button
-                type="button"
                 className="download-button bench-export-button"
                 onClick={downloadStl}
                 disabled={status === "error"}
@@ -1735,7 +1726,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               </button>
               <button
                 type="button"
-                className="download-button bench-export-button"
+                className="download-button bench-export-button layerling-button print-button"
+                onClick={openPrintSheet}
+                disabled={status === "error"}
+                title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
+              >
+                Print with EasyPrint…
+              </button>
+              {/* Rarely wanted, so a link under the buttons rather than one of them. */}
+              <button
+                type="button"
+                className="bench-export-link"
                 onClick={downloadScad}
                 title="The base and the holes as OpenSCAD source"
               >

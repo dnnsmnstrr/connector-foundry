@@ -1683,14 +1683,6 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
             <h3>Export</h3>
             <div className="bench-export">
-              <button
-                type="button"
-                className="download-button bench-export-button print-button"
-                onClick={openPrintSheet}
-                title="Share or save every body's file and open Prusa's EasyPrint, which slices and prints from a phone"
-              >
-                Print with EasyPrint…
-              </button>
               {bodyTags(assembly).map((tag) => (
                 <button
                   type="button"
@@ -1701,9 +1693,6 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   STL: {tag}
                 </button>
               ))}
-              <button type="button" className="download-button bench-export-button" onClick={downloadScad}>
-                Download .scad
-              </button>
               <button
                 type="button"
                 className="download-button bench-export-button"
@@ -1720,6 +1709,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 title={LAYERLING_COPY_TITLE}
               >
                 {layerling.label}
+              </button>
+              <button
+                type="button"
+                className="download-button bench-export-button layerling-button print-button"
+                onClick={openPrintSheet}
+                title="Share or save every body's file and open Prusa's EasyPrint, which slices and prints from a phone"
+              >
+                Print with EasyPrint…
+              </button>
+              {/* Rarely wanted, so a link under the buttons rather than one of them. */}
+              <button type="button" className="bench-export-link" onClick={downloadScad}>
+                Download .scad
               </button>
             </div>
 

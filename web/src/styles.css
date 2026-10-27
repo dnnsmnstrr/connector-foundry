@@ -1532,6 +1532,22 @@ a.mode-tab {
   text-align: center;
 }
 
+/* An export few people need, as a text link under the buttons. */
+.bench-export-link {
+  align-self: center;
+  margin-top: 0.2rem;
+  padding: 0.2rem 0.4rem;
+  background: transparent;
+  border: none;
+  font-size: 0.8rem;
+  color: #8fb0e8;
+  cursor: pointer;
+}
+
+.bench-export-link:hover {
+  text-decoration: underline;
+}
+
 /* Presets + config import (components/bench/PresetsPanel.jsx), in the
    sidebar of a running bench and on the start screen. */
 .bench-presets {
@@ -3818,6 +3834,7 @@ a.bench-modal-header-button {
   }
 
   .holes-select-all,
+  .bench-export-link,
   .bench-modal-header-button,
   .command-palette-back,
   .command-palette-close {
