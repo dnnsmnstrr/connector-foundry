@@ -159,6 +159,21 @@ sources:
     path: refs/manual/modgrid/bit-holder-leatherman.stl  # "MOD-GRID Leatherman Flat bit holder v4.stl"
     license: CC-BY-NC-SA-4.0 (MOD-GRID by 3dedc)
 
+  # SOLDR's module STLs (soldr.pro, Printables model 1471127, CC BY-NC-SA
+  # 4.0): what parts/soldr/base.scad is rebuilt from. Not fetched: download
+  # the model's files and copy these two module boxes into
+  # refs/manual/soldr/ under the names below (the file's own name after
+  # each). Without them, their checks are skipped.
+  soldr-box-1x1:
+    kind: file
+    path: refs/manual/soldr/box-1x1.stl   # "soldr-1x1-box-mod.stl"
+    license: CC-BY-NC-SA-4.0 (SOLDR by soldr.pro)
+
+  soldr-box-1x2:
+    kind: file
+    path: refs/manual/soldr/box-1x2.stl   # "soldr-1x2-box-full-space.stl"
+    license: CC-BY-NC-SA-4.0 (SOLDR by soldr.pro)
+
   nopscadlib:
     kind: git
     url: https://github.com/nophead/NopSCADlib.git
@@ -1031,6 +1046,60 @@ shape_checks:
 #                 print's worth of slop the parts do not go together.
 #   clearance     smallest surface-to-surface gap. Too large is a rattle.
 # ---------------------------------------------------------------------
+
+  # SOLDR: the base against the bottom 2.95mm of two of the designer's
+  # module boxes, where their own floor (its top at 2.99) is still all
+  # base. Each file is moved to its own centre; the 1x2's outside is
+  # 28.78 x 59.28 where its 1x1 is 28.8 square, a designer's 0.02 that
+  # ours (units x 30.5 - 1.7, both ways) does not copy. Their magnet
+  # holes' crush ribs and top round are drawn curves; ours are a circle
+  # and a 45° run-out, which is what keeps the IoUs short of 1.
+  - id: soldr/base-1x1
+    part: soldr/base
+    reference_source: soldr-box-1x1
+    ours: |
+      include <{repo}/parts/soldr/base.scad>
+      intersection() {{
+          soldr_base(gx = 1, anchor = BOTTOM);
+          translate([-50, -50, -1]) cube([100, 100, 3.95]);
+      }}
+    reference: |
+      intersection() {{
+          translate([-86.8205, -103.248, 0.006]) import("{soldr-box-1x1}");
+          translate([-50, -50, -1]) cube([100, 100, 3.95]);
+      }}
+    align: none
+    sections_z: [0.15, 1, 1.9, 2.2, 2.7]
+    tolerances:
+      max_bbox_mm: 0.03
+      max_volume_pct: 0.3
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.15
+      min_section_iou: 0.995
+
+  - id: soldr/base-1x2
+    part: soldr/base
+    reference_source: soldr-box-1x2
+    ours: |
+      include <{repo}/parts/soldr/base.scad>
+      intersection() {{
+          soldr_base(gx = 1, gy = 2, anchor = BOTTOM);
+          translate([-50, -50, -1]) cube([100, 100, 3.95]);
+      }}
+    reference: |
+      intersection() {{
+          translate([-90.0045, -104, 0]) import("{soldr-box-1x2}");
+          translate([-50, -50, -1]) cube([100, 100, 3.95]);
+      }}
+    align: none
+    sections_z: [0.15, 1, 1.9, 2.2, 2.7]
+    tolerances:
+      max_bbox_mm: 0.03
+      max_volume_pct: 0.5
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.15
+      min_section_iou: 0.99
+
 fit_checks:
   - id: gopro/male-into-our-female
     part: gopro/male

@@ -901,6 +901,57 @@ parts:
       - name: 4mm-two-rows
         params: { rows: 2 }
 
+  - id: soldr/base
+    system: SOLDR
+    name: Module base
+    file: parts/soldr/base.scad
+    module: soldr_base
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      SOLDR by soldr.pro, Printables model 1471127 — rebuilt from the
+      designer's 1x1 and 1x2 module STLs, measured, and checked against
+      them. CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/1471127-soldr-modular-usb-c-powered-soldering-station
+    print_note: >-
+      Feet down, no supports. One tapered foot per unit on a 30.5mm pitch
+      under a 1mm plate: a base is exactly units x 30.5 - 1.7mm each way and
+      3mm tall, so the designer's 1x2 is 28.8 x 59.3. magnets two is the
+      designer's pair of 6mm magnets per unit; one puts a single magnet in
+      the middle of each, four puts four in each, every hole 15.25mm from
+      the next both ways. The holes are open at the top:
+      press the magnets in before anything covers them (fused onto a part,
+      pause the print at 3mm).
+    slots:
+      pitch: 30.5  # SOLDR_PITCH — one slot per unit
+      count_params: [gx, gy]
+    # parts/soldr/base.scad asserts both at least 1.
+    minimums:
+      gx: 1
+      gy: 1
+    # 2 x 1 by default: test_slots.py walks from one slot to its X
+    # neighbour, and a 1 x 1 base has one slot.
+    defaults:
+      gx: 2
+      gy: 1
+      magnets: two
+    options:
+      magnets: [one, two, four, none]
+    # A unit per 30.5mm each way. 4 x 4 renders in 3.6s in the browser
+    # (0.6s natively); 8 x 8 takes 11s there.
+    resize:
+      x: { param: gx, per: 30.5, step: 1, max: 4 }
+      y: { param: gy, per: 30.5, step: 1, max: 4 }
+    variants:
+      - name: 1x1
+        params: { gx: 1 }
+      - name: 2x2-four-magnets
+        params: { gx: 2, gy: 2, magnets: four }
+      - name: one-magnet
+        params: { magnets: one }
+      - name: no-magnets
+        params: { magnets: none }
+
   - id: molle/spine
     system: MOLLE
     name: Spine

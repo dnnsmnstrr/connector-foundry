@@ -712,3 +712,34 @@ skadis/peg:
     - 17.0
     - 10.5
     volume_mm3: 2277.88
+soldr/base:
+  1x1:
+    bbox:
+    - 28.8
+    - 28.8
+    - 3.0
+    volume_mm3: 2059.24
+  2x2-four-magnets:
+    bbox:
+    - 59.3
+    - 59.3
+    - 3.0
+    volume_mm3: 7736.05
+  default:
+    bbox:
+    - 59.3
+    - 28.8
+    - 3.0
+    volume_mm3: 4168.32
+  no-magnets:
+    bbox:
+    - 59.3
+    - 28.8
+    - 3.0
+    volume_mm3: 4519.47
+  one-magnet:
+    bbox:
+    - 59.3
+    - 28.8
+    - 3.0
+    volume_mm3: 4343.9
