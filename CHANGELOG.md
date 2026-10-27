@@ -94,6 +94,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Export, reordered.** In the Holes tab and on the Bench, the downloads come first (Download STL;
   the Bench's STL per body and its config), Copy for Layerling and Print with EasyPrint follow as
   outlined buttons, and Download .scad is a link under them.
+- **Snapping moved to the viewer.** A bar in its bottom right corner has the Snap toggle, the
+  corner inset and the center circle's radius; the sidebar's Snapping section is gone, so the hole
+  list starts higher. The Grid is in the viewer's toolbar, as before, and in Settings.
 - **`M` turns Measure on and off** in the Holes tab, as the toolbar's Measure button does.
 - **System spacings in Measure.** While measuring, the selected hole can show a system's next
   holes as snap points with their distances, so a click drills the next one on pitch and the points

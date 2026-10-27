@@ -940,7 +940,7 @@ test("an open View menu keeps the plain keys: they don't nudge or delete the hol
   expect(await holePoint(page)).toEqual([0, 0, 2]);
 });
 
-test("the sidebar's Grid is the viewer's, and the arrows nudge by it straight after a pick", async ({
+test("the viewer's Grid sets the nudge, and the arrows nudge by it straight after a pick", async ({
   page,
 }) => {
   await catalogue(page);
@@ -950,23 +950,21 @@ test("the sidebar's Grid is the viewer's, and the arrows nudge by it straight af
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
   await drillAtFaceCenter(page);
-  const sidebarGrid = page.locator(".holes-sidebar").getByRole("combobox", { name: "Grid" });
   const viewerGrid = page.locator(".viewer-toolbar").getByRole("combobox", { name: "Grid" });
   await expect(viewerGrid).toHaveValue("0.5");
 
   // The pick lets go of the select, so the next arrow nudges the hole on
   // the new grid rather than changing the grid again. (selectOption()
   // alone doesn't focus it; a click on it would.)
-  await sidebarGrid.focus();
-  await sidebarGrid.selectOption("1");
-  await expect(viewerGrid).toHaveValue("1");
-  await expect(sidebarGrid).not.toBeFocused();
+  await viewerGrid.focus();
+  await viewerGrid.selectOption("1");
+  await expect(viewerGrid).not.toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => holePoint(page)).toEqual([1, 0, 2]);
-  await expect(sidebarGrid).toHaveValue("1");
+  await expect(viewerGrid).toHaveValue("1");
 
   // Off: a nudge still moves, half a millimetre.
-  await sidebarGrid.selectOption("0");
+  await viewerGrid.selectOption("0");
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => holePoint(page)).toEqual([1.5, 0, 2]);
 });
@@ -1060,12 +1058,14 @@ test("Measure spacing puts a system's next holes round the selected one, to dril
   test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
   const target = await drillAtFaceCenter(page);
 
-  // Picked, the spacing shows nothing until Measure is on.
-  const spacing = page.locator(".holes-sidebar").getByRole("combobox", { name: "Measure spacing" });
+  // With Measure on, its Spacing menu: an M3 hole has no system, so none
+  // until one is picked.
+  await page.getByRole("button", { name: "Measure distances" }).click();
+  const spacing = page.locator(".viewer-toolbar").getByRole("combobox", { name: "Spacing" });
+  await expect(spacing).toHaveValue("");
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
   await spacing.selectOption("modgrid");
   await expect(spacing).not.toBeFocused();
-  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Measure distances" }).click();
   await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
   await expect(page.locator(".viewer-label", { hasText: /^11\.3 mm$/ })).toHaveCount(1);
 
@@ -1133,9 +1133,7 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
   await expect(toolbarSpacing).not.toBeFocused();
   await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
   await toolbarSpacing.selectOption("bitbeam");
-  await expect(page.locator(".holes-sidebar").getByRole("combobox", { name: "Measure spacing" })).toHaveValue(
-    "bitbeam",
-  );
+  await expect(toolbarSpacing).toHaveValue("bitbeam");
   await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
 
   // Measure off and on again with the MOD-GRID hole — M does it too, but
@@ -1180,4 +1178,47 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
   await expect(standard).toHaveValue("bitbeam");
   await standard.selectOption("gridfinity");
   await expect(standard).toHaveValue("gridfinity");
+});
+
+test("the snapping bar over the viewer sets the guides, its fields off with Snap", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, { bytes: slabBytes });
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "the bar is over the WebGL preview");
+
+  // In the viewer's bottom right corner, and no longer in the sidebar.
+  const bar = page.getByRole("group", { name: "Snapping" });
+  const viewer = await page.locator(".bench-viewer").boundingBox();
+  const box = await bar.boundingBox();
+  expect(viewer.x + viewer.width - (box.x + box.width)).toBeLessThan(40);
+  expect(viewer.y + viewer.height - (box.y + box.height)).toBeLessThan(40);
+  await expect(page.locator(".holes-sidebar").getByText("Snapping", { exact: true })).toHaveCount(0);
+
+  const snap = bar.getByRole("button", { name: "Snap to face features and guide lines" });
+  const inset = bar.getByRole("spinbutton", { name: "Corner inset (mm)" });
+  const radius = bar.getByRole("spinbutton", { name: "Center radius (mm)" });
+  await expect(snap).toHaveAttribute("aria-pressed", "true");
+  await expect(inset).toHaveValue("5");
+  await expect(radius).toHaveValue("10");
+
+  // Sizes typed here are the guides' (0 draws no circle).
+  await inset.fill("8");
+  await inset.press("Enter");
+  await expect(inset).toHaveValue("8");
+  await radius.fill("0");
+  await radius.press("Enter");
+  await expect(radius).toHaveValue("0");
+
+  // Snap off: the fields are off too; the palette's toggle is the same one.
+  await snap.click();
+  await expect(snap).toHaveAttribute("aria-pressed", "false");
+  await expect(inset).toBeDisabled();
+  await expect(radius).toBeDisabled();
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.keyboard.type("snap to the face");
+  await page.keyboard.press("Enter");
+  await expect(snap).toHaveAttribute("aria-pressed", "true");
+  await expect(inset).toBeEnabled();
 });

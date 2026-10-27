@@ -11,21 +11,25 @@ catalogue part (its
 parameters stay editable under a toggle in the sidebar while you work), a mesh of your own (STL, STEP or 3MF), or the
 bench as it stands, then click a face: the
 hole snaps to that face's significant points — its center, the center of each quadrant, the
-center of any hole already through it, and a point set in from each corner (the inset is
-adjustable; a plate with rounded corners gets its corner points where the sharp corners would be).
+center of any hole already through it, and a point set in from each corner (a plate with rounded
+corners gets its corner points where the sharp corners would be).
 Hovering a face also draws guide lines — its center and quarter lines, a radial from the center
 to each corner, and a circle of a radius you choose around the center: the crossings are snap
 points (a bolt circle of up to eight), and a click near a line or the circle lands on it, so a hole
-can go anywhere along the center line and still be exactly centered. Hold Option (or turn on
-**Measure** in the 3D view's toolbar, or press `M`) to see the pointed-at spot's distances to the
-face's edges and center, and the face's size; Shift-click places exactly where you click.
+can go anywhere along the center line and still be exactly centered. The **snapping bar** in the
+viewer's bottom right corner turns snapping on and off (**Snap**) and sets the corner points'
+**Inset** and the circle's **Radius** (0 draws none); the palette's "Snap to the face's points and
+lines" toggles it too. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press
+`M`) to see the pointed-at spot's distances to the face's edges and center, and the face's size;
+Shift-click places exactly where you click.
 
 **A system's spacing.** While measuring, the selected hole can show a system's next holes: snap
 points one step away in every direction, with dashed lines to them and their distances. Click one
 to drill there; the new hole is selected, so the points move on with it and a pattern can be walked
 a hole at a time. Pick the system in the **Spacing** menu beside Measure in the 3D view's toolbar
-(it appears while Measure is on; on a phone the toolbar has no room for it, as for the Grid), under
-Snapping as **Measure spacing**, or with "Measure spacing…" in the command palette. A hole placed from a system's preset picks its own when Measure is turned
+(it appears while Measure is on; on a phone the toolbar has no room for it, as for the Grid) or
+with "Measure spacing…" in the command palette. A hole placed from a system's preset picks its own
+when Measure is turned
 on with it selected, or when it is selected while Measure is on: a MOD-GRID hole MOD-GRID, a Skådis
 slot Skådis, a BitBeam pin hole BitBeam, the openConnect, MultiConnect and openGrid thread slots
 openGrid, the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
@@ -41,7 +45,7 @@ lines and snap points, and a tap on a face already showing them drills, landing 
 guide within a fingertip's reach of it. The guides stay up after the hole is drilled, and tapping a
 hole shows its face's, so the next hole and a hole dragged by its handle have them to aim by;
 **Measure** shows the distances from the spot you tapped, or
-from the selected hole; turning **Snapping** off places freely; and pressing and holding a hole in
+from the selected hole; turning **Snap** off in the snapping bar places freely; and pressing and holding a hole in
 the list adds it to the selection, as Shift-click does.
 
 Each hole has a diameter, a depth (or goes right through) and a head pocket — counterbore,
@@ -78,7 +82,7 @@ stays. A cutout may still hang over the face's edge to notch it — only its cen
 the face. The arrow keys nudge the selected holes along their face by one Grid step (Shift: ten),
 and refuse, with a note, a step that would take one off it.
 
-The **Grid** — in the viewer's toolbar, the sidebar's Snapping section and Settings → Editing,
+The **Grid** — in the viewer's toolbar (on a phone, in the command palette) and Settings → Editing,
 all one setting — is what those steps and sizes snap to, and where a click away from the snap
 points lands: 0.5 mm unless you change it (0.1 to 5 mm); Off places, drags and sizes exactly
 (an arrow key then nudges 0.5 mm).

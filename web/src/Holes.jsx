@@ -3,8 +3,7 @@ import { BufferGeometry } from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
-import DecimalInput from "./components/DecimalInput.jsx";
-import GridField from "./components/holes/GridField.jsx";
+import SnapBar from "./components/holes/SnapBar.jsx";
 import HoleRow from "./components/holes/HoleRow.jsx";
 import HoleSpecFields from "./components/holes/HoleSpecFields.jsx";
 import PresetPicker from "./components/holes/PresetPicker.jsx";
@@ -1540,75 +1539,6 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               )}
             </details>
 
-            <h3>Snapping</h3>
-            <label
-              className="field field-checkbox bench-crop-field"
-              title="Clicks land on the face center, quadrant centers, existing holes, corner insets and the guide lines when one is within reach. Shift-click places freely."
-            >
-              <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />
-              <span className="field-label">Snap to face features and guide lines</span>
-            </label>
-            <GridField />
-            <label
-              className="field bench-offset-field holes-inset-field"
-              title="How far in from each edge the corner snap points sit; a radial line runs from the face center through each of them"
-            >
-              <span className="field-label">Corner inset (mm)</span>
-              <DecimalInput
-                min="0"
-                step="0.5"
-                value={inset}
-                onChange={(value) => setInset(Math.max(0, value))}
-              />
-            </label>
-            <p className="muted holes-params-note">
-              {coarse ? (
-                <>
-                  Measure, in the 3D view's toolbar, shows the tapped spot's distances to the face's edges and
-                  center.
-                </>
-              ) : (
-                <>
-                  Hold <kbd className="holes-key">⌥ Option</kbd> (or turn on Measure in the 3D view's toolbar)
-                  to see the pointed-at spot's distances to the face's edges and center.
-                </>
-              )}
-            </p>
-            <label
-              className="field bench-offset-field holes-inset-field"
-              title="While measuring, a system's next holes around the selected one: snap points one step away in every direction, to drill the next hole of a Gridfinity bin, a Skådis board or a MOD-GRID grid at once. Each new hole is selected, so the points move on with it."
-            >
-              <span className="field-label">Measure spacing</span>
-              <select
-                value={pitchId ?? ""}
-                onChange={(e) => {
-                  setPitchId(e.target.value || null);
-                  // As the Grid menu does: the arrow keys pressed next nudge
-                  // the selected hole, which a focused select would take.
-                  e.target.blur();
-                }}
-              >
-                <option value="">None</option>
-                {STANDARD_SPACINGS.map((spacing) => (
-                  <option key={spacing.id} value={spacing.id}>
-                    {spacingLabel(spacing)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label
-              className="field bench-offset-field holes-inset-field"
-              title="A circle of this radius around the face center — a bolt circle. Snap points where it crosses the center lines and the radials; a click near it lands on it. 0 draws none."
-            >
-              <span className="field-label">Center radius (mm)</span>
-              <DecimalInput
-                min="0"
-                step="0.5"
-                value={radius}
-                onChange={(value) => setRadius(Math.max(0, value))}
-              />
-            </label>
-
             <h3>
               {multi
                 ? `${selectedHoles.length} holes`
@@ -1955,6 +1885,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               this row under 900 px only). Not while an error is up: the
               error sits where the row does, and the sheet would only run
               the failing render again (the palette and Export keep it). */}
+          {/* Snapping over the viewer's corner, by the model it acts on.
+              Not while an error is up, which takes the bottom of the view. */}
+          {geometries && !(renderError || handleFailed) && (
+            <SnapBar
+              snapOn={snapOn}
+              onSnapChange={setSnapOn}
+              inset={inset}
+              onInsetChange={setInset}
+              radius={radius}
+              onRadiusChange={setRadius}
+            />
+          )}
           {geometries && !(renderError || handleFailed) && (
             <div className="viewer-actions viewer-actions-mobile">
               <button type="button" className="download-button print-button" onClick={openPrintSheet}>

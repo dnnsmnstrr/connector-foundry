@@ -181,11 +181,20 @@ test.describe("on a phone", () => {
     await expect(page.locator(".holes-row")).toHaveCount(1);
 
     // Measure on, the toolbar stays one row: its Spacing menu stays out,
-    // as the Grid does, and the sidebar's sets the same.
+    // as the Grid does (the palette sets it).
     await page.getByRole("button", { name: "Measure distances" }).tap();
     await expect(page.locator(".viewer-toolbar").getByRole("combobox", { name: "Spacing" })).toBeHidden();
-    await expect(page.getByRole("combobox", { name: "Measure spacing" })).toBeVisible();
     expect((await box(page.locator(".viewer-toolbar"))).height).toBeLessThanOrEqual(50);
+
+    // The snapping bar sits over the Print button, inside the view, with
+    // a finger's 44 px for its toggle.
+    const bar = await box(page.getByRole("group", { name: "Snapping" }));
+    const print = await box(page.locator(".viewer-actions-mobile").getByRole("button", { name: "Print…" }));
+    expect(bar.y + bar.height).toBeLessThanOrEqual(print.y);
+    expect(bar.x).toBeGreaterThanOrEqual(view.x);
+    expect(bar.x + bar.width).toBeLessThanOrEqual(view.x + view.width);
+    const toggle = await box(page.getByRole("button", { name: "Snap to face features and guide lines" }));
+    expect(toggle.height).toBeGreaterThanOrEqual(44);
   });
 
   test("the Bench's Print button is over the viewer, where a phone can reach it", async ({ page }) => {

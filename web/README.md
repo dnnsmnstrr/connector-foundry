@@ -150,8 +150,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   (`TOUCH_PICK_PX`) unless the model is in front of it, and the Holes tab's snap points take a tap
   within 22 px (the viewer reports millimetres per pixel at the hit). What a mouse does by hovering
   or holding a key has a touch path: Holes' **Measure** toggle (the Option-held measurements, from
-  the tapped spot or the selected hole), a long press on a hole in the list (Shift-click), Snapping
-  off (Shift-click on a face). The palette fits its dialog to the visual viewport once the on-screen
+  the tapped spot or the selected hole), a long press on a hole in the list (Shift-click), the
+  snapping bar's Snap off (Shift-click on a face). The palette fits its dialog to the visual viewport once the on-screen
   keyboard is up.
 - **Weak devices.** On a touch screen the viewer's framebuffer is bounded by area as well as by its
   pixel ratio (2.2 million pixels, `MAX_TOUCH_FRAMEBUFFER_PX`: an iPad Pro's viewer was 4–5 million
@@ -290,7 +290,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
 | `src/lib/benchResize.js` | The Bench root's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, and whether a node's measured extents still belong to its parameters |
-| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction), `HoleRow` (one row of the hole list), `GridField` (the Snapping section's Grid select) |
+| `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction), `HoleRow` (one row of the hole list), `SnapBar` (the snapping toggle, corner inset and center radius over the viewer's bottom right corner) |
 | `src/lib/holeHandles.js` | The Holes tab's handles on the selected hole: a cutout resized from the opposite edge (Alt: from the centre), the move handle, the arrow-key nudge, the "still on its face?" check, the selection pill's anchor |
 | `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source), `cachedHoled()` (all of that straight from the render cache, so an undo shows with no render), the surface probe a moved hole is checked against, and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
 | `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`; BitBeam pin holes cut by `lib/pinhole.scad`; KLIPPT channels cut by `lib/klippt.scad`; DeckMate sockets cut by `lib/deckmate.scad`; MagSafe charger and ring pockets); the fastener, slot, shape and socket presets; the Repeat form's row / grid / circle patterns (`repeatHole()`, which places only the copies the caller's mesh probe accepts); the face-feature snap points; the live document as module state, with its undo history |
@@ -1267,9 +1267,8 @@ the implementation notes:
   mesh's triangles in a uniform grid the first time it is asked, since three.js raycasts test
   every triangle: over a 156k-triangle Gridfinity baseplate one probe took 7.6 ms, and a 20-hole
   pattern's nudge outlasted the key repeat.
-- **The Grid** for placement is the same setting as the handles' (`uiPrefs.js`): the sidebar's
-  Snapping section has it as `components/holes/GridField.jsx`, the viewer as its Grid select;
-  both give up focus after a pick, so the next arrow key nudges the hole.
+- **The Grid** for placement is the same setting as the handles' (`uiPrefs.js`): the viewer's
+  Grid select, which gives up focus after a pick, so the next arrow key nudges the hole.
 - The selection pill hangs below the selected hole's outline when the hole has handles
   (`holePillAnchor()`: down the face to the outline's bottom, then as far down the screen as an
   oblique view needs), so it doesn't cover the top edge and corners; the viewer keeps it inside

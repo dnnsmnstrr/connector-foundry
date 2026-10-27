@@ -3027,16 +3027,60 @@ a.bench-modal-header-button {
   min-height: 4.2em; /* 3 x its line-height */
 }
 
-.holes-inset-field input {
-  width: 4.5rem;
+/* The snapping bar (components/holes/SnapBar.jsx): a pill in the
+   viewer's bottom right corner, in the toolbar's look. */
+.holes-snap-bar {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.2rem;
+  background: rgba(42, 43, 46, 0.92);
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #e6e6e6;
 }
 
-/* The Snapping section's Grid (components/holes/GridField.jsx), sized
-   like the number fields around it. */
-.holes-grid-field select {
-  width: 6rem;
-  padding: 0.15rem 0.3rem;
+.holes-snap-toggle {
+  min-height: 1.6rem;
+  padding: 0.3rem 0.7rem;
+  background: transparent;
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  color: #9a9ca3;
+  font: inherit;
+  cursor: pointer;
+}
+
+.holes-snap-toggle[aria-pressed="true"] {
+  background: #35407a;
+  border-color: #4a6fb5;
+  color: #e6e6e6;
+}
+
+.holes-snap-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.holes-snap-field-label {
+  color: #9a9ca3;
+}
+
+.holes-snap-field .decimal-input > input[type="text"] {
+  width: 3.6rem;
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
   font-size: 0.75rem;
+}
+
+.holes-snap-field:has(input:disabled) .holes-snap-field-label {
+  opacity: 0.5;
 }
 
 /* A refused move or nudge, in the snap hint's place for a moment. */
@@ -3600,8 +3644,8 @@ a.bench-modal-header-button {
 
   /* The toolbar on one 44 px row (two rows covered a quarter of the
      viewer): the Grid select goes (Settings and the palette set the same
-     value), and so does Measure's Spacing (the sidebar's Measure spacing
-     and the palette set it, and a system's hole picks its own); the
+     value), and so does Measure's Spacing (the palette sets it, and a
+     system's hole picks its own); the
      Helpers and Measure buttons keep their icons only, and the Bench's
      selection chip its first few words. */
   :root:not(.desktop) .viewer-grid {
@@ -4016,6 +4060,21 @@ a.bench-modal-header-button {
 @media (max-width: 900px) {
   :root:not(.desktop) .viewer-actions-mobile {
     display: flex;
+  }
+
+  /* The snapping bar over that row's Print button, not beside it: side by
+     side, the two don't fit a phone's width. */
+  :root:not(.desktop) .holes-snap-bar {
+    right: 1.25rem;
+    bottom: calc(1.25rem + 44px + 0.5rem);
+  }
+}
+
+/* A finger's 44 px for the snapping bar's toggle and fields. */
+@media (pointer: coarse) {
+  .holes-snap-toggle,
+  .holes-snap-field .decimal-input > input[type="text"] {
+    min-height: 44px;
   }
 }
 
