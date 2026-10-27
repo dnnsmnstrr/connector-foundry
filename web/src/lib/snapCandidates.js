@@ -516,7 +516,7 @@ function intersectLines(p, d, q, e) {
 
 // Where a system's next holes go around one at `anchor` (on the face):
 // its neighbours one step out on `spacing` ({ across, up, stagger }, one
-// of screwHoles.js's MEASURE_SPACINGS), laid along the face's own u and v,
+// of screwHoles.js's STANDARD_SPACINGS), laid along the face's own u and v,
 // as the measurements and the center lines are. A square grid has eight;
 // a staggered one (Skådis) the two along its row, the four half a step
 // across in the rows either side, and the two a row pair up and down.

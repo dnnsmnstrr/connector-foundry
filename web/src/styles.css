@@ -3584,8 +3584,10 @@ a.bench-modal-header-button {
 
   /* The toolbar on one 44 px row (two rows covered a quarter of the
      viewer): the Grid select goes (Settings and the palette set the same
-     value), the Helpers and Measure buttons keep their icons only, and
-     the Bench's selection chip its first few words. */
+     value), and so does Measure's Spacing (the sidebar's Measure spacing
+     and the palette set it, and a system's hole picks its own); the
+     Helpers and Measure buttons keep their icons only, and the Bench's
+     selection chip its first few words. */
   :root:not(.desktop) .viewer-grid {
     display: none;
   }

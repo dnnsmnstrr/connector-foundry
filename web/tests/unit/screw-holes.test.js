@@ -20,14 +20,22 @@ import {
   repeatHole,
   repeatPoints,
   isPill,
+  getSpacing,
   matchSpacing,
+  spacingLabel,
   STANDARD_SPACINGS,
   rotateHoles,
   slotFrame,
   slotOutline,
   updateHole,
 } from "../../src/lib/screwHoles.js";
-import { SCREW_PRESETS, getPreset, presetSpecFor, specMatchesPreset } from "../../src/lib/screwPresets.js";
+import {
+  SCREW_PRESETS,
+  getPreset,
+  presetSpacingId,
+  presetSpecFor,
+  specMatchesPreset,
+} from "../../src/lib/screwPresets.js";
 
 const partsById = new Map([
   [
@@ -1021,6 +1029,54 @@ test("a grid's spacing names the standard it matches, or none", () => {
   assert.equal(matchSpacing({ spacingAcross: 50.8, spacingUp: 50.8, stagger: false })?.id, "molle-rigid");
   assert.equal(matchSpacing({ spacingAcross: 38.1, spacingUp: 25.4 })?.id, "molle-slit");
   assert.equal(matchSpacing({ spacingAcross: 10, spacingUp: 10, stagger: false }), null);
+  // MOD-GRID and BitBeam share their numbers: the one picked is the one
+  // named, while the numbers are still its.
+  assert.equal(matchSpacing({ spacingAcross: 8, spacingUp: 8, standard: "bitbeam" })?.id, "bitbeam");
+  assert.equal(matchSpacing({ spacingAcross: 8, spacingUp: 8, standard: "modgrid" })?.id, "modgrid");
+  assert.equal(matchSpacing({ spacingAcross: 26, spacingUp: 26, standard: "bitbeam" })?.id, "gridfinity");
+  assert.equal(matchSpacing({ spacingAcross: 28, spacingUp: 28 })?.id, "opengrid");
+});
+
+test("one list of system spacings, each with its numbers, for Repeat and Measure alike", () => {
+  assert.deepEqual(
+    STANDARD_SPACINGS.map((s) => [s.id, s.across, s.up, s.stagger]),
+    [
+      ["gridfinity", 26, 26, false],
+      ["opengrid", 28, 28, false],
+      ["skadis", 40, 20, true],
+      ["modgrid", 8, 8, false],
+      ["bitbeam", 8, 8, false],
+      ["molle-rigid", 50.8, 50.8, false],
+      ["molle-slit", 38.1, 25.4, false],
+    ],
+  );
+  assert.ok(STANDARD_SPACINGS.every((s) => s.label && s.short && getSpacing(s.id) === s));
+  assert.equal(getSpacing("nope"), null);
+  assert.equal(spacingLabel(getSpacing("skadis")), "Skådis (40 × 20 mm, staggered)");
+  assert.equal(spacingLabel(getSpacing("modgrid")), "MOD-GRID (8 mm)");
+});
+
+test("a preset names the system spacing its holes are laid out on", () => {
+  for (const [presetId, spacingId] of [
+    ["modgrid-hole", "modgrid"],
+    ["skadis-slot", "skadis"],
+    ["bitbeam-pin", "bitbeam"],
+    ["magnet-6x2", "gridfinity"],
+    ["molle-opening", "molle-rigid"],
+    ["molle-slit", "molle-slit"],
+    ["oc-slot", "opengrid"],
+    ["mc-slot", "opengrid"],
+    ["m3-cap", null],
+    ["magnet-8x3", null],
+    [null, null],
+    ["nope", null],
+  ])
+    assert.equal(presetSpacingId(presetId), spacingId, presetId);
+  // Every system a preset names is one the menus offer.
+  for (const preset of SCREW_PRESETS) {
+    const id = presetSpacingId(preset.id);
+    if (id) assert.ok(getSpacing(id), preset.id);
+  }
 });
 
 test("repeat: a circle filled with Skådis spacing is the board's pattern round the hole, which stays put", () => {

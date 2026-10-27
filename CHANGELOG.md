@@ -91,11 +91,13 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   for the 56 × 46 mm and 55 × 45 mm metal rings that make a case MagSafe-compatible, the middle left
   standing. The sidebar's **Insert** menu switches a pocket between puck and ring; sizes, depth and
   the cable channel's width and length are all editable.
-- **Measure spacing.** Measure can show a system's spacing round the selected hole: Gridfinity's
-  magnet and screw holes (26 mm), openGrid (28 mm), Skådis (40 × 20 mm, staggered), MOD-GRID
-  (8 mm) or MOLLE. Its next holes are snap points with their distances, so a click drills the next
-  one on pitch and the points move on with it. Pick it under Snapping or with "Measure spacing…"
-  in the command palette.
+- **System spacings in Measure.** While measuring, the selected hole can show a system's next
+  holes as snap points with their distances, so a click drills the next one on pitch and the points
+  move on with it: Gridfinity's magnet and screw holes (26 mm), openGrid (28 mm), Skådis
+  (40 × 20 mm, staggered), MOD-GRID (8 mm), BitBeam (8 mm) or MOLLE. A **Spacing** menu beside
+  Measure picks one, and a hole from a system's preset (a MOD-GRID hole, a Skådis slot, a BitBeam
+  pin hole, an openGrid connector, a 6 × 2 mm Gridfinity magnet, MOLLE) picks its own. Repeat's
+  standard spacings are the same list, so Gridfinity, openGrid and BitBeam are there too.
 - **MOD-GRID holes.** A **MOD-GRID hole** preset (the grid's 5 × 5 mm square, through) and a
   **MOD-GRID** standard spacing in Repeat's grid (8 mm both ways) turn any face 3 mm thick into a
   MOD-GRID grid that MOD-GRID accessories and the `modgrid/connector` pin snap into. A part cut

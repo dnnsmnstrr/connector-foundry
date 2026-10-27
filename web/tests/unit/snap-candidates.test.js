@@ -20,7 +20,7 @@ import {
   nearestGuide,
   pitchCandidates,
 } from "../../src/lib/snapCandidates.js";
-import { MEASURE_SPACINGS } from "../../src/lib/screwHoles.js";
+import { getSpacing } from "../../src/lib/screwHoles.js";
 
 // The welded, indexed geometry the Holes tab analyses (see Holes.jsx).
 function welded(geometry) {
@@ -345,7 +345,7 @@ test("faceNear: the face a drilled hole was on, found again around its bore in t
 
 // --- system spacing ------------------------------------------------------
 
-const spacing = (id) => MEASURE_SPACINGS.find((s) => s.id === id);
+const spacing = getSpacing;
 const pointSet = (candidates) => new Set(candidates.map((c) => String(round(c.point))));
 const offsetsAt = (anchor, offsets) =>
   new Set(offsets.map(([x, y]) => String(round([anchor[0] + x, anchor[1] + y, anchor[2]]))));

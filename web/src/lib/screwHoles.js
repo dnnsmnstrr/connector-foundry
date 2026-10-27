@@ -656,6 +656,8 @@ export function flipHoles(doc, height) {
 //   skadisFill    circle: instead of a ring, every point of a Skådis
 //                 board's pattern (SKADIS_SPACING) within the radius,
 //                 centred on the selected hole, which stays put
+//   standard      grid: the STANDARD_SPACINGS id its spacing was set to,
+//                 or null — only which name the form shows (matchSpacing())
 export const REPEAT_DEFAULTS = Object.freeze({
   pattern: "row",
   count: 4,
@@ -670,6 +672,7 @@ export const REPEAT_DEFAULTS = Object.freeze({
   radius: 15,
   keepCenter: false,
   skadisFill: false,
+  standard: /** @type {string | null} */ (null),
 });
 // A Skådis board's slot pattern: 40 mm along a row, rows 20 mm apart,
 // every other row shifted 20 mm — a checkerboard on a 20 mm grid. What
@@ -677,39 +680,99 @@ export const REPEAT_DEFAULTS = Object.freeze({
 // skadisFill lays out.
 export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 
-// The Repeat form's grid presets: a system's hole pattern, for laying a
-// panel out from one hole. MOLLE rigid panels put an opening every 2"
-// both ways (PALS row pitch up, a 12.7 mm bar across: lib/molle.scad's
-// RIGID_PITCH_*); laser-cut panels a slit every 1.5" across and 1" up.
-// A MOD-GRID grid has a hole every 8 mm both ways (lib/modgrid.scad's
-// MODGRID_PITCH), which an accessory's 2x1 pin spans.
+// A system's hole spacing: what the Repeat form's "Standard spacing" sets
+// a grid to, and the next holes Measure shows round the selected one
+// (snapCandidates.js's pitchCandidates()) — one list, so the two always
+// agree. Holes presets that belong to a system name it (screwPresets.js's
+// presetSpacingId()).
+// - Gridfinity: a bin's magnet and screw holes sit 8 mm in from each side
+//   of its 42 mm cell, so a cell's four are 26 mm apart both ways. Repeat
+//   lays out a cell's 2 x 2; the next cell's holes are 42 − 26 = 16 mm on.
+// - openGrid: a cell, and a snap, every 28 mm (RAMP_SPACING_MM).
+// - Skådis: SKADIS_SPACING, every other row shifted half a step.
+// - MOD-GRID: a hole every 8 mm both ways (lib/modgrid.scad's
+//   MODGRID_PITCH), which an accessory's 2x1 pin spans.
+// - BitBeam: a pin hole every 8 mm, a beam's unit (PINHOLE.unit).
+// - MOLLE: rigid panels put an opening every 2" both ways (PALS row pitch
+//   up, a 12.7 mm bar across: lib/molle.scad's RIGID_PITCH_*); laser-cut
+//   panels a slit every 1.5" across and 1" up.
+// `short` is the name where room is tight (the viewer's toolbar).
+// MOD-GRID and BitBeam share their numbers, so a grid's options carry the
+// one picked (`standard`) for matchSpacing() to tell them apart.
 export const STANDARD_SPACINGS = Object.freeze([
-  { id: "skadis", label: "Skådis", across: SKADIS_SPACING.across, up: SKADIS_SPACING.up, stagger: true },
-  { id: "molle-rigid", label: "MOLLE rigid panel", across: 50.8, up: 50.8, stagger: false },
-  { id: "molle-slit", label: "MOLLE slit panel", across: 38.1, up: 25.4, stagger: false },
-  { id: "modgrid", label: "MOD-GRID", across: 8, up: 8, stagger: false },
+  {
+    id: "gridfinity",
+    label: "Gridfinity magnets and screws",
+    short: "Gridfinity",
+    across: 26,
+    up: 26,
+    stagger: false,
+  },
+  {
+    id: "opengrid",
+    label: "openGrid",
+    short: "openGrid",
+    across: RAMP_SPACING_MM,
+    up: RAMP_SPACING_MM,
+    stagger: false,
+  },
+  {
+    id: "skadis",
+    label: "Skådis",
+    short: "Skådis",
+    across: SKADIS_SPACING.across,
+    up: SKADIS_SPACING.up,
+    stagger: true,
+  },
+  { id: "modgrid", label: "MOD-GRID", short: "MOD-GRID", across: 8, up: 8, stagger: false },
+  {
+    id: "bitbeam",
+    label: "BitBeam",
+    short: "BitBeam",
+    across: PINHOLE.unit,
+    up: PINHOLE.unit,
+    stagger: false,
+  },
+  {
+    id: "molle-rigid",
+    label: "MOLLE rigid panel",
+    short: "MOLLE rigid",
+    across: 50.8,
+    up: 50.8,
+    stagger: false,
+  },
+  {
+    id: "molle-slit",
+    label: "MOLLE slit panel",
+    short: "MOLLE slit",
+    across: 38.1,
+    up: 25.4,
+    stagger: false,
+  },
 ]);
 
-// The spacings Measure can show around the selected hole (snapCandidates.js's
-// pitchCandidates()): the Repeat form's standard ones, and two that are no
-// pattern to repeat. A Gridfinity bin's magnet and screw holes sit 8 mm in
-// from each side of its 42 mm cell, so a cell's four are 26 mm apart both
-// ways (the next cell's are 42 − 26 = 16 mm on); an openGrid board has a
-// cell, and a snap, every 28 mm (RAMP_SPACING_MM).
-export const MEASURE_SPACINGS = Object.freeze([
-  { id: "gridfinity", label: "Gridfinity magnets and screws", across: 26, up: 26, stagger: false },
-  { id: "opengrid", label: "openGrid", across: RAMP_SPACING_MM, up: RAMP_SPACING_MM, stagger: false },
-  ...STANDARD_SPACINGS,
-]);
+/** @param {string | null | undefined} id */
+export function getSpacing(id) {
+  return STANDARD_SPACINGS.find((s) => s.id === id) ?? null;
+}
 
-// Which of STANDARD_SPACINGS a grid's options are, or null (custom).
-/** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean }} options */
-export function matchSpacing({ spacingAcross, spacingUp, stagger }) {
-  return (
-    STANDARD_SPACINGS.find(
-      (s) => s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger),
-    ) ?? null
-  );
+// A spacing as the menus list it: its name and its steps.
+/** @param {{ label: string, across: number, up: number, stagger: boolean }} spacing */
+export function spacingLabel({ label, across, up, stagger }) {
+  const steps = across === up ? `${across} mm` : `${across} × ${up} mm`;
+  return `${label} (${steps}${stagger ? ", staggered" : ""})`;
+}
+
+// Which of STANDARD_SPACINGS a grid's options are, or null (custom): the
+// one they were set to (`standard`) while the numbers still match it,
+// else the first whose numbers they are.
+/** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean, standard?: string | null }} options */
+export function matchSpacing({ spacingAcross, spacingUp, stagger, standard }) {
+  const fits = (/** @type {{ across: number, up: number, stagger: boolean }} */ s) =>
+    s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger);
+  const picked = getSpacing(standard);
+  if (picked && fits(picked)) return picked;
+  return STANDARD_SPACINGS.find(fits) ?? null;
 }
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.

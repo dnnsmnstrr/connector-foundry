@@ -20,16 +20,22 @@ can go anywhere along the center line and still be exactly centered. Hold Option
 **Measure** in the 3D view's toolbar) to see the pointed-at spot's distances to the face's edges and
 center, and the face's size; Shift-click places exactly where you click.
 
-**Measure spacing**, under Snapping (or "Measure spacing…" in the command palette), adds a
-system's spacing to the measurements: while measuring, the selected hole gets snap points at that
-system's next holes, one step away in every direction, with dashed lines to them and their
-distances. Click one to drill there; the new hole is selected, so the points move on with it and a
-pattern can be walked a hole at a time. The spacings: **Gridfinity magnets and screws** (26 mm: a
-42 mm cell's four base holes, 8 mm in from its edges — the next cell's are 16 mm on), **openGrid**
-(28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered), **MOD-GRID** (8 mm),
-**MOLLE rigid panel** (50.8 mm) and **MOLLE slit panel** (38.1 × 25.4 mm). The steps run along the
-face's own directions, as the measurements do; points off the face or in a hole are left out. For a
-whole pattern at once, Repeat's standard spacings (below) do the same in one go.
+**A system's spacing.** While measuring, the selected hole can show a system's next holes: snap
+points one step away in every direction, with dashed lines to them and their distances. Click one
+to drill there; the new hole is selected, so the points move on with it and a pattern can be walked
+a hole at a time. Pick the system in the **Spacing** menu beside Measure in the 3D view's toolbar
+(it appears while Measure is on; on a phone the toolbar has no room for it, as for the Grid), under
+Snapping as **Measure spacing**, or with "Measure spacing…" in the command palette. A hole placed from a system's preset picks its own when Measure is turned
+on with it selected, or when it is selected while Measure is on: a MOD-GRID hole MOD-GRID, a Skådis
+slot Skådis, a BitBeam pin hole BitBeam, the openConnect, MultiConnect and openGrid thread slots
+openGrid, the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
+Gridfinity. A spacing picked by hand stays until the selection or Measure changes. The spacings are
+the same as Repeat's standard spacings (below), from the same numbers: **Gridfinity magnets and
+screws** (26 mm: a 42 mm cell's four base holes, 8 mm in from its edges — the next cell's are 16 mm
+on), **openGrid** (28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered),
+**MOD-GRID** (8 mm), **BitBeam** (8 mm, a beam's unit), **MOLLE rigid panel** (50.8 mm) and **MOLLE
+slit panel** (38.1 × 25.4 mm). The steps run along the face's own directions, as the measurements
+do; points off the face or in a hole are left out.
 
 **On a touch screen** there is no hover and no Option key: the first tap on a face shows its guide
 lines and snap points, and a tap on a face already showing them drills, landing on a snap point or
@@ -87,8 +93,8 @@ lasts until the page reloads, through switches to the other tabs. `?` lists ever
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
-staggered half a step, or set to a **standard spacing**: Skådis, MOLLE rigid panel, MOLLE slit
-panel or MOD-GRID) or a circle (count and radius round the hole's spot, the hole itself moving
+staggered half a step, or set to a **standard spacing** — the systems Measure shows, above;
+Gridfinity's lays out a cell's 2 × 2 magnet or screw holes) or a circle (count and radius round the hole's spot, the hole itself moving
 onto the circle or staying in the middle). The copies are previewed in green; any that would miss
 the face — past its edge, into another hole — are left out and counted, and afterwards the whole
 pattern is selected to edit or delete together.

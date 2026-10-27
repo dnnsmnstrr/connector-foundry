@@ -88,13 +88,21 @@ import {
   setDocName,
   setHolesSpec,
   setNextSpec,
-  MEASURE_SPACINGS,
+  STANDARD_SPACINGS,
+  getSpacing,
   sharedSpec,
+  spacingLabel,
   sourceLabel,
   sourceStem,
   updateHole,
 } from "./lib/screwHoles.js";
-import { getPreset, presetGroups, presetSpecFor, specMatchesPreset } from "./lib/screwPresets.js";
+import {
+  getPreset,
+  presetGroups,
+  presetSpacingId,
+  presetSpecFor,
+  specMatchesPreset,
+} from "./lib/screwPresets.js";
 import {
   DEFAULT_CENTER_RADIUS_MM,
   DEFAULT_CORNER_INSET_MM,
@@ -231,9 +239,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const coarse = hasCoarsePointer();
   const [measurePoint, setMeasurePoint] = useState(null);
   // The system spacing Measure shows round the selected hole (an id of
-  // MEASURE_SPACINGS), or null for none: its next holes as snap points.
+  // STANDARD_SPACINGS, the Repeat form's too), or null for none: its next
+  // holes as snap points.
   const [pitchId, setPitchId] = useState(null);
-  const pitchSpacing = MEASURE_SPACINGS.find((s) => s.id === pitchId) ?? null;
+  const pitchSpacing = getSpacing(pitchId);
   const hoverPoint = useRef(null);
   const [benchBusy, setBenchBusy] = useState(false);
   // The last handle or move commit: the holes it set (the very array, so
@@ -722,6 +731,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // get, a single field edit is not (it is only part of a spec).
   const selectedHoles = doc ? doc.holes.filter((h) => selectedIds.includes(h.id)) : [];
   const selected = selectedHoles.length === 1 ? selectedHoles[0] : null;
+  // Measure follows the selected hole's system: turned on with a hole
+  // whose preset belongs to one selected (or such a hole selected while it
+  // is on), it shows that system's spacing. Only when that changes, so a
+  // spacing picked by hand stays until the selection or Measure does —
+  // adjusted while rendering, React's way for state that follows other
+  // state, rather than in an effect a frame late.
+  const autoPitchId = measuring && selected ? presetSpacingId(selected.presetId) : null;
+  const [seenAutoPitchId, setSeenAutoPitchId] = useState(null);
+  if (autoPitchId !== seenAutoPitchId) {
+    setSeenAutoPitchId(autoPitchId);
+    if (autoPitchId) setPitchId(autoPitchId);
+  }
   const multi = selectedHoles.length > 1;
   const shared = useMemo(() => sharedSpec(selectedHoles), [doc?.holes, selectedIds]); // eslint-disable-line react-hooks/exhaustive-deps
   const editingSpec = selected ? selected.spec : doc?.nextSpec;
@@ -1259,7 +1280,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           searchLabel: "Search spacings",
           note: "While measuring, the system's next holes round the selected one, as snap points.",
           items: () =>
-            [null, ...MEASURE_SPACINGS].map((spacing) => ({
+            [null, ...STANDARD_SPACINGS].map((spacing) => ({
               id: `holes.pitch:${spacing?.id ?? "none"}`,
               title: spacing ? spacingLabel(spacing) : "None",
               section: "Measure spacing",
@@ -1562,7 +1583,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 }}
               >
                 <option value="">None</option>
-                {MEASURE_SPACINGS.map((spacing) => (
+                {STANDARD_SPACINGS.map((spacing) => (
                   <option key={spacing.id} value={spacing.id}>
                     {spacingLabel(spacing)}
                   </option>
@@ -1844,6 +1865,25 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                     <RulerIcon />
                     <span className="viewer-tool-label">Measure</span>
                   </button>
+                  {measureOn && (
+                    <select
+                      className="viewer-tool viewer-grid"
+                      aria-label="Spacing"
+                      title="A system's next holes round the selected one, as snap points to drill them on pitch. Picked for you when the selected hole is one of that system's."
+                      value={pitchId ?? ""}
+                      onChange={(e) => {
+                        setPitchId(e.target.value || null);
+                        e.target.blur();
+                      }}
+                    >
+                      <option value="">Spacing: none</option>
+                      {STANDARD_SPACINGS.map((spacing) => (
+                        <option key={spacing.id} value={spacing.id}>
+                          {spacing.short}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </>
               }
             >
@@ -1955,12 +1995,6 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       )}
     </div>
   );
-}
-
-// A spacing as the menus list it: its name and its steps.
-function spacingLabel({ label, across, up, stagger }) {
-  const steps = across === up ? `${across} mm` : `${across} × ${up} mm`;
-  return `${label} (${steps}${stagger ? ", staggered" : ""})`;
 }
 
 // `face` with a system spacing's points (the Holes tab's `pitch`) first

@@ -682,6 +682,35 @@ export function getPreset(id) {
   return byId.get(id) ?? null;
 }
 
+// The system spacing (an id of screwHoles.js's STANDARD_SPACINGS) a hole
+// placed from `presetId` belongs to, or null: what Measure switches to
+// when it is turned on with such a hole selected (or one is selected while
+// it is on). The openGrid connectors hang on a board's 28 mm cells; the
+// 6 × 2 disc magnet is the one Gridfinity bins take. By preset id, kept
+// even once the hole is edited: a MOD-GRID hole made a hair wider for a
+// printer is still on its grid.
+/** @type {Record<string, string>} */
+const SPACING_BY_GROUP = {
+  "openConnect (openGrid)": "opengrid",
+  MultiConnect: "opengrid",
+  "openGrid thread (screw connectors)": "opengrid",
+  Skådis: "skadis",
+  "MOD-GRID": "modgrid",
+};
+/** @type {Record<string, string>} */
+const SPACING_BY_PRESET = {
+  "magnet-6x2": "gridfinity",
+  "bitbeam-pin": "bitbeam",
+  "molle-opening": "molle-rigid",
+  "molle-slit": "molle-slit",
+};
+/** @param {string | null | undefined} presetId */
+export function presetSpacingId(presetId) {
+  const preset = presetId ? getPreset(presetId) : null;
+  if (!preset) return null;
+  return SPACING_BY_PRESET[preset.id] ?? SPACING_BY_GROUP[preset.group] ?? null;
+}
+
 // The presets in display order, grouped: [{ group, presets: [...] }].
 export function presetGroups() {
   const groups = [];

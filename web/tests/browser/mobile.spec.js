@@ -179,6 +179,13 @@ test.describe("on a phone", () => {
     await page.touchscreen.tap(spot.x, spot.y);
     await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
     await expect(page.locator(".holes-row")).toHaveCount(1);
+
+    // Measure on, the toolbar stays one row: its Spacing menu stays out,
+    // as the Grid does, and the sidebar's sets the same.
+    await page.getByRole("button", { name: "Measure distances" }).tap();
+    await expect(page.locator(".viewer-toolbar").getByRole("combobox", { name: "Spacing" })).toBeHidden();
+    await expect(page.getByRole("combobox", { name: "Measure spacing" })).toBeVisible();
+    expect((await box(page.locator(".viewer-toolbar"))).height).toBeLessThanOrEqual(50);
   });
 
   test("the Bench's Print button is over the viewer, where a phone can reach it", async ({ page }) => {

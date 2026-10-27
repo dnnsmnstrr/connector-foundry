@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { SKADIS_SPACING, STANDARD_SPACINGS, matchSpacing } from "../../lib/screwHoles.js";
+import { SKADIS_SPACING, STANDARD_SPACINGS, matchSpacing, spacingLabel } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
@@ -102,7 +102,7 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
           <label
             className="field"
             htmlFor={`${id}-standard`}
-            title="A system's hole pattern: Skådis is 40 mm across, 20 mm up, every other row shifted; a MOLLE rigid panel 50.8 mm both ways (with the MOLLE opening preset); a MOLLE slit panel 38.1 mm across, 25.4 mm up (with the slit preset); MOD-GRID 8 mm both ways (with the MOD-GRID hole)."
+            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), MOD-GRID, BitBeam and MOLLE panels."
           >
             <span className="field-label">Standard spacing</span>
             <select
@@ -115,13 +115,14 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
                     spacingAcross: spacing.across,
                     spacingUp: spacing.up,
                     stagger: spacing.stagger,
+                    standard: spacing.id,
                   });
               }}
             >
               <option value="">Custom</option>
               {STANDARD_SPACINGS.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.label}
+                  {spacingLabel(s)}
                 </option>
               ))}
             </select>

@@ -1107,3 +1107,60 @@ test("Measure spacing puts a system's next holes round the selected one, to dril
   await spacing.selectOption("");
   await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
 });
+
+test("Measure picks the selected hole's own system spacing, which Repeat offers too", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page, { bytes: slabBytes });
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
+  const search = page.getByRole("searchbox", { name: "Search hole types" });
+  await search.fill("mod-grid");
+  await page.getByRole("option", { name: /^MOD-GRID hole/ }).click();
+  await search.fill("");
+  await drillAtFaceCenter(page);
+
+  // The toolbar's spacing menu comes with Measure, already on MOD-GRID.
+  const toolbarSpacing = page.locator(".viewer-toolbar").getByRole("combobox", { name: "Spacing" });
+  await expect(toolbarSpacing).toHaveCount(0);
+  await page.getByRole("button", { name: "Measure distances" }).click();
+  await expect(toolbarSpacing).toHaveValue("modgrid");
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
+
+  // Picked by hand, it stays: none, then BitBeam's 8 mm (the same numbers).
+  await toolbarSpacing.selectOption("");
+  await expect(toolbarSpacing).not.toBeFocused();
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
+  await toolbarSpacing.selectOption("bitbeam");
+  await expect(page.locator(".holes-sidebar").getByRole("combobox", { name: "Measure spacing" })).toHaveValue(
+    "bitbeam",
+  );
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
+
+  // Measure off and on again with the MOD-GRID hole: MOD-GRID once more.
+  await page.getByRole("button", { name: "Measure distances" }).click();
+  await expect(toolbarSpacing).toHaveCount(0);
+  await page.getByRole("button", { name: "Measure distances" }).click();
+  await expect(toolbarSpacing).toHaveValue("modgrid");
+
+  // Repeat's grid offers the same spacings, and keeps BitBeam apart from
+  // MOD-GRID though their numbers are one.
+  await page.getByRole("button", { name: "Repeat…" }).click();
+  await page.getByRole("combobox", { name: "Repeat as a" }).selectOption("grid");
+  const standard = page.getByRole("combobox", { name: "Standard spacing" });
+  await expect(standard.locator("option")).toHaveText([
+    "Custom",
+    "Gridfinity magnets and screws (26 mm)",
+    "openGrid (28 mm)",
+    "Skådis (40 × 20 mm, staggered)",
+    "MOD-GRID (8 mm)",
+    "BitBeam (8 mm)",
+    "MOLLE rigid panel (50.8 mm)",
+    "MOLLE slit panel (38.1 × 25.4 mm)",
+  ]);
+  await standard.selectOption("bitbeam");
+  await expect(standard).toHaveValue("bitbeam");
+  await standard.selectOption("gridfinity");
+  await expect(standard).toHaveValue("gridfinity");
+});
