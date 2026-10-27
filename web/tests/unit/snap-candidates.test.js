@@ -14,6 +14,7 @@ import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   analyzeFace,
   edgeDistances,
+  faceNear,
   gridPoint,
   nearestCandidate,
   nearestGuide,
@@ -312,4 +313,30 @@ test("a degenerate triangle has no face to analyse", () => {
   geometry.setAttribute("position", new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 1, 0], 3));
   geometry.setIndex([0, 1, 2, 0, 1, 3]);
   assert.equal(analyzeFace(geometry, 0), null);
+});
+
+test("faceNear: the face a drilled hole was on, found again around its bore in the new mesh", () => {
+  const outline = new Shape();
+  outline.moveTo(-15, -10);
+  outline.lineTo(15, -10);
+  outline.lineTo(15, 10);
+  outline.lineTo(-15, 10);
+  outline.closePath();
+  const hole = new Path();
+  hole.absarc(5, 0, 2, 0, Math.PI * 2, true);
+  outline.holes.push(hole);
+  const geometry = welded(new ExtrudeGeometry(outline, { depth: 4, bevelEnabled: false, curveSegments: 16 }));
+  const top = analyzeFace(geometry, topTriangle(geometry, 4));
+
+  // The hole's center, over the bore: the top face around it.
+  const t = faceNear(geometry, [5, 0, 4], [0, 0, 1]);
+  assert.notEqual(t, null);
+  assert.equal(analyzeFace(geometry, t).key, top.key);
+  // The bottom face, seen from below.
+  const bottom = analyzeFace(geometry, faceNear(geometry, [5, 0, 0], [0, 0, -1]));
+  assert.deepEqual(round(bottom.normal), [0, 0, -1]);
+  // No face turned that way through the point: none.
+  assert.equal(faceNear(geometry, [5, 0, 2], [0, 0, 1]), null);
+  assert.equal(faceNear(geometry, [5, 0, 4], [1, 0, 0]), null);
+  assert.equal(faceNear(geometry, [NaN, 0, 4], [0, 0, 1]), null);
 });

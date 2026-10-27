@@ -20,8 +20,11 @@ can go anywhere along the center line and still be exactly centered. Hold Option
 **Measure** in the 3D view's toolbar) to see the pointed-at spot's distances to the face's edges and
 center, and the face's size; Shift-click places exactly where you click.
 
-**On a touch screen** there is no hover and no Option key: a tap drills, and lands on a snap point or
-guide within a fingertip's reach of it; **Measure** shows the distances from the spot you tapped, or
+**On a touch screen** there is no hover and no Option key: the first tap on a face shows its guide
+lines and snap points, and a tap on a face already showing them drills, landing on a snap point or
+guide within a fingertip's reach of it. The guides stay up after the hole is drilled, and tapping a
+hole shows its face's, so the next hole and a hole dragged by its handle have them to aim by;
+**Measure** shows the distances from the spot you tapped, or
 from the selected hole; turning **Snapping** off places freely; and pressing and holding a hole in
 the list adds it to the selection, as Shift-click does.
 

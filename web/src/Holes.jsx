@@ -93,6 +93,7 @@ import {
   DEFAULT_CORNER_INSET_MM,
   analyzeFace,
   gridPoint,
+  faceNear,
   nearestCandidate,
   nearestGuide,
   planePoint,
@@ -200,7 +201,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // one render with the new mesh and the old key; when the new mesh had
   // fewer triangles, the face lookup ran off its end and took the whole
   // tab down — deleting a hole that had been dropped inside another.)
-  const [guide, setGuide] = useState(null); // { key, topo } | null
+  //
+  // The guide also keeps a spot on its face (`anchor`, a point and the
+  // face's normal) and the base it was taken on, so that a re-render of
+  // the same base finds the face again (faceNear()) rather than dropping
+  // it: a mouse would bring it back with the next hover, but a finger has
+  // none, and on a phone the lines went with the first hole drilled.
+  const [guide, setGuide] = useState(null); // { key, topo, anchor, source } | null
   const pendingGuide = useRef(null); // { key, timer } | null
   // Option held: the point under the pointer (or the selected hole) gets
   // its distances to the face's edges and center drawn and labelled.
@@ -311,13 +318,33 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // the model may end, step, or have another hole in — so this one asks
   // the mesh on screen, holes and all (lib/holesRender.js).
   const repeatProbe = useMemo(() => (geometries ? surfaceProbe(geometries.display) : null), [geometries]);
-  const guideFaceKey = guide && geometries && guide.topo === geometries.topo ? guide.key : null;
-  function setGuideFaceKey(key) {
-    setGuide(key === null || !geometries ? null : { key, topo: geometries.topo });
+  const shownSource = preview.key?.source;
+  const guideFaceKey = useMemo(() => {
+    if (!guide || !geometries) return null;
+    if (guide.topo === geometries.topo) return guide.key;
+    if (guide.source !== shownSource) return null;
+    const t = faceNear(geometries.topo, guide.anchor.point, guide.anchor.normal);
+    return t === null ? null : (analyzeFace(geometries.topo, t, { inset, radius })?.key ?? null);
+  }, [guide, geometries, shownSource, inset, radius]);
+  /**
+   * @param {number} key
+   * @param {{ point: number[], normal: number[] }} anchor a spot on the face
+   */
+  function setGuideFaceKey(key, anchor) {
+    if (geometries) setGuide({ key, topo: geometries.topo, anchor, source: shownSource });
+  }
+  // The guide face moves to the face `hole` is on, at once: a hole picked
+  // or dragged shows the lines to aim it by without a hover first.
+  function guideToHole(hole) {
+    if (!geometries || !meshIsCurrent) return;
+    const t = faceNear(geometries.topo, hole.point, hole.normal);
+    const face = t === null ? null : analyzeFace(geometries.topo, t, { inset, radius });
+    if (!face) return;
+    cancelPendingGuide();
+    if (face.key !== guideFaceKey) setGuideFaceKey(face.key, { point: hole.point, normal: face.normal });
   }
   useEffect(() => {
     setHover(null);
-    setGuide(null);
     cancelPendingGuide();
   }, [geometries]);
   useEffect(() => cancelPendingGuide, []);
@@ -327,16 +354,20 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     pendingGuide.current = null;
   }
 
-  // The guide face follows the pointer to `key` — at once when there is
-  // none yet or when `now` (a click), otherwise after the dwell.
-  function proposeGuideFace(key, now = false) {
+  // The guide face follows the pointer to `resolved`'s face (resolveHit())
+  // — at once when there is none yet or when `now` (a click), otherwise
+  // after the dwell. Its anchor is the spot the pointer resolved to: a
+  // tap's is where the hole goes, which faceNear() finds around the bore.
+  function proposeGuideFace(resolved, now = false) {
+    const key = resolved.face.key;
     if (key === guideFaceKey) {
       cancelPendingGuide();
       return;
     }
+    const anchor = { point: resolved.point, normal: resolved.face.normal };
     if (now || guideFaceKey === null) {
       cancelPendingGuide();
-      setGuideFaceKey(key);
+      setGuideFaceKey(key, anchor);
       return;
     }
     if (pendingGuide.current?.key === key) return;
@@ -345,7 +376,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       key,
       timer: setTimeout(() => {
         pendingGuide.current = null;
-        setGuideFaceKey(key);
+        setGuideFaceKey(key, anchor);
       }, GUIDE_SWITCH_DELAY_MS),
     };
   }
@@ -567,7 +598,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       setMeasurePoint((prev) =>
         prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
       );
-    proposeGuideFace(resolved.face.key);
+    proposeGuideFace(resolved);
     const next = {
       faceKey: resolved.face.key,
       snapId: resolved.snap?.id ?? null,
@@ -586,8 +617,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     // A finger never hovers, so the tap is the one place it can say
     // where to measure from.
     if (measuring) setMeasurePoint(resolved.point);
-    proposeGuideFace(resolved.face.key, true);
-    placeAt(resolved.point, resolved.face.normal, hit.shiftKey);
+    // Nor can it see a face's guides before it drills, so the first tap on
+    // a face that isn't showing them only brings them up, to aim the
+    // second by. A tap on a hole there still picks it.
+    const { point, face } = resolved;
+    const firstLook =
+      hit.touch && face.key !== guideFaceKey && !doc.holes.some((h) => holeAtSpot(h, point, face.normal));
+    proposeGuideFace(resolved, true);
+    if (!firstLook) placeAt(point, face.normal, hit.shiftKey);
   }
 
   // A spot that already has a hole selects it — or, with Shift, adds it
@@ -606,14 +643,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     setSelectedIds([hole.id]);
   }
 
-  // A click on a hole: just that one, or with Shift, toggle it in the
-  // selection. With Measure on, the distances then follow the selected
+  // A click on a hole: just that one, with its face's guides (to drag it
+  // by), or with Shift, toggle it in the selection. With Measure on, the distances then follow the selected
   // hole until the next tap on a face, rather than staying on a spot
   // tapped before (a finger has no hover to move them).
   function pickHole(id, shiftKey) {
     if (measuring) setMeasurePoint(null);
     if (shiftKey) setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-    else setSelectedIds([id]);
+    else {
+      setSelectedIds([id]);
+      const hole = doc.holes.find((h) => h.id === id);
+      if (hole) guideToHole(hole);
+    }
   }
 
   // The Measure toggle (the toolbar's button and the holes.measure
@@ -886,6 +927,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const onHandleStart = (id) => {
     const handle = findHandle(id);
     dragStart.current = handle && selected ? { handle, hole: selected } : null;
+    if (selected) guideToHole(selected);
     setHandleDrag(true);
   };
   const onHandlePreview = (id, point, modifiers) => {
@@ -1356,7 +1398,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <h2>{label}</h2>
             <p className="muted">
               {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
-              {coarse ? "Tap" : "Click"} a face in the scene to drill a hole.
+              {coarse
+                ? "Tap a face in the scene for its guides, again to drill a hole."
+                : "Click a face in the scene to drill a hole."}
             </p>
             <label
               className="field bench-name-field"
@@ -1644,8 +1688,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               ) : doc.holes.length === 0 ? (
                 coarse ? (
                   <>
-                    Tap a face to drill a hole; a tap near a snap point lands on it. Measure shows distances;
-                    Snapping off places freely.
+                    Tap a face for its guides, then tap again to drill a hole; a tap near a snap point lands
+                    on it. Measure shows distances; Snapping off places freely.
                   </>
                 ) : (
                   <>
@@ -1655,8 +1699,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 )
               ) : coarse ? (
                 <>
-                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another, a
-                  hole to select it; press and hold one in the list to select several.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another (a
+                  new face shows its guides first), a hole to select it; press and hold one in the list to
+                  select several.
                 </>
               ) : (
                 <>

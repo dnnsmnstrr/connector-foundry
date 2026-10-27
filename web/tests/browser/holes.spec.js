@@ -78,6 +78,26 @@ async function drillAtFaceCenter(page) {
   return target;
 }
 
+// Hover from (x, y) down the canvas until the hint names a snap, and
+// return that spot. The guide face's snap dots stay up across a hole's
+// render, and a dot under the pointer takes the hover (it lights up
+// instead), so a fixed spot may be on one. A pointer that stays put gets
+// no second pointermove, hence the nudge before each look.
+async function hoverSnap(page, x, y) {
+  const hint = page.locator(".holes-snap-hint");
+  let spot = null;
+  await expect(async () => {
+    for (let dy = 0; dy <= 30 && !spot; dy += 5) {
+      await page.mouse.move(x, y + dy - 2);
+      await page.mouse.move(x, y + dy);
+      await page.waitForTimeout(50);
+      if ((await hint.count()) && (await hint.textContent()).includes("Snap:")) spot = { x, y: y + dy };
+    }
+    expect(spot, "a spot near the pointer with a snap hint").not.toBeNull();
+  }).toPass();
+  return spot;
+}
+
 // The first hole's position, from its row in the sidebar's list.
 async function holePoint(page) {
   const meta = await page.locator(".holes-row-meta").first().textContent();
@@ -237,9 +257,7 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   // Move to a spot clear of hole 1's ring (a marker under the pointer
   // takes the click), let the hover report its snap, then click — as a
   // hand does.
-  const second = { x: box.x + box.width / 2, y: box.y + box.height / 2 + 30 };
-  await page.mouse.move(second.x, second.y);
-  await expect(page.locator(".holes-snap-hint")).toContainText("Snap:");
+  const second = await hoverSnap(page, box.x + box.width / 2, box.y + box.height / 2 + 30);
   await page.mouse.click(second.x, second.y);
   await expect(page.locator(".holes-row")).toHaveCount(2);
   await expect.poll(async () => (await jobs(page)).length).toBe(4);
@@ -981,17 +999,10 @@ test("the header's hint keeps two lines, so selecting holes never moves the view
   await expect(note).toContainText("1 hole.");
   await look();
   const box = await canvas.boundingBox();
-  const second = { x: box.x + box.width / 2, y: box.y + box.height / 2 + 30 };
   // The drilled hole's render replaces the mesh, and with it the face under
-  // the pointer (its triangles are renumbered): hover once that render is
-  // in, and again until the hint is up — a pointer that stays put gets no
-  // second pointermove.
+  // the pointer (its triangles are renumbered): hover once that render is in.
   await expect.poll(async () => (await jobs(page)).length).toBeGreaterThanOrEqual(2);
-  await expect(async () => {
-    await page.mouse.move(second.x, second.y - 2);
-    await page.mouse.move(second.x, second.y);
-    await expect(page.locator(".holes-snap-hint")).toContainText("Snap:", { timeout: 500 });
-  }).toPass();
+  const second = await hoverSnap(page, box.x + box.width / 2, box.y + box.height / 2 + 30);
   await page.mouse.click(second.x, second.y);
   await expect(page.locator(".holes-row")).toHaveCount(2);
   await page.getByRole("button", { name: "Select all", exact: true }).click();

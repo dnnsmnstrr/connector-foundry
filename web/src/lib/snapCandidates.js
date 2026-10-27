@@ -111,6 +111,93 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
 }
 
 /** @param {ArrayLike<number>} values */
+// How far off a face's plane a point may be, and how far its normal may
+// turn, for faceNear() to count the face as the one the point was on.
+const NEAR_PLANE_MM = 0.05;
+const NEAR_NORMAL_DOT = 0.999;
+
+// The triangle of `geometry` nearest to `point` on a face turned along
+// `normal` whose plane passes through the point, or null if there is
+// none. It finds a face again in a mesh rendered since: a drilled hole
+// renumbers every triangle, and a point where a hole was drilled is now
+// over its bore, so the hole's own face is the nearest coplanar triangle
+// around it. A finger has no hover to find the face again (the Holes
+// tab's guide face). One pass over the triangles, a few milliseconds
+// for a 150k-triangle mesh, run once per new mesh, tap or drag.
+export function faceNear(geometry, point, normal) {
+  if (![...point, ...normal].every(Number.isFinite)) return null;
+  const n = unit(normal);
+  const position = geometry.getAttribute("position");
+  const index = geometry.index;
+  const count = (index ? index.count : position.count) / 3;
+  const vertex = (/** @type {number} */ i) => {
+    const v = index ? index.getX(i) : i;
+    return [position.getX(v), position.getY(v), position.getZ(v)];
+  };
+  let best = null;
+  let bestDistance = Infinity;
+  for (let t = 0; t < count; t++) {
+    const a = vertex(3 * t);
+    const b = vertex(3 * t + 1);
+    const c = vertex(3 * t + 2);
+    const tn = cross(sub(b, a), sub(c, a));
+    const length = Math.hypot(...tn);
+    if (length < 1e-12 || dot(tn, n) / length < NEAR_NORMAL_DOT) continue;
+    if (Math.abs(dot(sub(point, a), n)) > NEAR_PLANE_MM) continue;
+    const d = distanceToTriangle(point, a, b, c);
+    if (d < bestDistance) {
+      best = t;
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+const sub = (/** @type {number[]} */ p, /** @type {number[]} */ q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
+const dot = (/** @type {number[]} */ p, /** @type {number[]} */ q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+
+// The distance from `p` to the triangle abc (Ericson, Real-Time Collision
+// Detection, 5.1.5: the closest point by its Voronoi region).
+function distanceToTriangle(p, a, b, c) {
+  const ab = sub(b, a);
+  const ac = sub(c, a);
+  const ap = sub(p, a);
+  const d1 = dot(ab, ap);
+  const d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return distance(p, a);
+  const bp = sub(p, b);
+  const d3 = dot(ab, bp);
+  const d4 = dot(ac, bp);
+  if (d3 >= 0 && d4 <= d3) return distance(p, b);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+    const v = d1 / (d1 - d3);
+    return distance(p, [a[0] + ab[0] * v, a[1] + ab[1] * v, a[2] + ab[2] * v]);
+  }
+  const cp = sub(p, c);
+  const d5 = dot(ab, cp);
+  const d6 = dot(ac, cp);
+  if (d6 >= 0 && d5 <= d6) return distance(p, c);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+    const w = d2 / (d2 - d6);
+    return distance(p, [a[0] + ac[0] * w, a[1] + ac[1] * w, a[2] + ac[2] * w]);
+  }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+    const w = (d4 - d3) / (d4 - d3 + (d5 - d6));
+    return distance(p, [b[0] + (c[0] - b[0]) * w, b[1] + (c[1] - b[1]) * w, b[2] + (c[2] - b[2]) * w]);
+  }
+  const denom = 1 / (va + vb + vc);
+  const v = vb * denom;
+  const w = vc * denom;
+  return distance(p, [
+    a[0] + ab[0] * v + ac[0] * w,
+    a[1] + ab[1] * v + ac[1] * w,
+    a[2] + ab[2] * v + ac[2] * w,
+  ]);
+}
+
 function minOf(values) {
   let min = Infinity;
   for (let i = 0; i < values.length; i++) if (values[i] < min) min = values[i];
