@@ -24,6 +24,36 @@ export const WASM_STACK_SYMPTOMS =
 export const WASM_MEMORY_SYMPTOMS =
   /Aborted\(unhandled exception|Aborted\(OOM|out of memory|Cannot enlarge memory|could not allocate memory|allocation failed/i;
 
+// The browser engine's own "the thread's stack ran out" error: V8 and
+// JavaScriptCore throw a RangeError reading "Maximum call stack size
+// exceeded" (JavaScriptCore adds a full stop), SpiderMonkey an
+// InternalError reading "too much recursion". A WASM call chain deep
+// enough to exhaust the native stack ends in one of these — unlike the
+// other symptoms above, which come from the WASM module's own stack
+// inside its linear memory and are the same on every thread.
+const NATIVE_STACK_OVERFLOW = /Maximum call stack size exceeded|too much recursion/i;
+
+/**
+ * Did a render fail because the thread it ran on has too little native
+ * stack — something a thread with more of it can render?
+ *
+ * Safari's workers get the system's default thread stack, measured
+ * 2026-10-27 at a twelfth of the main thread's (3,600 nested JS calls in
+ * a worker against 45,600 on the main thread, macOS Safari and iOS 18
+ * Safari alike), and JavaScriptCore's WASM frames are larger than V8's:
+ * a recursive OpenSCAD module ran out at 20 levels in Safari's worker,
+ * where Chromium's managed 60. A Bench assembly or a Holes model nests
+ * deeper than that, as do some parts on a cold start (before the JIT
+ * tiers shrink the frames), so in Safari they failed. On the main thread
+ * the same render goes on until the WASM module's own stack limit (about
+ * 70 levels, see web/README.md), as in Chromium's worker.
+ * openscad-client.js renders such a request again there.
+ * @param {string} message
+ */
+export function isNativeStackOverflow(message) {
+  return NATIVE_STACK_OVERFLOW.test(message);
+}
+
 /**
  * The message to show for a failed browser render: the WASM stack-limit
  * symptoms become an explanation of what to change, anything else is

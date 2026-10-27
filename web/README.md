@@ -102,6 +102,16 @@ Bench child. Their `body: screw` and the Holes tab's openGrid thread go through
 levels deep; this one 52, the thread cutter alone 41). There is no knob for it: the stack size is fixed when the WASM is linked, and no
 newer `openscad-wasm` exists on npm.
 
+**Safari's workers have less stack still.** WebKit gives a worker the system's default thread
+stack, a twelfth of the main thread's (3,600 nested JS calls against 45,600, macOS Safari and iOS
+18 Safari alike, measured 2026-10-27), and its WASM frames are larger than V8's, so there the
+*native* stack gives out first: a recursive module ran out at 20 levels where Chromium's worker
+managed 60, and every Bench assembly and Holes model failed with `Maximum call stack size
+exceeded` (some parts did too, on a cold start). `openscad-client.js` therefore renders a request
+whose worker run ended in the engine's own stack overflow (`renderError.js`'s
+`isNativeStackOverflow()`) again on the main thread, through the same `src/lib/openscadRun.js`.
+That reaches about 80 levels in Safari, like Chromium's worker; the page freezes while it runs.
+
 If the worker itself dies (a script error, a message that can't be deserialised), every render
 waiting on it is rejected with a message saying so and the worker is discarded, so the next
 render starts a fresh one — a request whose worker is gone would otherwise hang forever.
@@ -269,7 +279,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/hooks/useSystemOrder.js`, `useHiddenLibrary.js` | The saved system-heading order and the hidden systems/parts, live (both subscribe to `uiPrefs.js`) so every part list reorders and thins out as Settings changes them |
 | `src/Library.jsx`, `src/Bench.jsx`, `src/Holes.jsx` | The three modes — see the sections below |
 | `src/hooks/useRender.js` | The preview render all three modes share: give it a key (a memoised object of the inputs, or null for nothing) and a `run(key, signal)`; it debounces, cancels the render for a replaced key through its `AbortSignal`, drops results that land after their key was replaced, and returns `{ result, key, status, error, setError, retry }` — `key` being the request the shown result came from, so a caller can tell a stale mesh from the current one (Library's download button, Holes' surface clicks) |
-| `src/lib/renderError.js` | `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change, and a render that ran out of the browser's memory (`WASM_MEMORY_SYMPTOMS`, checked after them) into one saying so |
+| `src/lib/renderError.js` | `isNativeStackOverflow()`: whether a worker render failed for want of native stack (the main-thread retry); `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change, and a render that ran out of the browser's memory (`WASM_MEMORY_SYMPTOMS`, checked after them) into one saying so |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, the Library's sidebar (the Bench's and Holes' pickers are command palette pages built from the same `catalogueUtils.js`'s `partSections()`); headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/StlViewer.jsx` | The three.js viewer every mode uses: the model, markers, guides, labels, the floating overlay, the resize handles and their ghost, the toolbar and the camera — see "3D viewer" below |
@@ -292,7 +302,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
-| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker |
+| `src/lib/openscad-client.js`, `src/worker/openscad-worker.js`, `src/lib/openscadRun.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker; `openscadRun.js` is one render (bundle mounted, `callMain()`, STL read back), which the worker runs and the client runs on the main thread when the worker ran out of stack (Safari, see "Known limit — nesting depth") |
 | `src/lib/share.js` | Handing a file or a link to the device (see "Phones, tablets and offline"): `canShareFile()` (Chromium's share allowlist, which `canShare()` ignores), `shareOrDownload()`, `shareOrCopyLink()`, and EasyPrint's link and steps as data |
 | `src/lib/threeMfWrite.js` | 3MF export: `indexedFromStl()` welds a binary STL exactly, `write3mf()` writes core-spec 3MF (millimetres, one object per body) zipped with three.js's fflate, `stlBodiesTo3mf()` both |
 | `src/components/PrintSheet.jsx` | "Print with EasyPrint…": a row per body (Share/Download STL, 3MF), every body in one 3MF on the Bench, Open EasyPrint, the steps |

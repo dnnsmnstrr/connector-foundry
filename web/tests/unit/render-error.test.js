@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { WASM_STACK_SYMPTOMS, friendlyRenderError } from "../../src/lib/renderError.js";
+import {
+  WASM_STACK_SYMPTOMS,
+  friendlyRenderError,
+  isNativeStackOverflow,
+} from "../../src/lib/renderError.js";
 
 // Every wording the stack overflow was seen to take while measuring it
 // (web/README.md, "Known limit — nesting depth").
@@ -41,4 +45,26 @@ test("an allocation failure says it was memory, in every engine's words", () => 
   }
   // The stack symptoms keep their own explanation, "memory" in the text or not.
   assert.match(friendlyRenderError("memory access out of bounds"), /nests too deep/);
+});
+
+// openscad-client.js renders these again on the main thread; the WASM
+// module's own stack symptoms would fail there the same way, so not those.
+test("only the engine's own stack overflow counts as a native one", () => {
+  for (const message of [
+    "Maximum call stack size exceeded",
+    "Maximum call stack size exceeded.",
+    "RangeError: Maximum call stack size exceeded.",
+    "too much recursion",
+  ]) {
+    assert.ok(isNativeStackOverflow(message), message);
+  }
+  for (const message of [
+    "memory access out of bounds",
+    "table index is out of bounds",
+    "original is not a function",
+    "Aborted(OOM)",
+    "OpenSCAD render failed — check the parameters (see the console for details)",
+  ]) {
+    assert.ok(!isNativeStackOverflow(message), message);
+  }
 });
