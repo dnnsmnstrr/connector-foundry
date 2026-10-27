@@ -53,6 +53,12 @@
 #   own rendered bounding box ÷ pitch, same formula as slot_count() in
 #   lib/slots.scad. tests/test_slots.py renders and probes the grid
 #   either way, so this can't drift from the geometry.
+#   `center: true`, with `count_params`, adds a "mount_0_0" slot in the
+#   middle of a grid at least 2 x 2 whose count is even on an axis, so
+#   has no slot there of its own (a 2 x 2 SOLDR base's four units leave
+#   their middle free) — see lib/slots.scad's center_slot_anchor(). It
+#   keeps the name an odd grid's own middle slot has, so a part on it
+#   stays put when the grid is resized.
 #
 # side_slots: for a part with a row of anchors along one or more of its
 #   side faces, not just the top grid `slots` covers — see
@@ -925,6 +931,7 @@ parts:
     slots:
       pitch: 30.5  # SOLDR_PITCH — one slot per unit
       count_params: [gx, gy]
+      center: true  # and one in the middle from 2 x 2 up
     # parts/soldr/base.scad asserts both at least 1.
     minimums:
       gx: 1

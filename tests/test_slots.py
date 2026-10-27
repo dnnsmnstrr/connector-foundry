@@ -114,3 +114,36 @@ def test_grid_edge_matches_the_declared_count(part, render_dir):
 
     with pytest.raises(foundry.OpenSCADError, match=_unknown_anchor(beyond_name)):
         render_variant(part, {"anchor": beyond_name}, render_dir, f"anchor-{beyond_name}")
+
+
+def _center_slotted_parts():
+    return [p for p in _slotted_parts() if p["slots"].get("center")]
+
+
+# (nx, ny) and whether `slots.center` puts a "mount_0_0" there: from 2 x 2
+# up, when the grid is even on an axis (an odd one has its own); never on
+# a row, whose middle is the seam between two cells.
+CENTER_CASES = [((2, 2), True), ((2, 3), True), ((3, 3), True), ((2, 1), False)]
+
+
+@pytest.mark.parametrize("part", _center_slotted_parts(), ids=lambda p: p["id"])
+@pytest.mark.parametrize(("counts", "present"), CENTER_CASES, ids=lambda c: f"{c}")
+def test_center_slot_sits_where_mount_is(part, counts, present, render_dir):
+    """The web editor (slots.js) offers "mount_0_0" on these grids by
+    the rule above; the part has to declare it, at its middle — the
+    same point as "mount" — and BOSL2 has to refuse it where the rule
+    says there is none."""
+    nx_param, ny_param = part["slots"]["count_params"]
+    params = {nx_param: counts[0], ny_param: counts[1]}
+    tag = f"{counts[0]}x{counts[1]}"
+    if not present:
+        with pytest.raises(foundry.OpenSCADError, match=_unknown_anchor("mount_0_0")):
+            render_variant(part, {**params, "anchor": "mount_0_0"}, render_dir, f"anchor-mount_0_0-{tag}")
+        return
+    center = trimesh.load(
+        render_variant(part, {**params, "anchor": "mount_0_0"}, render_dir, f"anchor-mount_0_0-{tag}")
+    ).bounds[0]
+    mount = trimesh.load(
+        render_variant(part, {**params, "anchor": "mount"}, render_dir, f"anchor-mount-{tag}")
+    ).bounds[0]
+    assert center == pytest.approx(mount, abs=TOL_MM), f"{part['id']} {tag}: mount_0_0 is not at the middle"

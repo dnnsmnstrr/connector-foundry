@@ -202,6 +202,22 @@ def test_slot_count_params_are_real_defaults():
     assert not problems, "\n".join(problems)
 
 
+def test_slot_center_is_a_flag_on_a_counted_grid():
+    """`slots.center` adds a middle slot to an even feature-locked grid;
+    a free grid's count is always odd, so it already has one there, and
+    the flag would do nothing (or, misread as a count, worse)."""
+    problems = []
+    for part in _parts():
+        slots = part.get("slots", {})
+        if "center" not in slots:
+            continue
+        if not isinstance(slots["center"], bool):
+            problems.append(f"{part['id']}: slots.center must be true or false, got {slots['center']!r}")
+        if not slots.get("count_params"):
+            problems.append(f"{part['id']}: slots.center needs slots.count_params")
+    assert not problems, "\n".join(problems)
+
+
 def test_side_slot_params_are_real_parameters():
     """`side_slots.faces[].enabled_param`/`count_param` point at the
     part's own module parameters the same way count_params does; the web

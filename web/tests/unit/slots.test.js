@@ -48,6 +48,29 @@ test("a feature-locked grid takes its counts from count_params over the defaults
   assert.deepEqual([...new Set(slots.map((s) => s.y))], [-4, 4]);
 });
 
+test("slots.center adds a middle mount_0_0 to an even grid from 2 x 2 up, and nowhere else", () => {
+  const soldr = {
+    id: "soldr/base",
+    slots: { pitch: 30.5, count_params: ["gx", "gy"], center: true },
+    defaults: { gx: 2, gy: 1 },
+  };
+  const middle = (params) => enumerateSlots(soldr, params, [0, 0, 3]).filter((s) => s.name === "mount_0_0");
+  assert.deepEqual(
+    middle({ gx: 2, gy: 2 }).map((s) => [s.x, s.y, s.z]),
+    [[0, 0, 1.5]],
+  );
+  assert.equal(middle({ gx: 2, gy: 3 }).length, 1);
+  // An odd grid has its own middle slot: still exactly one, not two.
+  assert.equal(middle({ gx: 3, gy: 3 }).length, 1);
+  // A row of two has its middle on the seam: no slot there.
+  assert.equal(middle({ gx: 2, gy: 1 }).length, 0);
+  // Without the flag, an even grid keeps its middle free.
+  assert.equal(
+    enumerateSlots(bitbeam, { nx: 2, ny: 2 }, [0, 0, 4]).filter((s) => s.name === "mount_0_0").length,
+    0,
+  );
+});
+
 test("fitGridCounts: the largest count that fits, with slack for float noise", () => {
   assert.deepEqual(fitGridCounts(bitbeam, [41.5, 25]), { nx: 5, ny: 3 });
   // Exactly five pitches less a little mesh noise is still five.

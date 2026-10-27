@@ -106,6 +106,12 @@ export function enumerateSlots(part, params, meshExtents) {
         slots.push({ name: `mount_${i}_${j}`, i, j, x: i * pitch, y: j * pitch, z });
       }
     }
+    // lib/slots.scad's center_slot_anchor(): a grid even on an axis has
+    // no slot in its middle, and `slots.center` asks for one there, from
+    // 2 x 2 up, under the name an odd grid's middle slot has.
+    if (part.slots.center && nx >= 2 && ny >= 2 && (nx % 2 === 0 || ny % 2 === 0)) {
+      slots.push({ name: "mount_0_0", i: 0, j: 0, x: 0, y: 0, z });
+    }
   } else {
     const [x, y, z] = FACE_ANCHOR_LOCAL.mount(extents, mountOffset(part, params));
     slots.push({ name: "mount", x, y, z });

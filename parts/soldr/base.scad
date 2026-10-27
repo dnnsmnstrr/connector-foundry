@@ -13,7 +13,8 @@
 //
 // Functional face is BOTTOM (also the print orientation); mates through
 // the "mount" anchor on TOP, or through the "mount_<i>_<j>" slot over
-// each unit's centre.
+// each unit's centre; from 2 x 2 up, "mount_0_0" is the base's middle
+// too, when no unit is centred there.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/slots.scad>
 include <../../lib/soldr.scad>
@@ -23,7 +24,8 @@ module soldr_base(gx = 2, gy = 1, magnets = "two", anchor = BOTTOM, spin = 0, or
     assert(gx == round(gx) && gy == round(gy), "gx and gy must be whole numbers");
     size = soldr_base_size(gx, gy);
     anchors = concat([mount_anchor(size.z / 2)],
-                     grid_mount_anchors(size, SOLDR_PITCH, size.z / 2, count = [gx, gy]));
+                     grid_mount_anchors(size, SOLDR_PITCH, size.z / 2, count = [gx, gy]),
+                     center_slot_anchor([gx, gy], size.z / 2));
 
     attachable(anchor, spin, orient, size = size, anchors = anchors) {
         translate([0, 0, -size.z / 2])

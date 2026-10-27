@@ -12,7 +12,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **SOLDR module base.** A new part, `soldr/base`: the bottom of a module for the SOLDR
   soldering station, any number of units each way (30.5 mm apart), with the designer's tapered
   feet and two 6 mm magnet holes per unit, or one in the middle, or four on a regular grid. Fuse
-  it under a part and the part stands on a SOLDR frame. Rebuilt from the designer's module files
+  it under a part and the part stands on a SOLDR frame. On the Bench, every unit has a slot, and
+  from 2 × 2 up so does the base's middle. Rebuilt from the designer's module files
   and checked against them; CC BY-NC-SA 4.0, like SOLDR's own files.
 
 ### Phones and tablets

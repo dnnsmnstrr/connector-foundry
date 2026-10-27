@@ -34,6 +34,19 @@ include <../vendor/BOSL2/std.scad>
 // together.
 function mount_anchor(h, xy = [0, 0]) = named_anchor("mount", [xy.x, xy.y, h], UP, 0);
 
+// The "mount_0_0" a feature-locked grid of `count` ([nx, ny]) lacks when
+// it is even on an axis — its indices are then half-integers either side
+// of 0 — as a list of one anchor, for a part that wants a slot in its
+// middle too (the SOLDR base: a part centred on a 2 x 2 module). Only
+// from 2 x 2 up: a row of two has its middle on the seam between them.
+// [] when the grid already has a middle slot or is too small.
+// catalogue.yaml's `slots.center` declares it for the web editor
+// (web/src/lib/slots.js), and tests/test_slots.py holds the two together.
+function center_slot_anchor(count, h) =
+    count.x >= 2 && count.y >= 2 && (count.x % 2 == 0 || count.y % 2 == 0)
+        ? [named_anchor("mount_0_0", [0, 0, h], UP, 0)]
+        : [];
+
 // Nearest odd slot count that fits `extent` at `pitch`, so a centered
 // grid always has a true center index (0) at every gx/gy — never even,
 // never zero.
