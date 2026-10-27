@@ -158,6 +158,29 @@ test.describe("on a phone", () => {
     await expect(text).toBeHidden();
   });
 
+  test("the Holes tab: a first tap on a face shows its guides, the second drills", async ({ page }) => {
+    await setUp(page);
+    await page.goto("/app/#mode=holes");
+    await page.getByRole("option", { name: "Flat plate exact", exact: true }).tap();
+    const canvas = page.locator(".bench-viewer canvas");
+    await expect(canvas).toBeVisible();
+    test.skip(
+      !(await page.evaluate(() => !!document.createElement("canvas").getContext("webgl"))),
+      "a tap on the model needs WebGL",
+    );
+    await expect(page.getByText(/again to drill a hole/).first()).toBeVisible();
+    const view = await box(canvas);
+    const spot = { x: view.x + view.width / 2, y: view.y + view.height / 2 };
+    // Wait for the mesh: a tap before it is up hits nothing at all.
+    await page.waitForTimeout(500);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await page.waitForTimeout(300);
+    await expect(page.locator(".holes-row")).toHaveCount(0);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
+    await expect(page.locator(".holes-row")).toHaveCount(1);
+  });
+
   test("the Bench's Print button is over the viewer, where a phone can reach it", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");

@@ -24,7 +24,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   it (a fingertip's reach, not the dot's few pixels); the "?" beside a setting opens on a tap; the
   Holes tab has a **Measure** toggle for what holding Option shows, and a long press on a hole in
   the list adds it to the selection. A new part is framed to fit a narrow view, so its handles are
-  on screen.
+  on screen. In the Holes tab the first tap on a face shows its guide lines and snap points and the
+  second drills; they stay up after the hole renders (the re-render used to take them away), and
+  tapping or dragging a hole shows its face's, to aim it by.
 - **Add to Home Screen** opens the app like an app, and once it has rendered a part it opens again
   without a connection.
 
