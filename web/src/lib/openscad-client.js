@@ -1,6 +1,7 @@
 // Promise wrapper around the OpenSCAD worker: one in-flight request per
 // id, resolved/rejected when the matching worker message arrives.
-//
+import { isNativeStackOverflow } from "./renderError.js";
+
 // Results are memoised, keyed on the exact (file, module, parameters)
 // triple. A render is expensive — the worker spins up a fresh WASM
 // instance and re-mounts the source bundle every time — so switching
@@ -81,7 +82,46 @@ function onWorkerMessage(event) {
   }
   const job = pending.get(id);
   if (!job || job !== active) return;
-  finish(job, type === "result" ? null : new Error(event.data.message), event.data.stl);
+  if (type === "result") finish(job, null, event.data.stl);
+  else if (isNativeStackOverflow(event.data.message)) renderOnMainThread(job);
+  else finish(job, new Error(event.data.message));
+}
+
+// A render the worker ran out of native stack for, run again on the main
+// thread, which has far more (renderError.js's isNativeStackOverflow()
+// has the numbers; in practice this is Safari, whose workers fail most
+// Bench assembly and Holes model otherwise). Same code as the worker
+// (openscadRun.js), loaded only when first needed. The page freezes
+// while OpenSCAD runs, which beats an error: the job stays active, so
+// nothing else is posted to the worker meanwhile, and its deadline still
+// applies up to the synchronous render. A job that was cancelled while
+// the instance was set up is not rendered.
+async function renderOnMainThread(job) {
+  try {
+    const { runOpenscad } = await import("./openscadRun.js");
+    const stl = await runOpenscad(job.request, {
+      onError: (text) => console.error("[openscad]", text),
+      beforeRender: async () => {
+        // Give the "Rendering…" status a frame to paint before the freeze.
+        await new Promise((resolve) => {
+          setTimeout(resolve, 50);
+        });
+        if (!pending.has(job.id)) throw abortError();
+      },
+    });
+    finish(job, null, stl.buffer);
+  } catch (err) {
+    // Past the WASM module's own stack limit, the main thread's render
+    // throws a bare number (a C++ exception pointer, seen in WebKit at
+    // 100 nested levels). This render already overflowed one stack, so
+    // say what it is: renderError.js then explains the nesting limit.
+    finish(
+      job,
+      err instanceof Error || err instanceof DOMException
+        ? err
+        : new Error(`Maximum call stack size exceeded (OpenSCAD exception ${String(err)})`),
+    );
+  }
 }
 
 function getWorker() {

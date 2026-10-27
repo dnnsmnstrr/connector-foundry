@@ -9,6 +9,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Phones and tablets
 
+- **Safari renders what the Bench and the Holes tab make.** In Safari (iPhone, iPad and Mac),
+  combining parts on the Bench or adding a hole failed with "Maximum call stack size exceeded",
+  and a part could fail the first time it rendered: Safari gives the render worker a twelfth of
+  the stack Chrome does. A render that runs out of it is now redone on the page's own thread,
+  which has room for as much as Chrome manages. The page pauses while that runs.
 - **The web app works on a phone or a tablet.** The 3D view now comes first, with the part's
   settings under it and the part list last (**Find a part** goes there); before, the part list
   pushed the view below the fold on every phone. A tablet in portrait shows the settings beside
