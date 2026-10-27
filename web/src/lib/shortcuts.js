@@ -117,6 +117,7 @@ export const SHORTCUT_SECTIONS = [
       { keys: [["Click"]], action: "Drill a hole in a face — it snaps to the face's points and lines" },
       { keys: [["Shift", "Click"]], action: "On a face: place exactly there. On holes: select several" },
       { keys: [["Alt"]], action: "Hold to measure the spot's distances to the face's edges and centre" },
+      { keys: [["M"]], action: "Turn Measure on or off: the same distances without holding Alt" },
       { keys: [["Drag"]], action: "The selected hole's round centre handle moves it (Shift: off the grid)" },
       {
         keys: [["Drag"]],

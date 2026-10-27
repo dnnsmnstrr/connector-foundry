@@ -17,8 +17,8 @@ Hovering a face also draws guide lines — its center and quarter lines, a radia
 to each corner, and a circle of a radius you choose around the center: the crossings are snap
 points (a bolt circle of up to eight), and a click near a line or the circle lands on it, so a hole
 can go anywhere along the center line and still be exactly centered. Hold Option (or turn on
-**Measure** in the 3D view's toolbar) to see the pointed-at spot's distances to the face's edges and
-center, and the face's size; Shift-click places exactly where you click.
+**Measure** in the 3D view's toolbar, or press `M`) to see the pointed-at spot's distances to the
+face's edges and center, and the face's size; Shift-click places exactly where you click.
 
 **A system's spacing.** While measuring, the selected hole can show a system's next holes: snap
 points one step away in every direction, with dashed lines to them and their distances. Click one
@@ -30,9 +30,8 @@ on with it selected, or when it is selected while Measure is on: a MOD-GRID hole
 slot Skådis, a BitBeam pin hole BitBeam, the openConnect, MultiConnect and openGrid thread slots
 openGrid, the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
 Gridfinity. A spacing picked by hand stays until the selection or Measure changes. The spacings are
-the same as Repeat's standard spacings (below), from the same numbers: **Gridfinity magnets and
-screws** (26 mm: a 42 mm cell's four base holes, 8 mm in from its edges — the next cell's are 16 mm
-on), **openGrid** (28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered),
+the same as Repeat's standard spacings (below), from the same numbers: **Gridfinity Holes** (26 mm:
+a 42 mm cell's four magnet and screw holes, 8 mm in from its edges — the next cell's are 16 mm on), **openGrid** (28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered),
 **MOD-GRID** (8 mm), **BitBeam** (8 mm, a beam's unit), **MOLLE rigid panel** (50.8 mm) and **MOLLE
 slit panel** (38.1 × 25.4 mm). The steps run along the face's own directions, as the measurements
 do; points off the face or in a hole are left out.

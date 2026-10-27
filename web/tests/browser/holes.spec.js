@@ -1138,11 +1138,28 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
   );
   await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
 
-  // Measure off and on again with the MOD-GRID hole: MOD-GRID once more.
-  await page.getByRole("button", { name: "Measure distances" }).click();
+  // Measure off and on again with the MOD-GRID hole — M does it too, but
+  // not while typing in a field: MOD-GRID once more.
+  const measure = page.getByRole("button", { name: "Measure distances" });
+  await page.keyboard.press("m");
+  await expect(measure).toHaveAttribute("aria-pressed", "false");
   await expect(toolbarSpacing).toHaveCount(0);
-  await page.getByRole("button", { name: "Measure distances" }).click();
+  await search.click();
+  await page.keyboard.press("m");
+  await expect(measure).toHaveAttribute("aria-pressed", "false");
+  await expect(search).toHaveValue("m");
+  await search.fill("");
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("m");
+  await expect(measure).toHaveAttribute("aria-pressed", "true");
   await expect(toolbarSpacing).toHaveValue("modgrid");
+
+  // The select comes out from under the pill: its left end, square, is
+  // behind the pill's full-height middle, not round its curve.
+  const pill = await measure.boundingBox();
+  const select = await toolbarSpacing.boundingBox();
+  expect(select.x).toBeLessThan(pill.x + pill.width - pill.height / 2);
+  expect(select.x).toBeGreaterThan(pill.x + pill.height / 2);
 
   // Repeat's grid offers the same spacings, and keeps BitBeam apart from
   // MOD-GRID though their numbers are one.
@@ -1151,7 +1168,7 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
   const standard = page.getByRole("combobox", { name: "Standard spacing" });
   await expect(standard.locator("option")).toHaveText([
     "Custom",
-    "Gridfinity magnets and screws (26 mm)",
+    "Gridfinity Holes (26 mm)",
     "openGrid (28 mm)",
     "Skådis (40 × 20 mm, staggered)",
     "MOD-GRID (8 mm)",

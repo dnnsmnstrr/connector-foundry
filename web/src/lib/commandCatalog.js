@@ -319,6 +319,7 @@ export const BUILTIN_COMMANDS = Object.freeze({
     title: "Measure distances",
     section: "Holes",
     keywords: ["ruler", "dimensions", "distance", "edges", "center", "option", "alt"],
+    keys: [["M"]],
     action: "Toggle",
   },
   "holes.pitch": {

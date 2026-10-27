@@ -423,7 +423,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       else if (selectedIds.length) setSelectedIds([]);
       return;
     }
-    if (importOpen || !doc || !selectedIds.length || ignoresShortcut(e)) return;
+    if (importOpen || !doc || ignoresShortcut(e)) return;
+    // M: the Measure toggle, selection or not (held down, it toggles once).
+    if (e.key === "m" || e.key === "M") {
+      if (!e.repeat) toggleMeasure();
+      return;
+    }
+    if (!selectedIds.length) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       deleteHoles(selectedIds);
@@ -1860,7 +1866,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                     className="viewer-tool viewer-measure"
                     aria-pressed={measureOn}
                     aria-label="Measure distances"
-                    title="Show the pointed-at (or tapped) spot's distances to the face's edges and center — what holding Option does"
+                    title="Show the pointed-at (or tapped) spot's distances to the face's edges and center — what holding Option does (M)"
                     onClick={toggleMeasure}
                   >
                     <RulerIcon />
@@ -1868,7 +1874,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                   </button>
                   {measureOn && (
                     <select
-                      className="viewer-tool viewer-grid"
+                      className="viewer-tool viewer-grid viewer-measure-spacing"
                       aria-label="Spacing"
                       title="A system's next holes round the selected one, as snap points to drill them on pitch. Picked for you when the selected hole is one of that system's."
                       value={pitchId ?? ""}

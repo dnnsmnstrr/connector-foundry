@@ -702,8 +702,8 @@ export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 export const STANDARD_SPACINGS = Object.freeze([
   {
     id: "gridfinity",
-    label: "Gridfinity magnets and screws",
-    short: "Gridfinity",
+    label: "Gridfinity Holes",
+    short: "Gridfinity Holes",
     across: 26,
     up: 26,
     stagger: false,

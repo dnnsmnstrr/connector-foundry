@@ -3776,6 +3776,27 @@ a.bench-modal-header-button {
   border-color: #4a6fb5;
 }
 
+/* Measure's Spacing select comes out from under the pressed pill, as part
+   of it: pulled left past the toolbar's gap until its left end is tucked
+   behind the pill's round end (the pill stacked over it), and padded by
+   as much again so its text starts clear of the pill. Its left corners
+   are square, and tucked further in than the pill's radius (half its
+   1.75rem height, or of 44 px where a finger sets it), where the pill is
+   full height: no edge of the select shows round the pill's curve. */
+.viewer-measure {
+  position: relative;
+  z-index: 1;
+}
+
+.viewer-measure-spacing {
+  --tuck: 1.5rem;
+  margin-left: calc(-0.35rem - var(--tuck));
+  padding-left: calc(0.65rem + var(--tuck));
+  border-color: #4a6fb5;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 /* Text over the canvas is chrome, not copy: a finger resting on the
    selection pill, a label or the toolbar started iOS's text selection
    and its magnifier instead of a tap. The size box's field keeps it. */
