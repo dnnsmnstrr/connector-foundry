@@ -55,7 +55,13 @@ import { getHolesSession, redoHoles, setHolesDoc, undoHoles } from "./lib/holesS
 import { hasCoarsePointer, ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
 import { renderPart } from "./lib/openscad-client.js";
-import { faceMeasurements, holeGuides, holeMarkers, onFacePlane } from "./lib/holesOverlay.js";
+import {
+  faceMeasurements,
+  holeGuides,
+  holeMarkers,
+  onFacePlane,
+  pitchMeasurements,
+} from "./lib/holesOverlay.js";
 import {
   baseBuffer,
   cachedHoled,
@@ -82,6 +88,7 @@ import {
   setDocName,
   setHolesSpec,
   setNextSpec,
+  MEASURE_SPACINGS,
   sharedSpec,
   sourceLabel,
   sourceStem,
@@ -96,6 +103,7 @@ import {
   faceNear,
   nearestCandidate,
   nearestGuide,
+  pitchCandidates,
   planePoint,
 } from "./lib/snapCandidates.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
@@ -222,6 +230,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const measuring = altHeld || measureOn;
   const coarse = hasCoarsePointer();
   const [measurePoint, setMeasurePoint] = useState(null);
+  // The system spacing Measure shows round the selected hole (an id of
+  // MEASURE_SPACINGS), or null for none: its next holes as snap points.
+  const [pitchId, setPitchId] = useState(null);
+  const pitchSpacing = MEASURE_SPACINGS.find((s) => s.id === pitchId) ?? null;
   const hoverPoint = useRef(null);
   const [benchBusy, setBenchBusy] = useState(false);
   // The last handle or move commit: the holes it set (the very array, so
@@ -553,8 +565,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   /** @param {SurfaceHit} hit */
   function resolveHit(hit) {
     if (!geometries) return null;
-    const face = analyzeFace(geometries.topo, hit.faceIndex, { inset, radius });
-    if (!face) return null;
+    const analysed = analyzeFace(geometries.topo, hit.faceIndex, { inset, radius });
+    if (!analysed) return null;
+    const face = analysed.key === pitch?.faceKey ? withPitch(analysed, pitch) : analysed;
     const snapping = snapOn && !hit.shiftKey;
     const grid = getGridSnap();
     // A fingertip lands within about 22 px of what it meant; the model's
@@ -676,10 +689,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       // while the face is the guide, so Shift goes through too: Shift on
       // the hole there takes it out of the selection, as it does on the
       // face (onSurfaceHit) and on the hole's ring.
-      const candidate = guideFace?.candidates.find((c) => `snap:${c.id}` === id);
+      const candidate = snapFace?.candidates.find((c) => `snap:${c.id}` === id);
       if (!candidate) return;
       if (measuring) setMeasurePoint(candidate.point);
-      placeAt(candidate.point, guideFace.normal, modifiers.shiftKey);
+      placeAt(candidate.point, snapFace.normal, modifiers.shiftKey);
     }
   }
 
@@ -1073,9 +1086,28 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return analyzeFace(geometries.topo, guideFaceKey, { inset, radius });
   }, [guideFaceKey, geometries, inset, radius]);
 
+  // While measuring with a system spacing picked: that system's next
+  // holes round the selected one, when it is on the guide face — snap
+  // points to drill them at, so a pattern can be walked a hole at a time
+  // (each new hole is selected, and the points move on with it). Round
+  // the selected hole rather than the pointer: points that followed the
+  // pointer could never be reached.
+  const pitch = useMemo(() => {
+    if (!measuring || !pitchSpacing || !guideFace || handleDrag || !selected) return null;
+    if (!onFacePlane(guideFace, selected.point)) return null;
+    const candidates = pitchCandidates(guideFace, selected.point, pitchSpacing);
+    return { faceKey: guideFace.key, anchor: selected.point, candidates };
+  }, [measuring, pitchSpacing, guideFace, handleDrag, selected]);
+  // The guide face with those points among its snap points, first: what
+  // the markers draw and a marker click looks up.
+  const snapFace = useMemo(
+    () => (pitch && guideFace ? withPitch(guideFace, pitch) : guideFace),
+    [guideFace, pitch],
+  );
+
   const markers = useMemo(
-    () => holeMarkers({ doc, selectedIds, repeatResult, hover, guideFace, snapOn, snapDot }),
-    [doc, selectedIds, hover, guideFace, snapOn, snapDot, repeatResult],
+    () => holeMarkers({ doc, selectedIds, repeatResult, hover, guideFace: snapFace, snapOn, snapDot }),
+    [doc, selectedIds, hover, snapFace, snapOn, snapDot, repeatResult],
   );
 
   // The lines across the guide face (with snapping on — they stay up
@@ -1104,8 +1136,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     if (!measuring || !guideFace || handleDrag) return NO_MEASUREMENTS;
     const point =
       measurePoint ?? (selected && onFacePlane(guideFace, selected.point) ? selected.point : null);
-    return faceMeasurements(guideFace, point);
-  }, [measuring, guideFace, measurePoint, selected, handleDrag]);
+    const own = faceMeasurements(guideFace, point);
+    if (!pitch?.candidates.length) return own;
+    const next = pitchMeasurements(guideFace, pitch.anchor, pitch.candidates);
+    return { guides: [...next.guides, ...own.guides], labels: [...own.labels, ...next.labels] };
+  }, [measuring, guideFace, measurePoint, selected, handleDrag, pitch]);
   // One array for the viewer while neither changes: its guides effect
   // rebuilds the lines whenever the array is a new one.
   const viewerGuides = useMemo(
@@ -1215,6 +1250,23 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         checked: snapOn,
         subtitle: snapOn ? "On" : "Off",
         run: () => setSnapOn((on) => !on),
+      }),
+      builtin("holes.pitch", {
+        subtitle: pitchSpacing ? pitchSpacing.label : "None",
+        page: () => ({
+          id: "measure-spacing",
+          title: "Measure spacing",
+          searchLabel: "Search spacings",
+          note: "While measuring, the system's next holes round the selected one, as snap points.",
+          items: () =>
+            [null, ...MEASURE_SPACINGS].map((spacing) => ({
+              id: `holes.pitch:${spacing?.id ?? "none"}`,
+              title: spacing ? spacingLabel(spacing) : "None",
+              section: "Measure spacing",
+              checked: pitchId === (spacing?.id ?? null),
+              actions: [{ title: "Use", run: () => setPitchId(spacing?.id ?? null) }],
+            })),
+        }),
       }),
       builtin("holes.measure", {
         checked: measureOn,
@@ -1495,6 +1547,28 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                 </>
               )}
             </p>
+            <label
+              className="field bench-offset-field holes-inset-field"
+              title="While measuring, a system's next holes around the selected one: snap points one step away in every direction, to drill the next hole of a Gridfinity bin, a Skådis board or a MOD-GRID grid at once. Each new hole is selected, so the points move on with it."
+            >
+              <span className="field-label">Measure spacing</span>
+              <select
+                value={pitchId ?? ""}
+                onChange={(e) => {
+                  setPitchId(e.target.value || null);
+                  // As the Grid menu does: the arrow keys pressed next nudge
+                  // the selected hole, which a focused select would take.
+                  e.target.blur();
+                }}
+              >
+                <option value="">None</option>
+                {MEASURE_SPACINGS.map((spacing) => (
+                  <option key={spacing.id} value={spacing.id}>
+                    {spacingLabel(spacing)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label
               className="field bench-offset-field holes-inset-field"
               title="A circle of this radius around the face center — a bolt circle. Snap points where it crosses the center lines and the radials; a click near it lands on it. 0 draws none."
@@ -1881,6 +1955,19 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       )}
     </div>
   );
+}
+
+// A spacing as the menus list it: its name and its steps.
+function spacingLabel({ label, across, up, stagger }) {
+  const steps = across === up ? `${across} mm` : `${across} × ${up} mm`;
+  return `${label} (${steps}${stagger ? ", staggered" : ""})`;
+}
+
+// `face` with a system spacing's points (the Holes tab's `pitch`) first
+// among its snap points, so one that coincides with a quadrant center or
+// a corner inset reads as the system's.
+function withPitch(face, pitch) {
+  return { ...face, candidates: [...pitch.candidates, ...face.candidates] };
 }
 
 // Two hover records that would draw the same thing.

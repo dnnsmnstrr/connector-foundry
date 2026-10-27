@@ -12,8 +12,9 @@ import {
   holeGuides,
   holeMarkers,
   onFacePlane,
+  pitchMeasurements,
 } from "../../src/lib/holesOverlay.js";
-import { analyzeFace } from "../../src/lib/snapCandidates.js";
+import { analyzeFace, pitchCandidates } from "../../src/lib/snapCandidates.js";
 import { addHole, createHolesDoc, normalizeSpec } from "../../src/lib/screwHoles.js";
 
 // A 20 x 10 x 4 box's top face (z = 2), analysed as the Holes tab does.
@@ -158,4 +159,31 @@ test("onFacePlane: within 0.05 mm of the face's plane", () => {
   const face = topFace();
   assert.ok(onFacePlane(face, [3, 3, 2.04]));
   assert.ok(!onFacePlane(face, [3, 3, 2.06]));
+});
+
+test("pitchMeasurements: a dashed line to each next hole, each step labelled once", () => {
+  const face = topFace();
+  // A 4 x 3 mm grid, small enough for the 20 x 10 face round its middle.
+  const candidates = pitchCandidates(face, [0, 0, 2], {
+    id: "t",
+    label: "Test",
+    across: 4,
+    up: 3,
+    stagger: false,
+  });
+  assert.equal(candidates.length, 8);
+  const { guides, labels } = pitchMeasurements(face, [0, 0, 2], candidates);
+  assert.equal(guides.length, 8);
+  assert.ok(guides.every((g) => g.dashed && g.a[2] > 2));
+  assert.deepEqual(labels.map((l) => l.text).sort(), ["3.0 mm", "4.0 mm", "5.0 mm"]);
+  // Their snap points are drawn in their own colour.
+  const doc = createHolesDoc({ kind: "catalogue", partId: "basics/plate", params: {} });
+  const markers = holeMarkers({
+    doc,
+    selectedIds: [],
+    guideFace: { ...face, candidates: [...candidates, ...face.candidates] },
+    snapOn: true,
+    snapDot: 0.5,
+  });
+  assert.equal(markers.filter((m) => m.color === SNAP_COLORS.pitch).length, 8);
 });

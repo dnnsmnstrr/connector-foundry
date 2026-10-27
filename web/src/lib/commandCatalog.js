@@ -321,6 +321,21 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["ruler", "dimensions", "distance", "edges", "center", "option", "alt"],
     action: "Toggle",
   },
+  "holes.pitch": {
+    title: "Measure spacing…",
+    section: "Holes",
+    keywords: [
+      "pitch",
+      "gridfinity",
+      "magnet",
+      "skadis",
+      "skådis",
+      "mod-grid",
+      "modgrid",
+      "opengrid",
+      "molle",
+    ],
+  },
   "holes.flip": {
     title: "Flip the mesh upside down",
     section: "Holes",

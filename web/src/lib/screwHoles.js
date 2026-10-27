@@ -690,6 +690,18 @@ export const STANDARD_SPACINGS = Object.freeze([
   { id: "modgrid", label: "MOD-GRID", across: 8, up: 8, stagger: false },
 ]);
 
+// The spacings Measure can show around the selected hole (snapCandidates.js's
+// pitchCandidates()): the Repeat form's standard ones, and two that are no
+// pattern to repeat. A Gridfinity bin's magnet and screw holes sit 8 mm in
+// from each side of its 42 mm cell, so a cell's four are 26 mm apart both
+// ways (the next cell's are 42 − 26 = 16 mm on); an openGrid board has a
+// cell, and a snap, every 28 mm (RAMP_SPACING_MM).
+export const MEASURE_SPACINGS = Object.freeze([
+  { id: "gridfinity", label: "Gridfinity magnets and screws", across: 26, up: 26, stagger: false },
+  { id: "opengrid", label: "openGrid", across: RAMP_SPACING_MM, up: RAMP_SPACING_MM, stagger: false },
+  ...STANDARD_SPACINGS,
+]);
+
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom).
 /** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean }} options */
 export function matchSpacing({ spacingAcross, spacingUp, stagger }) {

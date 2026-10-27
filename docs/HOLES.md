@@ -20,6 +20,17 @@ can go anywhere along the center line and still be exactly centered. Hold Option
 **Measure** in the 3D view's toolbar) to see the pointed-at spot's distances to the face's edges and
 center, and the face's size; Shift-click places exactly where you click.
 
+**Measure spacing**, under Snapping (or "Measure spacing…" in the command palette), adds a
+system's spacing to the measurements: while measuring, the selected hole gets snap points at that
+system's next holes, one step away in every direction, with dashed lines to them and their
+distances. Click one to drill there; the new hole is selected, so the points move on with it and a
+pattern can be walked a hole at a time. The spacings: **Gridfinity magnets and screws** (26 mm: a
+42 mm cell's four base holes, 8 mm in from its edges — the next cell's are 16 mm on), **openGrid**
+(28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered), **MOD-GRID** (8 mm),
+**MOLLE rigid panel** (50.8 mm) and **MOLLE slit panel** (38.1 × 25.4 mm). The steps run along the
+face's own directions, as the measurements do; points off the face or in a hole are left out. For a
+whole pattern at once, Repeat's standard spacings (below) do the same in one go.
+
 **On a touch screen** there is no hover and no Option key: the first tap on a face shows its guide
 lines and snap points, and a tap on a face already showing them drills, landing on a snap point or
 guide within a fingertip's reach of it. The guides stay up after the hole is drilled, and tapping a

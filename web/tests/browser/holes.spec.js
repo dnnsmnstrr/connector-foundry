@@ -32,7 +32,7 @@ async function catalogue(page) {
 // `failing`: a render whose source contains this text fails, as the
 // worker reports a compile error (the way a size the WASM renderer can't
 // cut would).
-async function mockWorker(page, { failing = null } = {}) {
+async function mockWorker(page, { failing = null, bytes = cubeBytes } = {}) {
   await page.addInitScript(
     ({ bytes, failing }) => {
       window.__renders = { jobs: [] };
@@ -50,9 +50,13 @@ async function mockWorker(page, { failing = null } = {}) {
         terminate() {}
       };
     },
-    { bytes: cubeBytes, failing },
+    { bytes, failing },
   );
 }
+
+// A 40 x 40 mm face, room for a system's next holes round its middle.
+const slab = new STLExporter().parse(new Mesh(new BoxGeometry(40, 40, 4)), { binary: true });
+const slabBytes = [...new Uint8Array(slab.buffer, slab.byteOffset, slab.byteLength)];
 
 const jobs = (page) => page.evaluate(() => window.__renders.jobs.map((j) => j.request));
 const hasWebgl = (page) => page.evaluate(() => !!document.createElement("canvas").getContext("webgl"));
@@ -1043,4 +1047,63 @@ test("a small hole's move handle shows its readout clear of the rim handles arou
     const hidden = x > r.x - 7 && x < r.x + r.width + 7 && y > r.y - 7 && y < r.y + r.height + 7;
     expect(hidden, `${side} at ${[x, y]} under the readout ${JSON.stringify(r)}`).toBe(false);
   }
+});
+
+test("Measure spacing puts a system's next holes round the selected one, to drill on pitch", async ({
+  page,
+}) => {
+  await catalogue(page);
+  await mockWorker(page, { bytes: slabBytes });
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "placing a hole needs a WebGL click on the preview");
+  const target = await drillAtFaceCenter(page);
+
+  // Picked, the spacing shows nothing until Measure is on.
+  const spacing = page.locator(".holes-sidebar").getByRole("combobox", { name: "Measure spacing" });
+  await spacing.selectOption("modgrid");
+  await expect(spacing).not.toBeFocused();
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Measure distances" }).click();
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(1);
+  await expect(page.locator(".viewer-label", { hasText: /^11\.3 mm$/ })).toHaveCount(1);
+
+  // The 8 mm label sits halfway along the line to one of them, so the
+  // point is about twice as far out. Along that line, the spots that take
+  // it: the hint names it, or (over its marker, which reports no hover)
+  // the cursor says a marker is there. Off the model between tries, so a
+  // hint is never one left from the spot before. A click in the middle of
+  // that run drills it, a step on — at the run's edge, a click can
+  // resolve a hair outside the snap's reach.
+  const hint = page.locator(".holes-snap-hint");
+  const canvas = page.locator(".bench-viewer canvas");
+  const corner = await canvas.boundingBox();
+  const label = await page.locator(".viewer-label", { hasText: /^8\.0 mm$/ }).boundingBox();
+  const half = [label.x + label.width / 2 - target.x, label.y + label.height / 2 - target.y];
+  const at = (s) => [target.x + s * half[0], target.y + s * half[1]];
+  const run = [];
+  for (let s = 1.3; s <= 2.7; s += 0.05) {
+    await page.mouse.move(corner.x + 4, corner.y + 4);
+    await expect(hint).toHaveCount(0);
+    await page.mouse.move(...at(s));
+    await page.waitForTimeout(30);
+    const named = (await hint.count()) && (await hint.textContent()).includes("MOD-GRID pitch, 8 mm on");
+    const onMarker = (await canvas.evaluate((c) => c.style.cursor)) === "pointer";
+    if (named || (onMarker && run.length && run.at(-1) > s - 0.06)) run.push(s);
+    else if (run.length) break;
+  }
+  expect(run.length, "spots along the label's line that snap to a MOD-GRID neighbour").toBeGreaterThan(0);
+  await page.mouse.click(...at((run[0] + run.at(-1)) / 2));
+  await expect(page.getByText(/Hole 2 selected/)).toBeVisible();
+  const meta = await page.locator(".holes-row-meta").nth(1).textContent();
+  const [x, y, z] = meta
+    .match(/\[(.*)\]/)[1]
+    .split(", ")
+    .map(Number);
+  expect([Math.abs(x) + Math.abs(y), z]).toEqual([8, 2]);
+
+  // None takes them away again.
+  await spacing.selectOption("");
+  await expect(page.locator(".viewer-label", { hasText: /^8\.0 mm$/ })).toHaveCount(0);
 });

@@ -19,6 +19,8 @@ export const SNAP_COLORS = {
   corner: 0xd8d9db,
   intersection: 0x9a9ba0,
   circle: 0xe0c07f,
+  // A system's next holes round the selected one, while measuring.
+  pitch: 0x5fd3e0,
 };
 // Guide lines on the hovered face: center lines solid, quarter lines
 // dashed, radials dashed and dim, the center circle in the circle
@@ -29,6 +31,9 @@ const GUIDE_RADIAL_COLOR = 0x6b7390;
 const GUIDE_CIRCLE_COLOR = 0xb39a50;
 // Measurement lines (Option held): bright, over the guides.
 const MEASURE_COLOR = 0xf0f0f0;
+// The lines from the selected hole to a system's next holes, dimmer than
+// the point's own measurements so those still read on top.
+const PITCH_LINE_COLOR = 0x3f8f99;
 const MEASURE_LIFT_MM = 0.1;
 // Lifted off the face so the lines don't z-fight it.
 const GUIDE_LIFT_MM = 0.06;
@@ -211,6 +216,33 @@ export function faceMeasurements(face, point) {
       point: lift(mid(point, face.center)),
       text: `${mm(d.toCenter)} to center`,
     });
+  }
+  return { guides, labels };
+}
+
+/**
+ * A system's next holes round the selected one (snapCandidates.js's
+ * pitchCandidates()): a dashed line from the hole to each, and each
+ * distinct step labelled once (across, up, and a diagonal), halfway
+ * along the first line that makes it — eight labels would cover the
+ * points they name.
+ * @param {any} face analyzeFace()'s record
+ * @param {number[]} anchor the selected hole's point
+ * @param {{ point: number[], offset: number[] }[]} candidates
+ * @returns {{ guides: { a: number[], b: number[], color: number, dashed: boolean }[], labels: { id: string, point: number[], text: string }[] }}
+ */
+export function pitchMeasurements(face, anchor, candidates) {
+  const lift = (/** @type {number[]} */ p) => liftedBy(p, face.normal, MEASURE_LIFT_MM);
+  const guides = [];
+  const labels = [];
+  const said = new Set();
+  for (const c of candidates) {
+    guides.push({ a: lift(anchor), b: lift(c.point), color: PITCH_LINE_COLOR, dashed: true });
+    const text = `${Math.hypot(c.offset[0], c.offset[1]).toFixed(1)} mm`;
+    if (said.has(text)) continue;
+    said.add(text);
+    const mid = anchor.map((/** @type {number} */ v, /** @type {number} */ i) => (v + c.point[i]) / 2);
+    labels.push({ id: `pitch:${labels.length}`, point: lift(mid), text });
   }
   return { guides, labels };
 }

@@ -512,6 +512,56 @@ function intersectLines(p, d, q, e) {
   return [p[0] + d[0] * t, p[1] + d[1] * t];
 }
 
+// --- system spacing ----------------------------------------------------
+
+// Where a system's next holes go around one at `anchor` (on the face):
+// its neighbours one step out on `spacing` ({ across, up, stagger }, one
+// of screwHoles.js's MEASURE_SPACINGS), laid along the face's own u and v,
+// as the measurements and the center lines are. A square grid has eight;
+// a staggered one (Skådis) the two along its row, the four half a step
+// across in the rows either side, and the two a row pair up and down.
+// Which corner of a pattern the anchor is can't be known (a Gridfinity
+// hole is any of its cell's four), so every direction is offered. Those
+// off the face, or in a hole, are left out; one where a hole's centre
+// already is (a pattern walked hole by hole) is left to that hole's own
+// point. Returned as candidates in buildCandidates()' shape, kind
+// "pitch", for the Holes tab to snap to while Measure is on.
+/**
+ * @param {any} face analyzeFace()'s record
+ * @param {number[]} anchor
+ * @param {{ id: string, label: string, across: number, up: number, stagger: boolean }} spacing
+ */
+export function pitchCandidates(face, anchor, spacing) {
+  const { across: a, up: u, stagger } = spacing;
+  if (!(a > 0 && u > 0)) return [];
+  const offsets = stagger
+    ? [
+        [a, 0],
+        [-a, 0],
+        [a / 2, u],
+        [-a / 2, u],
+        [a / 2, -u],
+        [-a / 2, -u],
+        [0, 2 * u],
+        [0, -2 * u],
+      ]
+    : [-1, 0, 1].flatMap((j) => [-1, 0, 1].filter((i) => i || j).map((i) => [i * a, j * u]));
+  const [pu, pv] = project(anchor, face.center, face.u, face.v);
+  const holes = face.candidates.filter((/** @type {any} */ c) => c.kind === "hole");
+  const out = [];
+  for (const [du, dv] of offsets) {
+    const q = [pu + du, pv + dv];
+    if (!onFace(face, q)) continue;
+    const point = unproject(q, face);
+    if (holes.some((/** @type {any} */ c) => distance(c.point, point) < DEDUPE_MM)) continue;
+    const label = `${spacing.label} pitch, ${round1(Math.hypot(du, dv))} mm on`;
+    out.push({ id: `${face.key}:pitch:${out.length}`, kind: "pitch", point, label, offset: [du, dv] });
+  }
+  return out;
+}
+
+const round1 = (/** @type {number} */ n) => Math.round(n * 10) / 10;
+
 // --- snapping ----------------------------------------------------------
 
 // The nearest candidate on `face` within `maxDistance` of `point`, or null.

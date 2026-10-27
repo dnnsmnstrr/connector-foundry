@@ -18,7 +18,9 @@ import {
   gridPoint,
   nearestCandidate,
   nearestGuide,
+  pitchCandidates,
 } from "../../src/lib/snapCandidates.js";
+import { MEASURE_SPACINGS } from "../../src/lib/screwHoles.js";
 
 // The welded, indexed geometry the Holes tab analyses (see Holes.jsx).
 function welded(geometry) {
@@ -339,4 +341,88 @@ test("faceNear: the face a drilled hole was on, found again around its bore in t
   assert.equal(faceNear(geometry, [5, 0, 2], [0, 0, 1]), null);
   assert.equal(faceNear(geometry, [5, 0, 4], [1, 0, 0]), null);
   assert.equal(faceNear(geometry, [NaN, 0, 4], [0, 0, 1]), null);
+});
+
+// --- system spacing ------------------------------------------------------
+
+const spacing = (id) => MEASURE_SPACINGS.find((s) => s.id === id);
+const pointSet = (candidates) => new Set(candidates.map((c) => String(round(c.point))));
+const offsetsAt = (anchor, offsets) =>
+  new Set(offsets.map(([x, y]) => String(round([anchor[0] + x, anchor[1] + y, anchor[2]]))));
+
+test("pitch: a square system's eight neighbours round the hole, a step out each way", () => {
+  const geometry = welded(new BoxGeometry(100, 100, 4));
+  const face = analyzeFace(geometry, topTriangle(geometry, 1.99));
+  const ring = (a) => [-1, 0, 1].flatMap((j) => [-1, 0, 1].filter((i) => i || j).map((i) => [i * a, j * a]));
+  const modgrid = pitchCandidates(face, [10, 0, 2], spacing("modgrid"));
+  assert.deepEqual(pointSet(modgrid), offsetsAt([10, 0, 2], ring(8)));
+  assert.ok(modgrid.every((c) => c.kind === "pitch" && c.label.startsWith("MOD-GRID pitch, ")));
+  assert.deepEqual(new Set(modgrid.map((c) => c.label.split(", ")[1])), new Set(["8 mm on", "11.3 mm on"]));
+  // A Gridfinity cell's magnet and screw holes: 26 mm apart, any corner.
+  assert.deepEqual(
+    pointSet(pitchCandidates(face, [0, 0, 2], spacing("gridfinity"))),
+    offsetsAt([0, 0, 2], ring(26)),
+  );
+  assert.deepEqual(
+    pointSet(pitchCandidates(face, [0, 0, 2], spacing("opengrid"))),
+    offsetsAt([0, 0, 2], ring(28)),
+  );
+});
+
+test("pitch: Skådis's staggered rows give the row's, the next rows' half-step and the column's", () => {
+  const geometry = welded(new BoxGeometry(200, 200, 4));
+  const face = analyzeFace(geometry, topTriangle(geometry, 1.99));
+  // The face frame may run u along y; the pattern is the same either way
+  // round only if it is symmetric, so check it in the frame's own terms.
+  const got = pitchCandidates(face, [0, 0, 2], spacing("skadis")).map((c) => c.offset.map((n) => n || 0));
+  assert.deepEqual(
+    new Set(got.map(String)),
+    new Set(
+      [
+        [40, 0],
+        [-40, 0],
+        [20, 20],
+        [-20, 20],
+        [20, -20],
+        [-20, -20],
+        [0, 40],
+        [0, -40],
+      ].map(String),
+    ),
+  );
+});
+
+test("pitch: neighbours off the face or in a hole through it are left out", () => {
+  // 40 x 40, a 5 mm square hole through it 8 mm to the right of the middle.
+  const outline = new Shape();
+  outline.moveTo(-20, -20);
+  outline.lineTo(20, -20);
+  outline.lineTo(20, 20);
+  outline.lineTo(-20, 20);
+  outline.closePath();
+  const hole = new Path();
+  hole.moveTo(5.5, -2.5);
+  hole.lineTo(5.5, 2.5);
+  hole.lineTo(10.5, 2.5);
+  hole.lineTo(10.5, -2.5);
+  hole.closePath();
+  outline.holes.push(hole);
+  const geometry = welded(new ExtrudeGeometry(outline, { depth: 4, bevelEnabled: false }));
+  const face = analyzeFace(geometry, topTriangle(geometry, 3.99));
+  const near = pitchCandidates(face, [0, 0, 4], spacing("modgrid"));
+  assert.equal(near.length, 7);
+  assert.ok(!pointSet(near).has(String([8, 0, 4])));
+  // Near a corner, only the neighbours back towards the middle are on it.
+  const corner = pitchCandidates(face, [-15, -15, 4], spacing("gridfinity"));
+  assert.deepEqual(
+    pointSet(corner),
+    offsetsAt(
+      [-15, -15, 4],
+      [
+        [26, 0],
+        [0, 26],
+        [26, 26],
+      ],
+    ),
+  );
 });
