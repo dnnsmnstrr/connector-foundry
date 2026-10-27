@@ -71,6 +71,16 @@
 // form's standard spacings lay either out as a panel (screwHoles.js's
 // STANDARD_SPACINGS).
 //
+// The MOD-GRID hole is a rectangle too: the grid's 5 mm square, sharp,
+// through (lib/modgrid.scad's MODGRID_HOLE, as modgrid/grid cuts it), and
+// the Repeat form's "MOD-GRID" spacing lays a grid out on its 8 mm pitch
+// (MODGRID_PITCH). Only a through cut: an accessory's pin latches by
+// springing its barbs out behind the hole's back edge, 3 mm down, so the
+// face has to be 3 mm thick there (the pin seats on 2.9 to 3.1) and open
+// behind. In a thicker wall the barbs stay squeezed inside the hole and
+// never latch, and a blind hole has no edge at all — docs/HOLES.md says
+// how to thin a wall to 3 mm first.
+//
 // The KLIPPT channel (kind "klippt", lib/klippt.scad) is cut from
 // KLIPPT's own clip (FH, CC BY-SA 4.0); its presets differ in how the
 // base gets in.
@@ -628,6 +638,7 @@ export const SCREW_PRESETS = [
   skadis("skadis-slot", "Skådis slot (5 × 15 mm)", "Slot"),
   opening("molle-opening", "MOLLE rigid panel opening (38.6 × 25.9 mm)", "Opening", "MOLLE", 38.6, 25.9, 3),
   opening("molle-slit", "MOLLE laser-cut panel slit (30 × 5 mm)", "Slit", "MOLLE", 30, 5, 1),
+  opening("modgrid-hole", "MOD-GRID hole (5 × 5 mm, through a 3 mm wall)", "Hole", "MOD-GRID", 5, 5, 0),
   pocket("magnet-6x2", "6 × 2 mm disc magnet", "6×2", 6, 2),
   pocket("magnet-8x3", "8 × 3 mm disc magnet", "8×3", 8, 3),
   pocket("magnet-10x3", "10 × 3 mm disc magnet", "10×3", 10, 3),

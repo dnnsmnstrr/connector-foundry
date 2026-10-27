@@ -102,7 +102,7 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
           <label
             className="field"
             htmlFor={`${id}-standard`}
-            title="A system's hole pattern: Skådis is 40 mm across, 20 mm up, every other row shifted; a MOLLE rigid panel 50.8 mm both ways (with the MOLLE opening preset); a MOLLE slit panel 38.1 mm across, 25.4 mm up (with the slit preset)."
+            title="A system's hole pattern: Skådis is 40 mm across, 20 mm up, every other row shifted; a MOLLE rigid panel 50.8 mm both ways (with the MOLLE opening preset); a MOLLE slit panel 38.1 mm across, 25.4 mm up (with the slit preset); MOD-GRID 8 mm both ways (with the MOD-GRID hole)."
           >
             <span className="field-label">Standard spacing</span>
             <select

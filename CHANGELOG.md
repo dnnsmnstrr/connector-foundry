@@ -91,6 +91,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   for the 56 × 46 mm and 55 × 45 mm metal rings that make a case MagSafe-compatible, the middle left
   standing. The sidebar's **Insert** menu switches a pocket between puck and ring; sizes, depth and
   the cable channel's width and length are all editable.
+- **MOD-GRID holes.** A **MOD-GRID hole** preset (the grid's 5 × 5 mm square, through) and a
+  **MOD-GRID** standard spacing in Repeat's grid (8 mm both ways) turn any face 3 mm thick into a
+  MOD-GRID grid that MOD-GRID accessories and the `modgrid/connector` pin snap into. A part cut
+  this way carries MOD-GRID's CC BY-NC-SA 4.0 terms, as the MOD-GRID parts do.
 
 ### Parts
 

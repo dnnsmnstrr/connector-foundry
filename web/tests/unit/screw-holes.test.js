@@ -979,7 +979,43 @@ test("repeat: MOLLE openings on the rigid panel's spacing lay out molle/rigid_pa
   assert.deepEqual([getPreset("molle-slit").spec.width, getPreset("molle-slit").spec.height], [30, 5]);
 });
 
+test("repeat: MOD-GRID holes on the MOD-GRID spacing lay out modgrid/grid's 8 mm pitch", () => {
+  const { doc, hole } = addHole(plateDoc(), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("modgrid-hole").spec,
+    presetId: "modgrid-hole",
+  });
+  const modgrid = STANDARD_SPACINGS.find((s) => s.id === "modgrid");
+  const grid = repeatHole(doc, hole.id, {
+    pattern: "grid",
+    columns: 3,
+    rows: 2,
+    spacingAcross: modgrid.across,
+    spacingUp: modgrid.up,
+    stagger: modgrid.stagger,
+  });
+  assert.deepEqual(
+    grid.doc.holes.map((h) => h.point),
+    [
+      [0, 0, 4],
+      [8, 0, 4],
+      [16, 0, 4],
+      [0, 8, 4],
+      [8, 8, 4],
+      [16, 8, 4],
+    ],
+  );
+  assert.ok(grid.doc.holes.every((h) => h.presetId === "modgrid-hole"));
+  // lib/modgrid.scad's MODGRID_HOLE: a sharp 5 mm square, and through,
+  // since the pin's barbs latch behind the hole's back edge.
+  const { spec } = getPreset("modgrid-hole");
+  assert.equal(spec.kind, "rectangle");
+  assert.deepEqual([spec.width, spec.height, spec.cornerRadius, spec.depth], [5, 5, 0, 0]);
+});
+
 test("a grid's spacing names the standard it matches, or none", () => {
+  assert.equal(matchSpacing({ spacingAcross: 8, spacingUp: 8, stagger: false })?.id, "modgrid");
   assert.equal(matchSpacing({ spacingAcross: 40, spacingUp: 20, stagger: true })?.id, "skadis");
   assert.equal(matchSpacing({ spacingAcross: 40, spacingUp: 20, stagger: false }), null);
   assert.equal(matchSpacing({ spacingAcross: 50.8, spacingUp: 50.8, stagger: false })?.id, "molle-rigid");

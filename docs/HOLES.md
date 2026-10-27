@@ -49,10 +49,10 @@ exactly where you click.
 
 **Resizing and moving a hole.** Select one hole and it gets handles in the viewer, as in
 TinkerCAD. A round or rectangular cutout — the Generic shapes and the presets that cut one (USB
-ports, memory cards, Skådis and MOLLE slots, disc-magnet and bearing pockets) — has small square
-handles: drag an edge to resize it, and the opposite edge stays where it is; drag a rectangle's
-corner to change its width and height together; hold Option (Alt) to resize from the centre
-instead. Click an edge's handle (or Tab to it and press Enter) to type the size in mm (a corner
+ports, memory cards, Skådis, MOLLE and MOD-GRID holes, disc-magnet and bearing pockets) — has
+small square handles: drag an edge to resize it, and the opposite edge stays where it is; drag a
+rectangle's corner to change its width and height together; hold Option (Alt) to resize from the
+centre instead. Click an edge's handle (or Tab to it and press Enter) to type the size in mm (a corner
 only drags); with a handle focused, the arrow keys grow or shrink it a Grid step at a time
 (0.1 mm with the Grid off; Shift: ten steps). `Esc` cancels a drag. A resized hole is also what
 the next click drills, as an edit in the sidebar is. Screws and connector slots keep their
@@ -76,8 +76,8 @@ lasts until the page reloads, through switches to the other tabs. `?` lists ever
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
-staggered half a step, or set to a **standard spacing**: Skådis, MOLLE rigid panel or MOLLE slit
-panel) or a circle (count and radius round the hole's spot, the hole itself moving
+staggered half a step, or set to a **standard spacing**: Skådis, MOLLE rigid panel, MOLLE slit
+panel or MOD-GRID) or a circle (count and radius round the hole's spot, the hole itself moving
 onto the circle or staying in the middle). The copies are previewed in green; any that would miss
 the face — past its edge, into another hole — are left out and counted, and afterwards the whole
 pattern is selected to edit or delete together.
@@ -91,6 +91,19 @@ The **MOLLE** presets do the same for MOLLE panels of any size or shape: a rigid
 **opening** (38.6 × 25.9 mm, as `molle/rigid_panel` cuts it, so `molle/insert` fits) with the MOLLE
 rigid panel spacing (50.8 mm both ways), or a laser-cut panel's **slit** (30 × 5 mm, as
 `molle/panel` cuts it) with the MOLLE slit panel spacing (38.1 mm across, 25.4 mm up).
+
+The **MOD-GRID hole** preset (a sharp 5 × 5 mm square, through, as `modgrid/grid` cuts it) with
+the grid's MOD-GRID spacing (8 mm both ways) turns a face into a MOD-GRID grid — a case's side or
+a lid — that MOD-GRID accessories and `modgrid/connector`'s pin snap into; a 2x1 pin takes two
+neighbouring holes of a row or a column. The pin latches by springing its barbs out behind the
+hole's far edge, 3 mm down, so the preset only cuts through, and the face must be **3 mm thick**
+where the holes go (2.9 to 3.1 mm seats firmly) with room behind it for the barbs. In a thicker
+wall they stay squeezed inside the hole and never latch; thin it first — from the inside, a
+rectangle pocket (Generic shapes) as deep as the wall minus 3 mm and a few millimetres larger
+than the grid each way, or set the part's own wall to 3 mm. A thinner face holds the accessory
+loosely. Repeat makes at most 100 holes at once (a 10 × 10 grid): repeat again from a hole on the
+edge for more. MOD-GRID is CC BY-NC-SA 4.0, and a part with its holes cut in is an adaptation
+under those terms (README, "Licensing").
 
 Two **tripod nut trap** presets take a 1/4"-20 or 3/8"-16 hex nut (camera and tripod-head
 threads), so any part screws onto a tripod; `camera/tripod_socket` prints the thread instead.

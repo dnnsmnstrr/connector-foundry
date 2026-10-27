@@ -681,10 +681,13 @@ export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 // panel out from one hole. MOLLE rigid panels put an opening every 2"
 // both ways (PALS row pitch up, a 12.7 mm bar across: lib/molle.scad's
 // RIGID_PITCH_*); laser-cut panels a slit every 1.5" across and 1" up.
+// A MOD-GRID grid has a hole every 8 mm both ways (lib/modgrid.scad's
+// MODGRID_PITCH), which an accessory's 2x1 pin spans.
 export const STANDARD_SPACINGS = Object.freeze([
   { id: "skadis", label: "Skådis", across: SKADIS_SPACING.across, up: SKADIS_SPACING.up, stagger: true },
   { id: "molle-rigid", label: "MOLLE rigid panel", across: 50.8, up: 50.8, stagger: false },
   { id: "molle-slit", label: "MOLLE slit panel", across: 38.1, up: 25.4, stagger: false },
+  { id: "modgrid", label: "MOD-GRID", across: 8, up: 8, stagger: false },
 ]);
 
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom).
