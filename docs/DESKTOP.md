@@ -75,6 +75,19 @@ installs the next time you quit. Your settings, saved defaults and presets are k
 A restart brings back the bench (as a bench link would), but not a model on the Holes tab or meshes
 imported onto the Bench; the app asks before restarting when there are any.
 
+Most releases change only the app's interface, not the app around it. Then the app downloads just
+the interface, a few MB instead of the whole app, and the button says **Reload to update**: the
+window reloads with the new version, with no restart and no installer. If you don't, it loads the
+next time the app starts. If a new interface ever fails to start, the app goes back to its own by
+itself and doesn't try that version again unless you check by hand. Untick **Update the interface
+without reinstalling** in Settings to always take the full update instead; the app then goes back
+to the interface it came with the next time it starts. When an interface update is running,
+Settings shows its version beside the app's ("Version 0.4.0 · interface 0.4.2").
+
+A release that changes the app itself comes as the full update, as above. If the app can't install
+that itself (see below), the header shows **Update the app**, which opens the release page: its
+interface no longer updates until the app is.
+
 **Settings → Updates** shows the version you have, **Check for updates** to look now, and a link to
 what changed in a new version. Untick **Check for updates automatically** to stop the app from
 looking on its own; it then never goes online unless you check by hand. On a Mac, **Connector
@@ -118,7 +131,7 @@ says what each release changed.
 - **One window.** Opening the app again brings the running window to the front. On Windows the
   window controls sit at the right end of the app's own header, which doubles as the title bar.
 - **Same version as its release.** The web app always runs the latest code from the main branch; the
-  desktop app runs the newest release, once it has updated itself to it.
+  desktop app runs the newest release, once it has updated itself to it (or its interface).
 
 ## Let coding agents use it
 

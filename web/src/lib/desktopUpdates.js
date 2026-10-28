@@ -61,29 +61,46 @@ export function checkForUpdates() {
  * What a restart would lose, as a sentence, or null when nothing. The
  * window comes back on the same address (desktop/updates.cjs), which
  * holds the tab and the bench; meshes imported onto the bench and the
- * Holes document live only in this page.
- * @param {{ importedMeshes: number, holes: boolean }} work
+ * Holes document live only in this page. An interface update's reload
+ * loses the same.
+ * @param {{ importedMeshes: number, holes: boolean, reload?: boolean }} work
  */
-export function restartWarning({ importedMeshes, holes }) {
+export function restartWarning({ importedMeshes, holes, reload = false }) {
   const lost = [
     holes && "the model on the Holes tab and its holes",
     importedMeshes > 0 &&
       (importedMeshes === 1 ? "the mesh imported onto the Bench" : "the meshes imported onto the Bench"),
   ].filter(Boolean);
-  return lost.length ? `The bench comes back after the restart, but ${lost.join(" and ")} won't.` : null;
+  return lost.length
+    ? `The bench comes back after the ${reload ? "reload" : "restart"}, but ${lost.join(" and ")} won't.`
+    : null;
 }
 
 /**
- * Restarts the app to install the downloaded update, after asking if the
- * restart would lose work.
+ * Restarts the app to install the downloaded update, or reloads the window
+ * for an interface update, after asking if that would lose work.
  */
 export function restartToUpdate() {
+  const reload = Boolean(status?.reload);
   const warning = restartWarning({
     importedMeshes: getBenchSession().importedParts.size,
     holes: getHolesSession().doc !== null,
+    reload,
   });
-  if (warning && !window.confirm(`Restart to install version ${status?.latest}? ${warning}`)) return;
+  const question = reload
+    ? `Reload to load version ${status?.latest}?`
+    : `Restart to install version ${status?.latest}?`;
+  if (warning && !window.confirm(`${question} ${warning}`)) return;
   return desktopBridge()?.updates.install();
+}
+
+/**
+ * Tells the updater the page started. An interface update that never says
+ * so in time is dropped for the app's own interface (desktop/updates.cjs);
+ * the nav's notice calls it once it mounts.
+ */
+export function reportStarted() {
+  desktopBridge()?.updates.loaded();
 }
 
 /** @param {boolean} on */
@@ -93,6 +110,55 @@ export function setAutoCheck(on) {
   return desktopBridge()
     ?.updates.setAutoCheck(on)
     .then(receive, () => {});
+}
+
+/** @param {boolean} on */
+export function setKeepUpdated(on) {
+  if (status) receive({ ...status, keepUpdated: on });
+  return desktopBridge()
+    ?.updates.setKeepUpdated(on)
+    .then(receive, () => {});
+}
+
+// The version whose "Update the app" notice the user has acted on; one
+// notice per version, so a later release asks again.
+const SHELL_NOTICE_KEY = "connector-foundry.shellNoticeSeen";
+
+/**
+ * Whether the nav asks for the app to be updated by hand: the newest
+ * version's interface needs a newer app, which this copy can't install
+ * itself, and the user hasn't opened that version's release page from it.
+ * @param {DesktopUpdateStatus | null} s
+ * @param {Storage | null} [storage]
+ */
+export function needsShellNotice(s, storage = safeStorage()) {
+  if (!s || s.state !== "available" || !s.shellNeeded || !s.latest) return false;
+  try {
+    return storage?.getItem(SHELL_NOTICE_KEY) !== s.latest;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Remembers that the notice for `version` was acted on.
+ * @param {string} version
+ * @param {Storage | null} [storage]
+ */
+export function dismissShellNotice(version, storage = safeStorage()) {
+  try {
+    storage?.setItem(SHELL_NOTICE_KEY, version);
+  } catch {
+    // It asks again next launch.
+  }
+}
+
+function safeStorage() {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -106,13 +172,15 @@ export function updateSummary(s) {
     case "up-to-date":
       return "Up to date";
     case "available":
-      return `Version ${s.latest} is available`;
+      return s.shellNeeded
+        ? `Version ${s.latest} needs a new download of the app`
+        : `Version ${s.latest} is available`;
     case "downloading":
       return s.progress === null
         ? `Downloading version ${s.latest}…`
         : `Downloading version ${s.latest}… ${Math.floor(s.progress * 100)}%`;
     case "ready":
-      return `Version ${s.latest} is ready to install`;
+      return s.reload ? `Version ${s.latest} is ready to load` : `Version ${s.latest} is ready to install`;
     case "installing":
       return `Installing version ${s.latest}…`;
     case "error":

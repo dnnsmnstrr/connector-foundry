@@ -21,8 +21,10 @@ const {
   isNewer,
   macBundlePath,
   pickAsset,
+  pickWeb,
   releaseUrl,
 } = createRequire(import.meta.url)("../../desktop/update-manifest.cjs");
+const { SHELL_VERSION } = createRequire(import.meta.url)("../../desktop/shell.cjs");
 
 // The desktop updater's Electron-free half (desktop/update-manifest.cjs),
 // the release job's manifest writer (scripts/release-manifest.mjs), and
@@ -70,6 +72,7 @@ test("a manifest is checked like any file from the network", () => {
   };
   assert.deepEqual(checkManifest(good), {
     version: "0.5.0",
+    shell: null,
     files: {
       "Connector-Foundry-mac-apple-silicon.zip": { sha256: "a".repeat(64), size: 123 },
       "Connector-Foundry-windows-x64-setup.exe": { sha256: "b".repeat(64), size: 456 },
@@ -82,6 +85,24 @@ test("a manifest is checked like any file from the network", () => {
     assert.throws(() => checkManifest(bad));
   for (const version of ["0.5", "v0.5.0", "0.5.0-beta.1", "01.2.3", "1.2.3.4", " 1.2.3", 1])
     assert.throws(() => checkManifest({ version, files: {} }), /version/, String(version));
+});
+
+test("an interface update is offered only to the shell it was built for", () => {
+  const web = { "Connector-Foundry-web.zip": { sha256: "9".repeat(64), size: 8_000_000 } };
+  const manifest = checkManifest({ version: "0.5.0", shell: 3, files: web });
+  assert.deepEqual(manifest.files, web);
+  assert.deepEqual(pickWeb(manifest, 3), {
+    name: "Connector-Foundry-web.zip",
+    ...web["Connector-Foundry-web.zip"],
+  });
+  assert.equal(pickWeb(manifest, 2), null);
+  // No bundle, or no usable shell version: the full update only.
+  assert.equal(pickWeb(checkManifest({ version: "0.5.0", shell: 3, files: {} }), 3), null);
+  for (const shell of [0, -1, 1.5, "3", null, undefined]) {
+    const checked = checkManifest({ version: "0.5.0", shell, files: web });
+    assert.equal(checked.shell, null, String(shell));
+    assert.equal(pickWeb(checked, 3), null, String(shell));
+  }
 });
 
 test("versions compare as numbers, and nothing malformed is ever newer", () => {
@@ -115,6 +136,10 @@ test("addresses are built from the version and the table, never taken from the m
   assert.equal(
     downloadUrl("0.5.0", "Connector-Foundry-mac-intel.zip"),
     "https://github.com/dnnsmnstrr/connector-foundry/releases/download/v0.5.0/Connector-Foundry-mac-intel.zip",
+  );
+  assert.equal(
+    downloadUrl("0.5.0", "Connector-Foundry-web.zip"),
+    "https://github.com/dnnsmnstrr/connector-foundry/releases/download/v0.5.0/Connector-Foundry-web.zip",
   );
   assert.throws(() => downloadUrl("0.5.0", "../other.zip"));
   assert.throws(() => downloadUrl("latest", "Connector-Foundry-mac-intel.zip"));
@@ -187,15 +212,18 @@ test("the release job's manifest lists the update files present, as the app read
   t.after(() => rm(dir, { recursive: true, force: true }));
   await writeFile(path.join(dir, "Connector-Foundry-mac-apple-silicon.zip"), "mac arm");
   await writeFile(path.join(dir, "Connector-Foundry-windows-x64-setup.exe"), "windows x64!");
+  await writeFile(path.join(dir, "Connector-Foundry-web.zip"), "web");
   // Not update files: the DMG and the checksums.
   await writeFile(path.join(dir, "Connector-Foundry-mac-apple-silicon.dmg"), "dmg");
   await writeFile(path.join(dir, "SHA256SUMS.txt"), "sums");
   const manifest = await releaseManifest(dir, "0.5.0");
   assert.deepEqual(manifest, {
     version: "0.5.0",
+    shell: SHELL_VERSION,
     files: {
       "Connector-Foundry-mac-apple-silicon.zip": { sha256: sha("mac arm"), size: 7 },
       "Connector-Foundry-windows-x64-setup.exe": { sha256: sha("windows x64!"), size: 12 },
+      "Connector-Foundry-web.zip": { sha256: sha("web"), size: 3 },
     },
   });
   assert.deepEqual(checkManifest(JSON.parse(JSON.stringify(manifest))), manifest);
@@ -219,4 +247,10 @@ test("every build desktop.yml makes has its update file in the updater's table, 
     assert.ok(existsSync(path.join(repoRoot, file.trim())), file);
   assert.ok(checkout.with["sparse-checkout"].includes("web/scripts/release-manifest.mjs"));
   assert.ok(checkout.with["sparse-checkout"].includes("web/desktop/update-manifest.cjs"));
+  assert.ok(checkout.with["sparse-checkout"].includes("web/desktop/shell.cjs"));
+  // One build makes the interface update, into the artifact it uploads.
+  const bundle = workflow.jobs.build.steps.find((s) => s.run?.includes("scripts/web-bundle.mjs"));
+  assert.match(bundle.run, /release\/Connector-Foundry-web\.zip/);
+  const upload = workflow.jobs.build.steps.find((s) => s.uses?.startsWith("actions/upload-artifact"));
+  assert.match(upload.with.path, /web\/release\/\*\.zip/);
 });

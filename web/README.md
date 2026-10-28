@@ -268,7 +268,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/hotkeys.js` | User hotkeys: `parseChord()` (Mod plus Shift or Alt plus a letter or digit), `chordOf()` a keydown (falling back to `e.code` where Option or Shift changes `e.key`), and `hotkeyProblem()` against the app's, the desktop menu's and the browser's chords (`RESERVED_CHORDS`) |
 | `src/lib/userCommands.js`, `hooks/useUserCommands.js` | The user's own commands and their aliases and hotkeys for built-in ones — a validated store (`checkUserCommands()`, entry by entry), the action kinds (`ACTION_KINDS`: open a part with parameters in a tab, a bench preset, a hole type, a link, a tab, a built-in command), and the hook that lists them, puts the bindings on the registry and listens for the hotkeys; App.jsx runs each kind. No editor yet (see the Shell section) |
 | `src/lib/webmcp.js`, `hooks/useWebMcp.js` | The app's WebMCP tools for the browser's AI agent, pure and Node-tested: `getModelContext()` (the draft's `document.modelContext`, else Chrome's early-preview `navigator.modelContext`), `registerTools()` (each API's registration, unregistration and result shape; a failure is a result with a message, not a rejection) and `createAppTools()` — `list_commands` / `run_command` over the command registry, `search_parts`, `open_part`, `attach_part`, `get_app_state` and `load_bench`, every input checked; `tabBridge`, where the mounted tab hands over its preview status and (the Bench) its open slots and attach. `useWebMcp()` registers the tools once from App and reads App's latest state through a ref; `useWebMcpTab()` is how Library, the Bench and Holes fill the bridge (see the Shell section) |
-| `desktop/updates.cjs`, `update-manifest.cjs`, `scripts/release-manifest.mjs`; `src/lib/desktopUpdates.js`, `hooks/useDesktopUpdates.js`, `components/UpdateNotice.jsx`, `components/UpdateSettings.jsx` | The desktop app updating itself from GitHub releases (see the Shell section): the check, download, verification and install in the main process, the Electron-free half (the update-file table, manifest checks, the macOS swap script; Node-tested) and the release job's `latest.json` writer that shares it; on the page, one status store, so progress re-renders only the nav's notice and Settings → Updates, and the palette's update commands |
+| `desktop/updates.cjs`, `update-manifest.cjs`, `web-bundle.cjs`, `shell.cjs`, `scripts/release-manifest.mjs`, `web-bundle.mjs`, `shell-hash.mjs`; `src/lib/desktopUpdates.js`, `hooks/useDesktopUpdates.js`, `components/UpdateNotice.jsx`, `components/UpdateSettings.jsx` | The desktop app updating itself from GitHub releases (see the Shell section): the check, download, verification and install in the main process, the Electron-free half (the update-file table, manifest checks, the macOS swap script; Node-tested) and the release job's `latest.json` writer that shares it; on the page, one status store, so progress re-renders only the nav's notice and Settings → Updates, and the palette's update commands |
 | `desktop/mcp.cjs`, `mcp-server.cjs`, `preload.cjs`; `src/lib/desktopBridge.js`, `hooks/useDesktopMcp.js`, `components/McpSettings.jsx` | Coding agents in the desktop app (see the Shell section): the MCP server (plain Node, Node-tested), its Settings switch and the window's tool calls in the main process, the preload's `window.foundryDesktop`; on the page, the bridge's types with the Claude Code command and JSON config it copies, the live status, and Settings → Coding agents |
 | `src/hooks/useRenderActivity.js`, `components/RenderActivity.jsx` | How many OpenSCAD renders are in flight app-wide (subscribes to `openscad-client.js`'s `inFlight` map), and the nav's "Rendering…" status and **Cancel renders** button built on it — a component of its own, so a render starting or finishing re-renders those two elements rather than App and the whole active mode |
 | `src/lib/shortcuts.js`, `components/ShortcutsModal.jsx` | The keyboard-shortcuts sheet (`?`): every key, pointer gesture and the mouse/touch map as one table, with each platform's modifier names, checked by a unit test — a change to a key is a change to its row here |
@@ -476,8 +476,25 @@ screen.
   `pending-update.json`, which also tells the next launch whether the update took; a version that
   failed to install isn't retried until the user checks by hand. On the page, the status lives in
   `lib/desktopUpdates.js` (one subscription for the whole page), read by `UpdateNotice` in the
-  nav, which also offers the palette's `app.checkUpdates`, `app.restartToUpdate` and
-  `app.autoUpdate`, and by `UpdateSettings`.
+  nav, which also offers the palette's `app.checkUpdates`, `app.restartToUpdate`,
+  `app.autoUpdate` and `app.keepUpdated`, and by `UpdateSettings`.
+- **Interface updates** (`desktop/web-bundle.cjs`, `shell.cjs`; `scripts/web-bundle.mjs`,
+  `scripts/shell-hash.mjs`): a release also carries `Connector-Foundry-web.zip`, its `dist/` with a
+  `bundle.json` naming its version and the **shell version** it was built for, and `latest.json`
+  says that version (`shell`). An app of the same shell version downloads only that (about 8 MB),
+  checks it like the full update, unpacks it into the profile's `web/<version>/` (its own ZIP
+  reader: the packaged app has no `node_modules`) and, on **Reload to update**, serves the window
+  from it: `main.cjs`'s `foundry://` handler asks `updates.webRoot()`. Every launch serves the
+  newest bundle for its shell that is newer than its own `dist/` (none in a development run);
+  one that loads for the first time must call `updates.loaded()` (the nav's `UpdateNotice` does,
+  on mount) within 20 s, or the app goes back to its own `dist/` and records the version in
+  `updates.json`'s `badWeb`. Any other release reaches the app as the full update; when it can't
+  install that itself, `shellNeeded` puts **Update the app** in the nav. The shell is everything
+  outside the bundle: `desktop/*.cjs`, `electron-builder.yml`, Electron's version. Its
+  fingerprint is recorded in `shell.cjs`, and `tests/unit/desktop-shell.test.js` fails until a
+  change to it moves the version on (`npm run desktop:shell`), so an app never loads an interface
+  its shell can't serve. `tests/desktop/web-update.test.mjs` runs the whole flow against a
+  packaged build.
 - **Undo and redo.** Each tab has its own history, kept with its state so a tab switch keeps it:
   `lib/librarySession.js`, `lib/benchSession.js`, `lib/holesSession.js`, all on `lib/history.js`.
   A step is an immutable snapshot of the value *before* a change (the Library's part and

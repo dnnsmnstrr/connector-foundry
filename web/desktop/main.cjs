@@ -92,6 +92,7 @@ function createWindow() {
     },
   });
   mcp?.watch(window);
+  updates?.watch(window);
   window.once("ready-to-show", () => window.show());
   window.webContents.setWindowOpenHandler(({ url }) => {
     openExternal(url);
@@ -152,9 +153,11 @@ function start() {
     app.dock.setIcon(devIcon);
   }
   // Stable private origin: no localhost server, network dependency, or file:// privileges.
+  // The files are the app's own dist/, or an interface update the updater
+  // downloaded (updates.cjs), which it switches only before a reload.
   const root = path.join(__dirname, "..", "dist");
   protocol.handle("foundry", async (request) => {
-    const file = assetPath(request.url, root);
+    const file = assetPath(request.url, updates?.webRoot() ?? root);
     if (!file || !["GET", "HEAD"].includes(request.method)) return new Response("Not found", { status: 404 });
     try {
       const response = await net.fetch(pathToFileURL(file).href);

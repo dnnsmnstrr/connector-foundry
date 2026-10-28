@@ -82,6 +82,12 @@ jobs:
           '--config.${{ matrix.platform }}.artifactName=${{ matrix.artifact }}.${ext}'
         env:
           ELECTRON_BUILDER_7Z_FILTER: ${{ matrix.sevenzip-filter }}
+      # The interface update (web/desktop/web-bundle.cjs): the build's dist/,
+      # which is the same for every computer, so one job makes it. It goes
+      # into the release with this job's artifact (web/release/*.zip).
+      - name: Interface update
+        if: matrix.platform == 'mac' && matrix.arch == 'arm64'
+        run: node scripts/web-bundle.mjs dist release/Connector-Foundry-web.zip
       # Windows: run the installer the way a user would (silently, into a
       # scratch folder), and test the app it installed rather than the
       # unpacked build. /D= must come last and takes no quotes.
@@ -214,12 +220,14 @@ jobs:
             CHANGELOG.md
             web/scripts/release-manifest.mjs
             web/desktop/update-manifest.cjs
+            web/desktop/shell.cjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      # What the installed apps check: this version, and the size and
-      # SHA-256 of each update file. Written with the updater's own file
+      # What the installed apps check: this version, the shell version its
+      # interface update was built for, and the size and SHA-256 of each
+      # update file. Written with the updater's own file
       # table and checked by its own parser, so a release the app would
       # refuse fails here instead.
       - name: Update manifest

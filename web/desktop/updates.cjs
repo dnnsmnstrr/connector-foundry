@@ -31,6 +31,21 @@
 // off in Settings (updates.json). A development run never checks on its
 // own and can't install, but a check by hand still reports the newest
 // release.
+//
+// Interface updates: a release whose shell (shell.cjs) is this app's also
+// reaches it as its web bundle alone, a few MB (web-bundle.cjs), unless
+// the user turns that off ("keepUpdated"). It is checked like the full
+// update, unpacked into the profile's web/ folder, and loads with a reload
+// of the window instead of a reinstall; main.cjs serves it through
+// webRoot(). Every launch serves the newest one that fits (and none in a
+// development run, which serves the checkout's dist/ and on macOS shares
+// the installed app's profile). A bundle that loads for the first time
+// has WEB_START_MS for the page to say it started (updates:loaded); if it
+// doesn't, the app goes back to its own dist/ and that version isn't
+// tried again on its own, as with a failed install. A release built for
+// another shell comes as the full update; where this copy can't install
+// that itself, the status says so (shellNeeded), since its interface
+// stops updating until the app is.
 
 const { app, dialog, ipcMain, net, shell } = require("electron");
 const { execFile, spawn } = require("node:child_process");
@@ -39,7 +54,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Readable, Transform } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
+const { SHELL_VERSION } = require("./shell.cjs");
 const manifest = require("./update-manifest.cjs");
+const { findBundle, removeBundles, unpackBundle } = require("./web-bundle.cjs");
 
 const FIRST_CHECK_MS = 30_000;
 const CHECK_EVERY_MS = 12 * 60 * 60 * 1000;
@@ -47,6 +64,9 @@ const MANIFEST_MAX_BYTES = 64 * 1024;
 // Progress goes to the page at most this often; a download is thousands
 // of chunks.
 const PROGRESS_EVERY_MS = 250;
+// How long a newly loaded interface update has to start: the page says so
+// when its first render mounts, well before the OpenSCAD engine loads.
+const WEB_START_MS = 20_000;
 
 /** A failure worth showing the user as it is. */
 class UpdateError extends Error {}
@@ -55,6 +75,8 @@ class UpdateError extends Error {}
  * @typedef {object} UpdateStatus
  * @property {string} version the running app's
  * @property {boolean} autoCheck the user's switch
+ * @property {boolean} keepUpdated the user's switch for interface updates
+ * @property {string} web the version of the interface the window shows: the app's own, or an interface update's
  * @property {"idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "installing" | "error"} state
  *   "available": newer, but this copy can't install it itself (`manual` says why)
  * @property {string | null} latest the newest version the last check found
@@ -64,6 +86,8 @@ class UpdateError extends Error {}
  * @property {string | null} error why the last check, download or install failed
  * @property {string | null} manual why this copy can't install updates itself
  * @property {string | null} justUpdated the version this launch was updated to, if it was
+ * @property {boolean} reload "ready" is an interface update, which loads with a reload
+ * @property {boolean} shellNeeded the newest version's interface needs a newer app than this one
  */
 
 /**
@@ -80,8 +104,10 @@ function setupUpdates({ getWindow, isAppURL }) {
   // from earlier versions.
   const stageRoot = path.join(app.getPath("temp"), "connector-foundry-update");
   const settings = readSettings(settingsFile);
+  const webDir = path.join(userData, "web");
+  const webUpdates = app.isPackaged;
 
-  /** @type {Omit<UpdateStatus, "version" | "autoCheck" | "releaseUrl" | "manual" | "justUpdated">} */
+  /** @type {Pick<UpdateStatus, "state" | "latest" | "progress" | "checkedAt" | "error">} */
   let state = { state: "idle", latest: null, progress: null, checkedAt: null, error: null };
   /** @type {string | null} */
   let manual = installProblem();
@@ -89,6 +115,18 @@ function setupUpdates({ getWindow, isAppURL }) {
   let justUpdated = null;
   /** @type {{ version: string, file: string, bundle: string | null, stage: string } | null} */
   let ready = null;
+  // The interface update the window is served from, or null for the app's
+  // own dist/; and one downloaded that the next reload loads.
+  /** @type {{ version: string, root: string } | null} */
+  let active =
+    webUpdates && settings.keepUpdated
+      ? findBundle(webDir, { shell: SHELL_VERSION, newerThan: app.getVersion(), skip: settings.badWeb })
+      : null;
+  /** @type {{ version: string, root: string } | null} */
+  let webReady = null;
+  let shellNeeded = false;
+  /** @type {NodeJS.Timeout | null} */
+  let watchdog = null;
   /** @type {Promise<UpdateStatus> | null} */
   let running = null;
   /** @type {AbortController | null} */
@@ -128,11 +166,20 @@ function setupUpdates({ getWindow, isAppURL }) {
     return {
       version: app.getVersion(),
       autoCheck: settings.autoCheck,
+      keepUpdated: settings.keepUpdated,
+      web: shownVersion(),
       ...state,
       releaseUrl: state.latest ? manifest.releaseUrl(state.latest) : null,
       manual,
       justUpdated,
+      reload: Boolean(webReady),
+      shellNeeded,
     };
+  }
+
+  /** The version of the interface the window shows. */
+  function shownVersion() {
+    return active?.version ?? app.getVersion();
   }
 
   function broadcast() {
@@ -154,17 +201,38 @@ function setupUpdates({ getWindow, isAppURL }) {
    */
   function check({ byHand = false } = {}) {
     if (running) return running;
-    if (ready || installing) return Promise.resolve(status());
+    if (ready || webReady || installing) return Promise.resolve(status());
     running = (async () => {
       set({ state: "checking", error: null, progress: null });
       try {
         const found = manifest.checkManifest(await fetchManifest());
+        shellNeeded = false;
         set({ latest: found.version, checkedAt: Date.now() });
-        if (!manifest.isNewer(found.version, app.getVersion())) {
+        if (!manifest.isNewer(found.version, shownVersion())) {
           manual = installProblem();
           set({ state: "up-to-date" });
           return status();
         }
+        if (byHand && (settings.failed || settings.badWeb)) {
+          settings.failed = null;
+          settings.badWeb = null;
+          saveSettings();
+        }
+        const web = webUpdates && settings.keepUpdated ? manifest.pickWeb(found, SHELL_VERSION) : null;
+        if (web && settings.badWeb !== found.version) {
+          manual = null;
+          await downloadWeb(found.version, web);
+          set({ state: webReady ? "ready" : "idle", progress: null });
+          return status();
+        }
+        // A newer interface this app can't load: built for another shell.
+        // It comes with the full update; until that installs, the
+        // interface stays where it is.
+        shellNeeded =
+          webUpdates &&
+          settings.keepUpdated &&
+          Boolean(found.files[manifest.WEB_ASSET]) &&
+          found.shell !== SHELL_VERSION;
         const asset = manifest.pickAsset(
           found,
           manifest.assetCandidates({
@@ -173,10 +241,6 @@ function setupUpdates({ getWindow, isAppURL }) {
             translated: app.runningUnderARM64Translation,
           }),
         );
-        if (byHand && settings.failed) {
-          settings.failed = null;
-          saveSettings();
-        }
         manual =
           installProblem() ??
           (asset
@@ -226,6 +290,33 @@ function setupUpdates({ getWindow, isAppURL }) {
    * @param {{ name: string, sha256: string, size: number }} asset
    */
   async function download(version, asset) {
+    const { file, stage } = await fetchFile(version, asset);
+    const bundle = process.platform === "darwin" ? await unpackMac(file, stage, version) : null;
+    ready = { version, file, bundle, stage };
+  }
+
+  /**
+   * An interface update, unpacked into the profile beside the one in use.
+   * @param {string} version
+   * @param {{ name: string, sha256: string, size: number }} asset
+   */
+  async function downloadWeb(version, asset) {
+    const { file } = await fetchFile(version, asset);
+    const zip = fs.readFileSync(file);
+    fs.rmSync(file, { force: true });
+    const root = await unpackBundle(zip, webDir, { version, shell: SHELL_VERSION });
+    // Switched off while it downloaded: not wanted any more.
+    if (!settings.keepUpdated) fs.rmSync(root, { recursive: true, force: true });
+    else webReady = { version, root };
+  }
+
+  /**
+   * Downloads a release's file into a fresh staging folder, and keeps it
+   * only if its size and SHA-256 are the manifest's.
+   * @param {string} version
+   * @param {{ name: string, sha256: string, size: number }} asset
+   */
+  async function fetchFile(version, asset) {
     fs.rmSync(stageRoot, { recursive: true, force: true });
     const stage = path.join(stageRoot, version);
     fs.mkdirSync(stage, { recursive: true });
@@ -266,8 +357,7 @@ function setupUpdates({ getWindow, isAppURL }) {
     if (received !== asset.size) throw new UpdateError("The download was cut short. Try again.");
     if (hash.digest("hex") !== asset.sha256)
       throw new UpdateError("The download didn't match the release's checksum, so it was thrown away.");
-    const bundle = process.platform === "darwin" ? await unpackMac(file, stage, version) : null;
-    ready = { version, file, bundle, stage };
+    return { file, stage };
   }
 
   /**
@@ -337,14 +427,66 @@ function setupUpdates({ getWindow, isAppURL }) {
     return true;
   }
 
-  /** Restart now to install: what the page's "Restart to update" does. */
+  /**
+   * Restart now to install: what the page's "Restart to update" does. An
+   * interface update needs only a reload of the window.
+   */
   function restartToInstall() {
+    if (webReady) return reloadToUpdate();
     const window = getWindow();
     const url = window && !window.isDestroyed() ? window.webContents.getURL() : null;
     if (!install({ relaunch: true, url })) return false;
     // After this event, so the page hears back before the window closes.
     setImmediate(() => app.quit());
     return true;
+  }
+
+  /** Loads the downloaded interface update: a reload of the window. */
+  function reloadToUpdate() {
+    if (!webReady) return false;
+    active = webReady;
+    webReady = null;
+    justUpdated = active.version;
+    // The previous update's files: the reload below asks for none of them.
+    removeBundles(webDir, [active.version]);
+    set({ state: "up-to-date", progress: null });
+    const window = getWindow();
+    if (window && !window.isDestroyed()) {
+      watch(window);
+      window.webContents.reload();
+    }
+    return true;
+  }
+
+  /**
+   * Gives an interface update that hasn't started before its WEB_START_MS
+   * in this window; main.cjs calls it for every window it opens.
+   * @param {import("electron").BrowserWindow} window
+   */
+  function watch(window) {
+    if (!active || settings.webOk === active.version) return;
+    clearTimeout(watchdog ?? undefined);
+    watchdog = setTimeout(fallBack, WEB_START_MS);
+    window.once("closed", () => clearTimeout(watchdog ?? undefined));
+  }
+
+  // The page never said it started: back to the app's own interface, and
+  // this version isn't loaded again until a check by hand.
+  function fallBack() {
+    if (!active) return;
+    const failed = active.version;
+    settings.badWeb = failed;
+    saveSettings();
+    fs.rm(active.root, { recursive: true, force: true }, () => {});
+    active = null;
+    justUpdated = null;
+    set({
+      state: "error",
+      latest: failed,
+      error: `The interface update to ${failed} didn't start, so the app went back to its own. Check for updates to try again.`,
+    });
+    const window = getWindow();
+    if (window && !window.isDestroyed()) window.webContents.reload();
   }
 
   function schedule() {
@@ -363,7 +505,18 @@ function setupUpdates({ getWindow, isAppURL }) {
   async function checkFromMenu() {
     const result = await check({ byHand: true });
     const options = { title: "Software update", buttons: ["OK"] };
-    if (result.state === "ready") {
+    if (result.state === "ready" && result.reload) {
+      const { response } = await dialog.showMessageBox({
+        ...options,
+        message: `Connector Foundry ${result.latest} is ready.`,
+        detail:
+          "It updates the interface only: reload now to see it, or it loads the next time the app starts.",
+        buttons: ["Reload now", "Later"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (response === 0) reloadToUpdate();
+    } else if (result.state === "ready") {
       const { response } = await dialog.showMessageBox({
         ...options,
         message: `Connector Foundry ${result.latest} is ready to install.`,
@@ -377,7 +530,7 @@ function setupUpdates({ getWindow, isAppURL }) {
       const { response } = await dialog.showMessageBox({
         ...options,
         message: `Connector Foundry ${result.latest} is available.`,
-        detail: result.manual ?? "",
+        detail: `${result.shellNeeded ? "It updates the app itself, not only its interface. " : ""}${result.manual ?? ""}`,
         buttons: ["Open the release page", "Later"],
         defaultId: 0,
         cancelId: 1,
@@ -418,6 +571,33 @@ function setupUpdates({ getWindow, isAppURL }) {
     broadcast();
     return status();
   });
+  // Off: the window keeps the interface it shows until the app starts
+  // again (a reload now would lose what only the page holds), and an
+  // interface update waiting to load is dropped.
+  ipcMain.handle("updates:set-keep-updated", (event, on) => {
+    if (!fromApp(event)) return null;
+    settings.keepUpdated = on === true;
+    saveSettings();
+    if (!settings.keepUpdated) {
+      shellNeeded = false;
+      if (webReady) {
+        fs.rm(webReady.root, { recursive: true, force: true }, () => {});
+        webReady = null;
+        state = { ...state, state: "idle" };
+      }
+    }
+    broadcast();
+    return status();
+  });
+  // The page's first render mounted: the interface update it came from works.
+  ipcMain.on("updates:loaded", (event) => {
+    if (!fromApp(event)) return;
+    clearTimeout(watchdog ?? undefined);
+    if (active && settings.webOk !== active.version) {
+      settings.webOk = active.version;
+      saveSettings();
+    }
+  });
 
   // A downloaded update installs when the app quits, as electron-updater's
   // do; a download still running is abandoned.
@@ -433,12 +613,25 @@ function setupUpdates({ getWindow, isAppURL }) {
       // A launch that was the update itself: the folder held the files
       // that installed it. The Windows installer may still be finishing
       // when the app it started comes up, so later, and quietly.
+      // Interface updates the app no longer serves: older ones, ones for
+      // another shell, all of them with the switch off.
       setTimeout(() => {
-        if (!running && !ready) fs.rm(stageRoot, { recursive: true, force: true }, () => {});
+        if (running) return;
+        if (!ready) fs.rm(stageRoot, { recursive: true, force: true }, () => {});
+        if (webUpdates)
+          removeBundles(
+            webDir,
+            [active?.version, webReady?.version].filter((v) => typeof v === "string"),
+          );
       }, FIRST_CHECK_MS / 2).unref();
       schedule();
     },
     checkFromMenu,
+    watch,
+    /** Where the window's files come from: an interface update's folder, or null for the app's own. */
+    webRoot() {
+      return active?.root ?? null;
+    },
     /** The page the window showed before it restarted to update, once. */
     takeRestoreURL() {
       const url = restoreURL;
@@ -483,7 +676,8 @@ function installProblem() {
 }
 
 /**
- * updates.json as stored, or the defaults: automatic checks on.
+ * updates.json as stored, or the defaults: automatic checks and interface
+ * updates on.
  * @param {string} file
  */
 function readSettings(file) {
@@ -495,8 +689,20 @@ function readSettings(file) {
   }
   return {
     autoCheck: raw?.autoCheck !== false,
-    failed: typeof raw?.failed === "string" && manifest.VERSION.test(raw.failed) ? raw.failed : null,
+    keepUpdated: raw?.keepUpdated !== false,
+    failed: version(raw?.failed),
+    // The interface update that didn't start, and the newest one that did.
+    badWeb: version(raw?.badWeb),
+    webOk: version(raw?.webOk),
   };
+}
+
+/**
+ * A stored version, or null.
+ * @param {unknown} value
+ */
+function version(value) {
+  return typeof value === "string" && manifest.VERSION.test(value) ? value : null;
 }
 
 /**

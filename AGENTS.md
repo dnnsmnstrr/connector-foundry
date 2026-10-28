@@ -87,7 +87,10 @@ Which ones to add on top of `make check`:
   Service workers are blocked in the browser tests (`playwright.config.js`: a response a worker
   serves bypasses `page.route()`); only `sw.spec.js` allows them. A change to the layout under
   900 px or for touch: `mobile.spec.js` covers it.
-- Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`. The
+- Changed `web/desktop/` or anything the packaged app loads: `npm run test:desktop`. A change to
+  the shell (`desktop/*.cjs`, `electron-builder.yml`, the Electron version) also needs
+  `npm run desktop:shell`, which moves `desktop/shell.cjs`'s version on: installed apps take
+  interface updates only for their own shell version, and `npm test` fails until it is done. The
   updater's Windows install (`tests/desktop/update.test.mjs`) runs only in `desktop.yml`'s
   Windows x64 job: dispatch it for a change to `updates.cjs` or the NSIS settings.
 - Changed a guide the website publishes, or the landing page: `npm test` checks every link and

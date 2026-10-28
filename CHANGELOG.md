@@ -106,6 +106,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   Updates…** in the app menu, and the command palette has all three. Releases now include the
   macOS ZIPs and a `latest.json` for the updater. Updating from 0.4.0 still takes a download by
   hand, since 0.4.0 has no updater.
+- **Interface updates without reinstalling.** When a release leaves the app itself as it was and
+  only changes its interface, the app downloads just that, about 8 MB instead of about 120, and
+  **Reload to update** loads it in a moment, without a restart. An interface update that doesn't
+  start is dropped for the app's own. **Update the interface without reinstalling** in **Settings →
+  Updates** turns it off. A release that does change the app comes as the full update; where the
+  app can't install that itself, the header's **Update the app** links the release page, since its
+  interface stops updating until then. Settings shows the interface's version when it differs from
+  the app's. Releases now include `Connector-Foundry-web.zip` for this.
 
 ### Holes tab
 

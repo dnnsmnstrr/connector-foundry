@@ -14,8 +14,9 @@
 // token, a new token.
 //
 // `updates` is the updater (updates.cjs): its status, a check, the
-// automatic checks' switch, and the restart that installs a downloaded
-// update.
+// switches for automatic checks and interface updates, the restart (or
+// reload) that installs a downloaded update, and the page's word that it
+// started, which an interface update has to give in time to be kept.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
@@ -91,6 +92,8 @@ contextBridge.exposeInMainWorld("foundryDesktop", {
     check: () => ipcRenderer.invoke("updates:check"),
     install: () => ipcRenderer.invoke("updates:install"),
     setAutoCheck: (on) => ipcRenderer.invoke("updates:set-auto-check", on === true),
+    setKeepUpdated: (on) => ipcRenderer.invoke("updates:set-keep-updated", on === true),
+    loaded: () => ipcRenderer.send("updates:loaded"),
     /** Calls `listener` with the new status whenever it changes; returns the unsubscribe. */
     onStatus(listener) {
       const handler = (_event, status) => listener(status);
