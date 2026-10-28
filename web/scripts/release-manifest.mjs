@@ -4,8 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // The release's latest.json, which the desktop app's updater reads
-// (desktop/updates.cjs): the version, and the size and SHA-256 of each
-// update file the release has. desktop.yml's release job runs it over the
+// (desktop/updates.cjs): the version, the shell version its interface
+// update was built for (desktop/shell.cjs, as checked out at the tag), and
+// the size and SHA-256 of each update file the release has. desktop.yml's release job runs it over the
 // downloaded build artifacts, before they are published:
 //
 //   node web/scripts/release-manifest.mjs <dir> <version>
@@ -17,12 +18,13 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const {
-  ASSETS,
   MANIFEST_NAME,
+  UPDATE_FILES,
   VERSION,
   checkManifest,
   sha256File,
 } = require("../desktop/update-manifest.cjs");
+const { SHELL_VERSION } = require("../desktop/shell.cjs");
 
 /**
  * The manifest for the update files in `dir`.
@@ -33,7 +35,7 @@ export async function releaseManifest(dir, version) {
   if (!VERSION.test(version)) throw new Error(`Not a release version: ${version}`);
   /** @type {Record<string, { sha256: string, size: number }>} */
   const files = {};
-  for (const name of Object.values(ASSETS)) {
+  for (const name of UPDATE_FILES) {
     const file = path.join(dir, name);
     let info;
     try {
@@ -44,7 +46,7 @@ export async function releaseManifest(dir, version) {
     files[name] = { sha256: await sha256File(file), size: info.size };
   }
   if (Object.keys(files).length === 0) throw new Error(`No update files in ${dir}`);
-  const manifest = { version, files };
+  const manifest = { version, shell: SHELL_VERSION, files };
   // What the app will accept, or the release fails here rather than in
   // everyone's app.
   checkManifest(manifest);

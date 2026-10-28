@@ -37,6 +37,12 @@ const ASSETS = Object.freeze({
   "win32-arm64": "Connector-Foundry-windows-arm64-setup.exe",
 });
 
+// The interface update: the release's web bundle (desktop/web-bundle.cjs),
+// one for every computer, which an app whose shell (desktop/shell.cjs) it
+// was built for loads instead of downloading the whole build.
+const WEB_ASSET = "Connector-Foundry-web.zip";
+const UPDATE_FILES = Object.freeze([...Object.values(ASSETS), WEB_ASSET]);
+
 // Three numbers, as the release tags are (v0.4.0). Pre-releases never
 // reach the manifest's link, so anything else is a malformed manifest.
 const VERSION = /^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/;
@@ -69,22 +75,24 @@ function assetCandidates({ platform, arch, translated = false }) {
 
 /**
  * A manifest as fetched, checked like any file from the network: the
- * version, and size and SHA-256 of the files this table knows. Files with
- * other names, or with a malformed entry, are left out.
+ * version, the shell version its web bundle was built for, and size and
+ * SHA-256 of the files this table knows. Files with other names, or with a
+ * malformed entry, are left out; so is a shell version that isn't a
+ * positive whole number (null: no interface update).
  * @param {unknown} raw
- * @returns {{ version: string, files: Record<string, { sha256: string, size: number }> }}
+ * @returns {{ version: string, shell: number | null, files: Record<string, { sha256: string, size: number }> }}
  */
 function checkManifest(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new Error("The update manifest is malformed.");
-  const { version, files } = /** @type {any} */ (raw);
+  const { version, shell, files } = /** @type {any} */ (raw);
   if (typeof version !== "string" || !VERSION.test(version))
     throw new Error("The update manifest has no valid version.");
   if (!files || typeof files !== "object" || Array.isArray(files))
     throw new Error("The update manifest lists no files.");
   /** @type {Record<string, { sha256: string, size: number }>} */
   const checked = {};
-  for (const name of Object.values(ASSETS)) {
+  for (const name of UPDATE_FILES) {
     if (!Object.hasOwn(files, name)) continue;
     const file = files[name];
     if (
@@ -97,7 +105,7 @@ function checkManifest(raw) {
     )
       checked[name] = { sha256: file.sha256.toLowerCase(), size: file.size };
   }
-  return { version, files: checked };
+  return { version, shell: Number.isSafeInteger(shell) && shell > 0 ? shell : null, files: checked };
 }
 
 /**
@@ -131,14 +139,25 @@ function pickAsset(manifest, candidates) {
 }
 
 /**
+ * The release's interface update, if it has one and it was built for this
+ * shell version; null sends the app the full update.
+ * @param {ReturnType<typeof checkManifest>} manifest
+ * @param {number} shell this app's (desktop/shell.cjs)
+ * @returns {{ name: string, sha256: string, size: number } | null}
+ */
+function pickWeb(manifest, shell) {
+  const file = manifest.files[WEB_ASSET];
+  return file && manifest.shell === shell ? { name: WEB_ASSET, ...file } : null;
+}
+
+/**
  * Where a release's file is, pinned to its tag: a release published while
  * the download runs can't swap the file under it.
  * @param {string} version
- * @param {string} name one of ASSETS
+ * @param {string} name one of ASSETS, or WEB_ASSET
  */
 function downloadUrl(version, name) {
-  if (!VERSION.test(version) || !Object.values(ASSETS).includes(name))
-    throw new Error("Unknown update file.");
+  if (!VERSION.test(version) || !UPDATE_FILES.includes(name)) throw new Error("Unknown update file.");
   return `https://github.com/${REPO}/releases/download/v${version}/${name}`;
 }
 
@@ -206,13 +225,16 @@ module.exports = {
   MANIFEST_NAME,
   MANIFEST_URL,
   REPO,
+  UPDATE_FILES,
   VERSION,
+  WEB_ASSET,
   assetCandidates,
   checkManifest,
   downloadUrl,
   isNewer,
   macBundlePath,
   pickAsset,
+  pickWeb,
   releaseUrl,
   sha256File,
 };

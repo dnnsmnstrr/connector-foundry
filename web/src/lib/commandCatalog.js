@@ -150,6 +150,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["update", "upgrade", "version", "release", "auto"],
     action: "Toggle",
   },
+  "app.keepUpdated": {
+    title: "Update the interface without reinstalling",
+    section: "Settings",
+    keywords: ["update", "interface", "web", "bundle", "reload", "keep updated"],
+    action: "Toggle",
+  },
   // --- Library
   "library.openInBench": {
     title: "Open in Bench",

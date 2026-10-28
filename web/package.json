@@ -23,6 +23,7 @@
     "icons:web": "node scripts/web-icons.mjs",
     "pretest:desktop": "npm run icon",
     "desktop:install": "node scripts/install-desktop.mjs",
+    "desktop:shell": "node scripts/shell-hash.mjs --bump",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p jsconfig.json && tsc -p jsconfig.worker.json",
     "check": "npm run lint && npm run typecheck && npm run format:check && npm test",
