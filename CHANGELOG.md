@@ -5,7 +5,7 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
-## Unreleased
+## 0.5.0 — 2026-10-28
 
 ### Parts
 
