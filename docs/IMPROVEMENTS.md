@@ -15,22 +15,23 @@ printer settings and an imported part.
 
 Deferred deliberately; no change to `.scad` export behavior in this review.
 
-## Resize handles on attached Bench parts
+## Attached Bench parts: picking, a tighter outline, a fixed far edge
 
-Only the Bench's root has resize handles; a selected attached part says "Resize in the
-sidebar". The root is placed exactly — centred, unrotated — so its measured box is its faces.
-An attached part's box (`benchPick.js`'s `nodeWorldBoxes()`) is an axis-aligned box padded for
-its spin, its shift and its catalogue `mount_offset`, so handles on it would sit off the faces
-they stand for, and a side-mounted part has no box at all.
+Attached parts have resize handles on their exact frames (`benchOrientation.js`'s
+`nodeWorldMount()`, `benchResize.js`'s `attachedFrame()`), but two older consumers still use
+`benchPick.js`'s padded axis-aligned boxes: click-picking in the scene, so a side-mounted part
+can only be selected from the sidebar, and the boxes overlap more than they need to. The frames
+could replace them (a ray against oriented boxes). The selection outline is the world box around
+the frame box, since `StlViewer`'s `highlightBox` is axis-aligned; at a spin that isn't a quarter
+turn it is larger than the part, and an oriented outline (the ghost's segments, say) would match
+the handles.
 
-Doing it properly needs each part's exact oriented frame: `benchOrientation.js`'s
-`nodeWorldRotation()` already models every catalogue chain, side slots included, and with the
-slot's world point, the mating rise, the mount offset and the shift it gives the box's centre and
-axes. A part also grows about its own mount anchor, not about the box the user sees, so keeping
-the opposite edge in place would mean adjusting `shift` along with the size, and the children
-guard (`benchResize.js`) would have to run for the part's own children. Deferred because resizing
-the root covers the common case, and the frames are worth doing once, for click-picking and
-side-mounted parts as well.
+An attached part grows about its centre, as the root does. TinkerCAD's default keeps the far
+edge still; for an attached part that would mean shifting it by half the change along the
+dragged axis in the same undo step (`updateChildShift()`, the shift being in the slot's frame,
+turned with the spin), and the ghost and the guard would have to follow. Left out because a part
+centred on its slot is usually what is wanted, and it would differ from the root, which has no
+shift to move.
 
 ## Attached parts when the root shrinks through the sidebar
 

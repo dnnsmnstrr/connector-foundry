@@ -24,6 +24,7 @@ import {
   descendantIds,
   getNode,
   moveChild,
+  normalizeSpin,
   occupiedSlotNames,
   removeChild,
   rotateChild,
@@ -68,12 +69,20 @@ import { boxTopCenter, nodeWorldBoxes, pickNodeAt } from "./lib/benchPick.js";
 import { deletePreset, savePreset } from "./lib/benchPresets.js";
 import {
   NO_EXTENTS,
+  WORLD_FRAME,
+  attachedFrame,
+  attachedResizeAxes,
+  ghostToWorld,
   guardNote,
   guardResize,
+  handlesToWorld,
   mergeExtents,
   resizeGhost,
   rootBoxFor,
   sameParams,
+  toFrame,
+  toWorld,
+  worldBoundsOf,
 } from "./lib/benchResize.js";
 import {
   getBenchSession,
@@ -92,6 +101,7 @@ import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { friendlyRenderError } from "./lib/renderError.js";
 import {
   axisLetter,
+  boxEdges,
   dragResize,
   handlesForBox,
   mirrorHandleId,
@@ -101,16 +111,17 @@ import {
   typedResize,
   viewerHandles,
 } from "./lib/resize.js";
-import { fitGridCounts } from "./lib/slots.js";
+import { fitGridCounts, mountOffset } from "./lib/slots.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
-import { uprightSpin } from "./lib/benchOrientation.js";
+import { nodeSpinAxis, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
+import { rotateAbout } from "./lib/rotateDial.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
 const RENDER_DEBOUNCE_MS = 250;
 
-// A root part without resize axes: one array for every render, so the
+// A part without resize axes: one array for every render, so the
 // memos that follow the axes don't rebuild on each of them.
 /** @type {import("./lib/resize.js").ResizeAxis[]} */
 const NO_AXES = [];
@@ -170,13 +181,13 @@ function cachedPreview({ assembly, partsById, globalOverrides }) {
 // The Bench: a root part, parts attached to its slots (and theirs), one
 // preview of the whole assembly. Any part, the root too, is selected by
 // clicking it in the scene (where its place is known: benchPick.js) or
-// its name in the sidebar ("Select root" for the root). A selected root
-// whose catalogue entry has `resize` gets TinkerCAD's handles
-// (lib/resize.js, as in the Library): a drag shows a ghost of the new size
-// and commits one parameter change on release, which never takes a slot
-// out from under an attached part (lib/benchResize.js's guard). Attached
-// parts are resized in the sidebar for now — their boxes are padded, not
-// exact, so handles on them would sit off their faces. Every change to
+// its name in the sidebar ("Select root" for the root). A selected
+// catalogue part whose entry has `resize` — the root, or a part attached
+// anywhere in the tree — gets TinkerCAD's handles (lib/resize.js, as in
+// the Library), on its own exact frame (lib/benchResize.js): a drag shows
+// a ghost of the new size and commits one parameter change on release,
+// which never takes a slot out from under a part attached to it
+// (benchResize.js's guard). Imported meshes have none. Every change to
 // the bench, Start over and a loaded config included, is a step in its
 // undo history (lib/benchSession.js, which outlives this component).
 /**
@@ -217,10 +228,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the name, once NameBenchModal has one (see withName()). Null otherwise.
   const [pendingExport, setPendingExport] = useState(null);
   // The selected node — picked by clicking the part in the scene or its
-  // name in the sidebar ("Select root" for the root). An attached part
-  // gets its rotate, move and delete controls; the root its handles and
-  // Crop only: there's nothing to spin it against or move it to, and
-  // removing it would remove everything.
+  // name in the sidebar ("Select root" for the root). Either gets Crop and
+  // its handles, when it has any; an attached part also its rotate, move
+  // and delete controls. The root has nothing to spin against or move to,
+  // and removing it would remove everything.
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   // "Move" is armed for the selected part: the next open marker clicked
   // re-seats it there instead of opening the attach picker. Only
@@ -237,20 +248,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const presets = useBenchPresets();
   const [configError, setConfigError] = useState(null);
   const shownError = configError ?? notice;
-  // The last handle commit on the root: the root parameters it set (the
-  // very object, so any other change to them — a sidebar edit, an undo —
-  // no longer matches), the tree it made and the printer settings it
-  // rendered with (an edit to a child keeps the root's parameters, a
-  // Settings change the whole tree, and neither render is the commit's),
-  // the box it predicts, and the ghost shown until the assembly's render
-  // for it lands. `key` is its
-  // undo step's coalescing key (a run of arrow presses shares one) and
-  // `from` the box its label counts from (see onHandleStep()).
+  // The last handle commit: the node it resized and the parameters it set
+  // (the very object, so any other change to them — a sidebar edit, an
+  // undo — no longer matches), the tree it made and the printer settings
+  // it rendered with (an edit to another part keeps this one's
+  // parameters, a Settings change the whole tree, and neither render is
+  // the commit's), the box it predicts (in the part's handle frame), and
+  // the ghost (in world space) shown until the assembly's render for it
+  // lands. `key` is its undo step's coalescing key (a run of arrow presses
+  // shares one) and `from` the box its label counts from (see
+  // onHandleStep()).
   const [pending, setPending] = useState(null);
   // Why the guard changed or refused the last arrow step or typed size on
   // a handle ("3 would move attached parts"), for the handles'
-  // aria-valuetext and hover readout: { params (the root parameters it is
-  // about, as `pending`), axes, text }. It explains that one gesture, so
+  // aria-valuetext and hover readout: { params (the part's parameters it
+  // is about, as `pending`), axes, text }. It explains that one gesture, so
   // it goes when the handle loses focus, another gesture starts, the
   // selection changes or the parameters do. A drag sets none: its label
   // said so while it ran, and a mouse user's handle has no focus to lose,
@@ -354,8 +366,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // 20); when every node is already in the cache — a rotate, a joint or
   // offset change, a move, a crop — resolve at once, as before. A handle
   // commit (immediateTree) is a finished change, not typing: its renders
-  // start at once too, the root's own first, so the handles move onto its
-  // measured box before the assembly lands.
+  // start at once too — the parts' own first, the unchanged ones straight
+  // from the cache — so the handles move onto the resized part's measured
+  // box before the assembly lands.
   //
   // Each entry keeps the parameters it was measured with, and a round that
   // measures every node as before keeps the old state object
@@ -500,92 +513,162 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     [assembly, partsById, rootSlotWorldPositions, nodeExtents],
   );
 
-  // --- The root's resize handles ---------------------------------------------
-  // Only the root's for now: it is placed exactly (centred, unrotated), so
-  // its box is its faces. An attached part's box is padded for spin,
-  // shift and mount offsets (benchPick.js), and handles on it would sit off
-  // the faces they stand for.
+  // --- Resize handles on the selected part -------------------------------------
+  // The root's stand on its box as placed (centred, unrotated); an
+  // attached part's on its own exact frame (benchResize.js's
+  // attachedFrame(), from benchOrientation.js's nodeWorldMount()), which
+  // follows its slot, spin, shift, joint and mount offset — side slots
+  // and stacks included. Everything below works in that frame, as the
+  // root's handles always did; only what reaches the viewer (handles,
+  // ghosts) and what comes back (a dragged point) crosses into world
+  // space. A part whose place the model can't tell (one on an imported
+  // part's own face, through an anchor other than "mount") and imported
+  // meshes get none.
   const rootSelected = !!assembly && selectedNodeId === ROOT_ID;
+  const handleNode = assembly && selectedNodeId ? getNode(assembly, selectedNodeId) : null;
+  const handleNodeId = handleNode ? selectedNodeId : null;
+  const handlePart = handleNode ? partsById.get(handleNode.partId) : null;
+  const handleParams = handleNode?.params ?? null;
+  const handleFullParams = useMemo(
+    () => (handlePart ? { ...(handlePart.defaults ?? {}), ...handleParams } : null),
+    [handlePart, handleParams],
+  );
+  // The frame the selected part's handles are built in: the world's for
+  // the root, null for a part with no handles.
+  const handleFrame = useMemo(() => {
+    if (!handleNodeId || !handlePart || handlePart.kind === "imported") return null;
+    if (handleNodeId === ROOT_ID) return WORLD_FRAME;
+    const placed = nodeWorldMount(assembly, partsById, nodeExtents, handleNodeId);
+    return placed ? attachedFrame(placed, mountOffset(handlePart, handleFullParams)) : null;
+  }, [handleNodeId, handlePart, handleFullParams, assembly, partsById, nodeExtents]);
+  // Whether the root has handles when selected, for "Select root"'s title.
   const rootParams = assembly?.root.params ?? null;
-  const rootFullParams = useMemo(
-    () => (rootPart ? { ...(rootPart.defaults ?? {}), ...rootParams } : null),
+  const rootResizable = useMemo(
+    () => !!rootPart && rootPart.kind !== "imported" && resizeAxes(rootPart, rootParams ?? {}).length > 0,
     [rootPart, rootParams],
   );
-  const rootAxes = useMemo(() => {
-    const axes = rootPart && rootPart.kind !== "imported" ? resizeAxes(rootPart, rootFullParams) : [];
+  const handleAxes = useMemo(() => {
+    let axes = [];
+    if (handleFrame === WORLD_FRAME) axes = resizeAxes(handlePart, handleFullParams);
+    else if (handleFrame) axes = attachedResizeAxes(handlePart, handleFullParams);
     return axes.length ? axes : NO_AXES;
-  }, [rootPart, rootFullParams]);
-  const pendingCurrent = pending && rootParams === pending.params ? pending : null;
-  // The box the handles stand on, for the root's current parameters only
-  // — a box from older ones would start a drag from the wrong size and run
-  // the children guard against the wrong slots. Measured (the root's own
-  // render, as the markers use) when that was rendered for these
-  // parameters; else that render straight from the cache when it exists
-  // but the measurement hasn't caught up (an undo back to a size rendered
-  // before: read now, so a focused handle survives the undo); else, while
-  // a handle commit renders, the box it predicted. None on a failed
-  // render: the error and its Undo take the handles' place. (The render
-  // status is applied outside the memo, so the box — and the handles,
-  // outline and fit box built on it — keep their identity as renders
-  // start and land.)
-  const rootBox = useMemo(() => {
-    if (!rootSelected || !rootAxes.length) return null;
-    const extents = measured.extents.get(ROOT_ID);
-    if (extents && sameParams(measured.params.get(ROOT_ID), rootParams)) return rootBoxFor(extents);
+  }, [handleFrame, handlePart, handleFullParams]);
+  // The slots the selected part's own children sit on, for the guard.
+  const handleOccupied = useMemo(
+    () => (handleNodeId ? occupiedSlotNames(assembly, handleNodeId) : new Set()),
+    [assembly, handleNodeId],
+  );
+  const pendingNode = pending && assembly ? getNode(assembly, pending.nodeId) : null;
+  const pendingCurrent = pending && pendingNode?.params === pending.params ? pending : null;
+  // The box the handles stand on (in the part's frame), for the part's
+  // current parameters only — a box from older ones would start a drag
+  // from the wrong size and run the children guard against the wrong
+  // slots. Measured (the part's own render, as the markers use) when that
+  // was rendered for these parameters; else that render straight from the
+  // cache when it exists but the measurement hasn't caught up (an undo
+  // back to a size rendered before: read now, so a focused handle
+  // survives the undo); else, while a handle commit renders, the box it
+  // predicted. The frame's origin is the mating face, which a part's own
+  // resize never moves, so a box predicted in it stays right. None on a
+  // failed render: the error and its Undo take the handles' place. (The
+  // render status is applied outside the memo, so the box — and the
+  // handles, outline and fit box built on it — keep their identity as
+  // renders start and land.)
+  const frameBox = useMemo(() => {
+    if (!handleFrame || !handleAxes.length) return null;
+    const extents = measured.extents.get(handleNodeId);
+    if (extents && sameParams(measured.params.get(handleNodeId), handleParams)) return rootBoxFor(extents);
     const cached = getCachedRender({
-      scadFile: rootPart.file,
-      module: rootPart.module,
-      params: rootParams,
+      scadFile: handlePart.file,
+      module: handlePart.module,
+      params: handleParams,
       globalOverrides,
     });
     if (cached) return rootBoxFor(meshExtents(cached));
-    return pendingCurrent?.box ?? null;
-  }, [rootSelected, rootAxes, measured, rootParams, rootPart, globalOverrides, pendingCurrent]);
-  const handleBox = status === "error" ? null : rootBox;
-  // A guard note about these root parameters goes on the handles of the
-  // axes it is about, so a screen reader hears why a step jumped or didn't
+    return pendingCurrent?.nodeId === handleNodeId ? pendingCurrent.box : null;
+  }, [
+    handleFrame,
+    handleAxes,
+    measured,
+    handleNodeId,
+    handleParams,
+    handlePart,
+    globalOverrides,
+    pendingCurrent,
+  ]);
+  const handleBox = status === "error" ? null : frameBox;
+  // A guard note about these parameters goes on the handles of the axes
+  // it is about, so a screen reader hears why a step jumped or didn't
   // move ("… — 3 would move attached parts").
-  const guardShown = guardStep && guardStep.params === rootParams ? guardStep : null;
-  const rootHandles = useMemo(() => {
+  const guardShown = guardStep && guardStep.params === handleParams ? guardStep : null;
+  // The handles in the part's frame, which the gestures below work with...
+  const frameHandles = useMemo(() => {
     if (!handleBox) return undefined;
-    const handles = viewerHandles(handleBox, rootAxes, rootFullParams);
+    const handles = viewerHandles(handleBox, handleAxes, handleFullParams);
     if (!guardShown) return handles;
     return handles.map((h) =>
       h.axes.some((key) => guardShown.axes.includes(key))
         ? { ...h, valueText: `${h.valueText} — ${guardShown.text}` }
         : h,
     );
-  }, [handleBox, rootAxes, rootFullParams, guardShown]);
+  }, [handleBox, handleAxes, handleFullParams, guardShown]);
+  // ...and in the world, for the viewer.
+  const shownHandles = useMemo(
+    () => frameHandles && handlesToWorld(handleFrame, frameHandles),
+    [frameHandles, handleFrame],
+  );
+  // The selection outline and fit box around the handles' box, so the two
+  // never disagree (axis-aligned: exact at quarter-turn spins).
+  const handleBounds = useMemo(
+    () => (handleBox && handleFrame ? worldBoundsOf(handleFrame, handleBox) : null),
+    [handleBox, handleFrame],
+  );
   // The pending ghost stays while the assembly renders for the committed
   // size; a landed render, a cancel (idle), an error or any other change —
-  // to the root's parameters, elsewhere in the tree (a child's offset) or
-  // to the printer settings — ends it. A failed one offers its Undo only
-  // under the same terms: after a later edit elsewhere the Undo would take
-  // back that edit, not the size, and the error may be that edit's.
+  // to the part's parameters, elsewhere in the tree (another part's
+  // offset) or to the printer settings — ends it. A failed one offers its
+  // Undo only under the same terms: after a later edit elsewhere the Undo
+  // would take back that edit, not the size, and the error may be that
+  // edit's.
   const pendingRendered =
     !!pendingCurrent &&
     pendingCurrent.tree === assembly &&
     pendingCurrent.globalOverrides === globalOverrides;
   const pendingShown = pendingRendered && status === "rendering" ? pendingCurrent : null;
   const handleFailed = pendingRendered && status === "error";
-  // The viewer's Grid select, for a selected root with a free length to
+  // The viewer's Grid select, for a selected part with a free length to
   // drag. It follows the selection, not the handles: they drop out for a
-  // moment after a sidebar edit (until the root's new size is measured)
+  // moment after a sidebar edit (until the part's new size is measured)
   // or on a failed render, and the select would jump the toolbar, or close
   // under the pointer, with them.
-  const gridShown = rootSelected && rootAxes.some((a) => !a.step);
+  const gridShown = !!handleFrame && handleAxes.some((a) => !a.step);
+  // An attached part with handles turns on its slot with an Alt-drag on
+  // any of them (StlViewer's `rotation`): about its spin axis
+  // (benchOrientation.js's nodeSpinAxis()), on a dial a little wider than
+  // its footprint, from the spin it has. The root has no spin.
+  const rotation = useMemo(() => {
+    if (!handleBox || handleFrame === WORLD_FRAME || !handleFrame) return null;
+    const pivot = nodeSpinAxis(assembly, partsById, nodeExtents, handleNodeId);
+    if (!pivot) return null;
+    const footprint = Math.hypot(handleBox.max[0] - handleBox.min[0], handleBox.max[1] - handleBox.min[1]);
+    return { ...pivot, radius: Math.max(10, 0.6 * footprint), base: handleNode.spin ?? 0 };
+  }, [handleBox, handleFrame, assembly, partsById, nodeExtents, handleNodeId, handleNode]);
 
-  // What a drag started from, for its previews and its commit: the box
-  // and full parameters at pointerdown and the slots the root's children
-  // sit on, whatever renders land meanwhile.
+  // What a drag started from, for its previews and its commit: the part,
+  // its frame, box and full parameters at pointerdown and the slots its
+  // children sit on, whatever renders land meanwhile.
   const dragStart = useRef(null);
-  const findHandle = (id) => rootHandles?.find((h) => h.id === id) ?? null;
+  const findHandle = (id) => frameHandles?.find((h) => h.id === id) ?? null;
   const gestureFrom = (handle) => ({
     handle,
+    nodeId: handleNodeId,
+    part: handlePart,
+    frame: handleFrame,
     box: handleBox,
-    params: rootFullParams,
-    axes: rootAxes,
-    occupied,
+    params: handleFullParams,
+    axes: handleAxes,
+    occupied: handleOccupied,
+    rotation,
   });
 
   // A resize through the children guard, with the label that says what it
@@ -594,7 +677,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // presses started. Null for no change.
   function guarded(start, result, gridMm, from = start.box) {
     const out = guardResize({
-      part: rootPart,
+      part: start.part,
       axes: start.axes,
       handle: start.handle,
       box: start.box,
@@ -611,38 +694,43 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
   // One handle change, from a drag, a key or a typed size: an undo step
   // (a run of arrow presses on one handle is one), the changed values
-  // merged into the root's current parameters, and the ghost of the new
+  // merged into the part's current parameters, and the ghost of the new
   // size until its render lands. A change the guard kept at the start
   // value commits nothing; for a key or a typed size the handle's readout
   // says why (`noted`), a drag's label already did.
   function commitResize(start, change, { immediate, key = null, from = start.box, noted = true }) {
     if (!change) return;
+    const current = getNode(assembly, start.nodeId);
+    if (!current) return;
     const noteFor = (params) =>
       noted && change.note ? { params, axes: start.handle.axes, text: change.note } : null;
     if (!Object.keys(change.result.params).length) {
-      setGuardStep(noteFor(rootParams));
+      setGuardStep(noteFor(current.params));
       return;
     }
     nodeActions.setParams(
-      ROOT_ID,
-      { ...rootParams, ...change.result.params },
+      start.nodeId,
+      { ...current.params, ...change.result.params },
       { key, label: `resize ${start.handle.axes.map(axisLetter).join(" and ")}` },
     );
     const next = getBenchSession().assembly;
     if (!next || next === assembly) return;
+    const nextParams = getNode(next, start.nodeId).params;
     immediateTree.current = immediate ? next : null;
-    setGuardStep(noteFor(next.root.params));
+    setGuardStep(noteFor(nextParams));
     setPending({
-      params: next.root.params,
+      nodeId: start.nodeId,
+      params: nextParams,
       tree: next,
       globalOverrides,
       box: change.result.box,
       key,
       from,
-      ghost: {
+      // In world space: the ghost outlives the selection.
+      ghost: ghostToWorld(start.frame, {
         ...resizeGhost(start.handle, start.axes, change.result.box),
         text: `${change.text} · rendering…`,
-      },
+      }),
     });
   }
 
@@ -651,7 +739,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     dragStart.current = handle && handleBox ? gestureFrom(handle) : null;
     setGuardStep(null);
   };
-  const dragChange = (id, point) => {
+  const dragChange = (id, worldPoint) => {
     const start = dragStart.current;
     if (!start || start.handle.id !== id) return null;
     const gridMm = getGridSnap();
@@ -660,7 +748,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       axes: start.axes,
       box: start.box,
       startParams: start.params,
-      point,
+      point: toFrame(start.frame, worldPoint),
       gridMm,
     });
     const change = guarded(start, result, gridMm);
@@ -676,7 +764,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     for (const h of handlesForBox(change.result.box, start.axes)) {
       if (h.id === id || h.id === mirrorHandleId(id)) handlePoints[h.id] = h.point;
     }
-    return { ...resizeGhost(start.handle, start.axes, change.result.box), text: change.text, handlePoints };
+    return ghostToWorld(start.frame, {
+      ...resizeGhost(start.handle, start.axes, change.result.box),
+      text: change.text,
+      handlePoints,
+    });
   };
   const onHandleCommit = (id, point) => {
     const drag = dragChange(id, point);
@@ -687,26 +779,26 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     if (!handle || !handleBox) return;
     const start = gestureFrom(handle);
     // Shift is ten steps of a length; ten Gridfinity units would be 420 mm.
-    const free = handle.axes.every((key) => !rootAxes.find((a) => a.axis === key)?.step);
+    const free = handle.axes.every((key) => !handleAxes.find((a) => a.axis === key)?.step);
     const gridMm = getGridSnap();
     const result = stepResize({
       handle,
-      axes: rootAxes,
+      axes: handleAxes,
       box: handleBox,
-      startParams: rootFullParams,
+      startParams: handleFullParams,
       steps: steps * (modifiers.shiftKey && free ? 10 : 1),
       gridMm,
     });
     // Held or repeated presses wait for the usual debounce and make one
     // undo step, keyed like typing into the same parameter's field.
-    const param = rootAxes.find((a) => a.axis === handle.axes[0])?.param;
-    const key = `params:${ROOT_ID}:${param}`;
+    const param = handleAxes.find((a) => a.axis === handle.axes[0])?.param;
+    const key = `params:${handleNodeId}:${param}`;
     // ...and one render, so the pending label counts the run's change, not
     // the last press's: while the handles still stand on the box the run's
     // previous press predicted (nothing rendered since), from the box the
     // run started on ("+0.75 each side" after three presses, not "+0.25").
     const runFrom =
-      pendingCurrent && pendingCurrent.key === key && rootBox === pendingCurrent.box
+      pendingCurrent && pendingCurrent.key === key && frameBox === pendingCurrent.box
         ? pendingCurrent.from
         : handleBox;
     commitResize(start, guarded(start, result, gridMm, runFrom), {
@@ -719,8 +811,56 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     const handle = findHandle(id);
     if (!handle || !handleBox) return;
     const start = gestureFrom(handle);
-    const result = typedResize({ handle, axes: rootAxes, box: handleBox, startParams: rootFullParams, mm });
+    const result = typedResize({
+      handle,
+      axes: handleAxes,
+      box: handleBox,
+      startParams: handleFullParams,
+      mm,
+    });
     commitResize(start, guarded(start, result, 0), { immediate: true });
+  };
+
+  // An Alt-drag's turn (StlViewer's `rotation`), from the gesture
+  // onHandleStart snapshotted: the part's outline turned about its spin
+  // axis, labelled with the spin it lands on and the change.
+  function turnGhost(start, degrees, suffix = "") {
+    const { center, axis, base } = start.rotation;
+    const turned = (p) => rotateAbout(toWorld(start.frame, p), center, axis, degrees);
+    const spin = normalizeSpin(base + degrees);
+    const box = start.box;
+    return {
+      segments: boxEdges(box).map(([a, b]) => [turned(a), turned(b)]),
+      text: `Spin ${spin}° (${degrees < 0 ? "−" : "+"}${Math.abs(degrees)}°)${suffix}`,
+      textPoint: turned([box.max[0], 0, box.max[2]]),
+    };
+  }
+  const onRotatePreview = (degrees) => {
+    const start = dragStart.current;
+    return start?.rotation ? turnGhost(start, degrees) : null;
+  };
+  // One undo step ("rotate part", as the turn buttons), and the turned
+  // outline until the render lands. The part's parameters don't change,
+  // so its measured box (in its frame, which turns with it) still holds
+  // and the handles stand on the turned part at once.
+  const onRotateCommit = (degrees) => {
+    const start = dragStart.current;
+    if (!start?.rotation || !getNode(assembly, start.nodeId)) return;
+    nodeActions.rotate(start.nodeId, degrees);
+    const next = getBenchSession().assembly;
+    if (!next || next === assembly) return;
+    immediateTree.current = next;
+    setGuardStep(null);
+    setPending({
+      nodeId: start.nodeId,
+      params: getNode(next, start.nodeId).params,
+      tree: next,
+      globalOverrides,
+      box: start.box,
+      key: null,
+      from: start.box,
+      ghost: turnGhost(start, degrees, " · rendering…"),
+    });
   };
 
   // The current assembly's body `tag` as one STL (renderBody()).
@@ -1494,19 +1634,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // ancestor) simply drops the controls — no separate cleanup to forget.
   const selectedNode = selectedNodeId ? getNode(assembly, selectedNodeId) : null;
   const selectedPart = selectedNode ? partsById.get(selectedNode.partId) : null;
-  // The root's outline follows its handles (on the predicted box while a
-  // resize renders), so the two never disagree.
-  const selectedBox = selectedNode
-    ? ((rootSelected ? handleBox : null) ?? nodeBoxes.get(selectedNode.id) ?? null)
-    : null;
+  // A part with handles is outlined around them (on the predicted box
+  // while a resize renders), so the two never disagree; the rest by their
+  // pick box (benchPick.js).
+  const selectedBox = selectedNode ? (handleBounds ?? nodeBoxes.get(selectedNode.id) ?? null) : null;
+  // A part with handles has its controls out of their way: the root's in
+  // the toolbar, an attached part's docked at the foot of the viewer
+  // rather than floating over its top face, where its height handle is.
+  const floatControls = !rootSelected && !shownHandles;
   const moving = moveMode && Boolean(selectedNode) && !rootSelected;
   const cropping = Boolean(selectedNode) && assembly.cropTo === selectedNode.id;
   // A part that is resized in the sidebar, not by handles, says so in its
-  // scene controls: an attached part (handles on attached parts would need
-  // their exact rotated frames), or a root without resize axes. Not an
-  // imported part, which has no size parameters at all.
-  const resizeHint =
-    selectedPart && selectedPart.kind !== "imported" && !(rootSelected && rootAxes.length > 0);
+  // scene controls: one without resize axes, or an attached part whose
+  // place the frames can't tell. Not an imported part, which has no size
+  // parameters at all.
+  const resizeHint = selectedPart && selectedPart.kind !== "imported" && !handleAxes.length;
 
   // The selected part's scene controls: its name, Crop and Deselect, and
   // for an attached part its turn, move and remove buttons. The root has
@@ -1609,7 +1751,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 title={
                   rootSelected
                     ? "Deselect (Esc)"
-                    : rootAxes.length
+                    : rootResizable
                       ? "Select the root part: its outline, Crop, and handles to resize it in the scene"
                       : "Select the root part: its outline and Crop in the scene"
                 }
@@ -1795,8 +1937,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               onMarkerClick={handleMarkerClick}
               onModelClick={handleModelClick}
               highlightBox={selectedBox}
-              overlayAnchor={selectedBox && !rootSelected ? boxTopCenter(selectedBox) : null}
-              handles={rootHandles}
+              overlayAnchor={selectedBox && floatControls ? boxTopCenter(selectedBox) : null}
+              handles={shownHandles}
               ghost={pendingShown?.ghost ?? null}
               gridControl={gridShown}
               onHandleStart={onHandleStart}
@@ -1806,6 +1948,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 dragStart.current = null;
               }}
               onHandleStep={onHandleStep}
+              rotation={rotation}
+              onRotatePreview={onRotatePreview}
+              onRotateCommit={onRotateCommit}
               onHandleSet={onHandleSet}
               toolbar={
                 <>

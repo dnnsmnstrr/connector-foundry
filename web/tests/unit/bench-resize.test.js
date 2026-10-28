@@ -1,8 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { ROOT_ID, addChild, createAssembly } from "../../src/lib/assembly.js";
+import { nodeSpinAxis, nodeWorldMount } from "../../src/lib/benchOrientation.js";
+import { rotateAbout } from "../../src/lib/rotateDial.js";
 import {
   NO_EXTENTS,
+  WORLD_FRAME,
+  attachedFrame,
+  attachedResizeAxes,
+  ghostToWorld,
+  handlesToWorld,
+  toFrame,
+  toWorld,
+  worldBoundsOf,
   guardNote,
   guardResize,
   keepsSlots,
@@ -12,7 +23,15 @@ import {
   rootBoxFor,
   sameParams,
 } from "../../src/lib/benchResize.js";
-import { dragResize, handlesForBox, resizeAxes, stepResize, typedResize } from "../../src/lib/resize.js";
+import {
+  dragResize,
+  handlesForBox,
+  resizeAxes,
+  stepResize,
+  typedResize,
+  viewerHandles,
+} from "../../src/lib/resize.js";
+import { mountOffset } from "../../src/lib/slots.js";
 
 // Catalogue entries shaped like catalogue.yaml's, cut down to what
 // slots.js and resize.js read.
@@ -281,4 +300,302 @@ test("resizeGhost: the outline, with the centre cross for a footprint handle", (
   const height = resizeGhost(z, axes, box);
   assert.equal(height.segments.length, 12);
   assert.deepEqual(height.textPoint, [0, 0, 8]);
+});
+
+// --- Handles on attached parts ------------------------------------------------
+
+const basicsPlate = {
+  id: "basics/plate",
+  anchors: ["bot", "xpos", "xneg", "ypos", "yneg"],
+  defaults: { w: 42, d: 42, t: 4, r: 4 },
+  resize: { x: { param: "w", min: 8 }, y: { param: "d", min: 8 }, z: { param: "t" } },
+};
+const goproFemale = {
+  id: "gopro/female",
+  defaults: { outer_w: 6, symmetric: false },
+  mount_offset: { y: { param: "outer_w", offset: -3, scale: 0.5, unless: "symmetric" } },
+};
+const framePartsById = new Map([
+  ["basics/plate", basicsPlate],
+  ["gopro/female", goproFemale],
+  ["bitbeam/plate", plate],
+]);
+const ROOT_PLATE = { w: 60, d: 40, t: 6, r: 0 };
+const CHILD_PLATE = { w: 30, d: 16, t: 5, r: 0 };
+const lastNode = (a) => a.nodes[a.nodes.length - 1].id;
+const platedRoot = () => createAssembly("basics/plate", ROOT_PLATE);
+const onRoot = (a, o) =>
+  addChild(a, { parentId: ROOT_ID, partId: "basics/plate", params: CHILD_PLATE, slotName: "mount", ...o });
+
+// Each node's own extents, as the Bench measures them: the parameters'
+// sizes for a basics plate, the measured box for the GoPro female.
+function extentsOf(a) {
+  const own = (node) =>
+    node.partId === "gopro/female"
+      ? [20, 23, 20]
+      : node.partId === "bitbeam/plate"
+        ? [node.params.grid_x * 8, node.params.grid_y * 8, 8]
+        : [node.params.w, node.params.d, node.params.t];
+  return new Map([
+    [ROOT_ID, own(a.root)],
+    ...a.nodes.map((n) => /** @type {[string, number[]]} */ ([n.id, own(n)])),
+  ]);
+}
+
+// The frame Bench.jsx builds an attached part's handles in.
+function frameOf(a, id) {
+  const node = a.nodes.find((n) => n.id === id);
+  const placed = nodeWorldMount(a, framePartsById, extentsOf(a), id);
+  assert.ok(placed, `${id} has a place`);
+  return attachedFrame(placed, mountOffset(framePartsById.get(node.partId), node.params));
+}
+
+// The attached part's world bounding box in openscad-wasm renders of
+// Bench-generated sources (assembly.js's compileToScad(), the part shown
+// alone in its attached pose through the crop mask's show_only();
+// measured 2026-10-28), against the box the handles stand on. The
+// plates have square corners (r = 0), so the bounds are the box's
+// corners at any spin.
+const MEASURED_POSES = [
+  [
+    "top, spin 30, shifted",
+    () => onRoot(platedRoot(), { spin: 30, shift: [3, -5] }),
+    [-11.89, -17.26, 6],
+    [22.09, 11.6, 11],
+  ],
+  ["xpos", () => onRoot(platedRoot(), { slotName: "xpos" }), [30, -8, -12], [35, 8, 18]],
+  [
+    "xpos, spin 30, shifted, bolted",
+    () => onRoot(platedRoot(), { slotName: "xpos", spin: 30, shift: [4, 2], joint: "bolted" }),
+    [38, -10.7, -16.45],
+    [43, 18.16, 17.53],
+  ],
+  [
+    "ypos, spin 90, sunk 1.5",
+    () => onRoot(platedRoot(), { slotName: "ypos", spin: 90, overlap: 1.5 }),
+    [-8, 21.5, -12],
+    [8, 26.5, 18],
+  ],
+  [
+    "bot, spin 45, shifted",
+    () => onRoot(platedRoot(), { slotName: "bot", spin: 45, shift: [5, 3] }),
+    [-17.68, -10.61, -5],
+    [14.85, 21.92, 0],
+  ],
+  [
+    "yneg of a part on xneg",
+    () => {
+      const a = onRoot(platedRoot(), { slotName: "xneg", spin: 20 });
+      return onRoot(a, { parentId: lastNode(a), slotName: "yneg", spin: 70, shift: [2, 1] });
+    },
+    [-47.11, -16.45, -5.91],
+    [-13.45, -3.1, 19.57],
+  ],
+  [
+    "stacked under a part on xpos",
+    () => {
+      const a = onRoot(platedRoot(), { slotName: "xpos", spin: 15 });
+      return onRoot(a, { parentId: lastNode(a), slotName: "bot", spin: 40 });
+    },
+    [35, -16.88, -12.16],
+    [40, 16.88, 18.16],
+  ],
+  [
+    "GoPro female (mount offset) on xpos, spin 30",
+    () =>
+      onRoot(platedRoot(), { slotName: "xpos", spin: 30, partId: "gopro/female", params: { outer_w: 10 } }),
+    [30, -17.99, -13.16],
+    [50, 11.93, 15.66],
+  ],
+  [
+    "GoPro female on top, shifted",
+    () => onRoot(platedRoot(), { shift: [2, 3], partId: "gopro/female", params: { outer_w: 10 } }),
+    [-8, -12, 6],
+    [12, 11, 26],
+  ],
+  [
+    "BitBeam plate on ypos, spin 90",
+    () =>
+      onRoot(platedRoot(), {
+        slotName: "ypos",
+        spin: 90,
+        partId: "bitbeam/plate",
+        params: { grid_x: 3, grid_y: 2 },
+      }),
+    [-8, 20, -9],
+    [8, 28, 15],
+  ],
+];
+
+test("an attached part's handle box is where the renders put the part", () => {
+  for (const [label, build, min, max] of MEASURED_POSES) {
+    const a = build();
+    const id = lastNode(a);
+    const bounds = worldBoundsOf(frameOf(a, id), rootBoxFor(extentsOf(a).get(id)));
+    for (let i = 0; i < 3; i++) {
+      assert.ok(Math.abs(bounds.min[i] - min[i]) < 0.01, `${label}: min ${bounds.min} vs ${min}`);
+      assert.ok(Math.abs(bounds.max[i] - max[i]) < 0.01, `${label}: max ${bounds.max} vs ${max}`);
+    }
+  }
+});
+
+test("the frame's +Z runs from the mating face out through the part", () => {
+  const a = onRoot(platedRoot(), { slotName: "xpos" });
+  const id = lastNode(a);
+  const box = rootBoxFor(extentsOf(a).get(id));
+  const frame = frameOf(a, id);
+  const handles = handlesToWorld(
+    frame,
+    viewerHandles(box, resizeAxes(basicsPlate, CHILD_PLATE), CHILD_PLATE),
+  );
+  const height = handles.find((h) => h.id === "z+");
+  // On the root's +X face (x = 30), the part's far face is 5 mm out.
+  assert.deepEqual(
+    height.point.map((v) => Math.round(v * 1e6) / 1e6),
+    [35, 0, 3],
+  );
+  assert.deepEqual(
+    height.dir.map((v) => Math.round(v * 1e6) / 1e6 + 0),
+    [1, 0, 0],
+  );
+  assert.deepEqual(
+    height.constraint.dir.map((v) => Math.round(v * 1e6) / 1e6 + 0),
+    [1, 0, 0],
+  );
+  // Footprint handles stand on the mating face, their span running out
+  // through the part, and a corner's plane turns with it.
+  const width = handles.find((h) => h.id === "x+");
+  assert.equal(Math.round(width.point[0] * 1e6) / 1e6, 30);
+  assert.deepEqual(
+    width.span.map((v) => Math.round(v * 1e6) / 1e6 + 0),
+    [5, 0, 0],
+  );
+  const corner = handles.find((h) => h.kind === "corner");
+  assert.deepEqual(
+    corner.constraint.normal.map((v) => Math.round(v * 1e6) / 1e6 + 0),
+    [1, 0, 0],
+  );
+});
+
+test("a drag on an attached part's handle, through its frame, resizes like the root's", () => {
+  const a = onRoot(platedRoot(), { slotName: "ypos", spin: 30 });
+  const id = lastNode(a);
+  const frame = frameOf(a, id);
+  const box = rootBoxFor(extentsOf(a).get(id));
+  const axes = resizeAxes(basicsPlate, CHILD_PLATE);
+  const startParams = { ...basicsPlate.defaults, ...CHILD_PLATE };
+  const local = handlesForBox(box, axes);
+  for (const [id_, grow, param, expected] of [
+    ["x+", 4, "w", 38],
+    ["y-", 3, "d", 22],
+    ["z+", 2.5, "t", 7.5],
+  ]) {
+    const handle = local.find((h) => h.id === id_);
+    const world = handlesToWorld(frame, [handle])[0];
+    // The pointer moves `grow` mm along the handle's own world direction.
+    const point = world.point.map((v, i) => v + world.dir[i] * grow);
+    const result = dragResize({ handle, axes, box, startParams, point: toFrame(frame, point), gridMm: 0.5 });
+    assert.deepEqual(result.params, { [param]: expected }, id_);
+  }
+});
+
+test("toFrame undoes toWorld; the world frame leaves handles and ghosts alone", () => {
+  const a = onRoot(platedRoot(), { slotName: "xneg", spin: 33, shift: [1, 2] });
+  const frame = frameOf(a, lastNode(a));
+  const p = [3, -4, 5];
+  assert.ok(toFrame(frame, toWorld(frame, p)).every((v, i) => Math.abs(v - p[i]) < 1e-9));
+  const handles = handlesForBox(boxOf(10, 10, 10), resizeAxes(basicsPlate, CHILD_PLATE));
+  assert.equal(handlesToWorld(WORLD_FRAME, handles), handles);
+  const ghost = {
+    segments: [
+      [
+        [0, 0, 0],
+        [1, 0, 0],
+      ],
+    ],
+    textPoint: [1, 0, 0],
+    handlePoints: { "x+": [1, 0, 0] },
+  };
+  assert.equal(ghostToWorld(WORLD_FRAME, ghost), ghost);
+  const moved = ghostToWorld(frame, ghost);
+  assert.deepEqual(moved.textPoint, toWorld(frame, [1, 0, 0]));
+  assert.deepEqual(moved.handlePoints["x+"], toWorld(frame, [1, 0, 0]));
+  assert.deepEqual(moved.segments[0][0], frame.origin);
+});
+
+test("an attached part whose resize moves its mount anchor gets no handles", () => {
+  assert.equal(attachedResizeAxes(basicsPlate, CHILD_PLATE).length, 3);
+  assert.deepEqual(attachedResizeAxes(goproFemale, goproFemale.defaults), []);
+  const widened = {
+    ...goproFemale,
+    resize: { x: { param: "outer_w" } },
+    defaults: { outer_w: 6, symmetric: false },
+  };
+  assert.deepEqual(attachedResizeAxes(widened, widened.defaults), []);
+  // A fixed offset doesn't move with any parameter: the part still grows
+  // about its centre, which the frame places.
+  const fixed = { ...basicsPlate, mount_offset: [0, 3.4] };
+  assert.equal(attachedResizeAxes(fixed, CHILD_PLATE).length, 3);
+  assert.deepEqual(attachedResizeAxes({ kind: "imported", resize: basicsPlate.resize }, {}), []);
+});
+
+test("the guard runs for an attached part's own children", () => {
+  // A BitBeam plate on the root's side, with something on its own middle
+  // slot: 3 → 4 cells would rename it, so the drag lands on 5.
+  const a = onRoot(platedRoot(), {
+    slotName: "xpos",
+    partId: "bitbeam/plate",
+    params: { grid_x: 3, grid_y: 3 },
+  });
+  const id = lastNode(a);
+  const frame = frameOf(a, id);
+  const box = rootBoxFor(extentsOf(a).get(id));
+  const startParams = { ...plate.defaults, grid_x: 3, grid_y: 3 };
+  const axes = attachedResizeAxes(plate, startParams);
+  const handle = handlesForBox(box, axes).find((h) => h.id === "x+");
+  const world = handlesToWorld(frame, [handle])[0];
+  const point = world.point.map((v, i) => v + world.dir[i] * 4);
+  const result = dragResize({ handle, axes, box, startParams, point: toFrame(frame, point) });
+  assert.deepEqual(result.params, { grid_x: 4 });
+  const out = guardResize({
+    part: plate,
+    axes,
+    handle,
+    box,
+    startParams,
+    occupied: new Set(["mount_0_0"]),
+    result,
+  });
+  assert.deepEqual(out.result.params, { grid_x: 5 });
+  assert.equal(guardNote(out.refused), "4 would move attached parts");
+});
+
+test("turning about the spin axis lands where that spin puts the part", () => {
+  // What the Alt-drag's outline shows (Bench.jsx's turnGhost()) against
+  // the frame the committed spin gives: the box corners must agree.
+  for (const [o, delta] of [
+    [{ spin: 10, shift: [4, -3] }, 75],
+    [{ slotName: "xpos", spin: 30, shift: [2, 5], joint: "bolted" }, -45],
+    [{ slotName: "bot", spin: 0, shift: [6, 0], overlap: 1 }, 120],
+  ]) {
+    const before = onRoot(platedRoot(), o);
+    const after = onRoot(platedRoot(), { ...o, spin: o.spin + delta });
+    const id = lastNode(before);
+    const box = rootBoxFor(extentsOf(before).get(id));
+    const { center, axis } = nodeSpinAxis(before, framePartsById, extentsOf(before), id);
+    const corners = [
+      [box.min[0], box.min[1], box.min[2]],
+      [box.max[0], box.min[1], box.max[2]],
+      [box.min[0], box.max[1], box.max[2]],
+    ];
+    for (const c of corners) {
+      const turned = rotateAbout(toWorld(frameOf(before, id), c), center, axis, delta);
+      const placed = toWorld(frameOf(after, lastNode(after)), c);
+      assert.ok(
+        turned.every((v, i) => Math.abs(v - placed[i]) < 1e-9),
+        `${JSON.stringify(o)}: ${turned} vs ${placed}`,
+      );
+    }
+  }
+  assert.equal(nodeSpinAxis(platedRoot(), framePartsById, extentsOf(platedRoot()), ROOT_ID), null);
 });

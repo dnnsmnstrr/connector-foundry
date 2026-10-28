@@ -21,7 +21,9 @@
 // sources: the head on all four side faces of a plate at two spins, and
 // on the side of a plate stacked (so flipped) onto another, at two
 // spins of each — see web/tests/unit/bench-orientation.test.js.
-import { ROOT_ID, getNode } from "./assembly.js";
+import { ROOT_ID, getNode, normalizeShift } from "./assembly.js";
+import { matingRise } from "./benchLayout.js";
+import { enumerateSlots, mountOffset } from "./slots.js";
 
 const UP = [0, 0, 1];
 
@@ -63,6 +65,88 @@ export function nodeWorldRotation(assembly, partsById, nodeId) {
   const dir = slotDirection(partsById.get(parent?.partId), node.slotName);
   if (!dir) return null;
   return mul(parentRotation, childRotation(dir, node.spin ?? 0));
+}
+
+// Where `nodeId`'s own "mount" anchor is in world space, with the node's
+// rotation: { rotation, mount }, or null where nodeWorldRotation() is, or
+// where a slot's or the root's position can't be told (extents not
+// measured yet). The chain, from what attach() and assembly.js's
+// shiftArg() emit: the parent's slot point (its frame) is where the
+// child's slot frame — R(UP -> d) · Rz(spin), the child's rotation
+// before the half turn — starts; the joint's flanges and the Offset
+// (benchLayout.js's matingRise()) push it out along d, the shift slides
+// it across in that frame, and the child's "mount" lands there. The
+// shift's (x, y, 0) in the slot frame is rotation · (-x, y, 0), the half
+// turn about Y undone.
+export function nodeWorldMount(assembly, partsById, nodeExtents, nodeId) {
+  if (nodeId === ROOT_ID) {
+    const extents = nodeExtents.get(ROOT_ID);
+    // The root is placed anchor=BOTTOM: its "mount" (top face centre,
+    // mount offset aside) is a whole height up.
+    return extents ? { rotation: identity(), mount: [0, 0, extents[2]] } : null;
+  }
+  const node = getNode(assembly, nodeId);
+  const rotation = node && nodeWorldRotation(assembly, partsById, nodeId);
+  const pivot = rotation && nodeSpinAxis(assembly, partsById, nodeExtents, nodeId);
+  if (!pivot) return null;
+  const [sx, sy] = normalizeShift(node.shift);
+  const shift = apply(rotation, [-sx, sy, 0]);
+  return { rotation, mount: pivot.center.map((v, i) => v + shift[i]) };
+}
+
+// The line an attached node's spin turns it about, in world space:
+// { center, axis }, `axis` the slot's outward direction and `center` the
+// slot's point pushed out along it by the joint's flanges and the Offset
+// — on the part's mating face, where its "mount" lands before the shift
+// slides it across (the shift turns with the spin, so the part orbits
+// this line). null for the root, which has no spin, and where
+// nodeWorldMount() is.
+export function nodeSpinAxis(assembly, partsById, nodeExtents, nodeId) {
+  if (nodeId === ROOT_ID) return null;
+  const node = getNode(assembly, nodeId);
+  if (!node || !nodeWorldRotation(assembly, partsById, nodeId)) return null;
+  const parent = nodeWorldFrame(assembly, partsById, nodeExtents, node.parentId);
+  const parentNode = getNode(assembly, node.parentId);
+  const parentPart = partsById.get(parentNode?.partId);
+  const point = slotPoint(
+    parentPart,
+    parentNode?.params ?? {},
+    nodeExtents.get(node.parentId),
+    node.slotName,
+  );
+  const dir = slotDirection(parentPart, node.slotName);
+  if (!parent || !point || !dir) return null;
+  const slot = add(parent.centre, apply(parent.rotation, point));
+  const axis = apply(parent.rotation, dir);
+  const rise = matingRise(assembly, partsById, node);
+  return { center: slot.map((v, i) => v + axis[i] * rise), axis };
+}
+
+// `nodeId`'s rotation and the world position of its own centre (the
+// origin every module here is centred on): { rotation, centre }, or null
+// as nodeWorldMount(). The centre sits back from "mount" by the anchor's
+// own place on the part: the top face's centre, or the catalogue's
+// mount_offset off it.
+export function nodeWorldFrame(assembly, partsById, nodeExtents, nodeId) {
+  const extents = nodeExtents.get(nodeId);
+  const placed = extents && nodeWorldMount(assembly, partsById, nodeExtents, nodeId);
+  if (!placed) return null;
+  const node = getNode(assembly, nodeId);
+  const part = partsById.get(node.partId);
+  // The root is placed by its bounding box, not by "mount".
+  const [ox, oy] = nodeId === ROOT_ID || !part ? [0, 0] : mountOffset(part, node.params ?? {});
+  const back = apply(placed.rotation, [ox, oy, extents[2] / 2]);
+  return { rotation: placed.rotation, centre: placed.mount.map((v, i) => v - back[i]) };
+}
+
+// A named slot's point in its part's own centred frame: a catalogue
+// part's enumerated slot, or an imported part's anchor.
+function slotPoint(part, params, extents, slotName) {
+  if (!part) return null;
+  if (part.kind === "imported") return part.anchors?.find((a) => a.name === slotName)?.point ?? null;
+  if (!extents) return null;
+  const slot = enumerateSlots(part, params, extents).find((s) => s.name === slotName);
+  return slot ? [slot.x, slot.y, slot.z] : null;
 }
 
 // The spin (whole degrees, in [0, 360)) that points a part's own
@@ -157,6 +241,14 @@ function identity() {
     [0, 1, 0],
     [0, 0, 1],
   ];
+}
+
+function apply(m, v) {
+  return m.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
+}
+
+function add(a, b) {
+  return a.map((x, i) => x + b[i]);
 }
 
 function mul(a, b) {
