@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { BoxGeometry, Mesh } from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 
-// The Bench's root selection, its resize handles, the children guard and
-// undo (Bench.jsx, lib/benchResize.js). The mock worker answers every
+// The Bench's selection, the resize handles on the root and on attached
+// parts, the children guard and undo (Bench.jsx, lib/benchResize.js). The mock worker answers every
 // render — the root's own extents and the assembly alike — with the same
 // 10 × 10 × 4 mm cube, so these check the parameters a gesture commits
 // and the renders it starts, never the geometry.
@@ -21,6 +21,28 @@ const parts = [
     defaults: { w: 40, d: 40, t: 4, r: 3 },
     anchors: ["bot"],
     resize: { x: { param: "w", min: 8 }, y: { param: "d", min: 8 }, z: { param: "t" } },
+  },
+  {
+    // A block with an anchor on each side, for a part attached sideways.
+    id: "basics/block",
+    name: "Block",
+    system: "Basics",
+    confidence: "exact",
+    file: "parts/basics/plate.scad",
+    module: "basics_plate",
+    defaults: { w: 40, d: 40, t: 4, r: 3 },
+    anchors: ["bot", "xpos", "xneg", "ypos", "yneg"],
+    resize: { x: { param: "w", min: 8 }, y: { param: "d", min: 8 }, z: { param: "t" } },
+  },
+  {
+    // No `resize`: sized in the sidebar only.
+    id: "basics/post",
+    name: "Post",
+    system: "Basics",
+    confidence: "exact",
+    file: "parts/basics/post.scad",
+    module: "basics_post",
+    defaults: { d: 10, h: 20 },
   },
   {
     // As catalogue.yaml's: one slot per 28 mm cell, named by centre-relative
@@ -186,12 +208,31 @@ test("the root is selected from the sidebar or the scene, and shows its handles"
   await expect(page.locator('details[data-node-params="root"]')).toHaveAttribute("open", "");
   await expect(page.getByRole("spinbutton", { name: "cells_x", exact: true })).toBeVisible();
 
-  // An attached part's pill floats over it, and says where it is resized.
+  // An attached part with `resize` has handles of its own, and its pill
+  // docks at the foot of the viewer rather than floating over its top
+  // face, where its height handle is.
   await page.locator(".bench-node-name", { hasText: "Flat plate" }).click();
-  await expect(page.locator(".viewer-overlay .bench-rotate-panel")).toContainText("Flat plate");
+  await expect(page.locator(".viewer-overlay-docked .bench-rotate-panel")).toContainText("Flat plate");
   await expect(page.locator(".viewer-toolbar .bench-rotate-panel")).toHaveCount(0);
-  await expect(page.locator(".bench-overlay-hint")).toHaveText("Resize in the sidebar");
+  await expect(page.locator(".bench-overlay-hint")).toHaveCount(0);
   await expect(widthHandle(page, "cells_x")).toHaveCount(0);
+  await expect(widthHandle(page)).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Height (t)" })).toBeVisible();
+});
+
+test("an attached part with no resize floats its pill over it and says where it is resized", async ({
+  page,
+}) => {
+  await openBench(page, {
+    ...boardConfig,
+    nodes: [{ ...boardConfig.nodes[0], partId: "basics/post", params: { d: 10, h: 20 } }],
+  });
+  await page.locator(".bench-node-name", { hasText: "Post" }).click();
+  await expect(page.locator(".viewer-overlay:not(.viewer-overlay-docked) .bench-rotate-panel")).toContainText(
+    "Post",
+  );
+  await expect(page.locator(".bench-overlay-hint")).toHaveText("Resize in the sidebar");
+  await expect(page.locator(".viewer-handle")).toHaveCount(0);
 });
 
 async function canvasMiddle(page) {
@@ -550,4 +591,150 @@ test("a root resize's ghost goes once its render lands: a later edit elsewhere d
   await expect.poll(() => jobCount(page)).toBe(6);
   await expect(label).toBeHidden();
   await finish(page, 5);
+});
+
+// A plate on the root plate's top: the child's own handles.
+const stackedConfig = {
+  ...plateConfig,
+  nodes: [
+    {
+      id: "c1",
+      parentId: "root",
+      partId: "basics/plate",
+      params: { w: 20, d: 20, t: 2, r: 1 },
+      slotName: "mount",
+      joint: "fused",
+      childAnchor: "mount",
+      spin: 30,
+    },
+  ],
+};
+// One of the attached part's parameter fields, its <details> opened (a
+// selection from the sidebar leaves it folded). Its accessible name
+// carries the "differs from the default" note and the reset button's
+// label around the parameter's own name.
+async function childField(page, name) {
+  const details = page.locator('details[data-node-params="c1"]');
+  if ((await details.getAttribute("open")) === null) await details.locator("summary").first().click();
+  return details.getByRole("spinbutton", { name: new RegExp(`(^| )${name}( |$)`) });
+}
+const selectChild = (page) => page.locator(".bench-node-name", { hasText: "Flat plate" }).click();
+
+test("dragging an attached part's handle commits one change to that part, undone in one step", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(err));
+  await openBench(page, stackedConfig);
+  await selectChild(page);
+  await expect(widthHandle(page)).toBeVisible();
+  // The root's handles are not up: only the selected part's.
+  await expect(page.getByRole("slider")).toHaveCount(3);
+  const { from, to } = await widthPull(page, 80);
+  await page.mouse.move(...from);
+  await page.mouse.down();
+  await page.mouse.move(...to, { steps: 8 });
+  await expect(page.locator(".viewer-drag-label")).toContainText(/^W [\d.]+ mm \(\+[\d.]+ each side\)$/);
+  await page.mouse.up();
+
+  const valueNow = async () => Number(await widthHandle(page).getAttribute("aria-valuenow"));
+  await expect.poll(valueNow).toBeGreaterThan(20);
+  const committed = await valueNow();
+  // The part's own render starts at once (the root's is cached), with the
+  // new width; the root keeps its own.
+  await expect.poll(() => jobCount(page), { timeout: 200, intervals: [20] }).toBe(4);
+  expect((await job(page, 3)).params).toEqual({ w: committed, d: 20, t: 2, r: 1 });
+  await expect(page.locator(".viewer-drag-label")).toContainText("rendering…");
+  await finish(page, 3);
+  await expect.poll(() => jobCount(page)).toBe(5);
+  const source = (await job(page, 4)).scadSource;
+  expect(source).toContain(`w=${committed}`);
+  expect(source).toContain("w=40");
+  await finish(page, 4);
+  await expect(page.locator(".viewer-drag-label")).toBeHidden();
+
+  // The sidebar has it, the selection stayed, and one undo takes it back.
+  await expect(await childField(page, "w")).toHaveValue(String(committed));
+  await expect(page.locator(".viewer-overlay-docked .bench-rotate-panel")).toContainText("Flat plate");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(await childField(page, "w")).toHaveValue("20");
+  await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "20");
+  expect(await jobCount(page)).toBe(5);
+  expect(errors).toEqual([]);
+});
+
+test("an attached part's handles step with the arrows and take a typed size", async ({ page }) => {
+  await openBench(page, stackedConfig);
+  await selectChild(page);
+  const height = page.getByRole("slider", { name: "Height (t)" });
+  await height.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(height).toHaveAttribute("aria-valuenow", "3");
+  await expect(height).toBeFocused();
+  await expect(page.locator(".viewer-drag-label")).toHaveText("H 5 mm (+1) · rendering…");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(height).toHaveAttribute("aria-valuenow", "2");
+
+  // The measured 10 mm grows by 15: w 20 → 35.
+  await widthHandle(page).click();
+  const size = page.getByRole("spinbutton", { name: "Width (mm)" });
+  await expect(size).toHaveValue("10");
+  await size.fill("25");
+  await page.keyboard.press("Enter");
+  await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "35");
+  await expect(await childField(page, "w")).toHaveValue("35");
+});
+
+test("a part on the root's side has its height handle on its far face, pointing out", async ({ page }) => {
+  await openBench(page, {
+    ...plateConfig,
+    root: { partId: "basics/block", params: { w: 40, d: 40, t: 4, r: 3 } },
+    nodes: [{ ...stackedConfig.nodes[0], slotName: "xpos", spin: 0 }],
+  });
+  await page.getByRole("button", { name: /^View/ }).click();
+  await page.getByRole("menu", { name: "View" }).getByRole("menuitem", { name: "Top" }).click();
+  await selectChild(page);
+  const height = page.getByRole("slider", { name: "Height (t)" });
+  // Seen from above, a part on +X grows to the right: the root's middle is
+  // left of it, and its height handle is shown (not edge-on).
+  await expect(height).toHaveAttribute("data-state", "shown");
+  const canvas = await page.locator(".viewer-canvas canvas").boundingBox();
+  const at = center(await height.boundingBox());
+  expect(at[0]).toBeGreaterThan(canvas.x + canvas.width / 2);
+  await page.mouse.move(...at);
+  await page.mouse.down();
+  await page.mouse.move(at[0] + 60, at[1], { steps: 8 });
+  await expect(page.locator(".viewer-drag-label")).toContainText(/^H [\d.]+ mm \(\+[\d.]+\)$/);
+  await page.mouse.up();
+  await expect.poll(async () => Number(await height.getAttribute("aria-valuenow"))).toBeGreaterThan(2);
+});
+
+test("the guard keeps an attached part's own children on their slots", async ({ page }) => {
+  await openBench(page, {
+    ...boardConfig,
+    nodes: [
+      {
+        ...boardConfig.nodes[0],
+        partId: "opengrid/board",
+        // Not the root's parameters, whose render the cache already has.
+        params: { cells_x: 2, cells_y: 2, variant: "lite" },
+      },
+      {
+        id: "c2",
+        parentId: "c1",
+        partId: "basics/plate",
+        params: { w: 20, d: 20, t: 2, r: 1 },
+        slotName: "mount_-0.5_0.5",
+        joint: "fused",
+        childAnchor: "mount",
+      },
+    ],
+  });
+  await page.locator(".bench-node-name", { hasText: "Board" }).click();
+  const handle = widthHandle(page, "cells_x");
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(handle).toHaveAttribute("aria-valuenow", "4");
+  await expect(handle).toHaveAttribute("aria-valuetext", /— 3 would move attached parts$/);
 });

@@ -16,6 +16,16 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   from 2 × 2 up so does the base's middle. Rebuilt from the designer's module files
   and checked against them; CC BY-NC-SA 4.0, like SOLDR's own files.
 
+### Bench
+
+- **Resize handles on attached parts.** Select a part attached to the base (or to another
+  attached part) and it gets the same handles as the base: drag, step with the arrow keys, or
+  click one to type a size, and it renders once. The handles stand on the part's own faces
+  however it sits — on a side face, turned to any angle, shifted, on a joint — and the face it is
+  attached by stays on its slot, so height grows outward and width and depth about its centre.
+  Parts attached to it keep their slots, as with the base, and its controls move to the foot of
+  the viewer, out of the handles' way. Imported models still have none.
+
 ### Phones and tablets
 
 - **Safari renders what the Bench and the Holes tab make.** In Safari (iPhone, iPad and Mac),

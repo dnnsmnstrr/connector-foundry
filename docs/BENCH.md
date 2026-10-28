@@ -65,16 +65,26 @@ in TinkerCAD:
 - With a handle focused, the **arrow keys** grow (→ ↑) or shrink (← ↓) it a step at a time;
   Shift moves ten steps of a length. Resting the pointer on a handle shows its size.
 
-A size that would take a slot away from an attached part is skipped, whether dragged, stepped
-or typed into a handle's box: the handle goes on to the next size that keeps every part on its
-slot — on an openGrid board with a part on it, 2 cells go to 4, since 3 would renumber every
-slot — or, with none left that way, stops at the nearest size short of it (at worst where it
+A size that would take a slot away from a part attached to the one you resize is skipped,
+whether dragged, stepped or typed into a handle's box: the handle goes on to the next size that
+keeps every part on its slot — on an openGrid board with a part on it, 2 cells go to 4, since 3
+would renumber every slot — or, with none left that way, stops at the nearest size short of it (at worst where it
 was), and the label says why ("3 would move attached parts"). A size typed into the sidebar's
 parameter fields isn't caught this way; it shows as a render error, and Undo brings the old size
 back.
 
-Only the base part has handles for now. A selected attached part, or a base part whose size the
-catalogue doesn't know, says "Resize in the sidebar": change its size in its parameters there.
+**Resizing an attached part.** A selected attached part whose size the catalogue knows has the
+same handles, standing on its own faces however it sits: on a side face, turned to any angle,
+shifted, on a joint, or stacked on another part. Its controls (turn, Move, Crop, remove) move to
+the foot of the viewer, out of the handles' way. The face it is attached by stays on its slot:
+height grows away from the part it is on, and width and depth grow on both sides, so it stays
+centred where it sits. Parts attached to it keep their slots, as above. Its outline is the box
+around it square to the scene, so at a turn that isn't a quarter it is a little larger than the
+part; the handles are on the part itself.
+
+A part whose size the catalogue doesn't know (or, for an attached part, one whose resize would
+also move the point it is attached by) says "Resize in the sidebar": change its size in its
+parameters there. Imported models have no size parameters, and no handles.
 
 **Undo.** Cmd+Z (Ctrl+Z on Windows and Linux) undoes any change to the bench — attaching,
 moving, removing, a resize, a parameter typed (one step per field), Start over, a loaded config

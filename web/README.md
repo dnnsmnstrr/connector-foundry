@@ -284,12 +284,12 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
 | `src/components/StlViewer.jsx` | The three.js viewer every mode uses: the model, markers, guides, labels, the floating overlay, the resize handles and their ghost, the toolbar and the camera — see "3D viewer" below |
 | `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views (`presetViewFitting()` backs them out to fit a narrow viewer), Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
-| `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench root): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
+| `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus, or toggled by a tap or a click until a tap elsewhere or Escape (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
-| `src/lib/benchResize.js` | The Bench root's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, and whether a node's measured extents still belong to its parameters |
+| `src/lib/benchResize.js` | The Bench's resize handles (`resize.js` does the sizes): the children guard that never takes a slot from an attached part, the ghost, the frame an attached part's handles are built in and its crossings to and from world space, and whether a node's measured extents still belong to its parameters |
 | `src/components/holes/` | Holes-only: `ScrewIcon` (a preset as a cross-section SVG — a screw in its hole, or a connector head seated in its slot), `PresetPicker` (the grouped icon grid), `HoleSpecFields` (diameter / depth / head pocket fields, or a slot's lock side, clearances, channel length and direction), `HoleRow` (one row of the hole list), `SnapBar` (the snapping toggle, corner inset and center radius over the viewer's bottom right corner) |
 | `src/lib/holeHandles.js` | The Holes tab's handles on the selected hole: a cutout resized from the opposite edge (Alt: from the centre), the move handle, the arrow-key nudge, the "still on its face?" check, the selection pill's anchor |
 | `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source), `cachedHoled()` (all of that straight from the render cache, so an undo shows with no render), the surface probe a moved hole is checked against, and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
@@ -297,7 +297,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component) with its undo history, and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
-| `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root, and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
+| `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
@@ -843,36 +843,58 @@ a part actually has anchors left over. A few implementation notes that don't bel
   `data-node-params`; in the desktop layout only the sidebar scrolls, so the viewer stays put; in
   the stacked layout the sidebar is part of the page below the viewer, and the parameters open in
   place without scrolling the page). The same box drives `StlViewer`'s `highlightBox` outline (a
-  `Box3Helper`; for a selected root with handles, the box they stand on, so outline and handles
-  never disagree while a resize renders), `fitBox` (Fit and `F` frame the selection) and, for an
+  `Box3Helper`; for a selected part with handles, the world box around the box they stand on, so
+  outline and handles never disagree while a resize renders), `fitBox` (Fit and `F` frame the selection) and, for an
   attached part, via `boxTopCenter()`, the `overlayAnchor` its floating controls are pinned to —
   `StlViewer` re-projects that anchor every frame it draws and moves the overlay `<div>` with a
   transform, docking it at the bottom when there is no anchor. The root's controls (its name, Crop,
   Deselect) go in the viewer's toolbar instead, as `.bench-root-chip`: pinned over its top face,
-  they covered an open slot marker and its handles.
+  they covered an open slot marker and its handles. An attached part with handles has no anchor,
+  so its controls dock at the bottom: over its top face they covered its height handle.
 - The root is guarded wherever an attached part's action would do harm: `Delete`/`Backspace`,
   `M` and the arrows do nothing while it is selected, and `nodeActions.remove` refuses it —
   `removeChild(root)` would take every node with it, and the root has no slot to move or step to.
-- **Root resize handles** (see "3D viewer" for the handles themselves). Only the root's for now:
-  it is placed exactly — centred, unrotated — so its box is its faces, while an attached part's
-  box is padded for spin, shift and mount offset, and handles on it would sit off the faces they
-  stand for; a selected attached part shows "Resize in the sidebar" under its pill instead (see
-  docs/IMPROVEMENTS.md), and so does a selected catalogue root whose entry has no `resize` (an
-  imported mesh has no size parameters and says nothing). The box the handles stand on is for
-  the root's current parameters only (a box from older ones would start a drag from the wrong
-  size and run the guard below against the wrong slots): the measured extents, when they were
-  rendered for these parameters (each entry keeps the parameters it was measured with); else the
-  root's own render straight from the cache, when it is there but the measurement hasn't caught
-  up (an undo back to a size rendered before, so a focused handle survives it); else the box a
-  pending commit predicted; else none, and none on a failed render. A commit is
-  `nodeActions.setParams(ROOT_ID, merged, { key, label: "resize W" })`. A drag or typed size
-  renders at once (`immediateTree`: the root's own extents first, so the handles move onto the
-  measured box, then one assembly render); arrow steps wait the 250 ms debounce and share the
-  key `params:root:<param>` with typing in that sidebar field, and a run of them labels its
-  ghost with the change since the run began. The pending ghost stays until the assembly render
-  for that tree is current; if it fails, an Undo appears inside `.bench-error`, but only while
-  the tree is still the one the commit made — after any other edit it would take back that edit
-  instead.
+- **Resize handles** (see "3D viewer" for the handles themselves), on the selected part: the
+  root, or an attached catalogue part anywhere in the tree. Everything is computed in a frame
+  where the part's box sits as the root's does (centred in X/Y, bottom on z = 0, growing up) —
+  the world itself for the root — and only the handles and ghosts handed to `StlViewer` and the
+  point a drag hands back cross into world space (`benchResize.js`'s `handlesToWorld()`,
+  `ghostToWorld()`, `toFrame()`). An attached part's frame (`attachedFrame()`) comes from
+  `benchOrientation.js`'s `nodeWorldMount()`: its rotation, `R(UP→d)·Rz(spin)·Ry(180)` chained
+  from the root, and where its "mount" anchor lands — the parent's slot point, pushed out along
+  the slot by the joint's flanges and the Offset, slid across by the shift (in the slot's frame,
+  turned with the spin). The frame's origin is the centre of the part's mating face (the mount
+  point less the catalogue's `mount_offset`) and its +Z runs into the part, so height grows away
+  from the parent and X/Y about the part's centre, which is what a render does: the part hangs
+  by its "mount", and a resize leaves the mating face on the slot. Being the mating face, the
+  origin doesn't move with the part's own size, so a box predicted in the frame stays right
+  until the render lands. The frames were checked against openscad-wasm renders of
+  Bench-generated sources — top, side and `bot` slots, spins, shifts, a bolted joint, a stack on
+  a side-mounted part, the GoPro female's offset — and those measurements are the unit test.
+  No handles for: an imported mesh (no size parameters); a part attached through an anchor
+  other than its "mount" (an imported part's picked face), whose rotation the model doesn't
+  cover; and a part whose `mount_offset` follows a parameter a handle drives
+  (`attachedResizeAxes()`: the part would slide on its slot as it grew; no catalogue part has
+  both today). Those, and a catalogue part with no `resize`, show "Resize in the sidebar" under
+  their pill (an imported mesh says nothing). The selection outline and fit box are the world
+  box around the handles' box (`worldBoundsOf()`): exact at quarter-turn spins, a little
+  generous at others, since `highlightBox` is axis-aligned. Picking in the scene still uses
+  `benchPick.js`'s padded boxes, so a side-mounted part is still selected from the sidebar.
+  The box the handles stand on is for the part's current parameters only (a box from older ones
+  would start a drag from the wrong size and run the guard below against the wrong slots): the
+  measured extents, when they were rendered for these parameters (each entry keeps the
+  parameters it was measured with); else the part's own render straight from the cache, when it
+  is there but the measurement hasn't caught up (an undo back to a size rendered before, so a
+  focused handle survives it); else the box a pending commit predicted; else none, and none on
+  a failed render. A commit is `nodeActions.setParams(nodeId, merged, { key, label: "resize W" })`.
+  A drag or typed size renders at once (`immediateTree`: the parts' own extents first, the
+  unchanged ones from the cache, so the handles move onto the measured box, then one assembly
+  render); arrow steps wait the 250 ms debounce and share the key `params:<nodeId>:<param>` with
+  typing in that sidebar field, and a run of them labels its ghost with the change since the run
+  began. The pending commit remembers its node; its ghost is kept in world space and stays until
+  the assembly render for that tree is current; if it fails, an Undo appears inside
+  `.bench-error`, but only while the tree is still the one the commit made — after any other edit
+  it would take back that edit instead.
 - **The children guard** (`benchResize.js`'s `guardResize()`). An attached part names its slot
   (`mount_1_0`, `xpos_-0.5`) and the generated `.scad` attaches it by that name; slot names are
   centre-relative indices (`slots.js`), so a grid that shrinks loses its outer names and a
@@ -886,8 +908,10 @@ a part actually has anchors left over. A few implementation notes that don't bel
   factor by axis). The drag label, and for an arrow step or a typed size the handle's
   `aria-valuetext` and readout, say what it did and why ("cells_x 4 — 3 would move attached
   parts"); that note belongs to the gesture and goes when the handle loses focus, another gesture
-  starts, or the selection or the parameters change. Only the handles are guarded; a sidebar
-  field is not (docs/IMPROVEMENTS.md).
+  starts, or the selection or the parameters change. An attached part's guard runs against its
+  own children's slots (`occupiedSlotNames(assembly, nodeId)`), in its frame, whose box has the
+  part's own extents. Only the handles are guarded; a sidebar field is not
+  (docs/IMPROVEMENTS.md).
 - **Undo.** Every change goes through `benchSession.js`'s setters with a label for the Undo
   tooltip ("attach part", "delete part", "start over", "open in bench", …); the fields that report
   every keystroke pass a coalescing key — `params:<nodeId>:<key>` (from a diff of the old and new
