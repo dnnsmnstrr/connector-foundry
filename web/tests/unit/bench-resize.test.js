@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { ROOT_ID, addChild, createAssembly } from "../../src/lib/assembly.js";
-import { nodeWorldMount } from "../../src/lib/benchOrientation.js";
+import { nodeSpinAxis, nodeWorldMount } from "../../src/lib/benchOrientation.js";
+import { rotateAbout } from "../../src/lib/rotateDial.js";
 import {
   NO_EXTENTS,
   WORLD_FRAME,
@@ -567,4 +568,34 @@ test("the guard runs for an attached part's own children", () => {
   });
   assert.deepEqual(out.result.params, { grid_x: 5 });
   assert.equal(guardNote(out.refused), "4 would move attached parts");
+});
+
+test("turning about the spin axis lands where that spin puts the part", () => {
+  // What the Alt-drag's outline shows (Bench.jsx's turnGhost()) against
+  // the frame the committed spin gives: the box corners must agree.
+  for (const [o, delta] of [
+    [{ spin: 10, shift: [4, -3] }, 75],
+    [{ slotName: "xpos", spin: 30, shift: [2, 5], joint: "bolted" }, -45],
+    [{ slotName: "bot", spin: 0, shift: [6, 0], overlap: 1 }, 120],
+  ]) {
+    const before = onRoot(platedRoot(), o);
+    const after = onRoot(platedRoot(), { ...o, spin: o.spin + delta });
+    const id = lastNode(before);
+    const box = rootBoxFor(extentsOf(before).get(id));
+    const { center, axis } = nodeSpinAxis(before, framePartsById, extentsOf(before), id);
+    const corners = [
+      [box.min[0], box.min[1], box.min[2]],
+      [box.max[0], box.min[1], box.max[2]],
+      [box.min[0], box.max[1], box.max[2]],
+    ];
+    for (const c of corners) {
+      const turned = rotateAbout(toWorld(frameOf(before, id), c), center, axis, delta);
+      const placed = toWorld(frameOf(after, lastNode(after)), c);
+      assert.ok(
+        turned.every((v, i) => Math.abs(v - placed[i]) < 1e-9),
+        `${JSON.stringify(o)}: ${turned} vs ${placed}`,
+      );
+    }
+  }
+  assert.equal(nodeSpinAxis(platedRoot(), framePartsById, extentsOf(platedRoot()), ROOT_ID), null);
 });

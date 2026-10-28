@@ -82,6 +82,17 @@ centred where it sits. Parts attached to it keep their slots, as above. Its outl
 around it square to the scene, so at a turn that isn't a quarter it is a little larger than the
 part; the handles are on the part itself.
 
+**Turning an attached part.** Hold Alt (Option on a Mac) and drag any of an attached part's
+handles to turn it on its slot, as in TinkerCAD and the slicers: the pointer changes to a turning
+arrow while Alt is held, a dial appears around the part on the face it is attached by, and an
+outline shows where it will end up, with a label like "Spin 45° (+15°)". With the pointer on the
+dial the angle snaps to its 15° ticks (the long ones are the quarter turns, which square the part
+up with what it is on); pulled out past the dial it moves in whole degrees. The angle is the
+part's own, so a part at 37° snaps to 45°, not 52°. The part renders once, when you let go, and
+Undo turns it back; `Esc` cancels. A shifted part turns around its slot, as its Rotation field
+turns it. The base part has nothing to turn against: Alt-dragging its handles resizes it, as
+without Alt. A part without handles is turned with its turn buttons or its Rotation field.
+
 A part whose size the catalogue doesn't know (or, for an attached part, one whose resize would
 also move the point it is attached by) says "Resize in the sidebar": change its size in its
 parameters there. Imported models have no size parameters, and no handles.

@@ -286,6 +286,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views (`presetViewFitting()` backs them out to fit a narrow viewer), Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
+| `src/lib/rotateDial.js` | The rotate dial an Alt-drag on a handle shows (see "3D viewer"): the angle the pointer turns about an axis, carried past ±180°, the snap (15° ticks on the dial, whole degrees past it, to absolute angles), turning a point about a line, and the dial's lines |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus, or toggled by a tap or a click until a tap elsewhere or Escape (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
@@ -297,7 +298,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
 | `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component) with its undo history, and its mirror in the URL hash + sessionStorage so a reload restores it |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
-| `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
+| `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
@@ -648,6 +649,28 @@ app differs from it on purpose: its geometry is parametric, and a render takes a
   leaves the rest `aria-hidden`), since the mirror does the same job; a corner, which drives two
   values, is never one. Holes passes `"anchored"`: each edge resizes from the opposite one, so
   all four are different jobs, all live and all Tab stops (`holeHandles.js`).
+- **Alt turns instead** (TinkerCAD's and the slicers' rotate dial). A mode that passes
+  `rotation` (`{ center, axis, radius, base }`: the line the object turns about and the angle it
+  is at; the Bench, for a selected attached part, its spin axis from `nodeSpinAxis()`) makes a
+  handle pressed with Alt held a turn rather than a resize; Library and Holes pass none, so
+  Holes keeps Alt for "from the centre". Held Alt marks the viewer `data-rotate-ready`, which
+  gives the handles a circular-arrow cursor (cleared on keyup and on window blur, which an
+  Alt+Tab leaves without a keyup). The turn is read where the pointer's ray meets the dial's
+  plane, as the angle round the centre from where the press met it (`rotateDial.js`; a press on a
+  dial seen edge-on starts reading where it first can), carried past ±180°, and snapped to the
+  dial's 15° ticks within 1.35 × its radius of the centre, to whole degrees past that — snapped
+  as `base + turn`, so the ticks are absolute angles. The dial (ring, ticks at every 15° of
+  absolute angle, longest at the quarter turns, the start spoke and the current one) is a second
+  `LineSegments` beside the ghost, white, no depth test; every handle hides while it runs, and
+  `onRotatePreview(degrees)` returns the ghost (the Bench's: the part's box turned about the
+  axis, "Spin 45° (+15°)"). A release after a turn other than 0 calls `onRotateCommit(degrees)`;
+  an Alt-press that never travelled does nothing (no size box), and `Esc` cancels. The Bench
+  commits through `rotateChild()` (one "rotate part" step, rendered at once) and keeps the
+  turned outline up as its pending ghost; the part's parameters don't change, so its measured
+  box still holds in its turned frame and the handles stand on the turned part at once. A test
+  holds the turn to the spin: the box turned about `nodeSpinAxis()` lands exactly where the frame
+  for the new spin puts it, shifted and side-mounted parts included. The arrow keys don't turn
+  (Alt+arrow is the browser's); the turn buttons and the Rotation field do.
 - **Near-parallel views.** A line constraint pointing within 15° of the view ray (the height
   handle from the Top view), or a plane within 15° of edge-on, maps a few pixels of pointer to
   hundreds of millimetres. `dragMath.js`'s intersections refuse inside that cone and the viewer

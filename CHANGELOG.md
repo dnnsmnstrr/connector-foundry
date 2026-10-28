@@ -25,6 +25,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   attached by stays on its slot, so height grows outward and width and depth about its centre.
   Parts attached to it keep their slots, as with the base, and its controls move to the foot of
   the viewer, out of the handles' way. Imported models still have none.
+- **Alt-drag to turn.** Hold Alt (Option on a Mac) and drag an attached part's handle to turn it
+  on its slot. A dial shows the angle: on the dial it snaps to 15° steps (the long ticks are the
+  quarter turns), past it to whole degrees, and the part renders once when you let go. `Esc`
+  cancels, and Undo turns it back.
 
 ### Phones and tablets
 

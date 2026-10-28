@@ -154,12 +154,19 @@ export const SHORTCUT_SECTIONS = [
         keys: [["Arrows"]],
         action: "Grow (→ ↑) or shrink (← ↓) a focused handle's size (Shift: ten steps of a length)",
       },
-      { keys: [["Alt", "Drag"]], action: "Holes: resize from the centre" },
+      {
+        keys: [["Alt", "Drag"]],
+        action:
+          "Bench: turn the selected attached part on its slot (15° steps on the dial, 1° past it). " +
+          "Holes: resize from the centre",
+      },
       { keys: [["Grid ▾"]], action: "The step drags snap to, and lengths and hole nudges move by" },
     ],
     note:
       "Library and Bench parts grow on both sides in width and depth, so they stay centred, and " +
-      "upward in height; a hole keeps its opposite edge where it is ({Alt}: from the centre).",
+      "upward in height; a hole keeps its opposite edge where it is ({Alt}: from the centre). On the " +
+      "Bench, {Alt} turns an attached part instead: a dial shows the angle, and the part renders on " +
+      "release.",
   },
   {
     title: "Mouse and touch",

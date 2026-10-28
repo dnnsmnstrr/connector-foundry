@@ -24,6 +24,7 @@ import {
   descendantIds,
   getNode,
   moveChild,
+  normalizeSpin,
   occupiedSlotNames,
   removeChild,
   rotateChild,
@@ -80,6 +81,7 @@ import {
   rootBoxFor,
   sameParams,
   toFrame,
+  toWorld,
   worldBoundsOf,
 } from "./lib/benchResize.js";
 import {
@@ -99,6 +101,7 @@ import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { friendlyRenderError } from "./lib/renderError.js";
 import {
   axisLetter,
+  boxEdges,
   dragResize,
   handlesForBox,
   mirrorHandleId,
@@ -111,7 +114,8 @@ import {
 import { fitGridCounts, mountOffset } from "./lib/slots.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
-import { nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
+import { nodeSpinAxis, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
+import { rotateAbout } from "./lib/rotateDial.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -638,6 +642,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // or on a failed render, and the select would jump the toolbar, or close
   // under the pointer, with them.
   const gridShown = !!handleFrame && handleAxes.some((a) => !a.step);
+  // An attached part with handles turns on its slot with an Alt-drag on
+  // any of them (StlViewer's `rotation`): about its spin axis
+  // (benchOrientation.js's nodeSpinAxis()), on a dial a little wider than
+  // its footprint, from the spin it has. The root has no spin.
+  const rotation = useMemo(() => {
+    if (!handleBox || handleFrame === WORLD_FRAME || !handleFrame) return null;
+    const pivot = nodeSpinAxis(assembly, partsById, nodeExtents, handleNodeId);
+    if (!pivot) return null;
+    const footprint = Math.hypot(handleBox.max[0] - handleBox.min[0], handleBox.max[1] - handleBox.min[1]);
+    return { ...pivot, radius: Math.max(10, 0.6 * footprint), base: handleNode.spin ?? 0 };
+  }, [handleBox, handleFrame, assembly, partsById, nodeExtents, handleNodeId, handleNode]);
+
   // What a drag started from, for its previews and its commit: the part,
   // its frame, box and full parameters at pointerdown and the slots its
   // children sit on, whatever renders land meanwhile.
@@ -652,6 +668,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     params: handleFullParams,
     axes: handleAxes,
     occupied: handleOccupied,
+    rotation,
   });
 
   // A resize through the children guard, with the label that says what it
@@ -802,6 +819,48 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       mm,
     });
     commitResize(start, guarded(start, result, 0), { immediate: true });
+  };
+
+  // An Alt-drag's turn (StlViewer's `rotation`), from the gesture
+  // onHandleStart snapshotted: the part's outline turned about its spin
+  // axis, labelled with the spin it lands on and the change.
+  function turnGhost(start, degrees, suffix = "") {
+    const { center, axis, base } = start.rotation;
+    const turned = (p) => rotateAbout(toWorld(start.frame, p), center, axis, degrees);
+    const spin = normalizeSpin(base + degrees);
+    const box = start.box;
+    return {
+      segments: boxEdges(box).map(([a, b]) => [turned(a), turned(b)]),
+      text: `Spin ${spin}° (${degrees < 0 ? "−" : "+"}${Math.abs(degrees)}°)${suffix}`,
+      textPoint: turned([box.max[0], 0, box.max[2]]),
+    };
+  }
+  const onRotatePreview = (degrees) => {
+    const start = dragStart.current;
+    return start?.rotation ? turnGhost(start, degrees) : null;
+  };
+  // One undo step ("rotate part", as the turn buttons), and the turned
+  // outline until the render lands. The part's parameters don't change,
+  // so its measured box (in its frame, which turns with it) still holds
+  // and the handles stand on the turned part at once.
+  const onRotateCommit = (degrees) => {
+    const start = dragStart.current;
+    if (!start?.rotation || !getNode(assembly, start.nodeId)) return;
+    nodeActions.rotate(start.nodeId, degrees);
+    const next = getBenchSession().assembly;
+    if (!next || next === assembly) return;
+    immediateTree.current = next;
+    setGuardStep(null);
+    setPending({
+      nodeId: start.nodeId,
+      params: getNode(next, start.nodeId).params,
+      tree: next,
+      globalOverrides,
+      box: start.box,
+      key: null,
+      from: start.box,
+      ghost: turnGhost(start, degrees, " · rendering…"),
+    });
   };
 
   // The current assembly's body `tag` as one STL (renderBody()).
@@ -1889,6 +1948,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 dragStart.current = null;
               }}
               onHandleStep={onHandleStep}
+              rotation={rotation}
+              onRotatePreview={onRotatePreview}
+              onRotateCommit={onRotateCommit}
               onHandleSet={onHandleSet}
               toolbar={
                 <>

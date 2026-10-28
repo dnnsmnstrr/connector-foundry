@@ -6,6 +6,7 @@ import DecimalInput from "./DecimalInput.jsx";
 import { useCommands } from "../hooks/useCommands.js";
 import { useGridSnap } from "../hooks/useGridSnap.js";
 import { edgeOnToView, facingViewer, rayLinePoint, rayPlanePoint, screenAxisDelta } from "../lib/dragMath.js";
+import { dialSegments, dialStep, planeAngle, snapTurn, unwrapAngle } from "../lib/rotateDial.js";
 import { parseDecimal } from "../lib/decimalInput.js";
 import { clusterFace } from "../lib/faceCluster.js";
 import { hasCommandModifier, ignoresShortcut } from "../lib/isEditableTarget.js";
@@ -38,6 +39,8 @@ const HIGHLIGHT_PAD_MM = 0.3;
 // over the blue model, the dark background and the grid alike (the
 // Bench's yellow selection box is a different thing and keeps its colour).
 const GHOST_COLOR = 0xa9b9ff;
+// The rotate dial: white, so it reads apart from the ghost it turns.
+const DIAL_COLOR = 0xffffff;
 // Pointer travel between pointerdown and click beyond which it was an
 // orbit drag, not a click — and, on a handle, a resize, not a click that
 // opens the size box. A mouse holds still to within a few pixels; a
@@ -87,7 +90,7 @@ const HANDLE_READOUT_MS = 300;
 const FALLBACK_SEGMENT_MM = 10;
 // The scene objects that are helpers rather than the model: what the
 // "Helpers" toggle hides (see below).
-const HELPER_OBJECTS = ["grid", "markers", "guides", "highlight", "ghost"];
+const HELPER_OBJECTS = ["grid", "markers", "guides", "highlight", "ghost", "dial"];
 // The fallback for a viewer without handles: one array for every render,
 // so the effects that follow `handles` don't run on each of them.
 /** @type {any[]} */
@@ -235,6 +238,23 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
 // - ghost: optional { segments, text?, textPoint? } — an outline the mode
 //   keeps up while no drag runs: the size a commit asked for, until its
 //   render lands ("rendering…").
+// - rotation: optional { center, axis, radius, base } — the selected
+//   object can turn about `axis` (a unit vector) through `center` (model
+//   mm), and is at `base` degrees now. With it, a handle pressed with Alt
+//   (Option on a Mac) held turns the object instead of resizing it, as in
+//   TinkerCAD and the slicers: a dial of `radius` mm is drawn in the plane
+//   through `center` square to the axis, every handle hides, and the
+//   angle the pointer turns round the centre (right-handed about the
+//   axis) snaps to the dial's 15° ticks with the pointer on the dial, to
+//   whole degrees pulled out past it (lib/rotateDial.js) — the snap is to
+//   absolute angles, `base` included. Held Alt shows a turning cursor
+//   over the handles. A press with Alt that never travels does nothing
+//   (no size box). Esc cancels, as for a resize.
+// - onRotatePreview(degrees) → { segments, text?, textPoint? } | null:
+//   the turn so far, snapped; the viewer draws what comes back as the
+//   ghost (the object's outline turned), with the dial.
+// - onRotateCommit(degrees): the pointer came up after a turn other
+//   than 0; `degrees` is what the last preview was given.
 //
 // The toolbar in the viewer's top-right corner: the caller's `toolbar`
 // (its Undo and Redo), a Grid select when `gridControl` is set (the
@@ -311,6 +331,7 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
  *
  * @typedef {{ segments: Vec3[][], text?: string, textPoint?: Vec3 }} ViewerGhost
  * @typedef {ViewerGhost & { handlePoints?: Record<string, Vec3> }} HandlePreview
+ * @typedef {{ center: Vec3, axis: Vec3, radius: number, base?: number }} ViewerRotation
  *
  * @param {object} props
  * @param {ArrayBuffer} [props.stlBuffer]
@@ -336,6 +357,9 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
  * @param {(id: string, steps: number, modifiers: ClickModifiers) => void} [props.onHandleStep]
  * @param {(id: string, mm: number) => void} [props.onHandleSet]
  * @param {ViewerGhost | null} [props.ghost]
+ * @param {ViewerRotation | null} [props.rotation]
+ * @param {(degrees: number) => ViewerGhost | null} [props.onRotatePreview]
+ * @param {(degrees: number) => void} [props.onRotateCommit]
  * @param {import("react").ReactNode} [props.toolbar]
  * @param {boolean} [props.gridControl]
  * @param {Box | null} [props.fitBox]
@@ -365,6 +389,9 @@ export default function StlViewer({
   onHandleStep,
   onHandleSet,
   ghost,
+  rotation,
+  onRotatePreview,
+  onRotateCommit,
   toolbar,
   gridControl = false,
   fitBox,
@@ -425,6 +452,9 @@ export default function StlViewer({
     onHandleEnd,
     onHandleStep,
     onHandleSet,
+    rotation: rotation ?? null,
+    onRotatePreview,
+    onRotateCommit,
   };
   const ghostRef = useRef(ghost ?? null);
   ghostRef.current = ghost ?? null;
@@ -515,6 +545,19 @@ export default function StlViewer({
     scene.add(ghostLines);
     // Where the ghost's label is pinned (model mm), or null for none.
     let ghostLabelPoint = null;
+    // The rotate dial, drawn the same way, over the ghost.
+    const dialMaterial = new THREE.LineBasicMaterial({
+      color: DIAL_COLOR,
+      depthTest: false,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const dialLines = new THREE.LineSegments(new THREE.BufferGeometry(), dialMaterial);
+    dialLines.name = "dial";
+    dialLines.renderOrder = 11;
+    dialLines.frustumCulled = false;
+    dialLines.geometry.setDrawRange(0, 0);
+    scene.add(dialLines);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -628,11 +671,13 @@ export default function StlViewer({
       const drag = dragRef.current;
       // During a drag only the handles the preview moves (the dragged
       // one and its mirror) stay, where the preview put them.
-      const moved = drag?.active ? (drag.preview?.handlePoints ?? {}) : null;
+      // A turn hides them all: the dial and the turned outline are what
+      // it shows.
+      const moved = drag?.active ? (drag.rotate ? {} : (drag.preview?.handlePoints ?? {})) : null;
       const eye = camera.position.toArray();
       const states = [];
       for (const handle of list) {
-        const dragged = !!moved && (handle.id === drag.id || Object.hasOwn(moved, handle.id));
+        const dragged = !!moved && !drag.rotate && (handle.id === drag.id || Object.hasOwn(moved, handle.id));
         const point = (dragged && moved[handle.id]) || handle.point;
         const at = toScreen(point);
         const viewDir = [point[0] - eye[0], point[1] - eye[1], point[2] - eye[2]];
@@ -820,26 +865,21 @@ export default function StlViewer({
 
     // The ghost on screen: the running drag's preview, else the mode's
     // pending ghost prop, else nothing.
-    const refreshGhost = () => {
-      const drag = dragRef.current;
-      // A press that hasn't travelled yet may still be a click: the
-      // pending ghost stays until it turns into a drag.
-      const shown = drag?.active ? drag.preview : ghostRef.current;
-      const segments = shown?.segments ?? [];
-      let attr = /** @type {THREE.BufferAttribute | undefined} */ (
-        ghostLines.geometry.getAttribute("position")
-      );
+    // `segments` into one of the LineSegments above, its buffer rewritten
+    // in place.
+    const writeSegments = (lines, segments) => {
+      let attr = /** @type {THREE.BufferAttribute | undefined} */ (lines.geometry.getAttribute("position"));
       const vertices = segments.length * 2;
       if (!attr || attr.count < vertices) {
         // Grow in powers of two; a replaced attribute keeps its GL buffer
         // until its geometry is disposed, so replace the geometry whole.
         let capacity = 32;
         while (capacity < vertices) capacity *= 2;
-        ghostLines.geometry.dispose();
-        ghostLines.geometry = new THREE.BufferGeometry();
+        lines.geometry.dispose();
+        lines.geometry = new THREE.BufferGeometry();
         attr = new THREE.BufferAttribute(new Float32Array(capacity * 3), 3);
         attr.setUsage(THREE.DynamicDrawUsage);
-        ghostLines.geometry.setAttribute("position", attr);
+        lines.geometry.setAttribute("position", attr);
       }
       const array = /** @type {Float32Array} */ (attr.array);
       let i = 0;
@@ -852,7 +892,15 @@ export default function StlViewer({
         array[i++] = b[2];
       }
       attr.needsUpdate = true;
-      ghostLines.geometry.setDrawRange(0, vertices);
+      lines.geometry.setDrawRange(0, vertices);
+    };
+    const refreshGhost = () => {
+      const drag = dragRef.current;
+      // A press that hasn't travelled yet may still be a click: the
+      // pending ghost stays until it turns into a drag.
+      const shown = drag?.active ? drag.preview : ghostRef.current;
+      writeSegments(ghostLines, shown?.segments ?? []);
+      writeSegments(dialLines, drag?.active && drag.rotate ? drag.rotate.dial : []);
       const label = dragLabelRef.current;
       if (label) label.textContent = shown?.text ?? "";
       ghostLabelPoint = shown?.text && shown.textPoint ? shown.textPoint : null;
@@ -1163,10 +1211,43 @@ export default function StlViewer({
       }
       return point;
     };
+    // A turn's preview (see `rotation` in the header): the angle round
+    // the dial's centre from where the press met its plane, carried past
+    // ±180° and snapped; the dial's lines follow it.
+    const turnPreview = (drag) => {
+      const turn = drag.rotate;
+      setPointerAt(drag.client[0], drag.client[1]);
+      const p = rayPlanePoint(
+        raycaster.ray.origin.toArray(),
+        raycaster.ray.direction.toArray(),
+        turn.center,
+        turn.axis,
+      );
+      if (p) {
+        // A press on a dial seen edge-on starts reading where it first can.
+        turn.from ??= p;
+        const raw = planeAngle(turn.center, turn.axis, turn.from, p);
+        if (raw !== null) {
+          turn.total = unwrapAngle(turn.total, raw);
+          const distance = Math.hypot(...p.map((v, i) => v - turn.center[i]));
+          turn.angle = snapTurn(turn.base ?? 0, turn.total, dialStep(distance, turn.radius));
+        }
+      }
+      if (!turn.from) return;
+      turn.dial = dialSegments(turn, turn.from, turn.angle);
+      drag.preview = handlePropsRef.current.onRotatePreview?.(turn.angle) ?? null;
+    };
     const runPreview = () => {
       const drag = dragRef.current;
       if (!drag) return;
       drag.frame = null;
+      if (drag.rotate) {
+        turnPreview(drag);
+        refreshGhost();
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        renderFrame();
+        return;
+      }
       const point = constrainedPoint(drag, drag.client[0], drag.client[1]);
       if (point) {
         drag.point = point;
@@ -1240,10 +1321,22 @@ export default function StlViewer({
           return; // the pointer is already gone
         }
         const start = [event.clientX, event.clientY];
+        // Alt with a rotation on offer: a turn, read on the dial's plane.
+        const turn = event.altKey ? handlePropsRef.current.rotation : null;
+        let turnFrom = null;
+        if (turn) {
+          setPointerAt(start[0], start[1]);
+          turnFrom = rayPlanePoint(
+            raycaster.ray.origin.toArray(),
+            raycaster.ray.direction.toArray(),
+            turn.center,
+            turn.axis,
+          );
+        }
         // Where the press meets the constraint: the drag's zero. A press
         // already inside the edge-on cone (the handle is hidden there, so
         // rarely) reads the whole gesture in screen space instead.
-        const grab = intersect(handle, start[0], start[1]);
+        const grab = turn ? null : intersect(handle, start[0], start[1]);
         dragRef.current = {
           id: handle.id,
           handle,
@@ -1264,7 +1357,8 @@ export default function StlViewer({
           point: null,
           pointAt: null,
           preview: null,
-          fallback: grab ? null : { at: start, from: handle.point },
+          fallback: grab || turn ? null : { at: start, from: handle.point },
+          rotate: turn ? { ...turn, from: turnFrom, total: 0, angle: 0, dial: [] } : null,
         };
         element.dataset.dragging = "";
         window.addEventListener("keydown", onDragKeyDown, true);
@@ -1300,7 +1394,8 @@ export default function StlViewer({
         }
         if (!drag.active) {
           endDrag(false);
-          return drag.id;
+          // An Alt-press that never turned is not a click on the handle.
+          return drag.rotate ? null : drag.id;
         }
         // The commit uses the pointer's last position, not the last
         // frame's: flush that one preview so the ghost, the label and the
@@ -1309,6 +1404,12 @@ export default function StlViewer({
         drag.client = [event.clientX, event.clientY];
         drag.modifiers = modifiersOf(event);
         runPreview();
+        if (drag.rotate) {
+          const { angle } = drag.rotate;
+          if (angle !== 0) handlePropsRef.current.onRotateCommit?.(angle);
+          endDrag(angle !== 0);
+          return null;
+        }
         const { id, point, modifiers } = drag;
         if (point) handlePropsRef.current.onHandleCommit?.(id, point, modifiers);
         endDrag(!!point);
@@ -1662,6 +1763,9 @@ export default function StlViewer({
       scene.remove(ghostLines);
       ghostLines.geometry.dispose();
       ghostMaterial.dispose();
+      scene.remove(dialLines);
+      dialLines.geometry.dispose();
+      dialMaterial.dispose();
       grid.geometry.dispose();
       grid.material.dispose();
       renderer.dispose();
@@ -1927,6 +2031,31 @@ export default function StlViewer({
   useLayoutEffect(() => {
     sceneRef.current?.refreshGhost();
   }, [ghost, helpersHidden]);
+
+  // Alt held over a viewer that offers a turn: the handles take a turning
+  // cursor, so the mode an Alt-press starts is plain before the press
+  // (data-rotate-ready on the root, styles.css). Cleared on release, and
+  // when the window loses focus with Alt down (an Alt+Tab), whose keyup
+  // never arrives.
+  const canRotate = !!rotation;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!canRotate || !root) return;
+    const sync = (e) => {
+      if (e.altKey) root.dataset.rotateReady = "";
+      else delete root.dataset.rotateReady;
+    };
+    const clear = () => delete root.dataset.rotateReady;
+    window.addEventListener("keydown", sync);
+    window.addEventListener("keyup", sync);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", sync);
+      window.removeEventListener("keyup", sync);
+      window.removeEventListener("blur", clear);
+      clear();
+    };
+  }, [canRotate]);
 
   useEffect(() => () => clearTimeout(readoutTimer.current), []);
 

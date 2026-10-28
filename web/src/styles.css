@@ -1073,6 +1073,16 @@ a.mode-tab {
   cursor: grabbing;
 }
 
+/* Alt held where a handle turns the part (StlViewer's `rotation`): a
+   circular-arrow cursor, white with a dark edge so it reads on the model
+   and the background alike; `alias` where custom cursors are off. */
+.viewer-canvas[data-rotate-ready] .viewer-handle {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M18.4 8.2A7.5 7.5 0 1 0 19.5 12' fill='none' stroke='%23111' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M18.4 8.2A7.5 7.5 0 1 0 19.5 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M20.5 3.5v6h-6z' fill='white' stroke='%23111' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E")
+      12 12,
+    alias;
+}
+
 .viewer-handle:has(.viewer-handle-readout) {
   z-index: 1;
 }

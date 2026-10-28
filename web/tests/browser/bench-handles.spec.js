@@ -738,3 +738,92 @@ test("the guard keeps an attached part's own children on their slots", async ({ 
   await expect(handle).toHaveAttribute("aria-valuenow", "4");
   await expect(handle).toHaveAttribute("aria-valuetext", /— 3 would move attached parts$/);
 });
+
+// Alt-dragging `handle` by `dx`, `dy` px (Alt down before the press, as a
+// user holds it), stopping before the release; returns the release.
+async function altDrag(page, handle, dx, dy) {
+  const at = center(await handle.boundingBox());
+  await page.keyboard.down("Alt");
+  await page.mouse.move(...at);
+  await page.mouse.down();
+  await page.mouse.move(at[0] + dx / 2, at[1] + dy / 2, { steps: 4 });
+  await page.mouse.move(at[0] + dx, at[1] + dy, { steps: 4 });
+  return async () => {
+    await page.mouse.up();
+    await page.keyboard.up("Alt");
+  };
+}
+
+test("Alt-dragging an attached part's handle turns it on its slot, one undo step", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(err));
+  await openBench(page, stackedConfig);
+  await selectChild(page);
+  const corner = page.locator('.viewer-handle-corner[data-state="shown"]').first();
+  // Held Alt shows the turning cursor over the handles.
+  await page.keyboard.down("Alt");
+  await expect(page.locator(".viewer-canvas")).toHaveAttribute("data-rotate-ready", "");
+  await page.keyboard.up("Alt");
+  await expect(page.locator(".viewer-canvas")).not.toHaveAttribute("data-rotate-ready", "");
+
+  const release = await altDrag(page, corner, -40, -60);
+  const label = page.locator(".viewer-drag-label");
+  await expect(label).toHaveText(/^Spin \d+° \([+−]\d+°\)$/);
+  // A turn hides every handle: the dial and the turned outline show it.
+  await expect(page.locator('.viewer-handle[data-state="shown"]')).toHaveCount(0);
+  const [, spin] = /^Spin (\d+)°/.exec(await label.textContent());
+  expect(spin).not.toBe("30");
+  expect(await jobCount(page)).toBe(3);
+  await release();
+
+  // The spin is the part's, it renders at once, and the handles are back.
+  await expect(page.locator(".viewer-overlay-docked .bench-rotate-name")).toHaveText(`Flat plate · ${spin}°`);
+  await expect(page.getByRole("spinbutton", { name: /^Rotation/ })).toHaveValue(spin);
+  await expect(label).toHaveText(new RegExp(`^Spin ${spin}° \\([+−]\\d+°\\) · rendering…$`));
+  await expect.poll(() => jobCount(page), { timeout: 200, intervals: [20] }).toBe(4);
+  expect((await job(page, 3)).scadSource).toContain(`spin=${spin}`);
+  await finish(page, 3);
+  await expect(label).toBeHidden();
+  await expect(widthHandle(page)).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: /^Rotation/ })).toHaveValue("30");
+  expect(errors).toEqual([]);
+});
+
+test("a turn is cancelled by Esc, and an Alt-press that doesn't travel does nothing", async ({ page }) => {
+  await openBench(page, stackedConfig);
+  await selectChild(page);
+  const release = await altDrag(page, widthHandle(page), 30, -50);
+  await expect(page.locator(".viewer-drag-label")).toHaveText(/^Spin/);
+  await page.keyboard.press("Escape");
+  await release();
+  await expect(page.locator(".viewer-drag-label")).toBeHidden();
+  await expect(page.getByRole("spinbutton", { name: /^Rotation/ })).toHaveValue("30");
+
+  // A press with Alt is not the click that opens the size box.
+  await page.keyboard.down("Alt");
+  await widthHandle(page).click();
+  await page.keyboard.up("Alt");
+  await expect(page.getByRole("spinbutton", { name: "Width (mm)" })).toHaveCount(0);
+  await expect(page.locator(".viewer-overlay-docked .bench-rotate-name")).toHaveText("Flat plate · 30°");
+  await page.waitForTimeout(400);
+  expect(await jobCount(page)).toBe(3);
+});
+
+test("the root has no spin: an Alt-drag on its handle resizes it", async ({ page }) => {
+  await openBench(page, plateConfig);
+  await selectRoot(page).click();
+  const { from, to } = await widthPull(page, 60);
+  await page.keyboard.down("Alt");
+  await expect(page.locator(".viewer-canvas")).not.toHaveAttribute("data-rotate-ready", "");
+  await page.mouse.move(...from);
+  await page.mouse.down();
+  await page.mouse.move(...to, { steps: 8 });
+  await expect(page.locator(".viewer-drag-label")).toContainText(/^W [\d.]+ mm/);
+  await page.mouse.up();
+  await page.keyboard.up("Alt");
+  await expect
+    .poll(async () => Number(await widthHandle(page).getAttribute("aria-valuenow")))
+    .toBeGreaterThan(40);
+});

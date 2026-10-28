@@ -87,7 +87,24 @@ export function nodeWorldMount(assembly, partsById, nodeExtents, nodeId) {
   }
   const node = getNode(assembly, nodeId);
   const rotation = node && nodeWorldRotation(assembly, partsById, nodeId);
-  if (!rotation) return null;
+  const pivot = rotation && nodeSpinAxis(assembly, partsById, nodeExtents, nodeId);
+  if (!pivot) return null;
+  const [sx, sy] = normalizeShift(node.shift);
+  const shift = apply(rotation, [-sx, sy, 0]);
+  return { rotation, mount: pivot.center.map((v, i) => v + shift[i]) };
+}
+
+// The line an attached node's spin turns it about, in world space:
+// { center, axis }, `axis` the slot's outward direction and `center` the
+// slot's point pushed out along it by the joint's flanges and the Offset
+// — on the part's mating face, where its "mount" lands before the shift
+// slides it across (the shift turns with the spin, so the part orbits
+// this line). null for the root, which has no spin, and where
+// nodeWorldMount() is.
+export function nodeSpinAxis(assembly, partsById, nodeExtents, nodeId) {
+  if (nodeId === ROOT_ID) return null;
+  const node = getNode(assembly, nodeId);
+  if (!node || !nodeWorldRotation(assembly, partsById, nodeId)) return null;
   const parent = nodeWorldFrame(assembly, partsById, nodeExtents, node.parentId);
   const parentNode = getNode(assembly, node.parentId);
   const parentPart = partsById.get(parentNode?.partId);
@@ -100,11 +117,9 @@ export function nodeWorldMount(assembly, partsById, nodeExtents, nodeId) {
   const dir = slotDirection(parentPart, node.slotName);
   if (!parent || !point || !dir) return null;
   const slot = add(parent.centre, apply(parent.rotation, point));
-  const out = apply(parent.rotation, dir);
+  const axis = apply(parent.rotation, dir);
   const rise = matingRise(assembly, partsById, node);
-  const [sx, sy] = normalizeShift(node.shift);
-  const shift = apply(rotation, [-sx, sy, 0]);
-  return { rotation, mount: [0, 1, 2].map((i) => slot[i] + out[i] * rise + shift[i]) };
+  return { center: slot.map((v, i) => v + axis[i] * rise), axis };
 }
 
 // `nodeId`'s rotation and the world position of its own centre (the
