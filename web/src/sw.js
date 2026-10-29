@@ -188,6 +188,13 @@ self.addEventListener("fetch", (event) => {
   else if (kind === "revalidate") event.respondWith(staleWhileRevalidate(event));
 });
 
+// The page asks which build took over (lib/webApp.js): a page loaded from
+// the network may already be the build whose worker just replaced the old
+// one, and only a different build is an update to offer.
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "build-id") event.ports[0]?.postMessage(BUILD_ID);
+});
+
 self.addEventListener("install", () => {
   // No precache, so nothing to wait for: replace the previous build's
   // worker at once rather than after its last tab closes.

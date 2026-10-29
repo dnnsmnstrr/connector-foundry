@@ -5,7 +5,18 @@
 // The manifest (public/app/manifest.webmanifest) points at them with
 // relative URLs ("../icons/icon-192.png"), resolved against the manifest's
 // own URL, so the one file works at "/" and under "/connector-foundry/".
-// JSON has no comments, so that fact lives here.
+// JSON has no comments, so that fact lives here, and these:
+// - `id` is "./" (the app's address): the identity an install keeps, so
+//   a later change to start_url does not make it another app.
+// - background_color is the page's own (#111214, styles.css's body),
+//   Android's launch screen behind the icon; theme_color is the nav's
+//   (#17181b), the status bar over it. The iOS launch screens are built,
+//   not listed here (scripts/ios-splash.mjs).
+// - No `shortcuts` (a long-press menu of Library, Bench, Holes): the
+//   tab and the bench live in the URL's hash, so a shortcut's
+//   "#mode=bench", opened in the running app, is a hash change from
+//   outside — which App.jsx rightly reads as "load this bench instead"
+//   and empties the bench.
 //
 // - icon-192 / icon-512: the master as is (a rounded tile with a
 //   transparent margin), for launchers that show icons in any shape.

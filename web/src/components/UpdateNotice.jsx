@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useCommands } from "../hooks/useCommands.js";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates.js";
+import { useWebApp } from "../hooks/useWebApp.js";
 import { builtin, openLink } from "../lib/commandCatalog.js";
 import { showCommandHud } from "../lib/commandHud.js";
+import { getHolesSession } from "../lib/holesSession.js";
+import { checkForWebUpdate, reloadToUpdate } from "../lib/webApp.js";
 import {
   checkForUpdates,
   dismissShellNotice,
@@ -10,6 +13,7 @@ import {
   needsShellNotice,
   reportStarted,
   restartToUpdate,
+  restartWarning,
   setAutoCheck,
   setKeepUpdated,
   updateSummary,
@@ -25,12 +29,20 @@ import {
 // When the newest interface needs a newer app that this copy can't
 // install itself, an "Update the app" button opens the release page,
 // once per version. Mounting, it tells the updater the page started,
-// which an interface update must do to be kept. Nothing in a browser.
+// which an interface update must do to be kept.
+//
+// In a browser, the web app's word instead (lib/webApp.js): once a newer
+// deploy's service worker has taken over the page, "Reload to update" in
+// the nav and the palette, and once after that reload, "Updated". Its
+// "Check for updates" asks the server there and then — what an app kept
+// open on a phone's home screen for days needs, where a tab would just be
+// reloaded. Nothing without a service worker (the dev server).
 
 const NEWS_MS = 5000;
 
 export default function UpdateNotice() {
   const status = useDesktopUpdates();
+  const web = useWebApp();
   // What was said already: a reload of the page (or StrictMode's second
   // effect) must not say it again.
   const said = useRef(/** @type {Set<string>} */ (new Set()));
@@ -46,7 +58,11 @@ export default function UpdateNotice() {
           : `Version ${status.latest} is ready. Restart to update.`
       : status?.justUpdated
         ? `Updated to version ${status.justUpdated}`
-        : null;
+        : web.update === "ready"
+          ? "A new version is ready. Reload to update."
+          : web.justUpdated
+            ? "Updated to the latest version"
+            : null;
   useEffect(() => {
     if (!news || said.current.has(news)) return;
     said.current.add(news);
@@ -54,7 +70,7 @@ export default function UpdateNotice() {
   }, [news]);
 
   useCommands("updates", () => {
-    if (!status) return [];
+    if (!status) return webCommands(web.update);
     const busy = ["checking", "downloading", "installing"].includes(status.state);
     return [
       builtin("app.checkUpdates", {
@@ -97,6 +113,21 @@ export default function UpdateNotice() {
     ];
   });
 
+  if (!status && web.update === "ready")
+    return (
+      <button
+        type="button"
+        className="mode-tab update-tab"
+        onClick={reloadWebApp}
+        aria-label="Reload to update"
+        title="Load the new version: the bench and the tab you are on come back"
+      >
+        <span className="update-label">Reload to update</span>
+        <span className="update-label-short" aria-hidden="true">
+          Update
+        </span>
+      </button>
+    );
   if (status?.state === "downloading")
     return (
       <span className="render-indicator update-indicator" title={updateSummary(status)}>
@@ -139,4 +170,48 @@ export default function UpdateNotice() {
     );
   }
   return null;
+}
+
+// The browser's update commands (lib/webApp.js): a check by hand while
+// there is a service worker to ask, and the reload once a new build is in.
+/** @param {import("../lib/webApp.js").WebUpdateState} state */
+function webCommands(state) {
+  if (state === "unavailable") return [];
+  return [
+    builtin("app.checkUpdates", {
+      when: state !== "ready",
+      subtitle: state === "checking" ? "Checking…" : undefined,
+      disabled: state === "checking" && "Checking…",
+      run: () => {
+        showCommandHud("Checking for updates…");
+        checkForWebUpdate().then((result) => {
+          // "ready" has its own news, from UpdateNotice.
+          if (result === "up-to-date") showCommandHud("This is the latest version", NEWS_MS);
+          else if (result === "offline") showCommandHud("Couldn't reach the server: offline?", NEWS_MS);
+        });
+      },
+    }),
+    builtin("app.restartToUpdate", {
+      when: state === "ready",
+      title: "Reload to update",
+      subtitle: "A new version is ready",
+      run: reloadWebApp,
+    }),
+  ];
+}
+
+// Reloads into the new build, after asking when the reload would lose
+// work: the bench comes back from the URL and its imported meshes from
+// session storage, but the Holes tab's model lives in memory only.
+function reloadWebApp() {
+  const warning = restartWarning({
+    importedMeshes: 0,
+    holes: getHolesSession().doc !== null,
+    reload: true,
+  });
+  // (An imported mesh too big for session storage is not kept either,
+  // lib/benchUrlState.js, and the bench's own notice says so after the
+  // reload: too rare to hold up every update with a question.)
+  if (warning && !window.confirm(`Reload to load the new version? ${warning}`)) return;
+  reloadToUpdate();
 }

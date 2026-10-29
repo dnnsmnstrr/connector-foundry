@@ -477,6 +477,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["mac", "windows", "electron", "release"],
     action: "Open",
   },
+  "app.install": {
+    title: "Install the app",
+    section: "Help",
+    keywords: ["home screen", "add to home screen", "pwa", "phone", "tablet", "offline", "icon"],
+    action: "Install",
+  },
   "app.checkUpdates": {
     title: "Check for updates",
     section: "Help",

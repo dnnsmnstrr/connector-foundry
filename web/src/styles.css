@@ -17,6 +17,32 @@ body,
   color: #e6e6e6;
 }
 
+/* The page is an app's window, not a document: nothing in it scrolls as a
+   whole (each pane scrolls itself), so a swipe past a pane's end must not
+   rubber-band the whole UI on iOS or pull Android's refresh over it. And
+   iOS enlarges text on its own when a phone turns to landscape, which
+   broke the nav's and the panels' fixed rows. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* Opened from the home screen, the app is the whole screen and should
+   behave like the apps beside it, which do not zoom: a pinch that missed
+   the 3D view (which takes it for itself, touch-action: none) zoomed the
+   nav and the panels, with no browser zoom control to put them back. In a
+   browser tab, page zoom stays. */
+@media (display-mode: standalone) {
+  html {
+    touch-action: pan-x pan-y;
+  }
+}
+
 /* Form controls don't inherit the page font by default. */
 button,
 input,
@@ -104,7 +130,6 @@ textarea {
 }
 
 /* Keep even loading/error states clear of the overlaid window controls. */
-.desktop .loading-screen,
 .desktop .error-screen {
   padding-top: 52px;
 }
@@ -792,6 +817,22 @@ a.mode-tab {
 
 .mode-tab.update-tab:hover {
   background: #2c3a5a;
+}
+
+/* The browser's "Reload to update" says one word on a phone, where the
+   whole phrase pushed the Settings gear off the nav. */
+.update-label-short {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :root:not(.desktop) .update-label {
+    display: none;
+  }
+
+  :root:not(.desktop) .update-label-short {
+    display: inline;
+  }
 }
 
 .render-spinner {
@@ -2045,6 +2086,44 @@ a.mode-tab {
   margin-left: 0;
 }
 
+/* The dialog's × (Modal.jsx): a touch screen's way out, which has no
+   Escape key. A mouse has the backdrop and the dialogs' own buttons. */
+.bench-modal-close {
+  display: none;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #8b8c91;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .bench-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -0.6rem -0.75rem -0.6rem auto;
+  }
+
+  /* The × beside the title, as a phone's own sheets have it; a dialog's
+     header buttons (Settings' Keyboard shortcuts, Guides) take the row
+     under them. */
+  .bench-modal-header h3 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .bench-modal-actions {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+
 /* Settings' Guides link looks like the button beside it. */
 a.bench-modal-header-button {
   text-decoration: none;
@@ -2968,7 +3047,35 @@ a.bench-modal-header-button {
   width: 100%;
 }
 
-.loading-screen,
+/* The app's first picture, the same as the launch screen iOS shows for
+   the installed app (scripts/ios-splash.mjs) and the page before the app
+   has loaded (app/index.html, whose own copy of these rules applies
+   before this stylesheet does): the icon, centred on the whole screen at
+   min(28vmin, 160px). The catalogue's "Loading…" sits under it. */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111214;
+}
+
+.boot-splash img {
+  width: min(28vmin, 160px);
+  height: min(28vmin, 160px);
+}
+
+.boot-splash-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + min(14vmin, 80px) + 1.25rem);
+  text-align: center;
+  color: #9a9ba0;
+  font-size: 0.9rem;
+}
+
 .error-screen {
   display: flex;
   height: 100vh;
@@ -4018,6 +4125,54 @@ a.bench-modal-header-button {
   user-select: text;
 }
 
+/* A tap on a touch screen: the browser's grey flash over whatever was
+   hit (a whole list row, the nav) is not how an app answers a finger, so
+   it is off, and a control dims while it is held down instead, as iOS's
+   own buttons do. Holding a finger on a button, a list row or a part's
+   picture started text selection or offered to save the image; on a
+   control that is never what the finger meant. Text fields keep their
+   selection (an ancestor's user-select: none stopped typing in them on
+   iOS, so they say so themselves). */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:active:not(:disabled),
+  a:active,
+  summary:active,
+  [role="option"]:active,
+  [role="menuitem"]:active {
+    opacity: 0.65;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  summary,
+  .mode-tabs,
+  [role="option"],
+  [role="menuitem"],
+  .part-button,
+  .command-row {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 /* ---------------------------------------------------------------------
    Touch screens, whatever their size (an iPad in landscape is 1180 px
    wide and still a finger): the controls the 3300 block above does not
@@ -4180,6 +4335,56 @@ a.bench-modal-header-button {
    Holes') sit in their headers, beside the title (.part-header-print),
    under 900 px only.
    ------------------------------------------------------------------- */
+/* "Install the app" where the browser has no dialog for it
+   (components/InstallSheet.jsx). */
+.install-sheet-modal {
+  width: min(400px, 100vw - 2rem);
+}
+
+.install-sheet-intro {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #b8b9bd;
+}
+
+.install-sheet-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.install-sheet-steps li + li {
+  margin-top: 0.45rem;
+}
+
+.install-sheet-share {
+  vertical-align: -0.15em;
+  color: #6b84e8;
+}
+
+.install-sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
+.install-sheet-actions .download-button {
+  position: static;
+}
+
+/* Settings' "Install the app", at the top while it can be. */
+.settings-install-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.settings-install {
+  position: static;
+  margin-bottom: 0.25rem;
+}
+
 .print-sheet-modal {
   width: min(440px, 100vw - 2rem);
 }

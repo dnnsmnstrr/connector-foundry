@@ -1,13 +1,16 @@
 // Emits the app's service worker (src/sw.js → <outDir>/sw.js, at the
 // base, so its scope covers the workers under assets/ too — src/sw.js says
 // why) with
-// its build id filled in, and defines `__PUBLIC_VERSIONS__` for the app's
-// code.
+// its build id filled in, and defines `__PUBLIC_VERSIONS__` and
+// `__BUILD_ID__` for the app's code.
 //
 // The build id — the commit on CI (GITHUB_SHA's first twelve characters),
 // a timestamp locally — names the worker's cache (`cf-<id>`), so a new
 // build's activation can tell the previous build's cache apart and
-// migrate its hashed assets.
+// migrate its hashed assets. The page gets the same id as `__BUILD_ID__`
+// ("dev" under the dev server, which has no worker): lib/webApp.js asks a
+// worker that has just taken over for its id, and only a different one
+// is an update to offer.
 //
 // `__PUBLIC_VERSIONS__` maps an unhashed public file to a hash of its
 // content, and lib/publicAsset.js appends it to the file's URL
@@ -107,8 +110,14 @@ export default function serviceWorkerPlugin({ id = buildId(), publicDir = PUBLIC
      * @param {{ command: "build" | "serve" }} env
      */
     config(_config, env) {
-      const versions = env?.command === "build" ? publicVersions(publicDir) : {};
-      return { define: { __PUBLIC_VERSIONS__: JSON.stringify(versions) } };
+      const build = env?.command === "build";
+      const versions = build ? publicVersions(publicDir) : {};
+      return {
+        define: {
+          __PUBLIC_VERSIONS__: JSON.stringify(versions),
+          __BUILD_ID__: JSON.stringify(build ? id : "dev"),
+        },
+      };
     },
     generateBundle() {
       this.emitFile({
