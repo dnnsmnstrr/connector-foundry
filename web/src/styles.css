@@ -299,9 +299,11 @@ textarea {
   color: #d8d9db;
 }
 
-/* Chevron on desktop (the sidebar is a column), text on mobile (it's a
-   stacked panel, so "«" would point the wrong way). */
-.sidebar-toggle-text {
+/* Chevron on desktop (the sidebar is a column); on a phone the grip and
+   the sheet's name (it's a bottom drawer, so "«" would point the wrong
+   way): the narrow layout below swaps them. */
+.sidebar-toggle-text,
+.sidebar-toggle-grip {
   display: none;
 }
 
@@ -446,20 +448,6 @@ textarea {
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* A label stacked over its longest variant (the sizer, invisible), so
-   the element is as wide as that variant whichever one shows. */
-.stable-label {
-  display: inline-grid;
-}
-
-.stable-label > * {
-  grid-area: 1 / 1;
-}
-
-.stable-label-sizer {
-  visibility: hidden;
 }
 
 .part-header-actions {
@@ -3533,6 +3521,13 @@ a.bench-modal-header-button {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* The drawer's handle, and the closed drawer: the handle over the home
+     indicator. SidebarToggle.jsx measures both from the page. */
+  :root:not(.desktop) {
+    --drawer-handle: 3rem;
+    --drawer-closed: calc(var(--drawer-handle) + env(safe-area-inset-bottom));
+  }
+
   :root:not(.desktop) .app,
   :root:not(.desktop) .bench,
   :root:not(.desktop) .app.sidebar-collapsed,
@@ -3544,36 +3539,116 @@ a.bench-modal-header-button {
     grid-template-columns: none;
   }
 
+  /* The Library scrolls as a page (its form is under the view): the end of
+     it clear of the closed drawer. */
+  :root:not(.desktop) .app {
+    padding-bottom: var(--drawer-closed);
+  }
+
+  /* The Bench and Holes are their header and the view, the view down to
+     the screen's edge, behind the drawer. */
+  :root:not(.desktop) .bench,
+  :root:not(.desktop) .bench.sidebar-collapsed {
+    height: 100%;
+  }
+
   :root:not(.desktop) .sidebar-resizer {
     display: none;
   }
 
-  /* Last in the column, and part of the page's own scroll rather than a
-     capped scroller of its own: the whole page scrolls past it, and a
-     drag inside it is never trapped. */
-  :root:not(.desktop) .sidebar {
-    order: 2;
-    border-right: none;
-    border-top: 1px solid #2a2b2e;
-    padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
-    max-height: none;
-    overflow: visible;
-    overscroll-behavior: auto;
-    flex-shrink: 0;
-  }
-
-  /* Last on the page, collapsed or not: clear of the home indicator. */
+  /* A sheet over the foot of the view rather than a column (lib/drawer.js
+     and the handle, SidebarToggle.jsx, which sets --drawer-height): its
+     own scroller, so a swipe through the part list scrolls the list and
+     never the page or the view, and a finger on the view orbits as it did.
+     Fixed to the screen, so in the Library it stays put while the page
+     scrolls under it. Under the dialogs (the top layer) and the command
+     HUD, over everything in the view. */
+  :root:not(.desktop) .sidebar,
   :root:not(.desktop) .sidebar-collapsed .sidebar {
-    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    --drawer-pad: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: block;
+    height: var(--drawer-height, var(--drawer-closed));
     max-height: none;
+    padding: 0 var(--drawer-pad) env(safe-area-inset-bottom);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid #2a2b2e;
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
+    transition: height 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  :root:not(.desktop) .sidebar-toggle {
+  :root:not(.desktop) .sidebar-collapsed .sidebar {
+    overflow: hidden;
+  }
+
+  /* While it follows a finger, and when a tab's sheet first appears: no
+     easing (SidebarToggle.jsx sets the classes). */
+  .drawer-dragging .sidebar,
+  .drawer-still .sidebar {
+    transition: none;
+  }
+
+  .drawer-dragging,
+  .drawer-dragging * {
+    cursor: grabbing !important;
+    user-select: none;
+  }
+
+  /* The handle: the sheet's top edge, the full width of it, and what a
+     finger drags (touch-action: none — the browser would scroll the page
+     instead). Pinned at the top while the content scrolls under it. */
+  :root:not(.desktop) .sidebar-toggle,
+  :root:not(.desktop) .sidebar-collapsed .sidebar-toggle {
     position: sticky;
     top: 0;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: calc(100% + 2 * var(--drawer-pad));
+    height: var(--drawer-handle);
+    min-height: 0;
+    margin: 0 calc(-1 * var(--drawer-pad)) 0.25rem;
+    padding: 0;
     background: #17181b;
-    padding: 0.5rem 0;
+    border: none;
+    border-radius: 0;
+    color: #c4c5c9;
+    font-size: 0.8rem;
+    font-weight: 600;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  :root:not(.desktop) .sidebar-collapsed .sidebar-toggle {
+    margin-bottom: 0;
+  }
+
+  :root:not(.desktop) .sidebar-toggle:hover {
+    background: #17181b;
+    color: #e6e6e6;
+  }
+
+  :root:not(.desktop) .sidebar-toggle:focus-visible {
+    outline-offset: -3px;
+  }
+
+  :root:not(.desktop) .sidebar-toggle-grip {
+    display: block;
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: #4a4b52;
   }
 
   :root:not(.desktop) .sidebar-toggle-chevron {
@@ -3582,10 +3657,6 @@ a.bench-modal-header-button {
 
   :root:not(.desktop) .sidebar-toggle-text {
     display: inline;
-  }
-
-  :root:not(.desktop) .sidebar-collapsed .sidebar-toggle {
-    margin-bottom: 0;
   }
 
   :root:not(.desktop) .system-group h2 {
@@ -3629,6 +3700,11 @@ a.bench-modal-header-button {
     flex: 1 0 auto;
   }
 
+  :root:not(.desktop) .bench > .workspace {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
   :root:not(.desktop) .workspace-body {
     grid-template-columns: 1fr;
     flex: none;
@@ -3650,6 +3726,14 @@ a.bench-modal-header-button {
     height: 60svh;
     min-height: 260px;
     flex: none;
+  }
+
+  /* The rest of the screen under the header, to its bottom edge: the
+     header first here, or it would be under the drawer. */
+  :root:not(.desktop) .bench-viewer {
+    order: 0;
+    height: auto;
+    flex: 1 0 260px;
   }
 
   /* The toolbar on one 44 px row (two rows covered a quarter of the
@@ -3689,6 +3773,25 @@ a.bench-modal-header-button {
     left: 1rem;
     right: 1rem;
     bottom: 1rem;
+  }
+
+  /* What sits at the foot of the Bench's and Holes' view keeps clear of
+     the drawer: --drawer-inset is how much of it the sheet covers, up to
+     its half rest (lib/drawer.js), and they move with it. */
+  :root:not(.desktop) .bench-viewer .viewer-actions,
+  :root:not(.desktop) .bench-viewer .bench-error,
+  :root:not(.desktop) .bench-viewer .viewer-overlay-docked {
+    bottom: calc(1rem + var(--drawer-inset, 0px));
+    transition: bottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  :root:not(.desktop) .bench-viewer .viewer-error-note {
+    bottom: calc(4.5rem + var(--drawer-inset, 0px));
+  }
+
+  .drawer-dragging .bench-viewer *,
+  .drawer-still .bench-viewer * {
+    transition: none;
   }
 
   :root:not(.desktop) .bench-empty {
@@ -4076,7 +4179,8 @@ a.bench-modal-header-button {
      side, the two don't fit a phone's width. */
   :root:not(.desktop) .holes-snap-bar {
     right: 1.25rem;
-    bottom: calc(1.25rem + 44px + 0.5rem);
+    bottom: calc(1.25rem + 44px + 0.5rem + var(--drawer-inset, 0px));
+    transition: bottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
@@ -4123,10 +4227,10 @@ a.bench-modal-header-button {
   }
 }
 
-/* A small phone's Library: Download STL and Print… on one row over the
-   viewer (with Copy for Layerling too, the row wrapped at 375 px, over a
-   resize handle and the failed-resize note). The palette's Library section
-   keeps Copy for Layerling. */
+/* A small phone's Library: Download STL alone over the viewer (with Copy
+   for Layerling and the Print… it had then, the row wrapped at 375 px,
+   over a resize handle and the failed-resize note). The palette's Library
+   section keeps Copy for Layerling. */
 @media (max-width: 480px) {
   :root:not(.desktop) .viewer-actions .layerling-button {
     display: none;
@@ -4140,4 +4244,111 @@ a.bench-modal-header-button {
 :root:not(.desktop) .shell-body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+/* ---------------------------------------------------------------------
+   The Library on a phone (under 600 px; Library.jsx, lib/drawer.js's
+   DRAWER_TABS_QUERY): the parameter form is in the drawer too, on a tab
+   beside the part list (components/DrawerTabs.jsx), and the view runs from
+   the header to the foot of the screen, as the Bench's does, its buttons
+   kept clear of the drawer. A tablet keeps its form beside the view.
+   ------------------------------------------------------------------- */
+.drawer-tabs {
+  /* Under the handle while the panel scrolls; the ring of the sheet's
+     colour covers what scrolls through the gap around it. */
+  position: sticky;
+  top: var(--drawer-handle, 0);
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 0.75rem;
+  background: #1c1d20;
+  border: 1px solid #2f3034;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.3rem #17181b;
+}
+
+.drawer-tab {
+  flex: 1;
+  min-height: 2.25rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #9a9ba0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drawer-tab:hover {
+  color: #d8d9db;
+}
+
+.drawer-tab[aria-selected="true"] {
+  background: #24304a;
+  color: #cdd7f5;
+}
+
+@media (pointer: coarse) {
+  .drawer-tab {
+    min-height: 44px;
+  }
+}
+
+/* The render's error, in the header where the form's would be out of
+   sight. */
+.library-header-error {
+  margin: 0.4rem 0 0;
+}
+
+/* Retry preview, under the render's error (or alone, after a cancel). */
+.library-retry {
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 599.98px) {
+  :root:not(.desktop) .app.library-tabbed {
+    height: 100%;
+    padding-bottom: 0;
+  }
+
+  :root:not(.desktop) .library-tabbed > .workspace {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  :root:not(.desktop) .library-tabbed .workspace-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 260px;
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel {
+    height: auto;
+    flex: 1 0 260px;
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel .viewer-actions {
+    bottom: calc(1rem + var(--drawer-inset, 0px));
+    transition: bottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel .viewer-error-note {
+    bottom: calc(4.5rem + var(--drawer-inset, 0px));
+  }
+
+  .drawer-dragging .library-tabbed .viewer-panel *,
+  .drawer-still .library-tabbed .viewer-panel * {
+    transition: none;
+  }
+
+  /* The form in the drawer: the sheet has the padding and the scroll. */
+  :root:not(.desktop) .sidebar .params-panel {
+    border: none;
+    padding: 0 0 1rem;
+    max-height: none;
+    overflow: visible;
+  }
 }

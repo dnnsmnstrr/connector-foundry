@@ -5,6 +5,36 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
+## Unreleased
+
+### Library
+
+- **No Render button.** The preview already renders on its own whenever the part, its parameters
+  or the printer settings change, so the header's **Render** button only ran the same render
+  again. It is gone; after a failed or cancelled render, **Retry preview** sits by the error
+  (and the command palette's **Render again** runs it any time).
+- **No Print… in the Library.** EasyPrint can't be sent a model from another site, so the
+  Library's print sheet could only hand over the file **Download STL** already saves. The button
+  and its palette command are gone from the Library; the Bench and Holes keep **Print with
+  EasyPrint…**, which there gathers the bench's bodies or renders the holed part.
+
+### Phones and tablets
+
+- **The sidebar is a drawer.** On a phone (and in any browser window under 900 px wide) the part
+  list, the Bench's parts and the Holes list are a sheet over the foot of the 3D view instead of a
+  section at the bottom of the page behind a "Hide sidebar" button. Drag its handle up to half the
+  screen or nearly all of it, push it back down, or tap the handle to open and close it; the list
+  in it scrolls on its own, and the view keeps its one-finger orbit. The Bench and Holes views now
+  run to the bottom of the screen, under their header, and the **Print…** button and the selected
+  part's controls move up to stay clear of the sheet. It starts closed on a first visit and then
+  remembers whether you left it open, as the sidebar does on a computer; `[` and the command
+  palette's **Open the drawer** work too.
+- **The Library's form is in the drawer on a phone.** Under 600 px wide the drawer has two tabs,
+  **Parameters** and **Parts**, and the 3D view runs from the part's header to the bottom of the
+  screen. A part picked from the list turns to its parameters; **Find a part** and `/` turn to the
+  list. A render error shows under the header, where it stays in sight. Tablets keep the form
+  beside the view.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts

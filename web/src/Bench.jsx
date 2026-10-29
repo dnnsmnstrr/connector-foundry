@@ -1736,7 +1736,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   return (
     <div className={sidebarCollapsed ? "bench sidebar-collapsed" : "bench"}>
       <aside ref={sidebarRef} className="sidebar bench-sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
+        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} title="Bench parts" />
         {!sidebarCollapsed && (
           <>
             <div className="bench-root-heading">

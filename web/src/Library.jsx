@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import DrawerTabs from "./components/DrawerTabs.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
@@ -9,13 +10,14 @@ import { downloadBlob } from "./lib/download.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { resolveParams } from "./lib/userOverrides.js";
 import { listedParts, slugify } from "./lib/catalogueUtils.js";
-import PrintSheet from "./components/PrintSheet.jsx";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useRender } from "./hooks/useRender.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useLibraryHistory } from "./hooks/useLibraryHistory.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommands } from "./hooks/useCommands.js";
+import { useDrawerTab, useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { setDrawerTab } from "./lib/drawer.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
@@ -110,8 +112,11 @@ function ghostFor(handle, axes, box) {
 // round trip through the Bench comes back to the part (and parameter
 // edits) that were showing, not to the first part in the catalogue.
 // `onFindPart()` is the shell's part search (the `/` key): on a phone the
-// part list sits below the viewer and the form, so the header's "Find a
-// part" button (shown in the stacked layout only) goes there.
+// part list is in the bottom drawer, so the header's "Find a part" button
+// (shown in the narrow layout only) opens it there. Under a phone's 600 px
+// the drawer holds the parameter form too, on a tab beside the part list
+// (components/DrawerTabs.jsx), and the view runs to the foot of the
+// screen; a part picked from the list turns to its parameters.
 //
 // A part whose catalogue entry has `resize` gets TinkerCAD's handles in
 // the viewer (lib/resize.js): a drag shows a ghost of the new size and
@@ -157,6 +162,9 @@ export default function Library({
   const globalOverrides = useGlobalOverrides();
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
+  // On a phone the form is in the drawer, on a tab beside the part list.
+  const tabbed = useDrawerTabsLayout();
+  const drawerTab = useDrawerTab();
 
   // Undo history: record() before each change, with the selection it
   // replaces — from these handlers, never inside a setState updater
@@ -233,9 +241,11 @@ export default function Library({
 
   // The preview follows the part, its parameters and the printer
   // settings. A parameter edit waits PARAM_RENDER_DELAY_MS for the edits
-  // to pause; a new part, a settings change, the Render button or a
-  // handle drag (or typed size) renders at once, and a result still in
-  // the render cache shows straight away.
+  // to pause; a new part, a settings change, Retry preview or a handle
+  // drag (or typed size) renders at once, and a result still in the
+  // render cache shows straight away. There is no Render button: the
+  // preview is always on its way to the current values, and the nav's
+  // status (RenderActivity.jsx) says when a render runs.
   const renderKey = useMemo(
     () => (selected ? { part: selected, params, globalOverrides } : null),
     [selected, params, globalOverrides],
@@ -263,8 +273,8 @@ export default function Library({
     if (selected) onSelectionChange?.({ part: selected, params });
   }, [selected, params, onSelectionChange]);
 
-  // Until the render for the current values lands the download stays off,
-  // and the Render button already says "Rendering…".
+  // Until the render for the current values lands the download stays off
+  // (the nav's "Rendering…" says why).
   const canDownload = status === "done" && preview.key === renderKey;
   const dimensions = useMemo(
     () => (canDownload && stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
@@ -400,20 +410,10 @@ export default function Library({
     downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
-  // "Print with EasyPrint…" (components/PrintSheet.jsx): the sheet shows
-  // the current render's file, so it can open while a render runs and
-  // enable its buttons when the mesh lands. When no render is coming — a
-  // failed one, or one cancelled with the old mesh still on screen — the
-  // row says why instead of "Rendering…", and the buttons that open it
-  // are off.
-  const [printOpen, setPrintOpen] = useState(false);
-  const printProblem = canDownload
-    ? undefined
-    : status === "error"
-      ? (renderError ?? "The render failed")
-      : status === "idle"
-        ? "Not rendered yet: press Render"
-        : undefined;
+  // No "Print with EasyPrint…" here, unlike the Bench and Holes: EasyPrint
+  // takes no model from another site (prusaslicer:// links open only
+  // printables.com's), so the sheet could only hand over the file that
+  // Download STL already saves.
 
   const layerling = useLayerlingCopy(preview.setError);
   function copyToLayerling() {
@@ -447,9 +447,13 @@ export default function Library({
           run: preview.retry,
         }),
       selected && builtin("library.downloadStl", { disabled: waiting, run: downloadStl }),
-      selected &&
-        builtin("library.print", { disabled: printProblem ?? false, run: () => setPrintOpen(true) }),
       selected && builtin("library.layerling", { disabled: waiting, run: copyToLayerling }),
+      selected &&
+        tabbed &&
+        builtin("library.parameters", {
+          when: sidebarCollapsed || drawerTab !== "params",
+          run: showParameters,
+        }),
       selected &&
         Object.keys(selected.defaults ?? {}).length > 0 &&
         builtin("library.resetParams", { run: () => editParams({ ...selected.defaults }) }),
@@ -468,12 +472,87 @@ export default function Library({
     ];
   });
 
+  // The drawer's Parameters tab, open (the palette's "Show the
+  // parameters").
+  function showParameters() {
+    setDrawerTab("params");
+    if (sidebarCollapsed) onToggleSidebar();
+  }
+
+  // A part picked in the phone's drawer: its parameters next, in the same
+  // drawer, while the view above renders it.
+  function pickInDrawer(part) {
+    select(part);
+    setDrawerTab("params");
+  }
+
   const shownDimensions = dimensions ?? predicted;
+  // The way back from a failed render, or one the nav's Cancel stopped
+  // (a cancelled render ends "idle"; a part on show is never idle
+  // otherwise, useRender puts up "rendering" before the first paint):
+  // the same values again. Beside the error, as on the Bench and Holes.
+  const retryButton = selected && (status === "error" || status === "idle") && (
+    <button type="button" className="render-button library-retry" onClick={preview.retry}>
+      Retry preview
+    </button>
+  );
+  const paramsPanel = selected && (
+    <div className="params-panel">
+      <ParamsEditor
+        part={selected}
+        params={params}
+        onChange={editParams}
+        emptyText="No parameters — defaults only."
+        showSavedNote
+      />
+      <p className="source-note">
+        Source:{" "}
+        {selected.source_url ? (
+          <a href={selected.source_url} target="_blank" rel="noreferrer">
+            {selected.source}
+          </a>
+        ) : (
+          selected.source
+        )}
+      </p>
+      {/* In the drawer it would be out of sight: the header has it there. */}
+      {renderError && !tabbed && (
+        <p className="error-text" role="alert">
+          {renderError}
+        </p>
+      )}
+      {!tabbed && retryButton}
+    </div>
+  );
+  const classes = ["app", sidebarCollapsed && "sidebar-collapsed", tabbed && "library-tabbed"];
   return (
-    <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
+    <div className={classes.filter(Boolean).join(" ")}>
       <aside className="sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
-        {!sidebarCollapsed && <PartBrowser parts={parts} activeId={selectedId} onPick={select} />}
+        <SidebarToggle
+          collapsed={sidebarCollapsed}
+          onToggle={onToggleSidebar}
+          title={tabbed ? "Parameters and parts" : "Part list"}
+        />
+        {!sidebarCollapsed &&
+          (tabbed && selected ? (
+            <DrawerTabs
+              label="Part"
+              tabs={[
+                { id: "params", label: "Parameters" },
+                { id: "parts", label: "Parts" },
+              ]}
+              selected={drawerTab}
+              onSelect={(id) => setDrawerTab(id === "parts" ? "parts" : "params")}
+            >
+              {drawerTab === "params" ? (
+                paramsPanel
+              ) : (
+                <PartBrowser parts={parts} activeId={selectedId} onPick={pickInDrawer} />
+              )}
+            </DrawerTabs>
+          ) : (
+            <PartBrowser parts={parts} activeId={selectedId} onPick={select} />
+          ))}
       </aside>
       {!sidebarCollapsed && <SidebarResizer />}
 
@@ -500,6 +579,14 @@ export default function Library({
                     {" "}
                   </p>
                 )}
+                {/* On a phone the form, and the error under it, are in the
+                    drawer: the error is here instead, in sight. */}
+                {renderError && tabbed && (
+                  <p className="error-text library-header-error" role="alert">
+                    {renderError}
+                  </p>
+                )}
+                {tabbed && retryButton}
               </div>
               <div className="part-header-actions">
                 <button type="button" className="render-button find-part-button" onClick={onFindPart}>
@@ -521,50 +608,11 @@ export default function Library({
                 >
                   Add Holes
                 </button>
-                <button
-                  type="button"
-                  className="render-button"
-                  onClick={preview.retry}
-                  disabled={status === "rendering"}
-                  aria-live="polite"
-                >
-                  {/* Sized for the longer label either way, so the button
-                      doesn't grow when a render starts. */}
-                  <span className="stable-label">
-                    <span>{status === "rendering" ? "Rendering…" : "Render"}</span>
-                    <span className="stable-label-sizer" aria-hidden="true">
-                      Rendering…
-                    </span>
-                  </span>
-                </button>
               </div>
             </header>
 
             <div className="workspace-body">
-              <div className="params-panel">
-                <ParamsEditor
-                  part={selected}
-                  params={params}
-                  onChange={editParams}
-                  emptyText="No parameters — defaults only."
-                  showSavedNote
-                />
-                <p className="source-note">
-                  Source:{" "}
-                  {selected.source_url ? (
-                    <a href={selected.source_url} target="_blank" rel="noreferrer">
-                      {selected.source}
-                    </a>
-                  ) : (
-                    selected.source
-                  )}
-                </p>
-                {renderError && (
-                  <p className="error-text" role="alert">
-                    {renderError}
-                  </p>
-                )}
-              </div>
+              {!tabbed && paramsPanel}
 
               <div className="viewer-panel">
                 {stlBuffer ? (
@@ -626,33 +674,11 @@ export default function Library({
                     >
                       Download STL
                     </button>
-                    <button
-                      type="button"
-                      className="download-button print-button"
-                      onClick={() => setPrintOpen(true)}
-                      disabled={Boolean(printProblem)}
-                      title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
-                    >
-                      Print…
-                    </button>
                   </div>
                 )}
               </div>
             </div>
           </>
-        )}
-        {printOpen && selected && (
-          <PrintSheet
-            title={selected.name}
-            bodies={[
-              {
-                name: `${slugify(selected.id)}.stl`,
-                bytes: canDownload ? stlBuffer : null,
-                error: printProblem,
-              },
-            ]}
-            onClose={() => setPrintOpen(false)}
-          />
         )}
       </main>
     </div>
