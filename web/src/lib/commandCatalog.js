@@ -83,7 +83,7 @@ export const BUILTIN_COMMANDS = Object.freeze({
   "app.sidebar": {
     title: "Show or hide the sidebar",
     section: "Go to",
-    keywords: ["toggle", "panel", "collapse"],
+    keywords: ["toggle", "panel", "collapse", "drawer", "sheet", "open", "close"],
     keys: [["["]],
   },
   // --- General
@@ -169,24 +169,27 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["drill", "screw", "holes"],
     action: "Open",
   },
-  "library.render": { title: "Render", section: "Library", keywords: ["preview", "refresh", "again"] },
+  "library.render": {
+    title: "Render again",
+    section: "Library",
+    keywords: ["preview", "refresh", "retry", "render"],
+  },
   "library.downloadStl": {
     title: "Download STL",
     section: "Library",
     keywords: ["export", "save", "print"],
     action: "Download",
   },
-  "library.print": {
-    title: "Print with EasyPrint…",
-    section: "Library",
-    keywords: ["prusa", "easyprint", "slice", "share", "phone", "tablet", "3mf", "stl", "print"],
-    action: "Open",
-  },
   "library.layerling": {
     title: "Copy for Layerling",
     section: "Library",
     keywords: ["clipboard", "slicer"],
     action: "Copy",
+  },
+  "library.parameters": {
+    title: "Show the parameters",
+    section: "Library",
+    keywords: ["form", "settings", "size", "drawer", "edit"],
   },
   "library.resetParams": {
     title: "Reset the parameters",

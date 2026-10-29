@@ -651,10 +651,15 @@ export default function StlViewer({
       }
       if (!box) return [0, 0];
       const view = mount.getBoundingClientRect();
+      // On a phone the sidebar is a drawer over the foot of the screen
+      // (SidebarToggle.jsx): the pill stays above it, with Delete and
+      // Deselect, rather than under the sheet.
+      const drawer = parseFloat(getComputedStyle(mount).getPropertyValue("--drawer-inset")) || 0;
+      const bottom = drawer > 0 ? Math.min(view.bottom, window.innerHeight - drawer) : view.bottom;
       const fit = (lo, hi, min, max) => (lo < min ? min - lo : hi > max ? Math.max(max - hi, min - lo) : 0);
       return [
         fit(box.left, box.right, view.left + VIEW_MARGIN_PX, view.right - VIEW_MARGIN_PX),
-        fit(box.top, box.bottom, view.top + VIEW_MARGIN_PX, view.bottom - VIEW_MARGIN_PX),
+        fit(box.top, box.bottom, view.top + VIEW_MARGIN_PX, bottom - VIEW_MARGIN_PX),
       ];
     };
 
@@ -858,6 +863,9 @@ export default function StlViewer({
     // on demand, so the canvas stayed blank until the next touch.
     const onContextRestored = () => requestRender();
     renderer.domElement.addEventListener("webglcontextrestored", onContextRestored);
+    // The phone's drawer moved over the view: the pill is placed again
+    // (see overlayShift), which only happens when a frame is drawn.
+    window.addEventListener("sidebar-drawer", requestRender);
     const onVisible = () => {
       if (!document.hidden) requestRender();
     };
@@ -1749,6 +1757,7 @@ export default function StlViewer({
       observer.disconnect();
       controls.removeEventListener("change", requestRender);
       renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
+      window.removeEventListener("sidebar-drawer", requestRender);
       document.removeEventListener("visibilitychange", onVisible);
       controls.dispose();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);

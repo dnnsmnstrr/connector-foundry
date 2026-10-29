@@ -19,8 +19,11 @@ your own device, with OpenSCAD compiled to WebAssembly, and nothing you make is 
 The first render of a visit takes a few seconds longer while the engine loads; after that most parts
 render in a second or two on a computer, a few seconds on a phone.
 
-On a phone or tablet the 3D view comes first, the part's settings under it and the part list last
-(**Find a part** goes there). Drag with one finger to turn the view, pinch to zoom, and tap a handle
+On a phone or tablet the 3D view comes first. The part list (and on the Bench and Holes tabs,
+everything that is in the sidebar on a computer) is a drawer at the bottom of the screen: tap its
+handle to open it, or drag the handle to pull it up or push it down (**Find a part** opens it at its
+search). On a phone the part's settings are in the drawer too, on a **Parameters** tab beside the
+**Parts** list; on a tablet they sit beside the view. Drag with one finger to turn the view, pinch to zoom, and tap a handle
 to type a size. **Add to Home Screen** opens it like an app, and once it has rendered a part it opens
 again without a connection.
 
@@ -49,8 +52,8 @@ The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
    steps — a Gridfinity unit is 42 mm. To type an exact size instead, click a handle.
 3. **Check the outside dimensions** under the part's name: width, height and depth in millimetres, as
    rendered.
-4. **Download STL** (under the 3D view) and open the file in your slicer, or **Print…** to print it
-   from a phone (below). With
+4. **Download STL** (under the 3D view) and open the file in your slicer, or upload it to EasyPrint
+   to print it from a phone (below). With
    [Layerling](https://layerling.com/), **Copy for Layerling** skips the file and pastes the part in
    directly.
 
@@ -63,8 +66,9 @@ measure your hardware — the webbing on your bag, the slot in your rail — and
 
 Prusa's [EasyPrint](https://www.printables.com/slice) slices a model in the cloud and sends it to a
 printer on Prusa Connect, all from a phone's browser or the Prusa app. No website can hand it a model
-directly (it has no way in for other sites), so **Print…** on every tab gets you there in three
-steps:
+directly (it has no way in for other sites), so getting a part there takes three steps. On the
+Bench and Holes tabs, **Print…** walks you through them; in the Library, **Download STL** is the
+first.
 
 1. **Share STL…** (or **Download STL**) puts the file on the phone. On an iPhone or iPad, the share
    sheet's **Save to Files** keeps it where EasyPrint can find it; Chrome and Android save it to

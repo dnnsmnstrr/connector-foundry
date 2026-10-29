@@ -244,7 +244,7 @@ test("selection changes and failed renders cannot download a previous part", asy
   await finish(page, 1, "Deliberate render failure");
   await expect(page.getByRole("alert")).toHaveText("Deliberate render failure");
   await expect(download).toBeDisabled();
-  await page.getByRole("button", { name: "Render", exact: true }).click();
+  await page.getByRole("button", { name: "Retry preview", exact: true }).click();
   await expect.poll(() => jobCount(page)).toBe(3);
   await finish(page, 2);
   await expect(download).toBeEnabled();
@@ -296,11 +296,11 @@ test("worker failure and user cancellation allow another render", async ({ page 
   await expect.poll(() => jobCount(page)).toBe(1);
   await page.evaluate(() => window.__renders.jobs[0].worker.onerror({ message: "test crash" }));
   await expect(page.getByRole("alert")).toContainText("worker failed: test crash");
-  await page.getByRole("button", { name: "Render", exact: true }).click();
+  await page.getByRole("button", { name: "Retry preview", exact: true }).click();
   await expect.poll(() => jobCount(page)).toBe(2);
   await page.getByRole("button", { name: "Cancel renders", exact: true }).click();
   await expect(page.getByRole("button", { name: "Cancel renders", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Render", exact: true }).click();
+  await page.getByRole("button", { name: "Retry preview", exact: true }).click();
   await expect.poll(() => jobCount(page)).toBe(3);
   await finish(page, 2);
   await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();

@@ -39,7 +39,7 @@ export const SHORTCUT_SECTIONS = [
       { keys: [["Mod", "K"]], action: "Open the command palette, or close it" },
       { keys: [["1"], ["2"], ["3"]], action: "Switch to the Library, the Bench or Holes" },
       { keys: [["/"]], action: "Search the Library's parts" },
-      { keys: [["["]], action: "Show or hide the sidebar" },
+      { keys: [["["]], action: "Show or hide the sidebar (on a phone, open or close the drawer)" },
       { keys: [["S"]], action: "Open Settings" },
       { keys: [["?"]], action: "Show this list" },
       { keys: [["Esc"]], action: "Close a dialog or a menu" },
@@ -180,6 +180,11 @@ export const SHORTCUT_SECTIONS = [
       {
         keys: [["Tap"]],
         action: "Touch: pick a slot marker or a hole, drill a hole, open a handle's size box",
+      },
+      {
+        keys: [["Drag"]],
+        action:
+          "Touch: the drawer's handle pulls the sidebar up over the view, or down; a tap opens or closes it",
       },
       {
         keys: [["Long press"]],
