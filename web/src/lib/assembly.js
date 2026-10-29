@@ -241,12 +241,38 @@ export function descendantIds(assembly, id) {
 // Removing a node removes its whole subtree — an orphaned grandchild
 // (parent gone, slot gone) has nothing left to attach through. A crop
 // (see setCropTo) that pointed into the removed subtree goes with it;
-// a mask with nothing in it would cut the whole assembly away.
+// a mask with nothing in it would cut the whole assembly away. So does
+// a fold (setFold()) on a head that's gone.
 export function removeChild(assembly, childId) {
   const toRemove = descendantIds(assembly, childId).add(childId);
   const next = { ...assembly, nodes: assembly.nodes.filter((n) => !toRemove.has(n.id)) };
   if (toRemove.has(next.cropTo)) delete next.cropTo;
+  if (next.fold && toRemove.has(next.fold.id)) delete next.fold;
   return next;
+}
+
+// The modes setFold() takes: on a one-layer hinge, or in two pieces.
+export const FOLD_MODES = ["folded", "split"];
+
+// Fold for printing: `fold` = { id, mode } names a node carrying an
+// openConnect head (a part whose catalogue entry has `fold`) and whether
+// the body it is in exports folded on a hinge or split in two — cut
+// just in front of the head and laid on its side, so the head's layers
+// run along the load (lib/fold.scad, benchFold.js). It changes the
+// exports only, never the scene: compileToScad() takes the layout's
+// pose as an argument, which needs the body's own render to work out.
+// One node at a time; a null mode clears it.
+export function setFold(assembly, id, mode) {
+  if (mode === null || mode === undefined) {
+    if (assembly.fold === undefined || (id !== undefined && id !== null && assembly.fold.id !== id))
+      return assembly;
+    const next = { ...assembly };
+    delete next.fold;
+    return next;
+  }
+  if (!getNode(assembly, id) || !FOLD_MODES.includes(mode)) return assembly;
+  if (assembly.fold?.id === id && assembly.fold.mode === mode) return assembly;
+  return { ...assembly, fold: { id, mode } };
 }
 
 // Crop everything else to one node's vertical outline: `cropTo` names
@@ -674,6 +700,10 @@ export function bodyTags(assembly) {
 // with path -> STL bytes (importedPart.js's precomputed `stlBytes`) for
 // every imported part referenced, so the caller (Bench.jsx) can hand
 // them to the render worker alongside the generated source.
+// `foldLayout` (optional, benchFold.js's foldPlan()): `{ matrix, split }`
+// wraps the whole tree in lib/fold.scad's fold_print(), posed by
+// `matrix` — the print layout of the body the fold's head is in. Without
+// it the source is the assembly as the scene shows it, fold or not.
 //
 // Multi-body export (`part = "all" | "root" | <tag>`, one STL per body)
 // used to only work for "all"/"root": everything else silently rendered
@@ -688,9 +718,10 @@ export function bodyTags(assembly) {
 // the output — and that hidden state is threaded explicitly through
 // every module call in between (hide_this() only suppresses ONE level
 // on its own), not just the outermost one.
-export function compileToScad(assembly, partsById, importedFiles) {
+export function compileToScad(assembly, partsById, importedFiles, foldLayout = null) {
   const rootPart = partsById.get(assembly.root.partId);
   const includes = new Set([`include <../vendor/BOSL2/std.scad>`]);
+  if (foldLayout) includes.add(`use <../lib/fold.scad>`);
   const needsJoints = assembly.nodes.some((c) => c.joint !== "fused");
   if (needsJoints) includes.add(`include <../lib/joints.scad>`);
   const needsPin = assembly.nodes.some((c) => c.joint === "pin");
@@ -732,6 +763,7 @@ export function compileToScad(assembly, partsById, importedFiles) {
   };
 
   const cropNode = assembly.cropTo !== undefined ? getNode(assembly, assembly.cropTo) : null;
+  const body = cropNode ? emitCropped(emitTree, cropNode, partsById) : [emitTree(null, "")];
   const lines = [
     ...includes,
     "",
@@ -739,10 +771,29 @@ export function compileToScad(assembly, partsById, importedFiles) {
     "",
     `part = "all"; // ${JSON.stringify(tags)}`,
     "",
-    ...(cropNode ? emitCropped(emitTree, cropNode, partsById) : [emitTree(null, "")]),
+    ...(foldLayout ? emitFolded(body, foldLayout, assembly, partsById) : body),
     "",
   ];
   return lines.join("\n");
+}
+
+// The tree (cropped or not) laid out for printing: turned into
+// fold_print()'s frame by `matrix`, then cut and laid out by it. The
+// cut is on y = 0 of that frame, so cut_y is always 0 here.
+function emitFolded(body, { matrix, split }, assembly, partsById) {
+  if (!Array.isArray(matrix) || matrix.length !== 4 || !matrix.every((row) => row.length === 4))
+    throw new Error("A fold layout needs a 4 x 4 matrix.");
+  const node = assembly.fold ? getNode(assembly, assembly.fold.id) : null;
+  const name = node ? commentText(partsById.get(node.partId)?.name ?? node.partId) : "the head";
+  return [
+    `// ${split ? "Split" : "Folded"} for printing at ${name}: cut in front of its head, both halves on their cut faces.`,
+    `fold_print(cut_y = 0, split = ${scadLiteral(Boolean(split))}) multmatrix(${scadLiteral(matrix)}) {`,
+    ...body
+      .join("\n")
+      .split("\n")
+      .map((line) => (line ? `    ${line}` : line)),
+    "}",
+  ];
 }
 
 // The tag the crop mask shows (see emitCropped) — scoped by nothing, so

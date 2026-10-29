@@ -36,6 +36,21 @@ attached part has:
   away — in the preview and in every exported body. Only the outer outline counts: a grid of holes
   or a screw hole in the cropping part is not cut through the others. One part crops at a time; the
   part itself and a joint's flanges are never trimmed, only what overhangs.
+- **Fold for printing** — on a part with an openConnect head (the head fused onto something, or a
+  snap or screw as the base). A head printed standing has its layers across the neck, which a
+  hanging load pulls apart; this exports the head's body cut just in front of the head and laid on
+  its side, so the layers run along the load instead, as openGrid-projects' own folded snap does.
+  **Folded** keeps the two halves joined by a one-layer hinge along the far side from the head:
+  print with a 0.2 mm first layer, then fold the strip up and glue it. **Split** prints them apart,
+  to glue. Only the exports change (every STL of that body, the print sheet, Layerling), and only
+  the body the head is in: a part on a bolted joint keeps printing as it is. The scene keeps showing
+  the bench; **Folded** (or **Split**) in the viewer's toolbar shows that body as it exports
+  instead, with its size in the header, lit while it's on, until you turn it off or select a
+  part. A
+  fold needs the cut to cross the part all the way to its far side, where the hinge goes; when
+  something sticks out further elsewhere (a GoPro buckle's prongs, say), the export says so and
+  Split still works. One part folds at a time; the select is under the part's Crop box, and in the
+  command palette ("Fold for printing", "Split for printing", "Show it folded for printing").
 - Its own **parameter editor**, with the same defaults/overrides as the Library. A part attached
   to another may start from different values than the same part on its own (the catalogue's
   `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone

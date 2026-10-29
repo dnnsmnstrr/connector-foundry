@@ -24,6 +24,7 @@
 // not as a silent misplacement.
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
+  FOLD_MODES,
   JOINTS,
   MAX_ATTACHED,
   ROOT_ID,
@@ -32,6 +33,7 @@ import {
   normalizeShift,
   normalizeSpin,
 } from "./assembly.js";
+import { foldSpec } from "./benchFold.js";
 import { createImportedPart } from "./importedPart.js";
 import { validateAndRepair } from "./meshValidate.js";
 
@@ -82,6 +84,8 @@ export function serializeBenchConfig(assembly, partsById, name = assembly.name) 
     // The node everything else is cropped to (assembly.js's setCropTo),
     // only when set — the common case has no key at all.
     ...(assembly.cropTo !== undefined ? { cropTo: assembly.cropTo } : {}),
+    // Fold for printing (assembly.js's setFold), the same way.
+    ...(assembly.fold ? { fold: { id: assembly.fold.id, mode: assembly.fold.mode } } : {}),
     imports,
   };
 }
@@ -163,6 +167,11 @@ export function checkBenchConfig(doc) {
     throw new Error("The config's \"name\" isn't text.");
   if (doc.cropTo !== undefined && typeof doc.cropTo !== "string")
     throw new Error("The config's \"cropTo\" isn't a part id.");
+  if (
+    doc.fold !== undefined &&
+    !(isObject(doc.fold) && typeof doc.fold.id === "string" && FOLD_MODES.includes(doc.fold.mode))
+  )
+    throw new Error(`The config's "fold" isn't a part id and one of ${FOLD_MODES.join(", ")}.`);
   if (doc.imports !== undefined) {
     if (!Array.isArray(doc.imports)) throw new Error("The config's \"imports\" isn't a list.");
     const importIds = new Set();
@@ -290,6 +299,13 @@ export function hydrateBenchConfig(doc, catalogueById) {
   // the bench is complete without it, and a mask with nothing in it
   // would cut everything away.
   if (doc.cropTo !== undefined && nodeIdMap.has(doc.cropTo)) assembly.cropTo = nodeIdMap.get(doc.cropTo);
+  // A fold, the same way; and one on a part that has no head to fold
+  // (an edited file, a catalogue that changed) is dropped too.
+  if (doc.fold !== undefined && nodeIdMap.has(doc.fold.id)) {
+    const id = nodeIdMap.get(doc.fold.id);
+    const node = id === ROOT_ID ? root : nodes.find((n) => n.id === id);
+    if (foldSpec(catalogueById.get(node?.partId), node?.params)) assembly.fold = { id, mode: doc.fold.mode };
+  }
   // The document's name becomes the bench's (a preset's name, or what the
   // bench was called when the file was written), so its exports are
   // called the same thing as the file they came back from.

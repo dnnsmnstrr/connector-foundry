@@ -79,6 +79,23 @@ def test_option_lists_agree_with_defaults_and_variants():
             isinstance(up, list) and len(up) == 2 and all(_is_mm(v) for v in up) and any(up)
         ):
             problems.append(f"{part['id']}: attached_up must be a non-zero [x, y], got {up!r}")
+        # `fold` gives the Bench a cut and a direction for every value of
+        # the parameter it names, and nothing else (web/src/lib/benchFold.js).
+        fold = part.get("fold")
+        if fold is not None:
+            param = fold.get("param") if isinstance(fold, dict) else None
+            values = options.get(param)
+            if values is None or set(fold) != {"param", "cut_y", "toward"}:
+                problems.append(
+                    f"{part['id']}: fold needs param (a parameter with options), cut_y and toward"
+                )
+            else:
+                for key, check in (("cut_y", _is_mm), ("toward", lambda v: v in (-1, 1))):
+                    table = fold[key]
+                    if not isinstance(table, dict) or set(table) != set(values):
+                        problems.append(f"{part['id']}: fold {key} must have one entry per {param}: {values}")
+                    elif not all(check(v) for v in table.values()):
+                        problems.append(f"{part['id']}: fold {key} has a bad value: {table}")
         # `attached_defaults` is the same kind of promise as `defaults`:
         # the Bench hands these values to the module unchecked.
         for key, value in part.get("attached_defaults", {}).items():

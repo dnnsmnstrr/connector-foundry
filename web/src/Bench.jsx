@@ -3,6 +3,7 @@ import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
 import NameBenchModal from "./components/bench/NameBenchModal.jsx";
 import NodeTree from "./components/bench/NodeTree.jsx";
+import FoldSelect from "./components/bench/FoldSelect.jsx";
 import PresetsPanel from "./components/bench/PresetsPanel.jsx";
 import SpinButtons from "./components/SpinButtons.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
@@ -12,6 +13,7 @@ import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import UndoRedoButtons from "./components/UndoRedoButtons.jsx";
 import {
+  FOLD_MODES,
   MAX_ATTACHED,
   ROOT_ID,
   addChild,
@@ -31,6 +33,7 @@ import {
   screwedApplies,
   setAssemblyName,
   setCropTo,
+  setFold,
   updateChildJoint,
   updateChildOverlap,
   updateChildShift,
@@ -114,12 +117,21 @@ import {
 import { fitGridCounts, mountOffset } from "./lib/slots.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
-import { nodeSpinAxis, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
+import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
+import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
 const RENDER_DEBOUNCE_MS = 250;
+
+// Whether every part of `assembly` has been measured (its standalone
+// render's extents) with the parameters it has now. A fold places its
+// cut from those sizes (nodeWorldFrame()), so it waits for them: one
+// measured a step behind would put the cut in the wrong place.
+function measuredNow(measured, assembly) {
+  return [assembly.root, ...assembly.nodes].every((n) => sameParams(measured.params.get(n.id), n.params));
+}
 
 // A part without resize axes: one array for every render, so the
 // memos that follow the axes don't rebuild on each of them.
@@ -218,6 +230,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // own: after a resize they are the old size until the new render lands.
   const [measured, setMeasured] = useState(NO_EXTENTS);
   const nodeExtents = measured.extents;
+  // The nodes whose own standalone render failed in the last round of
+  // measuring (sorted ids): they have no size, so a fold, placed from
+  // every part's size, can't be worked out until they do.
+  const [unmeasured, setUnmeasured] = useState(/** @type {string[]} */ ([]));
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
@@ -238,6 +254,12 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // meaningful while something is selected; every selection change
   // (selectNode()) disarms it.
   const [moveMode, setMoveMode] = useState(false);
+  // The viewer's "Folded" toggle is on (its toolbar, with a fold set): the
+  // viewer shows the folded body as it exports instead of the bench.
+  // Only while nothing else is going on — a selection, an armed move, a
+  // part being attached or imported all need the bench itself, and take
+  // the viewer back to it (`showingLayout`) without turning this off.
+  const [layoutView, setLayoutView] = useState(false);
   // Bumped by "Retry preview", so the nodes' own extents are tried again
   // along with the assembly render (useRender's retry()).
   const [extentsRetry, setExtentsRetry] = useState(0);
@@ -377,6 +399,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   useEffect(() => {
     if (!assembly) {
       setMeasured(NO_EXTENTS);
+      setUnmeasured([]);
       return;
     }
     let cancelled = false;
@@ -408,12 +431,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       );
       if (cancelled) return;
       const entries = [];
-      for (const result of results) {
+      const failed = [];
+      results.forEach((result, i) => {
         if (result.status === "fulfilled") entries.push(result.value);
-        else if (result.reason?.name !== "AbortError")
+        else if (result.reason?.name !== "AbortError") {
+          failed.push(allNodes[i].id);
           console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
-      }
+        }
+      });
       setMeasured((prev) => mergeExtents(prev, entries));
+      failed.sort();
+      setUnmeasured((prev) => (prev.join("\n") === failed.join("\n") ? prev : failed));
     };
     const allCached = allNodes.every((n) => {
       const part = partsById.get(n.partId);
@@ -455,10 +483,57 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const stlBuffer = preview.result;
   const { status, error: renderError, setError: setRenderError } = preview;
 
+  // The folded view's render: the folded body, exactly as an export
+  // makes it (renderAssembly()), following the bench as it changes. Its
+  // key waits for the parts' sizes, which the fold is placed from.
+  const fold = assembly ? activeFold(assembly, partsById) : null;
+  const showingLayout =
+    layoutView && Boolean(fold) && !selectedNodeId && !moveMode && !pendingSlot && !importMode;
+  // Why a fold can't be placed right now, when the reason is one waiting
+  // won't fix: a part whose own render failed (unmeasured) has no size.
+  const foldBlocked =
+    fold && unmeasured.length > 0 && !measuredNow(measured, assembly)
+      ? `Can't work out where the fold goes: ${unmeasured
+          .map((id) => partsById.get(getNode(assembly, id)?.partId)?.name ?? id)
+          .join(", ")} didn't render on its own, so its size isn't known. Retry preview to try again.`
+      : null;
+  const layoutKey = useMemo(
+    () =>
+      showingLayout && measuredNow(measured, assembly)
+        ? { assembly, partsById, globalOverrides, measured }
+        : null,
+    [showingLayout, assembly, partsById, globalOverrides, measured],
+  );
+  const layout = useRender(
+    layoutKey,
+    (key, signal) =>
+      renderAssembly(bodyTagOf(key.assembly, activeFold(key.assembly, key.partsById).id), { signal }),
+    {
+      delay: RENDER_DEBOUNCE_MS,
+      formatError: (err) =>
+        err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message),
+    },
+  );
+  // What the viewer shows: the bench, or its body folded for printing.
+  // Until the folded body has rendered (the first time, and again after
+  // an edit), the bench stays up without its markers, so the viewer and
+  // its toolbar — the toggle back included — never drop out for a
+  // placeholder.
+  const layoutShown = showingLayout && Boolean(layout.result);
+  const viewBuffer = layoutShown ? layout.result : stlBuffer;
+  const viewError = showingLayout ? (foldBlocked ?? layout.error) : renderError;
+  const viewStatus = showingLayout
+    ? foldBlocked
+      ? "error"
+      : layoutKey
+        ? layout.status
+        : "rendering"
+    : status;
+
   const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
   const dimensions = useMemo(
-    () => (stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
-    [stlBuffer],
+    () => (viewBuffer ? outsideDimensions(meshExtents(viewBuffer)) : null),
+    [viewBuffer],
   );
 
   const allSlots = useMemo(
@@ -863,9 +938,30 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     });
   };
 
-  // The current assembly's body `tag` as one STL (renderBody()).
-  function renderAssembly(tag, options) {
-    return renderBody(assembly, partsById, globalOverrides, tag, options);
+  // The current assembly's body `tag` as one STL (renderBody()), as
+  // every export takes it: the body a fold is on (assembly.js's setFold())
+  // laid out for printing, which takes its own render first —
+  // benchFold.js's foldPlan() measures the unfolded body to find the edge
+  // the hinge goes on — and every other body as shown. A fold waits for
+  // the parts' sizes (measuredNow()).
+  async function renderAssembly(tag, options) {
+    if (!fold || bodyTagOf(assembly, fold.id) !== tag)
+      return renderBody(assembly, partsById, globalOverrides, tag, options);
+    const node = getNode(assembly, fold.id);
+    const spec = foldSpec(partsById.get(node?.partId), node?.params);
+    const frame =
+      node && measuredNow(measured, assembly) && nodeWorldFrame(assembly, partsById, nodeExtents, fold.id);
+    if (foldBlocked) throw new Error(foldBlocked);
+    if (!spec || !frame)
+      throw new Error(
+        "Can't lay this body out folded yet: where the head sits isn't known until the preview has rendered every part. Try the export again in a moment.",
+      );
+    const stl = await renderBody(assembly, partsById, globalOverrides, tag, options);
+    const layout = foldPlan({ stl, frame, spec, mode: fold.mode });
+    if ("error" in layout) throw new Error(layout.error);
+    const importedFiles = new Map();
+    const scadSource = compileToScad(assembly, partsById, importedFiles, layout);
+    return renderPart({ scadSource, part: tag, importedFiles, globalOverrides }, options);
   }
 
   function pickRoot(part) {
@@ -983,6 +1079,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setGuardStep(null);
   }
 
+  // The viewer's "Folded" toggle ("Split" for a split fold). On, it drops
+  // the selection, which
+  // would otherwise keep the viewer on the bench (`showingLayout`).
+  function toggleLayoutView() {
+    if (showingLayout) setLayoutView(false);
+    else {
+      selectNode(null);
+      setLayoutView(true);
+    }
+  }
+
   // Re-seat `id` on `target` ({ parentId, slotName }) — see assembly.js's
   // moveChild() for what it refuses (the assembly comes back as it was).
   // A "screwed" joint the new parent can't take (no screw pattern on
@@ -1075,6 +1182,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setCrop: (id, on) =>
       setAssembly((a) => (on ? setCropTo(a, id) : a.cropTo === id ? setCropTo(a, null) : a), {
         label: on ? "crop" : "stop cropping",
+      }),
+    // A null mode only clears the fold if it's this node's, as setCrop.
+    setFold: (id, mode) =>
+      setAssembly((a) => setFold(a, id, mode), {
+        label: mode ? "fold for printing" : "stop folding",
       }),
     select: selectNode,
   };
@@ -1466,6 +1578,20 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         checked: Boolean(node) && assembly.cropTo === node.id,
         run: () => nodeActions.setCrop(node.id, assembly.cropTo !== node.id),
       }),
+      ...FOLD_MODES.map((mode) => {
+        const on = Boolean(node) && assembly.fold?.id === node.id && assembly.fold.mode === mode;
+        return builtin(mode === "folded" ? "bench.fold" : "bench.foldSplit", {
+          when: Boolean(node) && Boolean(foldSpec(part, node.params)),
+          subtitle: part?.name,
+          checked: on,
+          run: () => nodeActions.setFold(node.id, on ? null : mode),
+        });
+      }),
+      builtin("bench.printLayout", {
+        when: Boolean(fold),
+        checked: showingLayout,
+        run: toggleLayoutView,
+      }),
       ...bodyTags(assembly).map((tag) =>
         builtin("bench.downloadStl", {
           id: `bench.downloadStl:${tag}`,
@@ -1642,6 +1768,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the toolbar, an attached part's docked at the foot of the viewer
   // rather than floating over its top face, where its height handle is.
   const floatControls = !rootSelected && !shownHandles;
+  // The part a fold is on, by name, for the folded view's toggle and note.
+  const foldedPartName = fold
+    ? (partsById.get(getNode(assembly, fold.id)?.partId)?.name ?? "The folded part")
+    : null;
   const moving = moveMode && Boolean(selectedNode) && !rootSelected;
   const cropping = Boolean(selectedNode) && assembly.cropTo === selectedNode.id;
   // A part that is resized in the sidebar, not by handles, says so in its
@@ -1792,6 +1922,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               />
               <span className="field-label">Crop everything else to this outline</span>
             </label>
+            {foldSpec(rootPart, assembly.root.params) && (
+              <FoldSelect
+                name={rootPart.name}
+                mode={assembly.fold?.id === ROOT_ID ? assembly.fold.mode : null}
+                onChange={(mode) => nodeActions.setFold(ROOT_ID, mode)}
+              />
+            )}
 
             <details className="bench-node-params-details" data-node-params={ROOT_ID}>
               <summary>Root parameters</summary>
@@ -1889,13 +2026,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             {dimensions && (
               <p
                 className="outside-dimensions"
-                aria-label={`Outside dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+                aria-label={`${layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"} dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
               >
-                Outside: W {dimensions.width} × H {dimensions.height} × D {dimensions.depth} mm
+                {layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"}: W {dimensions.width} × H{" "}
+                {dimensions.height} × D {dimensions.depth} mm
               </p>
             )}
             <p className="print-note" aria-live="polite">
-              {moving ? (
+              {showingLayout ? (
+                <>
+                  The body {foldedPartName} is part of, as it exports{" "}
+                  {fold.mode === "split" ? "split in two" : "folded on its hinge"}: cut in front of the head
+                  and laid on its side. Select a part, or turn off {FOLD_MODE_LABELS[fold.mode]}, to get back
+                  to the bench.
+                </>
+              ) : moving ? (
                 <>
                   Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the
                   arrow keys. Esc cancels.
@@ -1928,19 +2073,19 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             if (e.target.getAttribute?.("role") === "slider") setGuardStep(null);
           }}
         >
-          {stlBuffer ? (
+          {viewBuffer ? (
             <StlViewer
-              stlBuffer={stlBuffer}
-              fitKey={assembly.root.partId}
-              fitBox={selectedBox}
-              markers={shownMarkers}
+              stlBuffer={viewBuffer}
+              fitKey={layoutShown ? "folded-view" : assembly.root.partId}
+              fitBox={showingLayout ? null : selectedBox}
+              markers={showingLayout ? [] : shownMarkers}
               onMarkerClick={handleMarkerClick}
-              onModelClick={handleModelClick}
-              highlightBox={selectedBox}
+              onModelClick={showingLayout ? undefined : handleModelClick}
+              highlightBox={showingLayout ? null : selectedBox}
               overlayAnchor={selectedBox && floatControls ? boxTopCenter(selectedBox) : null}
-              handles={shownHandles}
-              ghost={pendingShown?.ghost ?? null}
-              gridControl={gridShown}
+              handles={showingLayout ? null : shownHandles}
+              ghost={showingLayout ? null : (pendingShown?.ghost ?? null)}
+              gridControl={!showingLayout && gridShown}
               onHandleStart={onHandleStart}
               onHandlePreview={onHandlePreview}
               onHandleCommit={onHandleCommit}
@@ -1948,13 +2093,28 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 dragStart.current = null;
               }}
               onHandleStep={onHandleStep}
-              rotation={rotation}
+              rotation={showingLayout ? null : rotation}
               onRotatePreview={onRotatePreview}
               onRotateCommit={onRotateCommit}
               onHandleSet={onHandleSet}
               toolbar={
                 <>
                   {rootSelected && <div className="bench-root-chip">{selectionControls}</div>}
+                  {fold && (
+                    <button
+                      type="button"
+                      className="viewer-tool bench-fold-view"
+                      aria-pressed={showingLayout}
+                      onClick={toggleLayoutView}
+                      title={
+                        showingLayout
+                          ? "Back to the bench"
+                          : `Show the body ${foldedPartName} is part of as it exports with Fold for printing: cut in front of the head and laid on its side`
+                      }
+                    >
+                      {FOLD_MODE_LABELS[fold.mode]}
+                    </button>
+                  )}
                   <UndoRedoButtons
                     canUndo={history.canUndo}
                     canRedo={history.canRedo}
@@ -1970,7 +2130,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             </StlViewer>
           ) : (
             <div className="viewer-placeholder" role="status">
-              {status === "rendering" ? "Rendering…" : "No preview yet."}
+              {viewStatus === "rendering" ? "Rendering…" : "No preview yet."}
             </div>
           )}
           {/* On a phone the Export section is far down the page: the
@@ -1978,33 +2138,34 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               this row under 900 px only). Not while an error is up: the
               error sits where the row does, and the sheet would only run
               the failing render again (the palette and Export keep it). */}
-          {stlBuffer && !renderError && (
+          {viewBuffer && !viewError && (
             <div className="viewer-actions viewer-actions-mobile">
               <button type="button" className="download-button print-button" onClick={openPrintSheet}>
                 Print…
               </button>
             </div>
           )}
-          {renderError && (
+          {viewError && (
             <p className="error-text bench-error" role="alert">
-              {handleFailed && "Couldn't render that size. "}
-              {renderError}
+              {handleFailed && !showingLayout && "Couldn't render that size. "}
+              {viewError}
               {/* The size a handle asked for didn't render (a floor the
                   module asserts, a WASM limit): the way back is here, by
                   the message, rather than a retry of the same size. */}
-              {handleFailed && (
+              {handleFailed && !showingLayout && (
                 <button type="button" className="viewer-error-undo bench-error-undo" onClick={undo}>
                   Undo
                 </button>
               )}
             </p>
           )}
-          {renderError && status !== "rendering" && (
+          {viewError && viewStatus !== "rendering" && (
             <button
               type="button"
               className="render-button"
               onClick={() => {
-                preview.retry();
+                if (showingLayout) layout.retry();
+                else preview.retry();
                 setExtentsRetry((n) => n + 1);
               }}
             >

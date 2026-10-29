@@ -19,7 +19,7 @@
 // Restoring goes through hydrateBenchConfig() like any other load: the
 // same checks, fresh ids, meshes rebuilt through the validate gate. The
 // URL is then rewritten with the new ids on the next mirror, harmlessly.
-import { hasShift, normalizeShift } from "./assembly.js";
+import { FOLD_MODES, hasShift, normalizeShift } from "./assembly.js";
 import { CONFIG_FORMAT, CONFIG_VERSION, hydrateBenchConfig, serializeBenchConfig } from "./benchConfig.js";
 
 const MODE_PARAM = "mode";
@@ -133,6 +133,17 @@ export function restoreBenchFromUrl(catalogueById) {
   }
   const doc = { format: CONFIG_FORMAT, version: CONFIG_VERSION, root: tree.root, nodes, imports };
   if (typeof tree.cropTo === "string") doc.cropTo = tree.cropTo;
+  // A fold of the right shape goes on to hydrateBenchConfig(), which
+  // keeps it or drops it as it does the crop; one that isn't (a hand-
+  // edited link) is dropped here, as a crop that isn't a string is,
+  // rather than failing the whole bench.
+  if (
+    tree.fold &&
+    typeof tree.fold === "object" &&
+    typeof tree.fold.id === "string" &&
+    FOLD_MODES.includes(tree.fold.mode)
+  )
+    doc.fold = { id: tree.fold.id, mode: tree.fold.mode };
   if (typeof tree.name === "string") doc.name = tree.name;
   return hydrateBenchConfig(doc, catalogueById);
 }
@@ -158,6 +169,7 @@ function compactTree(assembly) {
   if (assembly.root.params && Object.keys(assembly.root.params).length) root.params = assembly.root.params;
   const tree = nodes.length ? { root, nodes } : { root };
   if (assembly.cropTo !== undefined) tree.cropTo = assembly.cropTo;
+  if (assembly.fold) tree.fold = { id: assembly.fold.id, mode: assembly.fold.mode };
   if (assembly.name) tree.name = assembly.name;
   return tree;
 }

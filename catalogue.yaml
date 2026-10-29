@@ -127,6 +127,17 @@
 #   or bottom slot, where every spin keeps the axis level; the user's
 #   own rotation still applies afterwards.
 #
+# fold: for a part carrying an openConnect head, where the web Bench's
+#   Fold for printing cuts the body the part is in (just in front of the
+#   head's flat front edge) and which way the rest of the body runs from
+#   the head — see web/src/lib/benchFold.js and lib/fold.scad. A map of
+#   `param` (a parameter with `options`), `cut_y` (mm, the cut's y in
+#   the part's own centred frame) and `toward` (-1 or 1: the body lies
+#   along the part's -z or +z from the head), the last two with one entry
+#   per option of `param`. Read only by the web app; the CLI's own folded
+#   layouts are the part's parameters (openConnect's `layout`).
+#   tests/test_fold.py holds every entry to the rendered head.
+#
 # resize: which parameter each of the web app's resize handles drives,
 #   one entry per axis of the part's outside box. The CLI ignores this
 #   field; only the web app's resize handles read it
@@ -379,16 +390,39 @@ parts:
       the openGrid thread the Holes tab cuts, turning it by the coin
       slot in its face. Screwed home, the head points the way a snap's
       does. variant picks the thread length (full 6.8mm, lite 3.4mm).
+      layout folded prints it on its side, which is stronger at the
+      neck: the head's half on its cut face and the rest of the body
+      beside it, joined by a one-layer hinge. Fold it up after
+      printing (and glue it, for a screw); it wants a 0.2mm first
+      layer. split is the same as two pieces, to glue. On the Bench,
+      Fold for printing does this to a whole assembly.
     attached_defaults:
       body: none
     # The head's +Y is the way it slides to seat: up, on a wall.
     attached_up: [0, 1]
+    # Where the Bench's Fold for printing cuts an assembly this part is
+    # in (web/src/lib/benchFold.js): just in front of the head's flat
+    # front edge, as `layout` cuts the part on its own. Read only by the
+    # web app; tests/test_fold.py holds each value to the geometry.
+    fold:
+      param: body
+      cut_y:
+        directional: -1.905
+        symmetric: -1.705
+        screw: -2.155
+        none: -5.305
+      # Which way the part runs from the head into what carries it, on
+      # the part's own z: the snap or thread below the head, or the part
+      # the head alone is fused onto above its neck ("mount").
+      toward: { directional: -1, symmetric: -1, screw: -1, none: 1 }
     defaults:
       variant: full
       body: directional
+      layout: upright
     options:
       variant: [full, lite]
       body: [directional, symmetric, none, screw]
+      layout: [upright, folded, split]
     variants:
       - name: lite
         params: { variant: lite }
@@ -398,6 +432,12 @@ parts:
         params: { body: none }
       - name: screw
         params: { body: screw }
+      - name: folded
+        params: { layout: folded }
+      - name: lite-split
+        params: { variant: lite, layout: split }
+      - name: screw-folded
+        params: { body: screw, layout: folded }
 
   - id: opengrid/multiconnect
     system: openGrid

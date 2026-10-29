@@ -460,6 +460,55 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
 });
 
+// Fold for printing renders the body twice for real: once as it stands,
+// to find the hinge's edge (benchFold.js's foldPlan()), then laid out
+// through lib/fold.scad. The real catalogue, for the openConnect head's
+// `fold` entry.
+test("a folded bench exports its body laid on its side, on a hinge or split", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  const doc = config({ partId: "basics/plate", params: { w: 40, d: 40, t: 4, r: 3 } });
+  doc.nodes.push({
+    id: "head",
+    parentId: "root",
+    partId: "opengrid/openconnect",
+    params: { variant: "full", body: "none", layout: "upright" },
+    slotName: "mount",
+  });
+  doc.fold = { id: "head", mode: "folded" };
+  await importConfig(page, doc);
+  const fold = page.getByRole("combobox", { name: "Fold for printing: openConnect snap" });
+  await expect(fold).toHaveValue("folded");
+  // The fold needs every part measured (it places the cut from their
+  // sizes); they are measured together, and the root's open slots are
+  // counted from its size.
+  await expect(page.getByText(/[1-9]\d* open slots? on Flat plate/)).toBeVisible({ timeout: 90_000 });
+  const exportRoot = page.getByRole("button", { name: "STL: root", exact: true });
+  // The cut runs 5.305 mm in front of the head's centre, so the head's
+  // half is 20 + 5.305 deep; the plate strip (4 mm) lies the hinge's
+  // 0.4 mm (less the halves' overlap) off the head's half (6.6 tall).
+  const folded = page.waitForEvent("download", { timeout: 150_000 });
+  await exportRoot.click();
+  const [fx, fy, fz] = extents(await downloadBytes(await folded));
+  expect(fx).toBeCloseTo(40, 1);
+  expect(fy).toBeCloseTo(6.6 + 0.395 + 4, 1);
+  expect(fz).toBeCloseTo(25.305, 1);
+  // The viewer shows the same layout, and gives the bench back.
+  const layout = page.getByRole("button", { name: "Folded", exact: true });
+  await layout.click();
+  await expect(layout).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText(/^Folded: W 40 × H 25\.3\d* × D 1[01]\.\d+ mm$/)).toBeVisible({
+    timeout: 90_000,
+  });
+  await layout.click();
+  await expect(page.getByText("Outside: W 40 × H 6.6 × D 40 mm")).toBeVisible();
+  await fold.selectOption("split");
+  const split = page.waitForEvent("download", { timeout: 150_000 });
+  await exportRoot.click();
+  expect(extents(await downloadBytes(await split))[1]).toBeCloseTo(6.6 + 2 + 4, 1);
+});
+
 // The two STEP tests run the real workers: mockWorker() replaces
 // window.Worker wholesale, which would swallow the STEP reader too.
 test("a STEP file is tessellated in the browser and offered for slot placement", async ({ page }) => {

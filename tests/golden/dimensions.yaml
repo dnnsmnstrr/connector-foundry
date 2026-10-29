@@ -637,6 +637,12 @@ opengrid/openconnect:
     - 25.99
     - 9.4
     volume_mm3: 4118.76
+  folded:
+    bbox:
+    - 25.59
+    - 16.6
+    - 14.9
+    volume_mm3: 4123.94
   head-only:
     bbox:
     - 17.0
@@ -649,12 +655,24 @@ opengrid/openconnect:
     - 25.99
     - 6.0
     volume_mm3: 2268.11
+  lite-split:
+    bbox:
+    - 25.59
+    - 11.4
+    - 14.9
+    volume_mm3: 2269.68
   screw:
     bbox:
     - 17.0
     - 16.9
     - 9.395
     volume_mm3: 1481.17
+  screw-folded:
+    bbox:
+    - 17.0
+    - 16.6
+    - 10.605
+    volume_mm3: 1463.61
   symmetric:
     bbox:
     - 25.59

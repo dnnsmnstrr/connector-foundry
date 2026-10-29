@@ -2,6 +2,8 @@ import { childrenOf, getNode, jointsFor, normalizeShift } from "../../lib/assemb
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
+import FoldSelect from "./FoldSelect.jsx";
+import { foldSpec } from "../../lib/benchFold.js";
 import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
 
@@ -136,6 +138,13 @@ export default function NodeTree({
         />
         <span className="field-label">Crop others to this outline</span>
       </label>
+      {foldSpec(part, node.params) && (
+        <FoldSelect
+          name={part.name}
+          mode={assembly.fold?.id === nodeId ? assembly.fold.mode : null}
+          onChange={(mode) => actions.setFold(nodeId, mode)}
+        />
+      )}
       {/* data-node-params: how a selection in the scene finds this
           node's parameters to open them (Bench.jsx's revealParams()). */}
       <details className="bench-node-params-details" data-node-params={nodeId}>

@@ -7,6 +7,24 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Parts
+
+- **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays
+  it out to print on its side, the head's half on its cut face and the rest of the snap (or the
+  screw's thread) beside it on a one-layer hinge, to fold up after printing — stronger at the
+  neck, where a standing print splits along its layers. `split` prints the two halves apart, to
+  glue. Both match openGrid-projects' own "openConnect (Folded)" snap and screw, checked against
+  them like the upright versions.
+
+### Bench
+
+- **Fold for printing.** A part with an openConnect head — a head fused onto a hook, a plate, a
+  GoPro mount — can export its whole body folded the same way: cut just in front of the head,
+  both halves on their cut faces, joined by a hinge or split in two. Choose it under the part's
+  Crop box or from the command palette. The scene keeps showing the bench as it goes together;
+  **Folded** (or **Split**) in the viewer's toolbar shows the body as it will export. The export says
+  when a part can't fold (Split still can).
+  
 ### Library
 
 - **No Render button.** The preview already renders on its own whenever the part, its parameters
