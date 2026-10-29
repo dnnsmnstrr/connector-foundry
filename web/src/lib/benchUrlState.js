@@ -133,6 +133,8 @@ export function restoreBenchFromUrl(catalogueById) {
   }
   const doc = { format: CONFIG_FORMAT, version: CONFIG_VERSION, root: tree.root, nodes, imports };
   if (typeof tree.cropTo === "string") doc.cropTo = tree.cropTo;
+  // Checked and kept or dropped by hydrateBenchConfig(), like the crop.
+  if (tree.fold !== undefined) doc.fold = tree.fold;
   if (typeof tree.name === "string") doc.name = tree.name;
   return hydrateBenchConfig(doc, catalogueById);
 }
@@ -158,6 +160,7 @@ function compactTree(assembly) {
   if (assembly.root.params && Object.keys(assembly.root.params).length) root.params = assembly.root.params;
   const tree = nodes.length ? { root, nodes } : { root };
   if (assembly.cropTo !== undefined) tree.cropTo = assembly.cropTo;
+  if (assembly.fold) tree.fold = { id: assembly.fold.id, mode: assembly.fold.mode };
   if (assembly.name) tree.name = assembly.name;
   return tree;
 }

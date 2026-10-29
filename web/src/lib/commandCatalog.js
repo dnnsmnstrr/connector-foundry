@@ -243,6 +243,24 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["isolate", "only", "section"],
     action: "Toggle",
   },
+  "bench.fold": {
+    title: "Fold for printing",
+    section: "Bench",
+    keywords: ["openconnect", "print", "side", "hinge", "strength", "layers", "folded"],
+    action: "Toggle",
+  },
+  "bench.foldSplit": {
+    title: "Split for printing",
+    section: "Bench",
+    keywords: ["fold", "openconnect", "print", "side", "glue", "halves", "strength", "layers"],
+    action: "Toggle",
+  },
+  "bench.printLayout": {
+    title: "Show the print layout",
+    section: "Bench",
+    keywords: ["fold", "folded", "split", "preview", "print", "layout", "openconnect"],
+    action: "Toggle",
+  },
   "bench.startOver": {
     title: "Start over",
     section: "Bench",

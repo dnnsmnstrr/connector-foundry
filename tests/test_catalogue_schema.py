@@ -29,6 +29,7 @@ KNOWN_KEYS = REQUIRED_KEYS | {
     "attached_defaults",
     "attached_up",
     "defaults",
+    "fold",
     "hidden",
     "license",
     "maximums",

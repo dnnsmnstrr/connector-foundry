@@ -16,6 +16,15 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   glue. Both match openGrid-projects' own "openConnect (Folded)" snap and screw, checked against
   them like the upright versions.
 
+### Bench
+
+- **Fold for printing.** A part with an openConnect head — a head fused onto a hook, a plate, a
+  GoPro mount — can export its whole body folded the same way: cut just in front of the head,
+  both halves on their cut faces, joined by a hinge or split in two. Choose it under the part's
+  Crop box or from the command palette. The scene keeps showing the bench as it goes together;
+  **Print layout** in the viewer's toolbar shows the folded body as it will export. The export says
+  when a part can't fold (Split still can).
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts
