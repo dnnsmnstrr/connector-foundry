@@ -7,6 +7,13 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Library
+
+- **No Render button.** The preview already renders on its own whenever the part, its parameters
+  or the printer settings change, so the header's **Render** button only ran the same render
+  again. It is gone; after a failed or cancelled render, **Retry preview** sits by the error
+  (and the command palette's **Render again** runs it any time).
+
 ### Phones and tablets
 
 - **The sidebar is a drawer.** On a phone (and in any browser window under 900 px wide) the part

@@ -169,7 +169,11 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["drill", "screw", "holes"],
     action: "Open",
   },
-  "library.render": { title: "Render", section: "Library", keywords: ["preview", "refresh", "again"] },
+  "library.render": {
+    title: "Render again",
+    section: "Library",
+    keywords: ["preview", "refresh", "retry", "render"],
+  },
   "library.downloadStl": {
     title: "Download STL",
     section: "Library",

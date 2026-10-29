@@ -242,9 +242,11 @@ export default function Library({
 
   // The preview follows the part, its parameters and the printer
   // settings. A parameter edit waits PARAM_RENDER_DELAY_MS for the edits
-  // to pause; a new part, a settings change, the Render button or a
-  // handle drag (or typed size) renders at once, and a result still in
-  // the render cache shows straight away.
+  // to pause; a new part, a settings change, Retry preview or a handle
+  // drag (or typed size) renders at once, and a result still in the
+  // render cache shows straight away. There is no Render button: the
+  // preview is always on its way to the current values, and the nav's
+  // status (RenderActivity.jsx) says when a render runs.
   const renderKey = useMemo(
     () => (selected ? { part: selected, params, globalOverrides } : null),
     [selected, params, globalOverrides],
@@ -272,8 +274,8 @@ export default function Library({
     if (selected) onSelectionChange?.({ part: selected, params });
   }, [selected, params, onSelectionChange]);
 
-  // Until the render for the current values lands the download stays off,
-  // and the Render button already says "Rendering…".
+  // Until the render for the current values lands the download stays off
+  // (the nav's "Rendering…" says why).
   const canDownload = status === "done" && preview.key === renderKey;
   const dimensions = useMemo(
     () => (canDownload && stlBuffer ? outsideDimensions(meshExtents(stlBuffer)) : null),
@@ -421,7 +423,7 @@ export default function Library({
     : status === "error"
       ? (renderError ?? "The render failed")
       : status === "idle"
-        ? "Not rendered yet: press Render"
+        ? "The render was cancelled: retry the preview"
         : undefined;
 
   const layerling = useLayerlingCopy(preview.setError);
@@ -498,6 +500,15 @@ export default function Library({
   }
 
   const shownDimensions = dimensions ?? predicted;
+  // The way back from a failed render, or one the nav's Cancel stopped
+  // (a cancelled render ends "idle"; a part on show is never idle
+  // otherwise, useRender puts up "rendering" before the first paint):
+  // the same values again. Beside the error, as on the Bench and Holes.
+  const retryButton = selected && (status === "error" || status === "idle") && (
+    <button type="button" className="render-button library-retry" onClick={preview.retry}>
+      Retry preview
+    </button>
+  );
   const paramsPanel = selected && (
     <div className="params-panel">
       <ParamsEditor
@@ -523,6 +534,7 @@ export default function Library({
           {renderError}
         </p>
       )}
+      {!tabbed && retryButton}
     </div>
   );
   const classes = ["app", sidebarCollapsed && "sidebar-collapsed", tabbed && "library-tabbed"];
@@ -587,6 +599,7 @@ export default function Library({
                     {renderError}
                   </p>
                 )}
+                {tabbed && retryButton}
               </div>
               <div className="part-header-actions">
                 <button type="button" className="render-button find-part-button" onClick={onFindPart}>
@@ -607,22 +620,6 @@ export default function Library({
                   title="Drill holes into this part (with its current parameters) in the Holes tab"
                 >
                   Add Holes
-                </button>
-                <button
-                  type="button"
-                  className="render-button"
-                  onClick={preview.retry}
-                  disabled={status === "rendering"}
-                  aria-live="polite"
-                >
-                  {/* Sized for the longer label either way, so the button
-                      doesn't grow when a render starts. */}
-                  <span className="stable-label">
-                    <span>{status === "rendering" ? "Rendering…" : "Render"}</span>
-                    <span className="stable-label-sizer" aria-hidden="true">
-                      Rendering…
-                    </span>
-                  </span>
                 </button>
               </div>
             </header>
