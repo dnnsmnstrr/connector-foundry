@@ -44,12 +44,13 @@ attached part has:
   print with a 0.2 mm first layer, then fold the strip up and glue it. **Split** prints them apart,
   to glue. Only the exports change (every STL of that body, the print sheet, Layerling), and only
   the body the head is in: a part on a bolted joint keeps printing as it is. The scene keeps showing
-  the bench; **Print layout** in the viewer's toolbar shows that body as it exports instead, with
-  its size in the header, until you turn it off or select a part. A
+  the bench; **Folded** (or **Split**) in the viewer's toolbar shows that body as it exports
+  instead, with its size in the header, lit while it's on, until you turn it off or select a
+  part. A
   fold needs the cut to cross the part all the way to its far side, where the hinge goes; when
   something sticks out further elsewhere (a GoPro buckle's prongs, say), the export says so and
   Split still works. One part folds at a time; the select is under the part's Crop box, and in the
-  command palette ("Fold for printing", "Split for printing", "Show the print layout").
+  command palette ("Fold for printing", "Split for printing", "Show it folded for printing").
 - Its own **parameter editor**, with the same defaults/overrides as the Library. A part attached
   to another may start from different values than the same part on its own (the catalogue's
   `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone

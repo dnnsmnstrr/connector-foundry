@@ -256,7 +256,7 @@ export const BUILTIN_COMMANDS = Object.freeze({
     action: "Toggle",
   },
   "bench.printLayout": {
-    title: "Show the print layout",
+    title: "Show it folded for printing",
     section: "Bench",
     keywords: ["fold", "folded", "split", "preview", "print", "layout", "openconnect"],
     action: "Toggle",

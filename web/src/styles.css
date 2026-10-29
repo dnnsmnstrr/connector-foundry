@@ -3824,6 +3824,18 @@ a.bench-modal-header-button {
   display: none;
 }
 
+/* The Bench's Folded (or Split) toggle: the folded body in the viewer
+   instead of the bench. A word, not an icon, so it never wraps, and lit
+   while on, as Measure is. */
+.bench-fold-view {
+  white-space: nowrap;
+}
+
+.bench-fold-view[aria-pressed="true"] {
+  background: #35407a;
+  border-color: #4a6fb5;
+}
+
 /* The Holes tab's Measure toggle, lit while on like the Helpers toggle. */
 .viewer-measure[aria-pressed="true"] {
   background: #35407a;

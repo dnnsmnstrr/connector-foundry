@@ -495,10 +495,10 @@ test("a folded bench exports its body laid on its side, on a hinge or split", as
   expect(fy).toBeCloseTo(6.6 + 0.395 + 4, 1);
   expect(fz).toBeCloseTo(25.305, 1);
   // The viewer shows the same layout, and gives the bench back.
-  const layout = page.getByRole("button", { name: "Print layout", exact: true });
+  const layout = page.getByRole("button", { name: "Folded", exact: true });
   await layout.click();
   await expect(layout).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText(/^Print layout: W 40 × H 25\.3\d* × D 1[01]\.\d+ mm$/)).toBeVisible({
+  await expect(page.getByText(/^Folded: W 40 × H 25\.3\d* × D 1[01]\.\d+ mm$/)).toBeVisible({
     timeout: 90_000,
   });
   await layout.click();

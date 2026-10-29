@@ -118,7 +118,7 @@ import { fitGridCounts, mountOffset } from "./lib/slots.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
 import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
-import { activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
+import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
@@ -254,7 +254,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // meaningful while something is selected; every selection change
   // (selectNode()) disarms it.
   const [moveMode, setMoveMode] = useState(false);
-  // "Print layout" is on (the viewer's toolbar, with a fold set): the
+  // The viewer's "Folded" toggle is on (its toolbar, with a fold set): the
   // viewer shows the folded body as it exports instead of the bench.
   // Only while nothing else is going on — a selection, an armed move, a
   // part being attached or imported all need the bench itself, and take
@@ -483,7 +483,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const stlBuffer = preview.result;
   const { status, error: renderError, setError: setRenderError } = preview;
 
-  // The print layout's render: the folded body, exactly as an export
+  // The folded view's render: the folded body, exactly as an export
   // makes it (renderAssembly()), following the bench as it changes. Its
   // key waits for the parts' sizes, which the fold is placed from.
   const fold = assembly ? activeFold(assembly, partsById) : null;
@@ -514,8 +514,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message),
     },
   );
-  // What the viewer shows: the bench, or its print layout.
-  const viewBuffer = showingLayout ? layout.result : stlBuffer;
+  // What the viewer shows: the bench, or its body folded for printing.
+  // Until the folded body has rendered (the first time, and again after
+  // an edit), the bench stays up without its markers, so the viewer and
+  // its toolbar — the toggle back included — never drop out for a
+  // placeholder.
+  const layoutShown = showingLayout && Boolean(layout.result);
+  const viewBuffer = layoutShown ? layout.result : stlBuffer;
   const viewError = showingLayout ? (foldBlocked ?? layout.error) : renderError;
   const viewStatus = showingLayout
     ? foldBlocked
@@ -1074,7 +1079,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     setGuardStep(null);
   }
 
-  // The viewer's "Print layout" toggle. On, it drops the selection, which
+  // The viewer's "Folded" toggle ("Split" for a split fold). On, it drops
+  // the selection, which
   // would otherwise keep the viewer on the bench (`showingLayout`).
   function toggleLayoutView() {
     if (showingLayout) setLayoutView(false);
@@ -1762,7 +1768,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the toolbar, an attached part's docked at the foot of the viewer
   // rather than floating over its top face, where its height handle is.
   const floatControls = !rootSelected && !shownHandles;
-  // The part a fold is on, by name, for the print layout's toggle and note.
+  // The part a fold is on, by name, for the folded view's toggle and note.
   const foldedPartName = fold
     ? (partsById.get(getNode(assembly, fold.id)?.partId)?.name ?? "The folded part")
     : null;
@@ -2020,18 +2026,19 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             {dimensions && (
               <p
                 className="outside-dimensions"
-                aria-label={`${showingLayout ? "Print layout" : "Outside"} dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+                aria-label={`${layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"} dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
               >
-                {showingLayout ? "Print layout" : "Outside"}: W {dimensions.width} × H {dimensions.height} × D{" "}
-                {dimensions.depth} mm
+                {layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"}: W {dimensions.width} × H{" "}
+                {dimensions.height} × D {dimensions.depth} mm
               </p>
             )}
             <p className="print-note" aria-live="polite">
               {showingLayout ? (
                 <>
-                  The print layout: the body {foldedPartName} is part of, as it exports{" "}
+                  The body {foldedPartName} is part of, as it exports{" "}
                   {fold.mode === "split" ? "split in two" : "folded on its hinge"}: cut in front of the head
-                  and laid on its side. Select a part, or turn off Print layout, to get back to the bench.
+                  and laid on its side. Select a part, or turn off {FOLD_MODE_LABELS[fold.mode]}, to get back
+                  to the bench.
                 </>
               ) : moving ? (
                 <>
@@ -2069,7 +2076,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           {viewBuffer ? (
             <StlViewer
               stlBuffer={viewBuffer}
-              fitKey={showingLayout ? "print-layout" : assembly.root.partId}
+              fitKey={layoutShown ? "folded-view" : assembly.root.partId}
               fitBox={showingLayout ? null : selectedBox}
               markers={showingLayout ? [] : shownMarkers}
               onMarkerClick={handleMarkerClick}
@@ -2096,7 +2103,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   {fold && (
                     <button
                       type="button"
-                      className="viewer-helpers-toggle bench-layout-toggle"
+                      className="viewer-tool bench-fold-view"
                       aria-pressed={showingLayout}
                       onClick={toggleLayoutView}
                       title={
@@ -2105,7 +2112,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                           : `Show the body ${foldedPartName} is part of as it exports with Fold for printing: cut in front of the head and laid on its side`
                       }
                     >
-                      Print layout
+                      {FOLD_MODE_LABELS[fold.mode]}
                     </button>
                   )}
                   <UndoRedoButtons
