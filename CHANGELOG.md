@@ -13,6 +13,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   or the printer settings change, so the header's **Render** button only ran the same render
   again. It is gone; after a failed or cancelled render, **Retry preview** sits by the error
   (and the command palette's **Render again** runs it any time).
+- **No Print… in the Library.** EasyPrint can't be sent a model from another site, so the
+  Library's print sheet could only hand over the file **Download STL** already saves. The button
+  and its palette command are gone from the Library; the Bench and Holes keep **Print with
+  EasyPrint…**, which there gathers the bench's bodies or renders the holed part.
 
 ### Phones and tablets
 

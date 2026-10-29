@@ -4,10 +4,11 @@ import { BoxGeometry, Mesh } from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 
 // "Print with EasyPrint…" (components/PrintSheet.jsx): the sheet opens
-// from each tab's button and from the palette, hands the file over — a
-// download in Chromium, which refuses model files in its share sheet, or
-// the share sheet where one takes them (stubbed here) — and opens
-// EasyPrint with a tap of its own.
+// from the Bench's and Holes' buttons and from the palette, hands the file
+// over — a download in Chromium, which refuses model files in its share
+// sheet, or the share sheet where one takes them (stubbed here) — and
+// opens EasyPrint with a tap of its own. The Library has none: there the
+// sheet could only hand over what Download STL saves.
 
 const cube = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4)), { binary: true });
 const cubeBytes = [...new Uint8Array(cube.buffer, cube.byteOffset, cube.byteLength)];
@@ -59,15 +60,34 @@ async function safariShareSheet(page) {
   });
 }
 
+// What the Holes tab names the plate's file.
+const HOLES_STL = "Flat-plate_holes.stl";
+
 const sheet = (page) => page.getByRole("dialog", { name: "Print with EasyPrint" });
 
-test("the Library's sheet downloads the STL where the share sheet refuses it, and opens EasyPrint", async ({
-  page,
-}) => {
+// The Holes tab on the plate, its one file ready to print.
+async function openHoles(page) {
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Print with EasyPrint…", exact: true })).toBeEnabled();
+}
+
+test("the Library has no print sheet: Download STL is its way out", async ({ page }) => {
   await setUp(page);
   await page.goto("/app/");
   await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Print…", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Print/ })).toHaveCount(0);
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
+  await page.getByRole("combobox", { name: "Search commands" }).fill("print with easyprint");
+  await expect(page.getByRole("option", { name: /Print with EasyPrint/ })).toHaveCount(0);
+});
+
+test("the sheet downloads the STL where the share sheet refuses it, and opens EasyPrint", async ({
+  page,
+}) => {
+  await setUp(page);
+  await openHoles(page);
+  await page.getByRole("button", { name: "Print with EasyPrint…", exact: true }).click();
   await expect(sheet(page)).toBeVisible();
   await expect(page.locator("dialog[open]")).toHaveCount(1);
   await expect(sheet(page)).toContainText("Upload model");
@@ -75,7 +95,7 @@ test("the Library's sheet downloads the STL where the share sheet refuses it, an
   const saved = page.waitForEvent("download");
   await sheet(page).getByRole("button", { name: "Download STL", exact: true }).click();
   const download = await saved;
-  expect(download.suggestedFilename()).toBe("basics_plate.stl");
+  expect(download.suggestedFilename()).toBe(HOLES_STL);
   expect((await readFile(await download.path())).length).toBe(cubeBytes.length);
 
   await sheet(page).getByRole("button", { name: "Open EasyPrint ↗" }).click();
@@ -87,27 +107,25 @@ test("the Library's sheet downloads the STL where the share sheet refuses it, an
 test("where the share sheet takes model files, the sheet shares the STL and a 3MF", async ({ page }) => {
   await setUp(page);
   await safariShareSheet(page);
-  await page.goto("/app/");
-  await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Print…", exact: true }).click();
+  await openHoles(page);
+  await page.getByRole("button", { name: "Print with EasyPrint…", exact: true }).click();
   await sheet(page).getByRole("button", { name: "Share STL…", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__shared.length)).toBe(1);
   expect(await page.evaluate(() => window.__shared[0])).toEqual([
-    { name: "basics_plate.stl", type: "model/stl", size: cubeBytes.length },
+    { name: HOLES_STL, type: "model/stl", size: cubeBytes.length },
   ]);
 
   await sheet(page).getByRole("button", { name: "3MF", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__shared.length)).toBe(2);
   const [threeMf] = await page.evaluate(() => window.__shared[1]);
-  expect(threeMf.name).toBe("basics_plate.3mf");
+  expect(threeMf.name).toBe(HOLES_STL.replace(/\.stl$/, ".3mf"));
   expect(threeMf.type).toBe("model/3mf");
   expect(threeMf.size).toBeGreaterThan(0);
 });
 
 test("the palette opens the sheet, and only the sheet", async ({ page }) => {
   await setUp(page);
-  await page.goto("/app/");
-  await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+  await openHoles(page);
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.getByRole("combobox", { name: "Search commands" }).fill("print with easyprint");
   await page.keyboard.press("Enter");
@@ -146,40 +164,4 @@ test("the Bench's sheet has a file per body, named after the bench", async ({ pa
   const saved = page.waitForEvent("download");
   await sheet(page).getByRole("button", { name: "Download STL", exact: true }).click();
   expect((await saved).suggestedFilename()).toBe("desk_root.stl");
-});
-
-test("after a render fails with the old part still shown, Print… is off and the palette says why", async ({
-  page,
-}) => {
-  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts } }));
-  // The first render succeeds, every later one fails.
-  await page.addInitScript((bytes) => {
-    let renders = 0;
-    window.Worker = class {
-      postMessage(request) {
-        if (request?.type === "warm") return;
-        const first = renders++ === 0;
-        queueMicrotask(() =>
-          this.onmessage({
-            data: first
-              ? { id: request.id, type: "result", stl: new Uint8Array(bytes).buffer }
-              : { id: request.id, type: "error", message: "Assertion failed: too wide" },
-          }),
-        );
-      }
-      terminate() {}
-    };
-  }, cubeBytes);
-  await page.goto("/app/");
-  const print = page.getByRole("button", { name: "Print…", exact: true });
-  await expect(print).toBeEnabled();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("400");
-  await expect(page.getByText("Assertion failed: too wide").first()).toBeVisible();
-  await expect(print).toBeDisabled();
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
-  await page.getByRole("combobox", { name: "Search commands" }).fill("print with easyprint");
-  await expect(page.getByRole("option", { name: /Print with EasyPrint/ })).toHaveAttribute(
-    "aria-disabled",
-    "true",
-  );
 });

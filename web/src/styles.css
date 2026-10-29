@@ -4227,10 +4227,10 @@ a.bench-modal-header-button {
   }
 }
 
-/* A small phone's Library: Download STL and Print… on one row over the
-   viewer (with Copy for Layerling too, the row wrapped at 375 px, over a
-   resize handle and the failed-resize note). The palette's Library section
-   keeps Copy for Layerling. */
+/* A small phone's Library: Download STL alone over the viewer (with Copy
+   for Layerling and the Print… it had then, the row wrapped at 375 px,
+   over a resize handle and the failed-resize note). The palette's Library
+   section keeps Copy for Layerling. */
 @media (max-width: 480px) {
   :root:not(.desktop) .viewer-actions .layerling-button {
     display: none;

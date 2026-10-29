@@ -214,7 +214,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   Prusa's EasyPrint (printables.com/slice, and the Prusa app) slices in the cloud and prints to a
   printer on Prusa Connect, but nothing can send it a model — no API, URL scheme, share target or
   file-type registration; desktop PrusaSlicer's `prusaslicer://open` takes printables.com URLs only.
-  So **Print with EasyPrint…** (each tab, and the palette) hands the file to the device and opens
+  So **Print with EasyPrint…** (the Bench and Holes, and the palette; not the Library, where it
+  could only hand over the file Download STL already saves) hands the file to the device and opens
   EasyPrint with a second tap: `share()` and `window.open()` each need and consume the tap's
   activation (5 s in both engines), so the file's bytes are in hand before its button is enabled,
   and a 3MF is written on the tap, synchronously. Chromium's share sheet refuses model files

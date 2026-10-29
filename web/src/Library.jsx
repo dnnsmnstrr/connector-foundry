@@ -10,7 +10,6 @@ import { downloadBlob } from "./lib/download.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { resolveParams } from "./lib/userOverrides.js";
 import { listedParts, slugify } from "./lib/catalogueUtils.js";
-import PrintSheet from "./components/PrintSheet.jsx";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useRender } from "./hooks/useRender.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
@@ -411,20 +410,10 @@ export default function Library({
     downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
-  // "Print with EasyPrint…" (components/PrintSheet.jsx): the sheet shows
-  // the current render's file, so it can open while a render runs and
-  // enable its buttons when the mesh lands. When no render is coming — a
-  // failed one, or one cancelled with the old mesh still on screen — the
-  // row says why instead of "Rendering…", and the buttons that open it
-  // are off.
-  const [printOpen, setPrintOpen] = useState(false);
-  const printProblem = canDownload
-    ? undefined
-    : status === "error"
-      ? (renderError ?? "The render failed")
-      : status === "idle"
-        ? "The render was cancelled: retry the preview"
-        : undefined;
+  // No "Print with EasyPrint…" here, unlike the Bench and Holes: EasyPrint
+  // takes no model from another site (prusaslicer:// links open only
+  // printables.com's), so the sheet could only hand over the file that
+  // Download STL already saves.
 
   const layerling = useLayerlingCopy(preview.setError);
   function copyToLayerling() {
@@ -458,8 +447,6 @@ export default function Library({
           run: preview.retry,
         }),
       selected && builtin("library.downloadStl", { disabled: waiting, run: downloadStl }),
-      selected &&
-        builtin("library.print", { disabled: printProblem ?? false, run: () => setPrintOpen(true) }),
       selected && builtin("library.layerling", { disabled: waiting, run: copyToLayerling }),
       selected &&
         tabbed &&
@@ -687,33 +674,11 @@ export default function Library({
                     >
                       Download STL
                     </button>
-                    <button
-                      type="button"
-                      className="download-button print-button"
-                      onClick={() => setPrintOpen(true)}
-                      disabled={Boolean(printProblem)}
-                      title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
-                    >
-                      Print…
-                    </button>
                   </div>
                 )}
               </div>
             </div>
           </>
-        )}
-        {printOpen && selected && (
-          <PrintSheet
-            title={selected.name}
-            bodies={[
-              {
-                name: `${slugify(selected.id)}.stl`,
-                bytes: canDownload ? stlBuffer : null,
-                error: printProblem,
-              },
-            ]}
-            onClose={() => setPrintOpen(false)}
-          />
         )}
       </main>
     </div>

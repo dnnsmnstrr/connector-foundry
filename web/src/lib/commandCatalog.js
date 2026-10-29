@@ -180,12 +180,6 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["export", "save", "print"],
     action: "Download",
   },
-  "library.print": {
-    title: "Print with EasyPrint…",
-    section: "Library",
-    keywords: ["prusa", "easyprint", "slice", "share", "phone", "tablet", "3mf", "stl", "print"],
-    action: "Open",
-  },
   "library.layerling": {
     title: "Copy for Layerling",
     section: "Library",
