@@ -190,6 +190,10 @@ export const SHORTCUT_SECTIONS = [
         keys: [["Long press"]],
         action: "Touch: on a hole in the Holes list, add it to the selection (as Shift-click does)",
       },
+      {
+        keys: [["Back"]],
+        action: "Android: close the dialog or put the drawer away, before it leaves the app",
+      },
     ],
   },
 ];
@@ -206,6 +210,7 @@ const POINTER_TOKENS = new Set([
   "Two fingers",
   "Tap",
   "Long press",
+  "Back",
   "View ▾",
   "Grid ▾",
 ]);

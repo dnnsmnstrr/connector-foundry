@@ -17,6 +17,11 @@ import { useId, useLayoutEffect, useRef } from "react";
 // state, so the two agree. On open, focus goes to whatever is marked
 // data-autofocus (the part search box), else to the panel itself so a
 // screen reader lands inside the dialog without popping a keyboard.
+//
+// A touch screen has no Escape, and on a phone a long dialog (Settings)
+// leaves only a thin strip of backdrop to tap: there the header has a ×
+// as well (styles.css shows it for a coarse pointer only, where the
+// palette's own close button is already).
 /**
  * @param {{
  *   onClose: () => void,
@@ -61,14 +66,13 @@ export default function Modal({ onClose, className, title, actions, children }) 
       }}
     >
       <div ref={panelRef} className="bench-modal-panel" tabIndex={-1}>
-        {actions ? (
-          <div className="bench-modal-header">
-            <h3 id={titleId}>{title}</h3>
-            <div className="bench-modal-actions">{actions}</div>
-          </div>
-        ) : (
+        <div className="bench-modal-header">
           <h3 id={titleId}>{title}</h3>
-        )}
+          {actions && <div className="bench-modal-actions">{actions}</div>}
+          <button type="button" className="bench-modal-close" onClick={onClose} aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
         {children}
       </div>
     </dialog>

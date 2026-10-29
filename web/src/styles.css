@@ -17,6 +17,32 @@ body,
   color: #e6e6e6;
 }
 
+/* The page is an app's window, not a document: nothing in it scrolls as a
+   whole (each pane scrolls itself), so a swipe past a pane's end must not
+   rubber-band the whole UI on iOS or pull Android's refresh over it. And
+   iOS enlarges text on its own when a phone turns to landscape, which
+   broke the nav's and the panels' fixed rows. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* Opened from the home screen, the app is the whole screen and should
+   behave like the apps beside it, which do not zoom: a pinch that missed
+   the 3D view (which takes it for itself, touch-action: none) zoomed the
+   nav and the panels, with no browser zoom control to put them back. In a
+   browser tab, page zoom stays. */
+@media (display-mode: standalone) {
+  html {
+    touch-action: pan-x pan-y;
+  }
+}
+
 /* Form controls don't inherit the page font by default. */
 button,
 input,
@@ -2044,6 +2070,44 @@ a.mode-tab {
   margin-left: 0;
 }
 
+/* The dialog's × (Modal.jsx): a touch screen's way out, which has no
+   Escape key. A mouse has the backdrop and the dialogs' own buttons. */
+.bench-modal-close {
+  display: none;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #8b8c91;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .bench-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -0.6rem -0.75rem -0.6rem auto;
+  }
+
+  /* The × beside the title, as a phone's own sheets have it; a dialog's
+     header buttons (Settings' Keyboard shortcuts, Guides) take the row
+     under them. */
+  .bench-modal-header h3 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .bench-modal-actions {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+
 /* Settings' Guides link looks like the button beside it. */
 a.bench-modal-header-button {
   text-decoration: none;
@@ -4043,6 +4107,54 @@ a.bench-modal-header-button {
 .viewer-handle-editor input {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* A tap on a touch screen: the browser's grey flash over whatever was
+   hit (a whole list row, the nav) is not how an app answers a finger, so
+   it is off, and a control dims while it is held down instead, as iOS's
+   own buttons do. Holding a finger on a button, a list row or a part's
+   picture started text selection or offered to save the image; on a
+   control that is never what the finger meant. Text fields keep their
+   selection (an ancestor's user-select: none stopped typing in them on
+   iOS, so they say so themselves). */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:active:not(:disabled),
+  a:active,
+  summary:active,
+  [role="option"]:active,
+  [role="menuitem"]:active {
+    opacity: 0.65;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  summary,
+  .mode-tabs,
+  [role="option"],
+  [role="menuitem"],
+  .part-button,
+  .command-row {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 /* ---------------------------------------------------------------------

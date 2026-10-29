@@ -348,6 +348,25 @@ export default function App() {
     });
   }
 
+  // Android's back gesture with the drawer open puts the drawer away, as
+  // it does a phone's own sheet, rather than leaving the app: an
+  // installed app with no history to go back to quits on back. A
+  // CloseWatcher (Chromium 120 on) hears it; a dialog opened over the
+  // drawer has a newer one of its own, which back closes first. Touch
+  // screens only: with a keyboard the watcher takes Escape as well, which
+  // the tabs use for their own things.
+  useEffect(() => {
+    const Watcher = /** @type {any} */ (window).CloseWatcher;
+    if (sidebarCollapsed || typeof Watcher !== "function" || !isDrawerLayout()) return undefined;
+    if (!window.matchMedia("(pointer: coarse)").matches) return undefined;
+    const watcher = new Watcher();
+    watcher.onclose = () => {
+      setSidebarCollapsedState(true);
+      setSidebarCollapsed(true);
+    };
+    return () => watcher.destroy();
+  }, [sidebarCollapsed]);
+
   // "/": the Library, its sidebar open, the search box focused with its
   // text selected to type over. From another mode, or with the sidebar
   // collapsed, the box only exists once the Library has rendered with it,
