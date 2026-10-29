@@ -52,16 +52,22 @@ module oc_head(excess = 0, anchor = BOTTOM, spin = 0, orient = UP) {
 //    clear of the board as it is screwed in;
 //  - a coin slot across the pocket face, and a screwdriver slot down
 //    its middle.
-module oc_screw(thread_h = OG_SNAP_H_FULL) {
+// `folded` is upstream's openconnect_screw(folded = true), the screw
+// lib/fold.scad lays on its side: the head without the cone, which
+// would round away the flat front edge it prints on.
+module oc_screw(thread_h = OG_SNAP_H_FULL, folded = false) {
     coin_r = OG_COIN_SLOT_H / 2 + OG_COIN_SLOT_W ^ 2 / (8 * OG_COIN_SLOT_H);
     translate([0, 0, thread_h + OC_HEAD_H]) rotate([0, 180, 0]) difference() {
         union() {
             translate([0, 0, OC_HEAD_H - 0.005]) og_thread(thread_h);
-            intersection() {
+            if (folded)
                 oc_head(anchor = BOTTOM);
-                translate([0.32, 0.45, -0.005])
-                    cylinder(d1 = 15.6 + 2 * OC_HEAD_H, d2 = 15.6, h = OC_HEAD_H);
-            }
+            else
+                intersection() {
+                    oc_head(anchor = BOTTOM);
+                    translate([0.32, 0.45, -0.005])
+                        cylinder(d1 = 15.6 + 2 * OC_HEAD_H, d2 = 15.6, h = OC_HEAD_H);
+                }
         }
         // Upstream's coin slot, call for call (connector_slot_cfg()'s
         // flat-slot numbers inline).

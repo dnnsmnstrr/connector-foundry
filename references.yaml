@@ -655,6 +655,52 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  # The folded print layouts (layout = "folded", lib/fold.scad): the
+  # generator's "openConnect (Folded)" snap, and openconnect_screw()'s
+  # folded screw. Both lie in upstream's frame with the hinge on the
+  # X axis; ours is centred on its own box, 1.1 mm further toward -Y.
+  - id: opengrid/openconnect-folded
+    part: opengrid/openconnect
+    params: {layout: folded}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      translate([0, 1.1, 0]) og_openconnect(layout = "folded", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect (Folded)";
+      text_depth = 0;
+    align: none
+    sections_z: [0.1, 1.0, 3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 14.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: opengrid/openconnect-screw-folded
+    part: opengrid/openconnect
+    params: {body: screw, layout: folded}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      translate([0, 1.1, 0]) og_openconnect(body = "screw", layout = "folded", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{opengrid-projects}/lib/openconnect_lib.scad>
+      $fa = 1;
+      $fs = 0.4;
+      openconnect_screw(threads_height = 6.8, text_cfg = [["text_depth", 0]], folded = true);
+    align: none
+    sections_z: [0.1, 1.0, 3.0, 5.0, 7.0, 9.0, 10.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   # The screw bodies: the same heads on openGrid's snap thread, which
   # lib/ogthread.scad writes out shallow enough for the browser — held
   # to upstream's own openconnect_screw() and its expanding-snap

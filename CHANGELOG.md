@@ -5,6 +5,17 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
+## Unreleased
+
+### Parts
+
+- **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays
+  it out to print on its side, the head's half on its cut face and the rest of the snap (or the
+  screw's thread) beside it on a one-layer hinge, to fold up after printing — stronger at the
+  neck, where a standing print splits along its layers. `split` prints the two halves apart, to
+  glue. Both match openGrid-projects' own "openConnect (Folded)" snap and screw, checked against
+  them like the upright versions.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts

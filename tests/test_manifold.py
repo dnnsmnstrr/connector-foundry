@@ -35,6 +35,20 @@ def cases():
     return list(foundry.catalogue_cases(foundry.load_catalogue()))
 
 
+def expected_solids(params: dict) -> int:
+    """Two for a print layout that is two pieces on purpose
+    (lib/fold.scad): a split one always, and a folded screw, whose
+    thread's half meets the hinge face to face without overlapping it —
+    exactly as openGrid-projects' own folded screw does, which
+    references.yaml holds it to. Both halves sit on the bed, and a
+    slicer joins touching faces on the first layer. One for anything
+    else."""
+    layout = params.get("layout")
+    if layout == "split" or (layout == "folded" and params.get("body") == "screw"):
+        return 2
+    return 1
+
+
 @pytest.mark.parametrize("part,params,tag", cases(), ids=lambda v: v if isinstance(v, str) else "")
 def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
     mesh = trimesh.load(render_variant(part, params, render_dir, tag))
@@ -46,9 +60,10 @@ def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
     solids = [b for b in components if b.volume > 0]
     cavities = len(components) - len(solids)
 
-    assert len(solids) == 1, (
+    expected = expected_solids(params)
+    assert len(solids) == expected, (
         f"{part['id']} [{tag}] rendered {len(solids)} disconnected solids "
-        f"(volumes {sorted(round(b.volume, 2) for b in solids)}), expected 1 — "
+        f"(volumes {sorted(round(b.volume, 2) for b in solids)}), expected {expected} — "
         f"this part would print as separate pieces"
         + (f" ({cavities} sealed internal cavities, which are fine)" if cavities else "")
     )

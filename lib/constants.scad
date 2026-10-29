@@ -61,6 +61,15 @@ OC_HEAD_SHIFT_Y = 3.6;         // the head's centre sits this far up (+Y) from t
                                // OCHEAD_LARGE_RECT_WIDTH / 2 + OCHEAD_BACK_POS_OFFSET
                                // - OCHEAD_LARGE_RECT_HEIGHT / 2
 
+// Printing a head folded (lib/fold.scad): opengrid_base.scad's FOLD_GAP_*
+// and EPS. The cut runs FOLD_EPS clear of the head's flat front edge, so
+// the head stays whole on one side of it.
+FOLD_GAP     = 0.4;            // == FOLD_GAP_WIDTH: between the halves, the hinge's span
+FOLD_HINGE_H = 0.2;            // == FOLD_GAP_HEIGHT: the hinge's thickness, one layer
+FOLD_EPS     = 0.005;          // == EPS
+FOLD_SPLIT_GAP = 2;            // ours: the halves of a split print, far enough apart that a
+                               // first layer's squish can't join them
+
 // The snap thread (lib/ogthread.scad): opengrid_base.scad's
 // OG_SNAP_THREADS_* — profile (in pitches, along the axis and radially
 // in from the crest), diameter (male; a female thread is cut CLEARANCE

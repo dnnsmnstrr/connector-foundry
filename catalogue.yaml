@@ -379,6 +379,11 @@ parts:
       the openGrid thread the Holes tab cuts, turning it by the coin
       slot in its face. Screwed home, the head points the way a snap's
       does. variant picks the thread length (full 6.8mm, lite 3.4mm).
+      layout folded prints it on its side, which is stronger at the
+      neck: the head's half on its cut face and the rest of the body
+      beside it, joined by a one-layer hinge. Fold it up after
+      printing (and glue it, for a screw); it wants a 0.2mm first
+      layer. split is the same as two pieces, to glue.
     attached_defaults:
       body: none
     # The head's +Y is the way it slides to seat: up, on a wall.
@@ -386,9 +391,11 @@ parts:
     defaults:
       variant: full
       body: directional
+      layout: upright
     options:
       variant: [full, lite]
       body: [directional, symmetric, none, screw]
+      layout: [upright, folded, split]
     variants:
       - name: lite
         params: { variant: lite }
@@ -398,6 +405,12 @@ parts:
         params: { body: none }
       - name: screw
         params: { body: screw }
+      - name: folded
+        params: { layout: folded }
+      - name: lite-split
+        params: { variant: lite, layout: split }
+      - name: screw-folded
+        params: { body: screw, layout: folded }
 
   - id: opengrid/multiconnect
     system: openGrid
