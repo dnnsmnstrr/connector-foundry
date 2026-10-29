@@ -118,7 +118,7 @@ import { fitGridCounts, mountOffset } from "./lib/slots.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOverrides.js";
 import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
-import { bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
+import { activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
@@ -230,6 +230,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // own: after a resize they are the old size until the new render lands.
   const [measured, setMeasured] = useState(NO_EXTENTS);
   const nodeExtents = measured.extents;
+  // The nodes whose own standalone render failed in the last round of
+  // measuring (sorted ids): they have no size, so a fold, placed from
+  // every part's size, can't be worked out until they do.
+  const [unmeasured, setUnmeasured] = useState(/** @type {string[]} */ ([]));
   const [pendingSlot, setPendingSlot] = useState(null); // { parentId, slotName } awaiting a part choice
   const [pendingJoint, setPendingJoint] = useState("fused");
   const [importMode, setImportMode] = useState(null); // null | "root" | "child"
@@ -395,6 +399,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   useEffect(() => {
     if (!assembly) {
       setMeasured(NO_EXTENTS);
+      setUnmeasured([]);
       return;
     }
     let cancelled = false;
@@ -426,12 +431,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       );
       if (cancelled) return;
       const entries = [];
-      for (const result of results) {
+      const failed = [];
+      results.forEach((result, i) => {
         if (result.status === "fulfilled") entries.push(result.value);
-        else if (result.reason?.name !== "AbortError")
+        else if (result.reason?.name !== "AbortError") {
+          failed.push(allNodes[i].id);
           console.warn("Bench: couldn't get this node's own extents (its slots won't show):", result.reason);
-      }
+        }
+      });
       setMeasured((prev) => mergeExtents(prev, entries));
+      failed.sort();
+      setUnmeasured((prev) => (prev.join("\n") === failed.join("\n") ? prev : failed));
     };
     const allCached = allNodes.every((n) => {
       const part = partsById.get(n.partId);
@@ -476,8 +486,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // The print layout's render: the folded body, exactly as an export
   // makes it (renderAssembly()), following the bench as it changes. Its
   // key waits for the parts' sizes, which the fold is placed from.
+  const fold = assembly ? activeFold(assembly, partsById) : null;
   const showingLayout =
-    layoutView && Boolean(assembly?.fold) && !selectedNodeId && !moveMode && !pendingSlot && !importMode;
+    layoutView && Boolean(fold) && !selectedNodeId && !moveMode && !pendingSlot && !importMode;
+  // Why a fold can't be placed right now, when the reason is one waiting
+  // won't fix: a part whose own render failed (unmeasured) has no size.
+  const foldBlocked =
+    fold && unmeasured.length > 0 && !measuredNow(measured, assembly)
+      ? `Can't work out where the fold goes: ${unmeasured
+          .map((id) => partsById.get(getNode(assembly, id)?.partId)?.name ?? id)
+          .join(", ")} didn't render on its own, so its size isn't known. Retry preview to try again.`
+      : null;
   const layoutKey = useMemo(
     () =>
       showingLayout && measuredNow(measured, assembly)
@@ -487,7 +506,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   );
   const layout = useRender(
     layoutKey,
-    (key, signal) => renderAssembly(bodyTagOf(key.assembly, key.assembly.fold.id), { signal }),
+    (key, signal) =>
+      renderAssembly(bodyTagOf(key.assembly, activeFold(key.assembly, key.partsById).id), { signal }),
     {
       delay: RENDER_DEBOUNCE_MS,
       formatError: (err) =>
@@ -496,8 +516,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   );
   // What the viewer shows: the bench, or its print layout.
   const viewBuffer = showingLayout ? layout.result : stlBuffer;
-  const viewError = showingLayout ? layout.error : renderError;
-  const viewStatus = showingLayout ? (layoutKey ? layout.status : "rendering") : status;
+  const viewError = showingLayout ? (foldBlocked ?? layout.error) : renderError;
+  const viewStatus = showingLayout
+    ? foldBlocked
+      ? "error"
+      : layoutKey
+        ? layout.status
+        : "rendering"
+    : status;
 
   const rootExtents = nodeExtents.get(ROOT_ID) ?? null;
   const dimensions = useMemo(
@@ -914,13 +940,13 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // the hinge goes on — and every other body as shown. A fold waits for
   // the parts' sizes (measuredNow()).
   async function renderAssembly(tag, options) {
-    const fold = assembly.fold;
     if (!fold || bodyTagOf(assembly, fold.id) !== tag)
       return renderBody(assembly, partsById, globalOverrides, tag, options);
     const node = getNode(assembly, fold.id);
     const spec = foldSpec(partsById.get(node?.partId), node?.params);
     const frame =
       node && measuredNow(measured, assembly) && nodeWorldFrame(assembly, partsById, nodeExtents, fold.id);
+    if (foldBlocked) throw new Error(foldBlocked);
     if (!spec || !frame)
       throw new Error(
         "Can't lay this body out folded yet: where the head sits isn't known until the preview has rendered every part. Try the export again in a moment.",
@@ -1556,7 +1582,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         });
       }),
       builtin("bench.printLayout", {
-        when: Boolean(assembly.fold),
+        when: Boolean(fold),
         checked: showingLayout,
         run: toggleLayoutView,
       }),
@@ -1737,8 +1763,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // rather than floating over its top face, where its height handle is.
   const floatControls = !rootSelected && !shownHandles;
   // The part a fold is on, by name, for the print layout's toggle and note.
-  const foldedPartName = assembly.fold
-    ? (partsById.get(getNode(assembly, assembly.fold.id)?.partId)?.name ?? "The folded part")
+  const foldedPartName = fold
+    ? (partsById.get(getNode(assembly, fold.id)?.partId)?.name ?? "The folded part")
     : null;
   const moving = moveMode && Boolean(selectedNode) && !rootSelected;
   const cropping = Boolean(selectedNode) && assembly.cropTo === selectedNode.id;
@@ -2004,9 +2030,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               {showingLayout ? (
                 <>
                   The print layout: the body {foldedPartName} is part of, as it exports{" "}
-                  {assembly.fold.mode === "split" ? "split in two" : "folded on its hinge"}: cut in front of
-                  the head and laid on its side. Select a part, or turn off Print layout, to get back to the
-                  bench.
+                  {fold.mode === "split" ? "split in two" : "folded on its hinge"}: cut in front of the head
+                  and laid on its side. Select a part, or turn off Print layout, to get back to the bench.
                 </>
               ) : moving ? (
                 <>
@@ -2068,7 +2093,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               toolbar={
                 <>
                   {rootSelected && <div className="bench-root-chip">{selectionControls}</div>}
-                  {assembly.fold && (
+                  {fold && (
                     <button
                       type="button"
                       className="viewer-helpers-toggle bench-layout-toggle"

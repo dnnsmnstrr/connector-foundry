@@ -29,8 +29,11 @@ export const FOLD_MODE_LABELS = { folded: "Folded", split: "Split" };
  * A catalogue part's fold, with its parameters: the cut's y in the
  * part's own centred frame and which way along its z the rest of the
  * body runs from the head (-1 or 1). null when the part has no head to
- * fold (no `fold` entry, an imported mesh) or the parameter's value
- * has no entry.
+ * fold (no `fold` entry, an imported mesh), the parameter's value has
+ * no entry, or the part is already laid out for printing by its own
+ * `layout` parameter (openConnect's folded or split): the cut table is
+ * for the part standing, and folding a layout again would come out
+ * wrong without a word.
  * @param {any} part
  * @param {Record<string, any>} [params]
  * @returns {{ cutY: number, toward: number } | null}
@@ -38,11 +41,28 @@ export const FOLD_MODE_LABELS = { folded: "Folded", split: "Split" };
 export function foldSpec(part, params = {}) {
   const fold = part?.kind === "imported" ? null : part?.fold;
   if (!fold) return null;
+  const layout = params.layout ?? part.defaults?.layout;
+  if (layout !== undefined && layout !== "upright") return null;
   const value = params[fold.param] ?? part.defaults?.[fold.param];
   const cutY = fold.cut_y?.[value];
   const toward = fold.toward?.[value];
   if (!Number.isFinite(cutY) || (toward !== 1 && toward !== -1)) return null;
   return { cutY, toward };
+}
+
+/**
+ * The bench's fold, while it can be made: `assembly.fold` when its node
+ * is there and its part can fold with the parameters it has now
+ * (foldSpec()), else null. A fold kept on a part that has since been
+ * laid out by its own `layout` waits, and comes back with `upright`.
+ * @param {any} assembly
+ * @param {Map<string, any>} partsById
+ * @returns {{ id: string, mode: "folded" | "split" } | null}
+ */
+export function activeFold(assembly, partsById) {
+  const fold = assembly?.fold;
+  const node = fold && getNode(assembly, fold.id);
+  return node && foldSpec(partsById.get(node.partId), node.params) ? fold : null;
 }
 
 /**

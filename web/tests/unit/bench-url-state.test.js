@@ -106,3 +106,13 @@ test("meshes that can never fit the session quota are not encoded at all", () =>
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /too big/);
 });
+
+test("a share link with a malformed fold still loads, without the fold", () => {
+  for (const fold of [null, "root", { id: "root", mode: "origami" }, { id: 3, mode: "folded" }]) {
+    const json = JSON.stringify({ root: { partId: "basics/plate" }, fold });
+    globalThis.window.location.hash = `#bench=${Buffer.from(json).toString("base64url")}`;
+    const { assembly } = restoreBenchFromUrl(catalogue);
+    assert.equal(assembly.root.partId, "basics/plate");
+    assert.equal(assembly.fold, undefined);
+  }
+});

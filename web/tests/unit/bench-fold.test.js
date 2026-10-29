@@ -9,7 +9,7 @@ import {
   removeChild,
   setFold,
 } from "../../src/lib/assembly.js";
-import { bodyTagOf, foldPlan, foldSpec } from "../../src/lib/benchFold.js";
+import { activeFold, bodyTagOf, foldPlan, foldSpec } from "../../src/lib/benchFold.js";
 import { checkBenchConfig, hydrateBenchConfig, serializeBenchConfig } from "../../src/lib/benchConfig.js";
 
 // The catalogue's openConnect entry, as far as folding reads it.
@@ -71,6 +71,24 @@ test("foldSpec reads the cut and direction for the part's own parameter value", 
   assert.equal(foldSpec(PLATE, {}), null);
   assert.equal(foldSpec({ ...OPENCONNECT, kind: "imported" }, {}), null);
   assert.equal(foldSpec(undefined), null);
+});
+
+test("a part already laid out by its own layout parameter doesn't fold again", () => {
+  assert.deepEqual(foldSpec(OPENCONNECT, { layout: "upright" }), { cutY: -1.905, toward: -1 });
+  assert.equal(foldSpec(OPENCONNECT, { layout: "folded" }), null);
+  assert.equal(foldSpec(OPENCONNECT, { body: "screw", layout: "split" }), null);
+});
+
+test("activeFold is the stored fold only while its part can fold", () => {
+  let a = createAssembly(PLATE.id, {});
+  a = addChild(a, { parentId: ROOT_ID, partId: OPENCONNECT.id, params: { body: "none" }, slotName: "mount" });
+  const head = a.nodes[0].id;
+  assert.equal(activeFold(a, catalogue), null);
+  const folded = setFold(a, head, "folded");
+  assert.deepEqual(activeFold(folded, catalogue), { id: head, mode: "folded" });
+  const laidOut = { ...folded, nodes: [{ ...folded.nodes[0], params: { body: "none", layout: "split" } }] };
+  assert.equal(activeFold(laidOut, catalogue), null);
+  assert.equal(activeFold(setFold(createAssembly(PLATE.id, {}), ROOT_ID, "folded"), catalogue), null);
 });
 
 test("bodyTagOf walks fused joints up to the body's own start", () => {
