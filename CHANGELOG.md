@@ -5,6 +5,20 @@ parts themselves. The desktop downloads are on the
 [releases page](https://github.com/dnnsmnstrr/connector-foundry/releases); the web version always
 runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
+## Unreleased
+
+### Phones and tablets
+
+- **The sidebar is a drawer.** On a phone (and in any browser window under 900 px wide) the part
+  list, the Bench's parts and the Holes list are a sheet over the foot of the 3D view instead of a
+  section at the bottom of the page behind a "Hide sidebar" button. Drag its handle up to half the
+  screen or nearly all of it, push it back down, or tap the handle to open and close it; the list
+  in it scrolls on its own, and the view keeps its one-finger orbit. The Bench and Holes views now
+  run to the bottom of the screen, under their header, and the **Print…** button and the selected
+  part's controls move up to stay clear of the sheet. It starts closed on a first visit and then
+  remembers whether you left it open, as the sidebar does on a computer; `[` and the command
+  palette's **Open the drawer** work too.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts

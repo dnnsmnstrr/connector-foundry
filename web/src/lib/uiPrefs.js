@@ -33,8 +33,15 @@ function setFlag(key, value) {
   }
 }
 
-export function getSidebarCollapsed() {
-  return getFlag(SIDEBAR_COLLAPSED_KEY);
+// `fallback` when it was never set (or storage can't be read): App passes
+// whether the sidebar is a phone's bottom drawer, which starts closed.
+export function getSidebarCollapsed(fallback = false) {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    return stored === null ? fallback : stored === "1";
+  } catch {
+    return fallback;
+  }
 }
 
 export function setSidebarCollapsed(collapsed) {

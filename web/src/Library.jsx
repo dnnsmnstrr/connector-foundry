@@ -472,7 +472,7 @@ export default function Library({
   return (
     <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
       <aside className="sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
+        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} title="Part list" />
         {!sidebarCollapsed && <PartBrowser parts={parts} activeId={selectedId} onPick={select} />}
       </aside>
       {!sidebarCollapsed && <SidebarResizer />}

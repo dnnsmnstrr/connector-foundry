@@ -83,7 +83,7 @@ export const BUILTIN_COMMANDS = Object.freeze({
   "app.sidebar": {
     title: "Show or hide the sidebar",
     section: "Go to",
-    keywords: ["toggle", "panel", "collapse"],
+    keywords: ["toggle", "panel", "collapse", "drawer", "sheet", "open", "close"],
     keys: [["["]],
   },
   // --- General

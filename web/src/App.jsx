@@ -54,6 +54,7 @@ import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
 import { EASYPRINT_URL } from "./lib/share.js";
 import { claudeCodeCommand, mcpJsonConfig } from "./lib/desktopBridge.js";
 import { commandRegistry } from "./lib/commands.js";
+import { isDrawerLayout } from "./lib/drawer.js";
 import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isEditableTarget.js";
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
@@ -201,7 +202,9 @@ export default function App() {
   // The command palette (components/CommandPalette.jsx): null when closed,
   // else the ids of the command pages to open it on (none: the full list).
   const [palette, setPalette] = useState(/** @type {{ path: string[] } | null} */ (null));
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
+  // On a phone the sidebar is a sheet over the 3D view (SidebarToggle.jsx):
+  // closed until it has been opened once, so a first visit sees the part.
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => getSidebarCollapsed(isDrawerLayout()));
   // The live bench (lib/benchSession.js) — read here only to mirror it
   // into the URL and to decide whether a switch may seed it.
   const { assembly, importedParts } = useBenchSession();
@@ -590,7 +593,13 @@ export default function App() {
       builtin("app.holes", { when: mode !== "holes", run: () => setMode("holes") }),
       builtin("app.searchParts", { run: jumpToLibrarySearch }),
       builtin("app.sidebar", {
-        title: sidebarCollapsed ? "Show the sidebar" : "Hide the sidebar",
+        title: isDrawerLayout()
+          ? sidebarCollapsed
+            ? "Open the drawer"
+            : "Close the drawer"
+          : sidebarCollapsed
+            ? "Show the sidebar"
+            : "Hide the sidebar",
         run: toggleSidebar,
       }),
       builtin("app.cancelRenders", { when: getRenderActivity() > 0, run: cancelRenders }),

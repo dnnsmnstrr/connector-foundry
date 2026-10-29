@@ -1470,7 +1470,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   return (
     <div className={sidebarCollapsed ? "bench holes sidebar-collapsed" : "bench holes"}>
       <aside className="sidebar bench-sidebar holes-sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
+        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} title="Hole list" />
         {!sidebarCollapsed && (
           <>
             <h2>{label}</h2>
