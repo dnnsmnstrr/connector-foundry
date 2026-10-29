@@ -10,6 +10,7 @@
     />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#17181b" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Foundry" />
@@ -21,12 +22,37 @@
     <link rel="icon" href="/desktop/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/app/manifest.webmanifest" />
+    <!-- The installed app's first picture, before any script or stylesheet
+         has loaded: the launch screen iOS showed (scripts/ios-splash.mjs)
+         with the icon in the same place, so the start is one picture. The
+         app's stylesheet has the same rules (styles.css, .boot-splash), and
+         React replaces this with its own copy while the catalogue loads. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111214;
+      }
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .boot-splash img {
+        width: min(28vmin, 160px);
+        height: min(28vmin, 160px);
+      }
+    </style>
     <!-- Before the module script: says what to update on a browser too old
          to parse or run the app (public/gate.js). -->
     <script src="/gate.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-splash"><img src="/desktop/icon.svg" alt="" /></div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

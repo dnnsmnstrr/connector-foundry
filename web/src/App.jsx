@@ -21,6 +21,7 @@ import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
 import { useCommands, usePaletteShortcut } from "./hooks/useCommands.js";
 import { useDesktopMcp } from "./hooks/useDesktopMcp.js";
 import { useUserCommands } from "./hooks/useUserCommands.js";
+import iconUrl from "../desktop/icon.svg";
 import { useWebMcp } from "./hooks/useWebMcp.js";
 import { createAssembly } from "./lib/assembly.js";
 import { getPreset as getBenchPreset } from "./lib/benchPresets.js";
@@ -713,7 +714,15 @@ export default function App() {
   });
 
   if (error) return <div className="error-screen">Failed to load catalogue: {error}</div>;
-  if (!parts || !restored) return <div className="loading-screen">Loading catalogue&hellip;</div>;
+  // The page's boot splash (app/index.html) carried on, with word of what
+  // is being waited for: one picture from the launch screen to the app.
+  if (!parts || !restored)
+    return (
+      <div className="boot-splash" role="status">
+        <img src={iconUrl} alt="" />
+        <span className="boot-splash-text">Loading catalogue&hellip;</span>
+      </div>
+    );
   if (parts.length === 0) return <div className="error-screen">The catalogue is empty.</div>;
 
   return (
