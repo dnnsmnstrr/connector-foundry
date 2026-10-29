@@ -52,6 +52,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   screen. A part picked from the list turns to its parameters; **Find a part** and `/` turn to the
   list. A render error shows under the header, where it stays in sight. Tablets keep the form
   beside the view.
+- **An even viewer toolbar.** Under 900 px wide the Helpers toggle lost its label and shrank to
+  half the height of Undo, Redo, Fit and View beside it; it is now as tall as they are.
 
 ## 0.5.0 — 2026-10-28
 

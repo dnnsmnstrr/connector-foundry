@@ -845,11 +845,14 @@ a.mode-tab {
 
 /* StlViewer's "Helpers" toggle, last in the viewer toolbar: a pill like
    the scene's other floating controls, dimmed while the helpers are
-   hidden so it reads as "off" without getting in the way. */
+   hidden so it reads as "off" without getting in the way. Its height is
+   the toolbar's other controls' (.viewer-tool, the Undo/Redo circles):
+   without a label (under 900 px) the eye icon alone made it half as tall. */
 .viewer-helpers-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 1.75rem;
   background: rgba(42, 43, 46, 0.92);
   border: 1px solid #3a3b40;
   border-radius: 999px;
