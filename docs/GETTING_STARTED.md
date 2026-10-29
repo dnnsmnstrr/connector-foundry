@@ -24,8 +24,14 @@ everything that is in the sidebar on a computer) is a drawer at the bottom of th
 handle to open it, or drag the handle to pull it up or push it down (**Find a part** opens it at its
 search). On a phone the part's settings are in the drawer too, on a **Parameters** tab beside the
 **Parts** list; on a tablet they sit beside the view. Drag with one finger to turn the view, pinch to zoom, and tap a handle
-to type a size. **Add to Home Screen** opens it like an app, and once it has rendered a part it opens
-again without a connection.
+to type a size.
+
+**Install it like an app.** Settings → **Install the app** (or the command palette's) adds it to
+your home screen: on Android, Chrome asks to install it; on an iPhone or iPad, tap **Share** and
+**Add to Home Screen**. It then opens from its own icon, full screen, and once it has rendered a
+part it opens again without a connection. It keeps itself up to date: when a new version is out,
+**Reload to update** (**Update** on a phone) appears at the top, and the next time you open it
+fresh it is there anyway.
 
 Want it in a window of its own, or offline? The [desktop app](DESKTOP.md) is the same app for macOS
 and Windows. To render parts from scripts, there is a [command line](CLI.md).

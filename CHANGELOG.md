@@ -72,6 +72,28 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **An even viewer toolbar.** Under 900 px wide the Helpers toggle lost its label and shrank to
   half the height of Undo, Redo, Fit and View beside it; it is now as tall as they are.
 
+### Install it like an app
+
+- **Install the app.** Settings (while it can be installed) and the command palette have
+  **Install the app**. On Android, Chrome, Edge and other Chromium browsers show their own install
+  dialog; on an iPhone or iPad, and in Android browsers without one, a sheet shows the steps (Share,
+  **Add to Home Screen**). Installed, it opens from its own icon, full screen.
+- **A launch screen on iPhone and iPad.** The installed app starts on its icon on the app's dark
+  background, at the same place the loading screen then shows it, instead of a blank white screen.
+- **Updates reach an app left open.** A phone keeps an installed app suspended for days, and it
+  used to show the version it was opened with until it was closed for good. It now checks for a
+  new version when it comes back to the front (at most every ten minutes) and every hour it stays
+  open; when one is out, the nav shows **Reload to update** (**Update** on a phone), and after the
+  reload it says it updated. It asks first if the reload would lose the Holes tab's model. The
+  palette's **Check for updates** asks the server there and then. A fresh start always opens the
+  newest version, as before.
+- **Feels like an app.** Swiping past the end of a list no longer bounces the whole page on iOS or
+  pulls Android's refresh over it; text doesn't grow when an iPhone turns sideways; a tapped control
+  dims while held instead of flashing grey; holding a finger on a button or a part's picture no
+  longer selects its text or offers to save the image; and the installed app no longer zooms when
+  a pinch misses the 3D view. Every dialog has a × at the top on a touch screen, and Android's back
+  gesture puts the drawer away instead of leaving the app.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts

@@ -39,16 +39,20 @@ import UpdateSettings from "./UpdateSettings.jsx";
 // shortcuts button: App closes Settings and opens the sheet in its place,
 // never one dialog over the other. Beside it, Guides opens the website's
 // guides in a new tab — in the desktop app, the system browser, which
-// desktop/main.cjs hands every new window to.
+// desktop/main.cjs hands every new window to. `onInstall`, given while
+// the app can be installed from this browser (lib/webApp.js), is "Install
+// the app" at the top: App closes Settings and shows the browser's dialog
+// or the platform's steps.
 /**
  * @param {{
  *   parts: any[],
  *   globalDefaults: Record<string, any> | null,
  *   onClose: () => void,
  *   onShowShortcuts: () => void,
+ *   onInstall?: () => void,
  * }} props
  */
-export default function SettingsModal({ parts, globalDefaults, onClose, onShowShortcuts }) {
+export default function SettingsModal({ parts, globalDefaults, onClose, onShowShortcuts, onInstall }) {
   const [saved, setSaved] = useState(() => getGlobalOverrides());
   const [benchFollows, setBenchFollows] = useState(getBenchFollowsLibrary);
   // Read live, not copied into state: the viewer's Grid select sets the
@@ -157,6 +161,17 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
         </>
       }
     >
+      {onInstall && (
+        <>
+          <h4 className="settings-section">This device</h4>
+          <p className="muted settings-install-note">
+            Open it from its own icon, full screen and offline, and keep it up to date by itself.
+          </p>
+          <button type="button" className="download-button settings-install" onClick={onInstall}>
+            Install the app
+          </button>
+        </>
+      )}
       <h4 className="settings-section">Printer</h4>
       <label className="field has-info-tip">
         <span className="field-label">

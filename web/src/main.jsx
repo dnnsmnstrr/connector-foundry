@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { warmRenderer } from "./lib/openscad-client.js";
+import { startWebApp } from "./lib/webApp.js";
 import "./styles.css";
 
 // The desktop shells draw behind the native title bar: macOS keeps its
@@ -26,6 +27,28 @@ if (window.location.protocol === "foundry:") {
 const unsupported = Boolean(/** @type {any} */ (window).__unsupported);
 
 if (!unsupported) {
+  // The installed web app (lib/webApp.js): before the first render, since
+  // the browser's install offer can come before React has mounted. The
+  // service worker (src/sw.js, emitted as sw.js at the base by the build,
+  // its scope the whole site so it sees the render worker's fetches) keeps
+  // the app's chunks, the OpenSCAD engine and the .scad bundle in Cache
+  // Storage, so a returning phone loads them from disk and the app opens
+  // offline. Only where it can work and should: the production build,
+  // over https or on localhost (vite preview; the browser tests block it
+  // unless a spec allows it). Nothing of this under the desktop app's
+  // foundry:// scheme, which serves dist from disk and updates itself.
+  if (window.location.protocol !== "foundry:") {
+    const secureHost =
+      location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+    const worker = import.meta.env.PROD && secureHost && "serviceWorker" in navigator;
+    startWebApp({
+      win: window,
+      buildId: __BUILD_ID__,
+      scriptUrl: worker ? `${import.meta.env.BASE_URL}sw.js` : undefined,
+      scope: import.meta.env.BASE_URL,
+    });
+  }
+
   ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <App />
@@ -46,25 +69,5 @@ if (!unsupported) {
   if (!saveData) {
     if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => warmRenderer());
     else setTimeout(warmRenderer, 1500);
-  }
-
-  // The service worker (src/sw.js, emitted as sw.js at the base by the
-  // build, its scope the whole site so it sees the render worker's fetches)
-  // keeps the app's chunks, the OpenSCAD engine and the .scad bundle in
-  // Cache Storage, so a returning phone loads them from disk and the app
-  // opens offline. Only where it can work and should: the production
-  // build, over https or on localhost (vite preview; the browser tests
-  // block it unless a spec allows it), and never under the desktop app's
-  // foundry:// scheme, which serves dist from disk itself.
-  const secureHost = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
-  if (import.meta.env.PROD && secureHost && "serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
-        .catch(() => {
-          // Offline on the first visit, a blocked scheme: the app runs as
-          // it did without one.
-        });
-    });
   }
 }

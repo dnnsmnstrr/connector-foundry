@@ -13,6 +13,7 @@ import Library from "./Library.jsx";
 import CommandPalette, { CommandPaletteBoundary } from "./components/CommandPalette.jsx";
 import ModeErrorBoundary from "./components/ModeErrorBoundary.jsx";
 import RenderActivity from "./components/RenderActivity.jsx";
+import InstallSheet from "./components/InstallSheet.jsx";
 import UpdateNotice from "./components/UpdateNotice.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
@@ -21,6 +22,7 @@ import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
 import { useCommands, usePaletteShortcut } from "./hooks/useCommands.js";
 import { useDesktopMcp } from "./hooks/useDesktopMcp.js";
 import { useUserCommands } from "./hooks/useUserCommands.js";
+import { useWebApp } from "./hooks/useWebApp.js";
 import iconUrl from "../desktop/icon.svg";
 import { useWebMcp } from "./hooks/useWebMcp.js";
 import { createAssembly } from "./lib/assembly.js";
@@ -51,7 +53,7 @@ import {
   openLink,
   partCommand,
 } from "./lib/commandCatalog.js";
-import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
+import { getCommandHud, showCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
 import { EASYPRINT_URL } from "./lib/share.js";
 import { claudeCodeCommand, mcpJsonConfig } from "./lib/desktopBridge.js";
 import { commandRegistry } from "./lib/commands.js";
@@ -60,6 +62,7 @@ import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isE
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
 import { chordText } from "./lib/shortcuts.js";
+import { promptInstall } from "./lib/webApp.js";
 import { tabBridge } from "./lib/webmcp.js";
 import {
   GRID_SNAP_OPTIONS,
@@ -200,6 +203,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The "?" sheet (components/ShortcutsModal.jsx).
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // How to install the app, where the browser has no dialog of its own for
+  // it (components/InstallSheet.jsx): the platform's steps, or null.
+  const [installSheet, setInstallSheet] = useState(/** @type {"ios" | "android" | null} */ (null));
+  const webApp = useWebApp();
   // The command palette (components/CommandPalette.jsx): null when closed,
   // else the ids of the command pages to open it on (none: the full list).
   const [palette, setPalette] = useState(/** @type {{ path: string[] } | null} */ (null));
@@ -601,6 +608,18 @@ export default function App() {
     ];
   }
 
+  // "Install the app": the browser's own dialog where it offered one
+  // (Chromium), else the sheet with the platform's steps. Nothing to offer
+  // when the app already runs installed, or on a desktop browser with no
+  // prompt (the desktop app is the offer there).
+  function installApp() {
+    if (webApp.install === "prompt") {
+      promptInstall().then((installed) => {
+        if (installed) showCommandHud("Installed: open it from your home screen");
+      });
+    } else if (webApp.install) setInstallSheet(webApp.install);
+  }
+
   // The shell's commands: the tabs, Settings and its quick settings, help
   // and links, and — off the Library, which offers its own — every part.
   // Each tab and the viewer add their own while mounted.
@@ -687,6 +706,7 @@ export default function App() {
       builtin("app.issue", { actions: linkActions(ISSUES_URL) }),
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
       builtin("app.easyprint", { subtitle: "printables.com/slice", actions: linkActions(EASYPRINT_URL) }),
+      builtin("app.install", { when: webApp.install !== null, run: installApp }),
       // The desktop app knows where it came from.
       builtin("app.releases", {
         when: !document.documentElement.classList.contains("desktop"),
@@ -848,8 +868,17 @@ export default function App() {
             setSettingsOpen(false);
             setShortcutsOpen(true);
           }}
+          onInstall={
+            webApp.install
+              ? () => {
+                  setSettingsOpen(false);
+                  installApp();
+                }
+              : undefined
+          }
         />
       )}
+      {installSheet && <InstallSheet method={installSheet} onClose={() => setInstallSheet(null)} />}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       <CommandHud />
       {palette && (

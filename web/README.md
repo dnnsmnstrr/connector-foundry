@@ -186,8 +186,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   (`renderError.js`'s `WASM_MEMORY_SYMPTOMS`). With the browser's data saver on (Chromium), the
   engine is not warmed up ahead of the first render.
 - **The service worker** (`src/sw.js`, emitted as `sw.js` at the base by
-  `scripts/vite-plugin-sw.mjs`, registered by `main.jsx` in a production build over https or on
-  localhost, never under the desktop app's `foundry://`). Its scope is the whole site, not `app/`:
+  `scripts/vite-plugin-sw.mjs`, registered by `lib/webApp.js` in a production build over https or
+  on localhost, never under the desktop app's `foundry://`). Its scope is the whole site, not `app/`:
   the render worker is a script under `assets/`, and a dedicated worker is controlled by the
   registration covering its own URL, so with an `app/` scope the engine and the bundle it fetches
   went uncached (navigations outside `app/` pass through). GitHub Pages sends `max-age=600` with mtime ETags, so after every
@@ -207,9 +207,37 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   `client.navigate(client.url)`); keep it deployed for a while, since a browser learns of it on
   its next visit. The browser tests block service workers (`serviceWorkers: "block"`: a page a
   worker answers bypasses `page.route()`), except `sw.spec.js`.
-- **Home screen.** `public/app/manifest.webmanifest` (relative URLs, so it works under either base)
-  and `public/icons/`, rendered from `desktop/icon.svg` by `npm run icons:web` and committed. Added
-  to the home screen, the app opens standalone.
+- **Home screen.** `public/app/manifest.webmanifest` (relative URLs, so it works under either base;
+  `scripts/web-icons.mjs` has the notes JSON can't, among them why there are no `shortcuts`) and
+  `public/icons/`, rendered from `desktop/icon.svg` by `npm run icons:web` and committed. Added to
+  the home screen, the app opens standalone. iOS ignores the manifest's colours at launch and shows
+  a white screen unless the page lists an `apple-touch-startup-image` of exactly the screen's pixel
+  size for each device and orientation: `scripts/vite-plugin-ios-splash.mjs` renders the 44 of
+  them (`scripts/ios-splash.mjs`: the icon on `#111214`, assembled as a PNG by hand, ~2 MB and a
+  few seconds a build) and links them from the app's page, builds only. The icon sits where
+  `app/index.html`'s inline boot splash and the catalogue's loading screen (`.boot-splash`) draw
+  it, `min(28vmin, 160px)`, so the start is one picture.
+- **The installed app** (`src/lib/webApp.js`, started by `main.jsx` before the first render;
+  `hooks/useWebApp.js`): registers the worker, and keeps an app that stays open current. A phone
+  keeps an installed app suspended for days, and a page that never navigates never asks for a new
+  worker, so it calls `registration.update()` when the page comes back to the front
+  (`UPDATE_CHECK_MIN_MS` since the last check), when it comes online, and hourly while visible.
+  A newer `sw.js` takes over at once (`controllerchange`); the page asks it for its build id (a
+  `build-id` message, answered on a `MessageChannel`) and compares it with its own
+  (`__BUILD_ID__`, defined by `vite-plugin-sw.mjs`), since a page loaded from the network may
+  already be that build. Then `UpdateNotice` shows **Reload to update** and the palette's
+  `app.restartToUpdate`; the reload asks first when the Holes tab's model would be lost
+  (`desktopUpdates.js`'s `restartWarning()`), and is never made for the user. It also keeps
+  Chromium's `beforeinstallprompt` (without `preventDefault()`) for **Install the app**
+  (`app.install`, and Settings while it can be); iOS and Android browsers without the event get
+  `components/InstallSheet.jsx`'s steps. `sw.spec.js` deploys a new `sw.js` under the running app
+  and checks Chrome's own installability verdict.
+- **Native feel** (`styles.css`): no overscroll on the page (iOS bounced the whole UI, Android
+  pulled refresh over it), `text-size-adjust` pinned (iOS enlarged text in landscape), a pressed
+  state instead of the tap highlight, no selection or callout on controls and images under a
+  coarse pointer, and no page zoom in `display-mode: standalone` (`touch-action: pan-x pan-y` on
+  the root; the viewer's own `none` still takes the pinch). `Modal` has a × for a coarse pointer;
+  Android's back closes the drawer through a `CloseWatcher` (`App.jsx`; a `<dialog>` has its own).
 - **Printing from a phone** (`components/PrintSheet.jsx`, `lib/share.js`, `lib/threeMfWrite.js`):
   Prusa's EasyPrint (printables.com/slice, and the Prusa app) slices in the cloud and prints to a
   printer on Prusa Connect, but nothing can send it a model — no API, URL scheme, share target or
@@ -336,6 +364,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/threeMfWrite.js` | 3MF export: `indexedFromStl()` welds a binary STL exactly, `write3mf()` writes core-spec 3MF (millimetres, one object per body) zipped with three.js's fflate, `stlBodiesTo3mf()` both |
 | `src/components/PrintSheet.jsx` | "Print with EasyPrint…": a row per body (Share/Download STL, 3MF), every body in one 3MF on the Bench, Open EasyPrint, the steps |
 | `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
+| `src/lib/webApp.js`, `hooks/useWebApp.js`, `components/InstallSheet.jsx`, `scripts/ios-splash.mjs`, `scripts/vite-plugin-ios-splash.mjs` | The installed web app: the worker's registration, update checks for an app left open and the build it took over from (`__BUILD_ID__`), the install offer (Chromium's prompt, or the platform's steps); iOS launch screens rendered at build time (see "Phones, tablets and offline") |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout and whether the Library's drawer has tabs (`isDrawerLayout()`, `isDrawerTabsLayout()`, live through the hooks), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which tab shows; `DrawerTabs` is the Parameters / Parts control |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |

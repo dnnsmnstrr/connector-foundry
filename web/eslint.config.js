@@ -66,12 +66,15 @@ export default [
     },
   },
   // `__PUBLIC_VERSIONS__` is a build-time constant (scripts/vite-plugin-sw.mjs)
-  // that the app and the worker both read; src/build-id.d.ts types it.
+  // that the app and the worker both read, `__BUILD_ID__` one only the app
+  // does; src/build-id.d.ts types them.
   // Browser code: the app itself.
   {
     files: ["src/**/*.{js,jsx}"],
     ignores: ["src/worker/**", "src/sw.js"],
-    languageOptions: { globals: { ...globals.browser, __PUBLIC_VERSIONS__: "readonly" } },
+    languageOptions: {
+      globals: { ...globals.browser, __PUBLIC_VERSIONS__: "readonly", __BUILD_ID__: "readonly" },
+    },
     // Debug logging does not ship; console.warn/error are how the app
     // reports a recoverable problem (bad localStorage, a failed render).
     rules: { "no-console": ["error", { allow: ["warn", "error"] }] },

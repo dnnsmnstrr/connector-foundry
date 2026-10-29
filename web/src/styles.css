@@ -819,6 +819,22 @@ a.mode-tab {
   background: #2c3a5a;
 }
 
+/* The browser's "Reload to update" says one word on a phone, where the
+   whole phrase pushed the Settings gear off the nav. */
+.update-label-short {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :root:not(.desktop) .update-label {
+    display: none;
+  }
+
+  :root:not(.desktop) .update-label-short {
+    display: inline;
+  }
+}
+
 .render-spinner {
   width: 0.85rem;
   height: 0.85rem;
@@ -4319,6 +4335,56 @@ a.bench-modal-header-button {
    Holes') sit in their headers, beside the title (.part-header-print),
    under 900 px only.
    ------------------------------------------------------------------- */
+/* "Install the app" where the browser has no dialog for it
+   (components/InstallSheet.jsx). */
+.install-sheet-modal {
+  width: min(400px, 100vw - 2rem);
+}
+
+.install-sheet-intro {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #b8b9bd;
+}
+
+.install-sheet-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.install-sheet-steps li + li {
+  margin-top: 0.45rem;
+}
+
+.install-sheet-share {
+  vertical-align: -0.15em;
+  color: #6b84e8;
+}
+
+.install-sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
+.install-sheet-actions .download-button {
+  position: static;
+}
+
+/* Settings' "Install the app", at the top while it can be. */
+.settings-install-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.settings-install {
+  position: static;
+  margin-bottom: 0.25rem;
+}
+
 .print-sheet-modal {
   width: min(440px, 100vw - 2rem);
 }

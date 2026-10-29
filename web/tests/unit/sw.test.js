@@ -303,3 +303,16 @@ test("navigations outside the app, the landing page and the guides, are left to 
     assert.equal(dispatch(worker, navigation(url)).answer, null, url);
   }
 });
+
+test("asked which build it is, the worker answers on the port it was given, and nothing else", () => {
+  const worker = load();
+  const answers = [];
+  const port = { postMessage: (data) => answers.push(data) };
+  worker.listeners.message({ data: { type: "build-id" }, ports: [port] });
+  // The source as written: the build plugin puts the real id in its place.
+  assert.deepEqual(answers, ["__BUILD_ID__"]);
+  worker.listeners.message({ data: { type: "something else" }, ports: [port] });
+  worker.listeners.message({ data: null, ports: [] });
+  worker.listeners.message({ data: { type: "build-id" }, ports: [] });
+  assert.deepEqual(answers, ["__BUILD_ID__"]);
+});

@@ -42,7 +42,11 @@ test("a build versions the .scad bundle by its content; the dev server versions 
     assert.equal(plugin.apply, undefined);
     const built = JSON.parse(plugin.config({}, { command: "build" }).define.__PUBLIC_VERSIONS__);
     assert.deepEqual(Object.keys(built), ["scad-bundle.json"]);
-    assert.deepEqual(plugin.config({}, { command: "serve" }), { define: { __PUBLIC_VERSIONS__: "{}" } });
+    assert.deepEqual(plugin.config({}, { command: "serve" }), {
+      define: { __PUBLIC_VERSIONS__: "{}", __BUILD_ID__: '"dev"' },
+    });
+    // The page knows its build, to tell a worker of another build from its own.
+    assert.equal(plugin.config({}, { command: "build" }).define.__BUILD_ID__, '"abc123"');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
