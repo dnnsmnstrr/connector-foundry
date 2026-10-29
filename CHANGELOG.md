@@ -52,6 +52,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   screen. A part picked from the list turns to its parameters; **Find a part** and `/` turn to the
   list. A render error shows under the header, where it stays in sight. Tablets keep the form
   beside the view.
+- **Number fields for a finger.** On a touch screen a number field's arrows are a − and a +
+  beside it, each as tall as the field, instead of two half-height arrows stacked in its edge. A
+  tap steps the value without focusing the field, so the keyboard stays down; holding still
+  repeats, and a finger that starts scrolling the list over them changes nothing. Every field is
+  at least 16 px, so iOS no longer zooms the page in when one is focused (the Holes snapping
+  bar's Inset and Radius did).
 - **An even viewer toolbar.** Under 900 px wide the Helpers toggle lost its label and shrank to
   half the height of Undo, Redo, Fit and View beside it; it is now as tall as they are.
 

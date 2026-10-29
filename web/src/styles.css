@@ -584,6 +584,10 @@ textarea {
   color: #4a4b50;
 }
 
+.decimal-input-arrow-sign {
+  display: none;
+}
+
 .field select {
   /* Without this the control renders at the platform default height and
      sits a couple of pixels taller than the text inputs beside it. */
@@ -4016,14 +4020,57 @@ a.bench-modal-header-button {
     touch-action: manipulation;
   }
 
+  /* DecimalInput's arrows as − and + beside the field instead of a
+     stacked pair inside its edge: each gets the field's whole 44 px
+     height and a 44 px width, where stacked they had half the height
+     each (a thumb meant for one often landed on the other). The DOM
+     order is up, down; reversed, it reads − + like a stepper. They join
+     the field's right edge, which loses its rounding to them. The field
+     keeps its own width, so the control grows by the buttons. */
   .decimal-input-arrows {
-    width: 2rem;
+    position: static;
+    flex-direction: row-reverse;
+    width: auto;
+    opacity: 1;
   }
 
-  /* As specific as the base rule's, which would win otherwise and leave
-     the digits under the widened arrows. */
+  /* As specific as the base rule's and the fields' own (.field, the
+     handle editor), which would win otherwise. */
   .decimal-input > input[type="text"] {
-    padding-right: 2.25rem;
+    padding-right: 0.5rem;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .decimal-input-arrow {
+    flex: none;
+    width: 44px;
+    border: 1px solid #33343a;
+    border-left: 0;
+    border-radius: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Up, the + on the right end. */
+  .decimal-input-arrow:first-child {
+    border-radius: 0 4px 4px 0;
+  }
+
+  .decimal-input-arrow-triangle {
+    display: none;
+  }
+
+  .decimal-input-arrow-sign {
+    display: block;
+  }
+
+  /* The Bench's Shift X and Y share a row: at the stacked layout's 5.5rem
+     each, with their buttons, they overran a phone's drawer by 37 px.
+     3.5rem still shows "-12.5" at 16 px. */
+  :root:not(.desktop) .bench-shift-inputs input[type="text"] {
+    width: 3.5rem;
   }
 
   .holes-select-all,
@@ -4088,16 +4135,17 @@ a.bench-modal-header-button {
     inset: -14px -14px -6px;
   }
 
-  :root:not(.desktop) .search-input,
-  :root:not(.desktop) .field input[type="text"],
-  :root:not(.desktop) .field select,
-  :root:not(.desktop) .bench-child-meta select,
-  :root:not(.desktop) .bench-offset-field input,
-  :root:not(.desktop) .bench-preset-name,
-  :root:not(.desktop) .viewer-handle-editor input[type="text"],
-  :root:not(.desktop) .viewer-grid,
-  :root:not(.desktop) .command-palette-input {
-    font-size: 1rem;
+  /* Every field iOS Safari would zoom into on focus (text under 16 px),
+     whichever rule sized it: a list of fields missed the Holes snapping
+     bar's (12 px), and the next new field would be missed the same way.
+     !important because the fields' own rules are more specific than any
+     catch-all; it is a floor, so the palette's larger field keeps its
+     size. */
+  :root:not(.desktop)
+    :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea):not(
+      .command-palette-input
+    ) {
+    font-size: max(16px, 1rem) !important;
   }
 }
 
@@ -4199,11 +4247,22 @@ a.bench-modal-header-button {
   }
 }
 
-/* A finger's 44 px for the snapping bar's toggle and fields. */
+/* A finger's 44 px for the snapping bar's toggle and fields. With their
+   − and + beside them the two fields no longer fit one row on a phone, so
+   the bar wraps (Radius under Inset, both at its right end); the rounding
+   is a pill's on one row and a rounded box's on two. */
 @media (pointer: coarse) {
   .holes-snap-toggle,
   .holes-snap-field .decimal-input > input[type="text"] {
     min-height: 44px;
+  }
+
+  .holes-snap-bar {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 0.35rem;
+    max-width: calc(100% - 2.5rem);
+    border-radius: 25px;
   }
 }
 

@@ -284,10 +284,48 @@ test.describe("on a phone", () => {
     });
     expect(small).toEqual([]);
     // A number field's arrows, in the drawer: the only way to step a value
-    // by touch.
+    // by touch. Side by side, each the field's full height.
     await page.locator(".sidebar-toggle").tap();
-    const arrow = await box(page.locator(".decimal-input-arrow").first());
-    expect(arrow.width).toBeGreaterThanOrEqual(30);
+    const wrap = page.locator(".params-panel .decimal-input").first();
+    const field = await box(wrap.getByRole("spinbutton"));
+    const [plus, minus] = await Promise.all(
+      [0, 1].map((i) => box(wrap.locator(".decimal-input-arrow").nth(i))),
+    );
+    for (const arrow of [plus, minus]) {
+      expect(arrow.width).toBeGreaterThanOrEqual(44);
+      expect(Math.abs(arrow.height - field.height)).toBeLessThanOrEqual(1);
+    }
+    expect(minus.x + minus.width).toBeLessThanOrEqual(plus.x + 1);
+  });
+
+  test("a tap on a number field's − or + steps it without focusing it", async ({ page }) => {
+    await setUp(page);
+    await page.goto("/app/");
+    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await page.locator(".sidebar-toggle").tap();
+    const wrap = page.locator(".params-panel .decimal-input").first();
+    const field = wrap.getByRole("spinbutton");
+    const [plus, minus] = [0, 1].map((i) => wrap.locator(".decimal-input-arrow").nth(i));
+    await expect(field).toHaveValue("40");
+    await plus.tap();
+    await expect(field).toHaveValue("41");
+    await minus.tap();
+    await minus.tap();
+    await expect(field).toHaveValue("39");
+    // Focused, the field would open the keyboard and scroll to it.
+    await expect(field).not.toBeFocused();
+    // A finger that lands on an arrow and moves on, scrolling the drawer,
+    // leaves the value alone.
+    await touchDrag(page, centre(await box(plus)), -120);
+    await expect(field).toHaveValue("39");
+    // No field iOS would zoom into on focus: every one at 16 px or more.
+    const small = await page.evaluate(() =>
+      [...document.querySelectorAll("input, select, textarea")]
+        .filter((el) => el.getClientRects().length > 0 && !["checkbox", "radio"].includes(el.type))
+        .filter((el) => parseFloat(getComputedStyle(el).fontSize) < 16)
+        .map((el) => el.getAttribute("aria-label") || el.id || el.className),
+    );
+    expect(small).toEqual([]);
   });
 
   test("a tap on a ? opens its explanation, and a tap elsewhere closes it", async ({ page }) => {

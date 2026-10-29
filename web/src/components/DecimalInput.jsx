@@ -18,6 +18,11 @@ import { atLimit, parseDecimal, stepDecimal, stepSize } from "../lib/decimalInpu
 //   - The arrow buttons inside its right edge: ±step a click, half a step
 //     with Shift; held down, they repeat. An arrow is disabled while the
 //     value sits at the `max` (up) or `min` (down) it would step towards.
+//     On a touch screen they are − and + beside the field, each the
+//     field's full height (styles.css), and a finger works them as a
+//     button: a tap steps when it lifts, a finger held still repeats,
+//     and one that starts scrolling the list under it changes nothing.
+//     A tap never focuses the field, so the keyboard stays down.
 //   - The wheel, while the field has focus: ±step a tick, a tenth with
 //     Shift. Only while focused, so scrolling the sidebar past a field
 //     never changes it.
@@ -106,20 +111,58 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
     repeat.current = null;
   };
   useEffect(() => stopRepeat, []);
-  const press = (direction) => (e) => {
-    if (e.button !== 0 || disabled || !isNumber) return;
-    // Keep (or give) the field focus, so the wheel works next and blur
-    // doesn't fire mid-press.
-    e.preventDefault();
-    inputRef.current?.focus();
-    stopRepeat();
-    const delta = direction * stepSize(step, "button", e.shiftKey);
-    stepRef.current(delta);
+  // A finger's press waits for its lift (or for the hold that starts the
+  // repeat) before it steps: a press that turns into a scroll of the
+  // sidebar or drawer under it is cancelled by the browser
+  // (pointercancel) and must leave the value alone. `pending` is the
+  // step a lift still owes.
+  const pending = useRef(/** @type {number | null} */ (null));
+  const startRepeat = (delta, first) => {
     repeat.current = {
       timer: setTimeout(() => {
+        if (first) stepRef.current(delta);
+        pending.current = null;
+        if (!repeat.current) return;
         repeat.current.interval = setInterval(() => stepRef.current(delta), REPEAT_EVERY_MS);
       }, REPEAT_AFTER_MS),
     };
+  };
+  const press = (direction) => (e) => {
+    if (e.button !== 0 || disabled || !isNumber) return;
+    // Cancelled, the pointerdown keeps focus where it is (and on touch
+    // sends no compatibility mousedown to move it): with a mouse the field
+    // keeps or gets the focus, so the wheel works next and blur doesn't
+    // fire mid-press; a finger's tap leaves it alone, since a focused
+    // field on a phone opens the keyboard and scrolls the page to it.
+    e.preventDefault();
+    stopRepeat();
+    pending.current = null;
+    const delta = direction * stepSize(step, "button", e.shiftKey);
+    if (e.pointerType !== "mouse") {
+      pending.current = delta;
+      startRepeat(delta, true);
+      return;
+    }
+    inputRef.current?.focus();
+    stepRef.current(delta);
+    startRepeat(delta, false);
+  };
+  // A lift over the button pays the step a tap owes; one off it (the
+  // finger slid away without the page scrolling) doesn't, as a button's
+  // click wouldn't fire there either.
+  const release = (e) => {
+    const delta = pending.current;
+    pending.current = null;
+    stopRepeat();
+    if (delta === null) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const inside =
+      e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
+    if (inside) stepRef.current(delta);
+  };
+  const cancel = () => {
+    pending.current = null;
+    stopRepeat();
   };
 
   return (
@@ -169,12 +212,44 @@ export default function DecimalInput({ value, min, max, step = 1, onChange, disa
             disabled={disabled || !isNumber || atLimit(value, direction, min, max)}
             title={direction > 0 ? "Increase (Shift: half a step)" : "Decrease (Shift: half a step)"}
             onPointerDown={press(direction)}
-            onPointerUp={stopRepeat}
-            onPointerLeave={stopRepeat}
-            onPointerCancel={stopRepeat}
+            onPointerUp={release}
+            // A finger's pointer stays captured by the button it went down
+            // on, so its leave comes after the lift: only a mouse's leave
+            // ends a hold early.
+            onPointerLeave={(e) => {
+              if (e.pointerType === "mouse") cancel();
+            }}
+            onPointerCancel={cancel}
+            // A held finger is the repeat, not a long press: no context
+            // menu (Android) over the button.
+            onContextMenu={(e) => e.preventDefault()}
           >
-            <svg viewBox="0 0 8 5" width="8" height="5" aria-hidden="true">
+            {/* Both glyphs; styles.css shows the triangles to a mouse and
+                − / + where the buttons sit side by side for a finger. */}
+            <svg
+              className="decimal-input-arrow-triangle"
+              viewBox="0 0 8 5"
+              width="8"
+              height="5"
+              aria-hidden="true"
+            >
               <path d={direction > 0 ? "M0 5 4 0 8 5Z" : "M0 0 4 5 8 0Z"} fill="currentColor" />
+            </svg>
+            <svg
+              className="decimal-input-arrow-sign"
+              viewBox="0 0 12 12"
+              width="12"
+              height="12"
+              aria-hidden="true"
+            >
+              <path
+                d={
+                  direction > 0
+                    ? "M5.25 0h1.5v5.25H12v1.5H6.75V12h-1.5V6.75H0v-1.5h5.25Z"
+                    : "M0 5.25h12v1.5H0Z"
+                }
+                fill="currentColor"
+              />
             </svg>
           </button>
         ))}
