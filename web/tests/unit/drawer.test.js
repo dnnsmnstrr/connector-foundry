@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { drawerInset, drawerRests, drawerSnap, isDrawerLayout } from "../../src/lib/drawer.js";
+import {
+  drawerInset,
+  drawerRests,
+  drawerSnap,
+  getDrawerTab,
+  isDrawerLayout,
+  setDrawerTab,
+  subscribeDrawerTab,
+} from "../../src/lib/drawer.js";
 
 test("the drawer rests closed, at half the workspace and at nearly all of it", () => {
   assert.deepEqual(drawerRests(800, 60), { closed: 60, half: 400, full: 704 });
@@ -50,4 +58,19 @@ test("what is over the view keeps clear of the sheet up to its half rest", () =>
 
 test("outside a browser there is no drawer layout", () => {
   assert.equal(isDrawerLayout(), false);
+});
+
+test("the Library drawer's tab is one value for the session, and only its two tabs", () => {
+  const seen = [];
+  const unsubscribe = subscribeDrawerTab(() => seen.push(getDrawerTab()));
+  assert.equal(getDrawerTab(), "params");
+  setDrawerTab("parts");
+  setDrawerTab("parts"); // no change, no call
+  setDrawerTab(/** @type {any} */ ("nonsense"));
+  setDrawerTab("params");
+  unsubscribe();
+  setDrawerTab("parts");
+  assert.deepEqual(seen, ["parts", "params"]);
+  assert.equal(getDrawerTab(), "parts");
+  setDrawerTab("params");
 });

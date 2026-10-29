@@ -4259,3 +4259,105 @@ a.bench-modal-header-button {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/* ---------------------------------------------------------------------
+   The Library on a phone (under 600 px; Library.jsx, lib/drawer.js's
+   DRAWER_TABS_QUERY): the parameter form is in the drawer too, on a tab
+   beside the part list (components/DrawerTabs.jsx), and the view runs from
+   the header to the foot of the screen, as the Bench's does, its buttons
+   kept clear of the drawer. A tablet keeps its form beside the view.
+   ------------------------------------------------------------------- */
+.drawer-tabs {
+  /* Under the handle while the panel scrolls; the ring of the sheet's
+     colour covers what scrolls through the gap around it. */
+  position: sticky;
+  top: var(--drawer-handle, 0);
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 0.75rem;
+  background: #1c1d20;
+  border: 1px solid #2f3034;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.3rem #17181b;
+}
+
+.drawer-tab {
+  flex: 1;
+  min-height: 2.25rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #9a9ba0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drawer-tab:hover {
+  color: #d8d9db;
+}
+
+.drawer-tab[aria-selected="true"] {
+  background: #24304a;
+  color: #cdd7f5;
+}
+
+@media (pointer: coarse) {
+  .drawer-tab {
+    min-height: 44px;
+  }
+}
+
+/* The render's error, in the header where the form's would be out of
+   sight. */
+.library-header-error {
+  margin: 0.4rem 0 0;
+}
+
+@media (max-width: 599.98px) {
+  :root:not(.desktop) .app.library-tabbed {
+    height: 100%;
+    padding-bottom: 0;
+  }
+
+  :root:not(.desktop) .library-tabbed > .workspace {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  :root:not(.desktop) .library-tabbed .workspace-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 260px;
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel {
+    height: auto;
+    flex: 1 0 260px;
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel .viewer-actions {
+    bottom: calc(1rem + var(--drawer-inset, 0px));
+    transition: bottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  :root:not(.desktop) .library-tabbed .viewer-panel .viewer-error-note {
+    bottom: calc(4.5rem + var(--drawer-inset, 0px));
+  }
+
+  .drawer-dragging .library-tabbed .viewer-panel *,
+  .drawer-still .library-tabbed .viewer-panel * {
+    transition: none;
+  }
+
+  /* The form in the drawer: the sheet has the padding and the scroll. */
+  :root:not(.desktop) .sidebar .params-panel {
+    border: none;
+    padding: 0 0 1rem;
+    max-height: none;
+    overflow: visible;
+  }
+}

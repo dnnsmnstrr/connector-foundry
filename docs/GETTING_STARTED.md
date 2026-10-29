@@ -19,10 +19,11 @@ your own device, with OpenSCAD compiled to WebAssembly, and nothing you make is 
 The first render of a visit takes a few seconds longer while the engine loads; after that most parts
 render in a second or two on a computer, a few seconds on a phone.
 
-On a phone or tablet the 3D view comes first and the part's settings under it. The part list (and on
-the Bench and Holes tabs, everything that is in the sidebar on a computer) is a drawer at the bottom
-of the screen: tap its handle to open it, or drag the handle to pull it up or push it down
-(**Find a part** opens it at its search). Drag with one finger to turn the view, pinch to zoom, and tap a handle
+On a phone or tablet the 3D view comes first. The part list (and on the Bench and Holes tabs,
+everything that is in the sidebar on a computer) is a drawer at the bottom of the screen: tap its
+handle to open it, or drag the handle to pull it up or push it down (**Find a part** opens it at its
+search). On a phone the part's settings are in the drawer too, on a **Parameters** tab beside the
+**Parts** list; on a tablet they sit beside the view. Drag with one finger to turn the view, pinch to zoom, and tap a handle
 to type a size. **Add to Home Screen** opens it like an app, and once it has rendered a part it opens
 again without a connection.
 

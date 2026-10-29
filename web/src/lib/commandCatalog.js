@@ -188,6 +188,11 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["clipboard", "slicer"],
     action: "Copy",
   },
+  "library.parameters": {
+    title: "Show the parameters",
+    section: "Library",
+    keywords: ["form", "settings", "size", "drawer", "edit"],
+  },
   "library.resetParams": {
     title: "Reset the parameters",
     section: "Library",

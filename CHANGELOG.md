@@ -18,6 +18,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   part's controls move up to stay clear of the sheet. It starts closed on a first visit and then
   remembers whether you left it open, as the sidebar does on a computer; `[` and the command
   palette's **Open the drawer** work too.
+- **The Library's form is in the drawer on a phone.** Under 600 px wide the drawer has two tabs,
+  **Parameters** and **Parts**, and the 3D view runs from the part's header to the bottom of the
+  screen. A part picked from the list turns to its parameters; **Find a part** and `/` turn to the
+  list. A render error shows under the header, where it stays in sight. Tablets keep the form
+  beside the view.
 
 ## 0.5.0 — 2026-10-28
 

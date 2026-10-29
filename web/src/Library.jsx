@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import DrawerTabs from "./components/DrawerTabs.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
@@ -16,6 +17,8 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useLibraryHistory } from "./hooks/useLibraryHistory.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommands } from "./hooks/useCommands.js";
+import { useDrawerTab, useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { setDrawerTab } from "./lib/drawer.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
@@ -110,8 +113,11 @@ function ghostFor(handle, axes, box) {
 // round trip through the Bench comes back to the part (and parameter
 // edits) that were showing, not to the first part in the catalogue.
 // `onFindPart()` is the shell's part search (the `/` key): on a phone the
-// part list sits below the viewer and the form, so the header's "Find a
-// part" button (shown in the stacked layout only) goes there.
+// part list is in the bottom drawer, so the header's "Find a part" button
+// (shown in the narrow layout only) opens it there. Under a phone's 600 px
+// the drawer holds the parameter form too, on a tab beside the part list
+// (components/DrawerTabs.jsx), and the view runs to the foot of the
+// screen; a part picked from the list turns to its parameters.
 //
 // A part whose catalogue entry has `resize` gets TinkerCAD's handles in
 // the viewer (lib/resize.js): a drag shows a ghost of the new size and
@@ -157,6 +163,9 @@ export default function Library({
   const globalOverrides = useGlobalOverrides();
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
+  // On a phone the form is in the drawer, on a tab beside the part list.
+  const tabbed = useDrawerTabsLayout();
+  const drawerTab = useDrawerTab();
 
   // Undo history: record() before each change, with the selection it
   // replaces — from these handlers, never inside a setState updater
@@ -451,6 +460,12 @@ export default function Library({
         builtin("library.print", { disabled: printProblem ?? false, run: () => setPrintOpen(true) }),
       selected && builtin("library.layerling", { disabled: waiting, run: copyToLayerling }),
       selected &&
+        tabbed &&
+        builtin("library.parameters", {
+          when: sidebarCollapsed || drawerTab !== "params",
+          run: showParameters,
+        }),
+      selected &&
         Object.keys(selected.defaults ?? {}).length > 0 &&
         builtin("library.resetParams", { run: () => editParams({ ...selected.defaults }) }),
       selected?.source_url &&
@@ -468,12 +483,77 @@ export default function Library({
     ];
   });
 
+  // The drawer's Parameters tab, open (the palette's "Show the
+  // parameters").
+  function showParameters() {
+    setDrawerTab("params");
+    if (sidebarCollapsed) onToggleSidebar();
+  }
+
+  // A part picked in the phone's drawer: its parameters next, in the same
+  // drawer, while the view above renders it.
+  function pickInDrawer(part) {
+    select(part);
+    setDrawerTab("params");
+  }
+
   const shownDimensions = dimensions ?? predicted;
+  const paramsPanel = selected && (
+    <div className="params-panel">
+      <ParamsEditor
+        part={selected}
+        params={params}
+        onChange={editParams}
+        emptyText="No parameters — defaults only."
+        showSavedNote
+      />
+      <p className="source-note">
+        Source:{" "}
+        {selected.source_url ? (
+          <a href={selected.source_url} target="_blank" rel="noreferrer">
+            {selected.source}
+          </a>
+        ) : (
+          selected.source
+        )}
+      </p>
+      {/* In the drawer it would be out of sight: the header has it there. */}
+      {renderError && !tabbed && (
+        <p className="error-text" role="alert">
+          {renderError}
+        </p>
+      )}
+    </div>
+  );
+  const classes = ["app", sidebarCollapsed && "sidebar-collapsed", tabbed && "library-tabbed"];
   return (
-    <div className={sidebarCollapsed ? "app sidebar-collapsed" : "app"}>
+    <div className={classes.filter(Boolean).join(" ")}>
       <aside className="sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} title="Part list" />
-        {!sidebarCollapsed && <PartBrowser parts={parts} activeId={selectedId} onPick={select} />}
+        <SidebarToggle
+          collapsed={sidebarCollapsed}
+          onToggle={onToggleSidebar}
+          title={tabbed ? "Parameters and parts" : "Part list"}
+        />
+        {!sidebarCollapsed &&
+          (tabbed && selected ? (
+            <DrawerTabs
+              label="Part"
+              tabs={[
+                { id: "params", label: "Parameters" },
+                { id: "parts", label: "Parts" },
+              ]}
+              selected={drawerTab}
+              onSelect={(id) => setDrawerTab(id === "parts" ? "parts" : "params")}
+            >
+              {drawerTab === "params" ? (
+                paramsPanel
+              ) : (
+                <PartBrowser parts={parts} activeId={selectedId} onPick={pickInDrawer} />
+              )}
+            </DrawerTabs>
+          ) : (
+            <PartBrowser parts={parts} activeId={selectedId} onPick={select} />
+          ))}
       </aside>
       {!sidebarCollapsed && <SidebarResizer />}
 
@@ -498,6 +578,13 @@ export default function Library({
                 ) : (
                   <p className="outside-dimensions" aria-hidden="true">
                     {" "}
+                  </p>
+                )}
+                {/* On a phone the form, and the error under it, are in the
+                    drawer: the error is here instead, in sight. */}
+                {renderError && tabbed && (
+                  <p className="error-text library-header-error" role="alert">
+                    {renderError}
                   </p>
                 )}
               </div>
@@ -541,30 +628,7 @@ export default function Library({
             </header>
 
             <div className="workspace-body">
-              <div className="params-panel">
-                <ParamsEditor
-                  part={selected}
-                  params={params}
-                  onChange={editParams}
-                  emptyText="No parameters — defaults only."
-                  showSavedNote
-                />
-                <p className="source-note">
-                  Source:{" "}
-                  {selected.source_url ? (
-                    <a href={selected.source_url} target="_blank" rel="noreferrer">
-                      {selected.source}
-                    </a>
-                  ) : (
-                    selected.source
-                  )}
-                </p>
-                {renderError && (
-                  <p className="error-text" role="alert">
-                    {renderError}
-                  </p>
-                )}
-              </div>
+              {!tabbed && paramsPanel}
 
               <div className="viewer-panel">
                 {stlBuffer ? (

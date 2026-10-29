@@ -134,9 +134,10 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   `src/`, and `scripts/check-dist-compat.mjs` (run after every build) out of everything built,
   dependencies included, along with any syntax past ECMAScript 2022.
 - **The layout** (styles.css, the `max-width: 900px` blocks, browsers only — the desktop app keeps
-  its panes at any width): the Library is one scrolling column with the part header, the 3D view
-  at 60% of the viewport and the form; the Bench and Holes are their header and the view down to
-  the screen's bottom edge. The sidebar is a bottom drawer over all of it in every tab (below,
+  its panes at any width): the Bench and Holes are their header and the view down to the
+  screen's bottom edge, and so is the Library on a phone (under 600 px), whose form is in the
+  drawer; on a tablet the Library is one scrolling column with the part header, the 3D view at
+  60% of the viewport and the form. The sidebar is a bottom drawer over all of it in every tab (below,
   "The sidebar on a phone"; the Library header's **Find a part** opens it at its search).
   600–900 px wide (a tablet in portrait), the Library's form sits beside its viewer. The nav and
   the column keep clear of a notch and the home indicator (`env(safe-area-inset-*)`, since the
@@ -161,7 +162,13 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   Open or closed is the sidebar's one preference (`uiPrefs.js`), which on a phone defaults to
   closed until it is set. Closed, the content isn't rendered (as in the column): a drag from
   closed expands it on its first move, and a release at closed collapses it once the sheet is
-  down.
+  down. Under 600 px (`DRAWER_TABS_QUERY`) the Library's drawer holds its form too:
+  `components/DrawerTabs.jsx` puts **Parameters** and **Parts** on a segmented control (the ARIA
+  tabs pattern, pinned under the handle), and the view gets the Bench's full-height layout
+  (`.library-tabbed`). Which tab shows is module state in `drawer.js`, so App's part search (`/`,
+  Find a part, the palette) turns to Parts before it looks for the search box; a part picked
+  there turns back to Parameters, and the palette's `library.parameters` opens the form. The
+  render's error, under the form elsewhere, is in the part header there.
 - **Touch** (`(pointer: coarse)` blocks, wherever the screen size): 44 px targets for every control
   a finger uses, 16 px text in every field (iOS zooms into anything smaller), no double-tap zoom on
   controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap.
@@ -328,7 +335,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/components/PrintSheet.jsx` | "Print with EasyPrint…": a row per body (Share/Download STL, 3MF), every body in one 3MF on the Bench, Open EasyPrint, the steps |
 | `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/drawer.js`, `hooks/useDrawerLayout.js` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout (`isDrawerLayout()`, live through the hook), the sheet's rests, which one a released drag lands on, and how much of the view's foot what sits over it keeps clear of |
+| `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout and whether the Library's drawer has tabs (`isDrawerLayout()`, `isDrawerTabsLayout()`, live through the hooks), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which tab shows; `DrawerTabs` is the Parameters / Parts control |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets (the .scad bundle's URL with a hash of its content), grouping/search/slugs and the system-order resolution |
 | `index.html`, `src/site/landing.js`, `landing.css`, `site.css`, `common.js`, `partials/` | The website's landing page (see "The website" above): the hero's headline and pager, scroll-in, the gallery filter, the platform detection behind the download buttons; the styles every page of the site shares, and its header and footer |

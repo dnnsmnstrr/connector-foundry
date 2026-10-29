@@ -54,7 +54,7 @@ import { getCommandHud, subscribeCommandHud } from "./lib/commandHud.js";
 import { EASYPRINT_URL } from "./lib/share.js";
 import { claudeCodeCommand, mcpJsonConfig } from "./lib/desktopBridge.js";
 import { commandRegistry } from "./lib/commands.js";
-import { isDrawerLayout } from "./lib/drawer.js";
+import { isDrawerLayout, setDrawerTab } from "./lib/drawer.js";
 import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isEditableTarget.js";
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
@@ -354,6 +354,8 @@ export default function App() {
   function jumpToLibrarySearch() {
     const switching = mode !== "library" || sidebarCollapsed;
     setMode("library");
+    // On a phone the list shares the drawer with the form, on a tab.
+    setDrawerTab("parts");
     if (sidebarCollapsed) toggleSidebar();
     let tries = 0;
     const focus = () => {
