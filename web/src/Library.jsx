@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import DrawerTabs from "./components/DrawerTabs.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
+import PrintSheet from "./components/PrintSheet.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
@@ -16,7 +17,7 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useLibraryHistory } from "./hooks/useLibraryHistory.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommands } from "./hooks/useCommands.js";
-import { useDrawerTab, useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { useDrawerLayout, useDrawerTab, useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
 import { setDrawerTab } from "./lib/drawer.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
@@ -164,6 +165,7 @@ export default function Library({
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
   // On a phone the form is in the drawer, on a tab beside the part list.
   const tabbed = useDrawerTabsLayout();
+  const drawer = useDrawerLayout();
   const drawerTab = useDrawerTab();
 
   // Undo history: record() before each change, with the selection it
@@ -410,10 +412,25 @@ export default function Library({
     downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
-  // No "Print with EasyPrint…" here, unlike the Bench and Holes: EasyPrint
-  // takes no model from another site (prusaslicer:// links open only
-  // printables.com's), so the sheet could only hand over the file that
-  // Download STL already saves.
+  // "Print…" (components/PrintSheet.jsx), on a phone or tablet only (the
+  // narrow layout, `drawer`): there it takes Download STL's place beside
+  // the title, as the Bench's and Holes' Print… do, and the sheet's Share
+  // STL… hands the file to the share sheet, which is how a phone gets it
+  // to EasyPrint. On a computer it could only hand over the file Download
+  // STL already saves (EasyPrint takes no model from another site), so
+  // neither the button nor its command is there. The sheet shows the
+  // current render's file, so it can open while a render runs and enable
+  // its buttons when the mesh lands; when no render is coming (a failed
+  // one, or one cancelled with the old mesh on screen) the row says why,
+  // and the button is off.
+  const [printOpen, setPrintOpen] = useState(false);
+  const printProblem = canDownload
+    ? undefined
+    : status === "error"
+      ? (renderError ?? "The render failed")
+      : status === "idle"
+        ? "The render was cancelled: retry the preview"
+        : undefined;
 
   const layerling = useLayerlingCopy(preview.setError);
   function copyToLayerling() {
@@ -447,6 +464,12 @@ export default function Library({
           run: preview.retry,
         }),
       selected && builtin("library.downloadStl", { disabled: waiting, run: downloadStl }),
+      selected &&
+        builtin("library.print", {
+          when: drawer,
+          disabled: printProblem ?? false,
+          run: () => setPrintOpen(true),
+        }),
       selected && builtin("library.layerling", { disabled: waiting, run: copyToLayerling }),
       selected &&
         tabbed &&
@@ -561,7 +584,17 @@ export default function Library({
           <>
             <header className="part-header">
               <div>
-                <h2>{selected.name}</h2>
+                <div className="part-header-title">
+                  <h2>{selected.name}</h2>
+                  <button
+                    type="button"
+                    className="download-button print-button part-header-print"
+                    onClick={() => setPrintOpen(true)}
+                    disabled={Boolean(printProblem)}
+                  >
+                    Print…
+                  </button>
+                </div>
                 <p className="print-note">{selected.print_note}</p>
                 {/* The line keeps its height while a render is in flight
                     (dimensions is null until it lands), so the form and the
@@ -666,9 +699,11 @@ export default function Library({
                     >
                       {layerling.label}
                     </button>
+                    {/* Under 900 px the header's Print… is in its place
+                        (styles.css), the sheet's Download one tap on. */}
                     <button
                       type="button"
-                      className="download-button"
+                      className="download-button library-download"
                       onClick={downloadStl}
                       disabled={!canDownload}
                     >
@@ -679,6 +714,19 @@ export default function Library({
               </div>
             </div>
           </>
+        )}
+        {printOpen && selected && (
+          <PrintSheet
+            title={selected.name}
+            bodies={[
+              {
+                name: `${slugify(selected.id)}.stl`,
+                bytes: canDownload ? stlBuffer : null,
+                error: printProblem,
+              },
+            ]}
+            onClose={() => setPrintOpen(false)}
+          />
         )}
       </main>
     </div>

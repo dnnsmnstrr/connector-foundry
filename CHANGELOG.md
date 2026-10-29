@@ -31,10 +31,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   or the printer settings change, so the header's **Render** button only ran the same render
   again. It is gone; after a failed or cancelled render, **Retry preview** sits by the error
   (and the command palette's **Render again** runs it any time).
-- **No Print… in the Library.** EasyPrint can't be sent a model from another site, so the
-  Library's print sheet could only hand over the file **Download STL** already saves. The button
-  and its palette command are gone from the Library; the Bench and Holes keep **Print with
-  EasyPrint…**, which there gathers the bench's bodies or renders the holed part.
+- **No Print… in the Library on a computer.** EasyPrint can't be sent a model from another site,
+  so there the Library's print sheet could only hand over the file **Download STL** already saves.
+  The button and its palette command are gone from the Library on a computer (a phone or tablet
+  has it, below); the Bench and Holes keep **Print with EasyPrint…**, which there gathers the
+  bench's bodies or renders the holed part.
 
 ### Phones and tablets
 
@@ -43,8 +44,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   section at the bottom of the page behind a "Hide sidebar" button. Drag its handle up to half the
   screen or nearly all of it, push it back down, or tap the handle to open and close it; the list
   in it scrolls on its own, and the view keeps its one-finger orbit. The Bench and Holes views now
-  run to the bottom of the screen, under their header, and the **Print…** button and the selected
-  part's controls move up to stay clear of the sheet. It starts closed on a first visit and then
+  run to the bottom of the screen, under their header, and the selected part's controls move up
+  to stay clear of the sheet. It starts closed on a first visit and then
   remembers whether you left it open, as the sidebar does on a computer; `[` and the command
   palette's **Open the drawer** work too.
 - **The Library's form is in the drawer on a phone.** Under 600 px wide the drawer has two tabs,
@@ -52,6 +53,16 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   screen. A part picked from the list turns to its parameters; **Find a part** and `/` turn to the
   list. A render error shows under the header, where it stays in sight. Tablets keep the form
   beside the view.
+- **The Holes drawer has tabs.** On a phone, as in the Library, the drawer has two tabs: **Holes**
+  for the hole being edited, the list and the export, and **Hole types** for the picker. A type
+  picked there turns back to its fields. The snapping bar is a tab on the drawer's top edge that
+  rides up and down with it, a divider between the two, on one row with compact − and + steppers in its Inset and Radius
+  fields, which now have the app's field style everywhere.
+- **Print… is in the header.** On a phone or tablet the Bench's and the Holes tab's **Print…** sit
+  to the right of the title instead of over the foot of the 3D view. The Library has one there too,
+  in **Download STL**'s place: it opens the print sheet, whose **Share STL…** gets the file to
+  EasyPrint (and whose **Download STL** saves it). On a computer the Library keeps **Download STL**
+  and has no print sheet.
 - **Number fields for a finger.** On a touch screen a number field's arrows are a − and a +
   beside it, each as tall as the field, instead of two half-height arrows stacked in its edge. A
   tap steps the value without focusing the field, so the keyboard stays down; holding still

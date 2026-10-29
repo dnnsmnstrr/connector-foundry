@@ -7,7 +7,8 @@ import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 // from the Bench's and Holes' buttons and from the palette, hands the file
 // over — a download in Chromium, which refuses model files in its share
 // sheet, or the share sheet where one takes them (stubbed here) — and
-// opens EasyPrint with a tap of its own. The Library has none: there the
+// opens EasyPrint with a tap of its own. The Library has it on a phone or
+// tablet only (mobile.spec.js), in Download STL's place: on a computer the
 // sheet could only hand over what Download STL saves.
 
 const cube = new STLExporter().parse(new Mesh(new BoxGeometry(10, 10, 4)), { binary: true });
@@ -72,7 +73,7 @@ async function openHoles(page) {
   await expect(page.getByRole("button", { name: "Print with EasyPrint…", exact: true })).toBeEnabled();
 }
 
-test("the Library has no print sheet: Download STL is its way out", async ({ page }) => {
+test("on a computer the Library has no print sheet: Download STL is its way out", async ({ page }) => {
   await setUp(page);
   await page.goto("/app/");
   await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();

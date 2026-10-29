@@ -11,6 +11,7 @@ import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
+import DrawerTabs from "./components/DrawerTabs.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
@@ -24,6 +25,7 @@ import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
+import { useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -236,6 +238,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [measureOn, setMeasureOn] = useState(false);
   const measuring = altHeld || measureOn;
   const coarse = hasCoarsePointer();
+  // On a phone (lib/drawer.js's DRAWER_TABS_QUERY) the drawer has two tabs
+  // as the Library's does: the hole being edited, the list and the export
+  // on one, the hole types on the other, which on one long page pushed
+  // everything after them a screen down.
+  const tabbed = useDrawerTabsLayout();
+  const [drawerTab, setDrawerTab] = useState(/** @type {"holes" | "types"} */ ("holes"));
   const [measurePoint, setMeasurePoint] = useState(null);
   // The system spacing Measure shows round the selected hole (an id of
   // STANDARD_SPACINGS, the Repeat form's too), or null for none: its next
@@ -787,6 +795,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
   // The same function every render, for the memoised preset grid.
   const pickPreset = useStableCallback(applyPreset);
+  // A type picked on the phone's Hole types tab turns back to the hole it
+  // is for, as a part picked in the Library's drawer turns to its form.
+  const pickPresetInDrawer = useStableCallback((preset) => {
+    applyPreset(preset);
+    setDrawerTab("holes");
+  });
   function patchSelection(patch) {
     if (multi) setDoc((d) => patchHoles(d, selectedIds, patch), specStep(patch));
     else applySpec({ ...editingSpec, ...patch }, editingPresetId, specStep(patch));
@@ -1467,227 +1481,266 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const cataloguePart = doc.source.kind === "catalogue" ? catalogueById.get(doc.source.partId) : null;
   const selectedPreset = selected ? getPreset(selected.presetId) : null;
 
+  // The sidebar: the whole of it beside the view, the Holes tab's share in a
+  // phone's drawer (the hole types are their own tab there).
+  const holesPanel = (
+    <>
+      <h2>{label}</h2>
+      <p className="muted">
+        {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
+        {coarse
+          ? "Tap a face in the scene for its guides, again to drill a hole."
+          : "Click a face in the scene to drill a hole."}
+      </p>
+      <label
+        className="field bench-name-field"
+        title="What the exports are called — <name>_holes.stl and <name>_holes.scad"
+      >
+        <span className="field-label">Name</span>
+        <input
+          type="text"
+          placeholder={sourceStem(doc.source, catalogueById)}
+          value={doc.name ?? ""}
+          onChange={(e) => setDoc((d) => setDocName(d, e.target.value), { key: "name", label: "rename" })}
+        />
+      </label>
+      <button type="button" className="render-button bench-reset" onClick={changeBase}>
+        Pick another model
+      </button>
+
+      <details className="bench-node-params-details">
+        <summary>Part parameters</summary>
+        {cataloguePart ? (
+          <>
+            <ParamsEditor
+              className="bench-node-params"
+              part={cataloguePart}
+              params={doc.source.params}
+              onChange={(params) =>
+                setDoc((d) => ({ ...d, source: { ...d.source, params } }), baseStep(params))
+              }
+              emptyText="This part has no parameters."
+            />
+            {doc.holes.length > 0 && (
+              <p className="muted holes-params-note">
+                Holes stay where they are in the part's coordinates; a change that moves a face moves it out
+                from under them.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <label
+              className="field field-checkbox bench-crop-field"
+              title="Turn the mesh over (a half turn about X) so the other side faces up — for a file saved the way it prints rather than the way it is used. Holes already placed go with it."
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(doc.source.flip)}
+                onChange={(e) => setFlip(e.target.checked)}
+              />
+              <span className="field-label">Flip upside down</span>
+            </label>
+            <p className="muted holes-params-note">
+              A mesh has no other parameters — change it in the file it came from, or in the Bench if it is
+              the bench.
+            </p>
+          </>
+        )}
+      </details>
+
+      <h3>
+        {multi
+          ? `${selectedHoles.length} holes`
+          : selected
+            ? `Hole ${doc.holes.indexOf(selected) + 1}`
+            : "New holes"}
+      </h3>
+      {multi ? (
+        <p className="muted holes-editor-note">
+          {shared.kind
+            ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
+            : "Holes of different kinds share no fields: pick a preset to make them one kind, or select one kind."}
+        </p>
+      ) : selected ? (
+        <p className="muted holes-editor-note">
+          {selectedPreset ? selectedPreset.name : "Custom"}
+          {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at [
+          {formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
+        </p>
+      ) : (
+        <p className="muted holes-editor-note">
+          The screw — or connector slot — every new hole is made for: the one picked or edited last. Select a
+          hole to change it.
+        </p>
+      )}
+      {!tabbed && <PresetPicker value={editingPresetId} onPick={pickPreset} />}
+      {multi ? (
+        shared.kind && (
+          <HoleSpecFields
+            // A new set of holes is a new form: the "last blind depth"
+            // memory belongs to the holes it was typed for.
+            key={selectedIds.join(",")}
+            spec={shared.spec}
+            mixed={shared.mixed}
+            onChange={patchSelection}
+            onRotate={rotateSelection}
+            count={selectedHoles.length}
+          />
+        )
+      ) : (
+        <HoleSpecFields spec={editingSpec} onChange={patchSelection} onRotate={rotateSelection} />
+      )}
+      {/* Always there (disabled with nothing selected), so selecting a
+            hole doesn't push the list below it down under the pointer
+            mid Shift-click. */}
+      <div className="holes-selected-actions">
+        <button
+          type="button"
+          className="render-button holes-small-button"
+          onClick={() => setRepeatOpen((open) => !open)}
+          disabled={!selected}
+          aria-expanded={Boolean(selected) && repeatOpen}
+          title="Copies of this hole in a row, a grid or round a circle on its face"
+        >
+          Repeat…
+        </button>
+        <button
+          type="button"
+          className="render-button holes-small-button holes-delete-button"
+          onClick={() => deleteHoles(selectedIds)}
+          disabled={selectedHoles.length === 0}
+        >
+          {multi ? `Delete ${selectedHoles.length} holes` : "Delete hole"}
+        </button>
+      </div>
+      {repeatResult && (
+        <RepeatFields
+          options={repeatOptions}
+          onChange={(patch) => setRepeatOptions((o) => ({ ...o, ...patch }))}
+          placed={repeatResult.ids.length - 1}
+          skipped={repeatResult.skipped}
+          onApply={applyRepeat}
+          onCancel={() => setRepeatOpen(false)}
+        />
+      )}
+
+      <div className="holes-list-heading">
+        <h3>Holes ({doc.holes.length})</h3>
+        <button
+          type="button"
+          className="holes-select-all"
+          onClick={() => setSelectedIds(doc.holes.map((h) => h.id))}
+          disabled={doc.holes.length === 0 || selectedHoles.length === doc.holes.length}
+          title="Select every hole, to edit or delete them together"
+        >
+          Select all
+        </button>
+      </div>
+      {doc.holes.length === 0 && <p className="muted">None yet — click a face in the scene.</p>}
+      <ul className="holes-list">
+        {doc.holes.map((h, i) => (
+          <HoleRow
+            key={h.id}
+            hole={h}
+            number={i + 1}
+            selected={selectedIds.includes(h.id)}
+            onPick={pickRow}
+            onRemove={removeRow}
+          />
+        ))}
+      </ul>
+
+      <h3>Export</h3>
+      <div className="bench-export">
+        <button
+          type="button"
+          className="download-button bench-export-button"
+          onClick={downloadStl}
+          disabled={status === "error"}
+        >
+          Download STL
+        </button>
+        <button
+          type="button"
+          className="download-button bench-export-button layerling-button"
+          onClick={copyToLayerling}
+          disabled={status === "error" || layerling.copying}
+          title={LAYERLING_COPY_TITLE}
+        >
+          {layerling.label}
+        </button>
+        <button
+          type="button"
+          className="download-button bench-export-button layerling-button print-button"
+          onClick={openPrintSheet}
+          disabled={status === "error"}
+          title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
+        >
+          Print with EasyPrint…
+        </button>
+        {/* Rarely wanted, so a link under the buttons rather than one of them. */}
+        <button
+          type="button"
+          className="bench-export-link"
+          onClick={downloadScad}
+          title="The base and the holes as OpenSCAD source"
+        >
+          Download .scad
+        </button>
+      </div>
+    </>
+  );
   return (
     <div className={sidebarCollapsed ? "bench holes sidebar-collapsed" : "bench holes"}>
       <aside className="sidebar bench-sidebar holes-sidebar">
-        <SidebarToggle collapsed={sidebarCollapsed} onToggle={onToggleSidebar} title="Hole list" />
-        {!sidebarCollapsed && (
-          <>
-            <h2>{label}</h2>
-            <p className="muted">
-              {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
-              {coarse
-                ? "Tap a face in the scene for its guides, again to drill a hole."
-                : "Click a face in the scene to drill a hole."}
-            </p>
-            <label
-              className="field bench-name-field"
-              title="What the exports are called — <name>_holes.stl and <name>_holes.scad"
+        <SidebarToggle
+          collapsed={sidebarCollapsed}
+          onToggle={onToggleSidebar}
+          title={tabbed ? "Holes and hole types" : "Hole list"}
+        />
+        {!sidebarCollapsed &&
+          (tabbed ? (
+            <DrawerTabs
+              label="Holes"
+              tabs={[
+                { id: "holes", label: "Holes" },
+                { id: "types", label: "Hole types" },
+              ]}
+              selected={drawerTab}
+              onSelect={(id) => setDrawerTab(id === "types" ? "types" : "holes")}
             >
-              <span className="field-label">Name</span>
-              <input
-                type="text"
-                placeholder={sourceStem(doc.source, catalogueById)}
-                value={doc.name ?? ""}
-                onChange={(e) =>
-                  setDoc((d) => setDocName(d, e.target.value), { key: "name", label: "rename" })
-                }
-              />
-            </label>
-            <button type="button" className="render-button bench-reset" onClick={changeBase}>
-              Pick another model
-            </button>
-
-            <details className="bench-node-params-details">
-              <summary>Part parameters</summary>
-              {cataloguePart ? (
-                <>
-                  <ParamsEditor
-                    className="bench-node-params"
-                    part={cataloguePart}
-                    params={doc.source.params}
-                    onChange={(params) =>
-                      setDoc((d) => ({ ...d, source: { ...d.source, params } }), baseStep(params))
-                    }
-                    emptyText="This part has no parameters."
-                  />
-                  {doc.holes.length > 0 && (
-                    <p className="muted holes-params-note">
-                      Holes stay where they are in the part's coordinates; a change that moves a face moves it
-                      out from under them.
-                    </p>
-                  )}
-                </>
+              {drawerTab === "types" ? (
+                <PresetPicker value={editingPresetId} onPick={pickPresetInDrawer} />
               ) : (
-                <>
-                  <label
-                    className="field field-checkbox bench-crop-field"
-                    title="Turn the mesh over (a half turn about X) so the other side faces up — for a file saved the way it prints rather than the way it is used. Holes already placed go with it."
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(doc.source.flip)}
-                      onChange={(e) => setFlip(e.target.checked)}
-                    />
-                    <span className="field-label">Flip upside down</span>
-                  </label>
-                  <p className="muted holes-params-note">
-                    A mesh has no other parameters — change it in the file it came from, or in the Bench if it
-                    is the bench.
-                  </p>
-                </>
+                holesPanel
               )}
-            </details>
-
-            <h3>
-              {multi
-                ? `${selectedHoles.length} holes`
-                : selected
-                  ? `Hole ${doc.holes.indexOf(selected) + 1}`
-                  : "New holes"}
-            </h3>
-            {multi ? (
-              <p className="muted holes-editor-note">
-                {shared.kind
-                  ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
-                  : "Holes of different kinds share no fields: pick a preset to make them one kind, or select one kind."}
-              </p>
-            ) : selected ? (
-              <p className="muted holes-editor-note">
-                {selectedPreset ? selectedPreset.name : "Custom"}
-                {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at
-                [{formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
-              </p>
-            ) : (
-              <p className="muted holes-editor-note">
-                The screw — or connector slot — every new hole is made for: the one picked or edited last.
-                Select a hole to change it.
-              </p>
-            )}
-            <PresetPicker value={editingPresetId} onPick={pickPreset} />
-            {multi ? (
-              shared.kind && (
-                <HoleSpecFields
-                  // A new set of holes is a new form: the "last blind depth"
-                  // memory belongs to the holes it was typed for.
-                  key={selectedIds.join(",")}
-                  spec={shared.spec}
-                  mixed={shared.mixed}
-                  onChange={patchSelection}
-                  onRotate={rotateSelection}
-                  count={selectedHoles.length}
-                />
-              )
-            ) : (
-              <HoleSpecFields spec={editingSpec} onChange={patchSelection} onRotate={rotateSelection} />
-            )}
-            {/* Always there (disabled with nothing selected), so selecting a
-                hole doesn't push the list below it down under the pointer
-                mid Shift-click. */}
-            <div className="holes-selected-actions">
-              <button
-                type="button"
-                className="render-button holes-small-button"
-                onClick={() => setRepeatOpen((open) => !open)}
-                disabled={!selected}
-                aria-expanded={Boolean(selected) && repeatOpen}
-                title="Copies of this hole in a row, a grid or round a circle on its face"
-              >
-                Repeat…
-              </button>
-              <button
-                type="button"
-                className="render-button holes-small-button holes-delete-button"
-                onClick={() => deleteHoles(selectedIds)}
-                disabled={selectedHoles.length === 0}
-              >
-                {multi ? `Delete ${selectedHoles.length} holes` : "Delete hole"}
-              </button>
-            </div>
-            {repeatResult && (
-              <RepeatFields
-                options={repeatOptions}
-                onChange={(patch) => setRepeatOptions((o) => ({ ...o, ...patch }))}
-                placed={repeatResult.ids.length - 1}
-                skipped={repeatResult.skipped}
-                onApply={applyRepeat}
-                onCancel={() => setRepeatOpen(false)}
-              />
-            )}
-
-            <div className="holes-list-heading">
-              <h3>Holes ({doc.holes.length})</h3>
-              <button
-                type="button"
-                className="holes-select-all"
-                onClick={() => setSelectedIds(doc.holes.map((h) => h.id))}
-                disabled={doc.holes.length === 0 || selectedHoles.length === doc.holes.length}
-                title="Select every hole, to edit or delete them together"
-              >
-                Select all
-              </button>
-            </div>
-            {doc.holes.length === 0 && <p className="muted">None yet — click a face in the scene.</p>}
-            <ul className="holes-list">
-              {doc.holes.map((h, i) => (
-                <HoleRow
-                  key={h.id}
-                  hole={h}
-                  number={i + 1}
-                  selected={selectedIds.includes(h.id)}
-                  onPick={pickRow}
-                  onRemove={removeRow}
-                />
-              ))}
-            </ul>
-
-            <h3>Export</h3>
-            <div className="bench-export">
-              <button
-                type="button"
-                className="download-button bench-export-button"
-                onClick={downloadStl}
-                disabled={status === "error"}
-              >
-                Download STL
-              </button>
-              <button
-                type="button"
-                className="download-button bench-export-button layerling-button"
-                onClick={copyToLayerling}
-                disabled={status === "error" || layerling.copying}
-                title={LAYERLING_COPY_TITLE}
-              >
-                {layerling.label}
-              </button>
-              <button
-                type="button"
-                className="download-button bench-export-button layerling-button print-button"
-                onClick={openPrintSheet}
-                disabled={status === "error"}
-                title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
-              >
-                Print with EasyPrint…
-              </button>
-              {/* Rarely wanted, so a link under the buttons rather than one of them. */}
-              <button
-                type="button"
-                className="bench-export-link"
-                onClick={downloadScad}
-                title="The base and the holes as OpenSCAD source"
-              >
-                Download .scad
-              </button>
-            </div>
-          </>
-        )}
+            </DrawerTabs>
+          ) : (
+            holesPanel
+          ))}
       </aside>
       {!sidebarCollapsed && <SidebarResizer />}
 
       <main className="workspace">
         <header className="part-header">
           <div>
-            <h2>Holes</h2>
+            {/* On a phone, Print… beside the title (the sidebar's Print
+                with EasyPrint… is in the drawer there): over the viewer's
+                foot it crowded the snapping bar, which had to sit above
+                it. Always there, disabled until there is a model to print,
+                so the header never changes height and moves the viewer. */}
+            <div className="part-header-title">
+              <h2>Holes</h2>
+              <button
+                type="button"
+                className="download-button print-button part-header-print"
+                onClick={openPrintSheet}
+                disabled={!geometries || !!(renderError || handleFailed)}
+              >
+                Print…
+              </button>
+            </div>
             {dimensions && (
               <p
                 className="outside-dimensions"
@@ -1896,13 +1949,6 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               radius={radius}
               onRadiusChange={setRadius}
             />
-          )}
-          {geometries && !(renderError || handleFailed) && (
-            <div className="viewer-actions viewer-actions-mobile">
-              <button type="button" className="download-button print-button" onClick={openPrintSheet}>
-                Print…
-              </button>
-            </div>
           )}
           {(renderError || handleFailed) && (
             <p className="error-text bench-error" role="alert">

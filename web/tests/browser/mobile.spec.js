@@ -81,6 +81,10 @@ async function touchDrag(page, from, dy) {
 
 const centre = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
 
+// The Library's render has landed: Download STL is on. Under 900 px it is
+// out of sight (the header's Print… is in its place), so by its class.
+const rendered = (page) => expect(page.locator(".library-download")).toBeEnabled();
+
 // The drawer's height once it has stopped moving.
 async function settledHeight(page) {
   const sheet = page.locator(".sidebar");
@@ -101,7 +105,7 @@ test.describe("on a phone", () => {
   }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
     // The viewer from under the header to the foot of the screen, behind
@@ -118,9 +122,13 @@ test.describe("on a phone", () => {
     expect((await box(handle)).height).toBeGreaterThanOrEqual(44);
     await expect(page.locator(".params-panel")).toHaveCount(0);
     await expect(page.locator(".sidebar .search-input")).toHaveCount(0);
-    // The view's buttons over it, clear of the closed drawer.
-    const download = await box(page.getByRole("button", { name: "Download STL", exact: true }));
-    expect(download.y + download.height).toBeLessThanOrEqual(sheet.y);
+    // Print… in Download STL's place: in the header, beside the title.
+    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeHidden();
+    const title = await box(page.getByRole("heading", { level: 2 }));
+    const print = await box(page.locator(".part-header").getByRole("button", { name: "Print…" }));
+    expect(print.y).toBeLessThanOrEqual(title.y + title.height / 2);
+    expect(print.y + print.height).toBeGreaterThanOrEqual(title.y + title.height / 2);
+    expect(print.x).toBeGreaterThan(title.x + title.width);
 
     // The header's buttons on one row, none of them wrapped.
     const buttons = page.locator(".part-header-actions button");
@@ -139,7 +147,7 @@ test.describe("on a phone", () => {
   test("the drawer opens with a tap or a drag, and closes the same ways", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     const handle = page.locator(".sidebar-toggle");
     const room = 844 - (await box(page.locator(".shell-body"))).y;
 
@@ -149,9 +157,8 @@ test.describe("on a phone", () => {
     await expect(handle).toHaveAccessibleName("Hide the parameters and parts");
     expect(await settledHeight(page)).toBeCloseTo(room / 2, -1);
     await expect(page.locator(".sidebar .params-panel")).toBeInViewport();
-    // The view's buttons still in sight, above the sheet.
-    const download = await box(page.getByRole("button", { name: "Download STL", exact: true }));
-    expect(download.y + download.height).toBeLessThanOrEqual((await box(page.locator(".sidebar"))).y);
+    // Print… still in sight, above the sheet.
+    await expect(page.locator(".part-header").getByRole("button", { name: "Print…" })).toBeInViewport();
 
     // Pulled up: nearly all of it, with a strip of the screen left over.
     await touchDrag(page, centre(await box(handle)), -300);
@@ -203,7 +210,7 @@ test.describe("on a phone", () => {
   test("the drawer's tabs switch between the form and the part list", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     await page.locator(".sidebar-toggle").tap();
     const params = page.getByRole("tab", { name: "Parameters" });
     const partsTab = page.getByRole("tab", { name: "Parts" });
@@ -269,7 +276,7 @@ test.describe("on a phone", () => {
   test("the controls a finger uses are at least 44 px", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     const small = await page.evaluate(() => {
       const scope =
         ".mode-tabs button, .mode-tabs a, .part-header-actions button, .viewer-toolbar button, .viewer-actions button";
@@ -301,7 +308,7 @@ test.describe("on a phone", () => {
   test("a tap on a number field's − or + steps it without focusing it", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     await page.locator(".sidebar-toggle").tap();
     const wrap = page.locator(".params-panel .decimal-input").first();
     const field = wrap.getByRole("spinbutton");
@@ -341,6 +348,45 @@ test.describe("on a phone", () => {
     await expect(text).toBeHidden();
   });
 
+  test("the Holes drawer has the hole types on a tab; the snapping bar is one row", async ({ page }) => {
+    await setUp(page);
+    await page.goto("/app/#mode=holes");
+    await page.getByRole("option", { name: "Flat plate exact", exact: true }).tap();
+    // One row of compact steppers, inside the screen, each button the
+    // field's full height.
+    const bar = page.getByRole("group", { name: "Snapping" });
+    await expect(bar).toBeVisible();
+    const row = await box(bar);
+    expect(row.height).toBeLessThanOrEqual(64);
+    // A tab on the drawer's top edge: its foot on the sheet.
+    expect(Math.abs(row.y + row.height - (await box(page.locator(".sidebar"))).y)).toBeLessThanOrEqual(1.5);
+    expect(row.x).toBeGreaterThanOrEqual(0);
+    expect(row.x + row.width).toBeLessThanOrEqual(390);
+    const inset = bar.locator(".decimal-input").first();
+    const field = await box(inset);
+    for (const i of [0, 1]) {
+      expect((await box(inset.locator(".decimal-input-arrow").nth(i))).height).toBeGreaterThanOrEqual(
+        field.height - 2,
+      );
+    }
+
+    // The drawer: the hole being edited and the list on one tab, the hole
+    // types on the other; a type picked there turns back to its fields.
+    await page.locator(".sidebar-toggle").tap();
+    const holesTab = page.getByRole("tab", { name: "Holes", exact: true });
+    const typesTab = page.getByRole("tab", { name: "Hole types", exact: true });
+    await expect(holesTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("searchbox", { name: "Search hole types" })).toHaveCount(0);
+    await typesTab.tap();
+    await expect(page.locator(".holes-sidebar .bench-name-field")).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Search hole types" }).fill("rectangular");
+    await page.getByRole("option", { name: /^Rectangular cutout/ }).tap();
+    await expect(holesTab).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.locator(".holes-sidebar").getByRole("spinbutton", { name: "Width (mm)" }),
+    ).toBeVisible();
+  });
+
   test("the Holes tab: a first tap on a face shows its guides, the second drills", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/#mode=holes");
@@ -362,10 +408,10 @@ test.describe("on a phone", () => {
     await page.touchscreen.tap(spot.x, spot.y);
     await expect(page.getByText(/Hole 1 selected/)).toBeVisible();
     // The hole list is in the drawer, closed on a first visit.
-    const drawer = page.getByRole("button", { name: "Show the hole list" });
+    const drawer = page.getByRole("button", { name: "Show the holes and hole types" });
     await drawer.tap();
     await expect(page.locator(".holes-row")).toHaveCount(1);
-    await page.getByRole("button", { name: "Hide the hole list" }).tap();
+    await page.getByRole("button", { name: "Hide the holes and hole types" }).tap();
     await expect(page.locator(".holes-row")).toHaveCount(0);
 
     // Measure on, the toolbar stays one row: its Spacing menu stays out,
@@ -374,34 +420,46 @@ test.describe("on a phone", () => {
     await expect(page.locator(".viewer-toolbar").getByRole("combobox", { name: "Spacing" })).toBeHidden();
     expect((await box(page.locator(".viewer-toolbar"))).height).toBeLessThanOrEqual(50);
 
-    // The snapping bar sits over the Print button, inside the view, with
-    // a finger's 44 px for its toggle.
+    // Print… is in the header, on the title's row; the view's foot is the
+    // snapping bar's, inside the view, with a finger's 44 px for its toggle.
+    const title = await box(page.getByRole("heading", { name: "Holes", level: 2 }));
+    const printButton = page.locator(".part-header").getByRole("button", { name: "Print…" });
+    await expect(printButton).toBeEnabled();
+    const print = await box(printButton);
+    expect(print.y).toBeLessThanOrEqual(title.y + title.height / 2);
+    expect(print.y + print.height).toBeGreaterThanOrEqual(title.y + title.height / 2);
+    expect(print.x).toBeGreaterThan(title.x + title.width);
     const bar = await box(page.getByRole("group", { name: "Snapping" }));
-    const print = await box(page.locator(".viewer-actions-mobile").getByRole("button", { name: "Print…" }));
-    expect(bar.y + bar.height).toBeLessThanOrEqual(print.y);
+    expect(bar.y + bar.height).toBeLessThanOrEqual(view.y + view.height);
     expect(bar.x).toBeGreaterThanOrEqual(view.x);
     expect(bar.x + bar.width).toBeLessThanOrEqual(view.x + view.width);
     const toggle = await box(page.getByRole("button", { name: "Snap to face features and guide lines" }));
     expect(toggle.height).toBeGreaterThanOrEqual(44);
   });
 
-  test("the Bench's Print button is over the viewer, where a phone can reach it", async ({ page }) => {
+  test("the Library's Print… opens the print sheet with the part's file", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
+    await page.locator(".part-header").getByRole("button", { name: "Print…" }).tap();
+    const sheet = page.getByRole("dialog", { name: "Print with EasyPrint" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Download STL|Share STL/ })).toBeEnabled();
+  });
+
+  test("the Bench's Print button is in its header, beside the title", async ({ page }) => {
+    await setUp(page);
+    await page.goto("/app/");
+    await rendered(page);
     await page.getByRole("button", { name: "Open in Bench", exact: true }).tap();
-    const print = page
-      .locator(".bench-viewer .viewer-actions-mobile")
-      .getByRole("button", { name: "Print…" });
-    await expect(print).toBeInViewport();
-    // Clear of the drawer, closed and open, and over the view's foot.
-    const sheet = page.locator(".sidebar");
-    expect((await box(print)).y + (await box(print)).height).toBeLessThanOrEqual((await box(sheet)).y);
-    await page.locator(".sidebar-toggle").tap();
-    await settledHeight(page);
-    const open = await box(print);
-    expect(open.y + open.height).toBeLessThanOrEqual((await box(sheet)).y);
-    expect(open.y).toBeGreaterThan((await box(page.locator(".viewer-toolbar"))).y);
+    const print = page.locator(".part-header").getByRole("button", { name: "Print…" });
+    await expect(print).toBeEnabled();
+    const title = await box(page.getByRole("heading", { name: "Bench", level: 2 }));
+    const at = await box(print);
+    expect(at.y).toBeLessThanOrEqual(title.y + title.height / 2);
+    expect(at.y + at.height).toBeGreaterThanOrEqual(title.y + title.height / 2);
+    expect(at.x).toBeGreaterThan(title.x + title.width);
+    expect(at.x + at.width).toBeLessThanOrEqual(390);
     await print.tap();
     // A bench opened from the Library has no name yet: it is asked for
     // first, as for every export, and the sheet follows.
@@ -417,7 +475,7 @@ test.describe("on a tablet in portrait", () => {
   test("the form sits beside a viewer wide enough to use", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     const viewer = await box(page.locator(".viewer-panel"));
     const params = await box(page.locator(".params-panel"));
     expect(Math.abs(viewer.y - params.y)).toBeLessThan(2);
@@ -438,7 +496,7 @@ test.describe("in a narrow browser window", () => {
   test("the drawer drags with a mouse too", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
-    await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled();
+    await rendered(page);
     const handle = page.locator(".sidebar-toggle");
     await expect(handle).toHaveAttribute("aria-expanded", "false");
     const from = centre(await box(handle));
@@ -465,5 +523,5 @@ test("the desktop layout keeps the phone-only buttons out of sight", async ({ pa
   expect(await page.locator(".sidebar").evaluate((el) => getComputedStyle(el).position)).toBe("static");
   await expect(page.getByRole("button", { name: "Hide sidebar" })).toBeVisible();
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
-  await expect(page.locator(".viewer-actions-mobile")).toBeHidden();
+  await expect(page.locator(".part-header-print")).toBeHidden();
 });

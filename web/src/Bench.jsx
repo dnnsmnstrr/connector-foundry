@@ -2022,7 +2022,23 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       <main className="workspace">
         <header className="part-header">
           <div>
-            <h2>Bench</h2>
+            {/* On a phone, Print… beside the title (styles.css shows it
+                under 900 px only): the Export section is far down the
+                drawer there. Always there, disabled while there is nothing
+                to print or an error is up (the sheet would only run the
+                failing render again; the palette and Export keep it), so
+                the header never changes height and moves the viewer. */}
+            <div className="part-header-title">
+              <h2>Bench</h2>
+              <button
+                type="button"
+                className="download-button print-button part-header-print"
+                onClick={openPrintSheet}
+                disabled={!viewBuffer || Boolean(viewError)}
+              >
+                Print…
+              </button>
+            </div>
             {dimensions && (
               <p
                 className="outside-dimensions"
@@ -2131,18 +2147,6 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           ) : (
             <div className="viewer-placeholder" role="status">
               {viewStatus === "rendering" ? "Rendering…" : "No preview yet."}
-            </div>
-          )}
-          {/* On a phone the Export section is far down the page: the
-              sheet is a tap away over the viewer there (styles.css shows
-              this row under 900 px only). Not while an error is up: the
-              error sits where the row does, and the sheet would only run
-              the failing render again (the palette and Export keep it). */}
-          {viewBuffer && !viewError && (
-            <div className="viewer-actions viewer-actions-mobile">
-              <button type="button" className="download-button print-button" onClick={openPrintSheet}>
-                Print…
-              </button>
             </div>
           )}
           {viewError && (

@@ -20,8 +20,12 @@ import { DRAWER_DRAG_SLOP_PX, drawerInset, drawerRests, drawerSnap, isDrawerLayo
 // The sheet's height is not React state: a drag sets it on every pointer
 // move, as --drawer-height on the <aside> (this button's parent), and how
 // much of the view's foot it covers as --drawer-inset on .shell-body,
-// which the Bench's Print button and the viewer's selection pill keep
-// clear of (styles.css, StlViewer's overlay).
+// which the foot of the Bench's view (its error, its docked selection
+// pill) and the viewer's pinned selection pill keep clear of (styles.css,
+// StlViewer's overlay). The inset stops at the half
+// rest, so .shell-body also gets drawer-past-half while the sheet is
+// higher: the Holes snapping bar, a tab on the sheet's top edge drawn over
+// it, goes under the sheet then rather than over its content.
 //
 // Closed, the sidebar renders nothing past this button, as the column
 // does (each tab's `{!sidebarCollapsed && ...}`): a drag from closed
@@ -56,10 +60,9 @@ function placeSheet(aside, height, rests, animate) {
   const root = document.documentElement;
   if (!animate) root.classList.add("drawer-still");
   aside.style.setProperty("--drawer-height", `${Math.round(height)}px`);
-  /** @type {HTMLElement | null} */ (aside.closest(".shell-body"))?.style.setProperty(
-    "--drawer-inset",
-    `${drawerInset(height, rests)}px`,
-  );
+  const shell = /** @type {HTMLElement | null} */ (aside.closest(".shell-body"));
+  shell?.style.setProperty("--drawer-inset", `${drawerInset(height, rests)}px`);
+  shell?.classList.toggle("drawer-past-half", height > rests.half + 0.5);
   if (!animate) {
     // The browser has to work out the new height while the class is on,
     // or the transition runs anyway: this layout read makes it.
@@ -109,6 +112,7 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       if (!isDrawerLayout()) {
         aside.style.removeProperty("--drawer-height");
         shell?.style.removeProperty("--drawer-inset");
+        shell?.classList.remove("drawer-past-half");
         return;
       }
       if (drag.current) return;
@@ -125,6 +129,7 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       // Gone with its tab (the Bench's start screen has no sidebar): the
       // next tab's handle sets its own.
       shell?.style.removeProperty("--drawer-inset");
+      shell?.classList.remove("drawer-past-half");
     };
   }, [collapsed, drawer]);
 

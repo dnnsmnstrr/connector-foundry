@@ -425,6 +425,23 @@ textarea {
   margin: 0 0 0.25rem;
 }
 
+/* A tab's title with its phone-only Print… at the right end (the Library,
+   the Bench, Holes).
+   In the row, not floating: .download-button (below) pins itself to the
+   viewer's corner, so this needs the header in its selector to win. */
+.part-header-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.part-header .part-header-print {
+  display: none;
+  position: static;
+  flex: none;
+}
+
 .print-note {
   margin: 0;
   color: #9a9ba0;
@@ -3081,6 +3098,14 @@ a.bench-modal-header-button {
   width: 3.6rem;
   padding-top: 0.15rem;
   padding-bottom: 0.15rem;
+  padding-left: 0.4rem;
+  /* The sidebar's field look (.field input): outside a .field these had
+     the browser's own inset border and grey fill. */
+  background: #1c1d20;
+  border: 1px solid #33343a;
+  border-radius: 4px;
+  color: #e6e6e6;
+  font: inherit;
   font-size: 0.75rem;
 }
 
@@ -3785,7 +3810,6 @@ a.bench-modal-header-button {
   /* What sits at the foot of the Bench's and Holes' view keeps clear of
      the drawer: --drawer-inset is how much of it the sheet covers, up to
      its half rest (lib/drawer.js), and they move with it. */
-  :root:not(.desktop) .bench-viewer .viewer-actions,
   :root:not(.desktop) .bench-viewer .bench-error,
   :root:not(.desktop) .bench-viewer .viewer-overlay-docked {
     bottom: calc(1rem + var(--drawer-inset, 0px));
@@ -4152,8 +4176,9 @@ a.bench-modal-header-button {
 /* ---------------------------------------------------------------------
    "Print with EasyPrint…" (components/PrintSheet.jsx): a row per body
    with its Share/Download and 3MF buttons, the EasyPrint link, the
-   steps. The Bench's and Holes' phone-only Print… button over the
-   viewer is a .viewer-actions row shown under 900 px only.
+   steps. The phone-only Print… buttons (the Library's, the Bench's and
+   Holes') sit in their headers, beside the title (.part-header-print),
+   under 900 px only.
    ------------------------------------------------------------------- */
 .print-sheet-modal {
   width: min(440px, 100vw - 2rem);
@@ -4229,40 +4254,110 @@ a.bench-modal-header-button {
   margin-top: 0.3rem;
 }
 
-.viewer-actions-mobile {
-  display: none;
-}
-
 @media (max-width: 900px) {
-  :root:not(.desktop) .viewer-actions-mobile {
-    display: flex;
+  :root:not(.desktop) .part-header-print {
+    display: block;
   }
 
-  /* The snapping bar over that row's Print button, not beside it: side by
-     side, the two don't fit a phone's width. */
+  /* The Library's Download STL: its header's Print… takes its place, as
+     the Bench's and Holes' do; the sheet has the download. */
+  :root:not(.desktop) .viewer-actions .library-download {
+    display: none;
+  }
+
+  /* The title row as tall as the button, the h2's own bottom margin
+     taken by the row's centring. */
+  :root:not(.desktop) .part-header-title h2 {
+    margin-bottom: 0;
+  }
+
+  /* The snapping bar as a tab growing out of the drawer's top edge, and
+     riding it: the sheet's colour and border, round only at the top. Its
+     foot sits 1 px into the sheet, over the sheet's top border, and is a
+     border of the same colour: the drawer's edge runs on under the tab
+     as a divider between the two, and the sheet's rounded corners don't
+     show through it. Over the sheet for that (z-index 10), until the
+     sheet goes past its half rest (SidebarToggle.jsx's drawer-past-half),
+     where the inset stops: under it then, or it would float over the
+     list. */
   :root:not(.desktop) .holes-snap-bar {
-    right: 1.25rem;
-    bottom: calc(1.25rem + 44px + 0.5rem + var(--drawer-inset, 0px));
+    right: 1rem;
+    bottom: calc(var(--drawer-inset, 0px) - 1px);
+    z-index: 11;
+    padding: 0.35rem 0.5rem 0.45rem;
+    background: #17181b;
+    border-color: #2a2b2e;
+    border-radius: 14px 14px 0 0;
     transition: bottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+
+  :root:not(.desktop) .drawer-past-half .holes-snap-bar {
+    z-index: 2;
+  }
 }
 
-/* A finger's 44 px for the snapping bar's toggle and fields. With their
-   − and + beside them the two fields no longer fit one row on a phone, so
-   the bar wraps (Radius under Inset, both at its right end); the rounding
-   is a pill's on one row and a rounded box's on two. */
+/* A finger's 44 px for the snapping bar's toggle and fields. */
 @media (pointer: coarse) {
   .holes-snap-toggle,
   .holes-snap-field .decimal-input > input[type="text"] {
     min-height: 44px;
   }
+}
 
+/* The snapping bar's two fields as compact steppers on a touch screen,
+   so the bar stays one row on a phone: − value + inside the field's one
+   border, the buttons plain glyphs rather than the 44 px boxes the
+   sidebar's fields get (two of those per field took the bar to two rows).
+   Each button is still the field's full 44 px height. The DOM order is
+   field, +, −; the arrows' wrapper steps aside (display: contents) so the
+   − can be ordered before the value. */
+@media (pointer: coarse) {
   .holes-snap-bar {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    row-gap: 0.35rem;
-    max-width: calc(100% - 2.5rem);
-    border-radius: 25px;
+    gap: 0.4rem;
+  }
+
+  .holes-snap-field .decimal-input {
+    background: #1c1d20;
+    border: 1px solid #33343a;
+    border-radius: 6px;
+  }
+
+  .holes-snap-field .decimal-input:focus-within {
+    border-color: #4a6fb5;
+  }
+
+  .holes-snap-field .decimal-input-arrows {
+    display: contents;
+  }
+
+  .holes-snap-bar .holes-snap-field .decimal-input-arrow {
+    width: 1.6rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .holes-snap-bar .holes-snap-field .decimal-input-arrow:last-child {
+    order: -1;
+  }
+
+  .holes-snap-bar .holes-snap-field .decimal-input-arrow:active:not(:disabled) {
+    background: #2a2b30;
+  }
+
+  .holes-snap-bar .holes-snap-field .decimal-input > input[type="text"] {
+    width: 2.4rem;
+    min-height: 42px;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: center;
+  }
+
+  .holes-snap-field .decimal-input-arrow-sign {
+    width: 10px;
+    height: 10px;
   }
 }
 
