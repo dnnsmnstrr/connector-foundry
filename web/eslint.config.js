@@ -18,6 +18,10 @@ export default [
       "docs/",
       "test-results/",
       "playwright-report/",
+      // The store apps' native projects (Capacitor), which hold a copy of
+      // dist/ after `cap sync`.
+      "ios/",
+      "android/",
     ],
   },
   js.configs.recommended,

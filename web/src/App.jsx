@@ -62,6 +62,7 @@ import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isE
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
 import { chordText } from "./lib/shortcuts.js";
+import { isNativeApp, onNativeBack } from "./lib/nativeApp.js";
 import { promptInstall } from "./lib/webApp.js";
 import { tabBridge } from "./lib/webmcp.js";
 import {
@@ -357,20 +358,23 @@ export default function App() {
 
   // Android's back gesture with the drawer open puts the drawer away, as
   // it does a phone's own sheet, rather than leaving the app: an
-  // installed app with no history to go back to quits on back. A
-  // CloseWatcher (Chromium 120 on) hears it; a dialog opened over the
+  // installed app with no history to go back to quits on back. In Chrome
+  // a CloseWatcher (Chromium 120 on) hears it; a dialog opened over the
   // drawer has a newer one of its own, which back closes first. Touch
   // screens only: with a keyboard the watcher takes Escape as well, which
-  // the tabs use for their own things.
+  // the tabs use for their own things. The Android store app's web view
+  // sends back to the shell instead, which asks lib/nativeApp.js.
   useEffect(() => {
-    const Watcher = /** @type {any} */ (window).CloseWatcher;
-    if (sidebarCollapsed || typeof Watcher !== "function" || !isDrawerLayout()) return undefined;
-    if (!window.matchMedia("(pointer: coarse)").matches) return undefined;
-    const watcher = new Watcher();
-    watcher.onclose = () => {
+    if (sidebarCollapsed || !isDrawerLayout()) return undefined;
+    const close = () => {
       setSidebarCollapsedState(true);
       setSidebarCollapsed(true);
     };
+    if (isNativeApp()) return onNativeBack(close);
+    const Watcher = /** @type {any} */ (window).CloseWatcher;
+    if (typeof Watcher !== "function" || !window.matchMedia("(pointer: coarse)").matches) return undefined;
+    const watcher = new Watcher();
+    watcher.onclose = close;
     return () => watcher.destroy();
   }, [sidebarCollapsed]);
 
@@ -707,9 +711,10 @@ export default function App() {
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
       builtin("app.easyprint", { subtitle: "printables.com/slice", actions: linkActions(EASYPRINT_URL) }),
       builtin("app.install", { when: webApp.install !== null, run: installApp }),
-      // The desktop app knows where it came from.
+      // The desktop app knows where it came from, and the store apps are
+      // not where to send someone for a desktop download.
       builtin("app.releases", {
-        when: !document.documentElement.classList.contains("desktop"),
+        when: !document.documentElement.classList.contains("desktop") && !isNativeApp(),
         actions: linkActions(RELEASES_URL),
       }),
       // After the rest: a guide ties with the command of its name ("bench"),

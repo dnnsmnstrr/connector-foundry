@@ -12,3 +12,7 @@ public/
 release/
 test-results/
 playwright-report/
+# The store apps' native projects (Capacitor): Xcode and Gradle files, and
+# a copy of dist/ after `cap sync`.
+ios/
+android/

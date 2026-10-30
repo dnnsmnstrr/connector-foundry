@@ -18,7 +18,8 @@ parts/<system>/*.scad ── one file per part; thin wrappers around vendor/ whe
 vendor/ ─────── upstream libraries as git submodules (BOSL2, gridfinity-rebuilt, ...). Never edit.
 references.yaml + tools/ ── `make verify`: compare parts against other people's models
 web/ ────────── the website: landing page (/), React app (/app/: Library, Bench, Holes),
-                 guides (/docs/, rendered from docs/*.md); Electron wrapper (web/desktop/)
+                 guides (/docs/, rendered from docs/*.md); Electron wrapper (web/desktop/);
+                 iOS and Android store apps (web/ios/, web/android/: Capacitor)
 ```
 
 - `catalogue.yaml` is the single source of truth for what parts exist. Its header documents every
@@ -44,6 +45,7 @@ Deeper reading, by topic:
 | Web app internals, module-by-module table, the WASM limits, the website | `web/README.md` |
 | Joints, Bench, Holes, overrides, accuracy checks | `docs/JOINTS.md`, `docs/BENCH.md`, `docs/HOLES.md`, `docs/OVERRIDES.md`, `docs/ACCURACY.md` |
 | Desktop packaging | `docs/MACOS.md`, `docs/WINDOWS.md` |
+| iOS and Android apps (Capacitor) | `docs/MOBILE.md` |
 | Deferred work | `docs/IMPROVEMENTS.md` |
 | What changed | `CHANGELOG.md` (add user-visible changes under **Unreleased**) |
 

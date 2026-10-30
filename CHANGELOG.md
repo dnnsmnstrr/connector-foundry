@@ -72,6 +72,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **An even viewer toolbar.** Under 900 px wide the Helpers toggle lost its label and shrank to
   half the height of Undo, Redo, Fit and View beside it; it is now as tall as they are.
 
+### iOS and Android apps
+
+- **Apps for the App Store and Google Play** (`web/ios/`, `web/android/`, built with Capacitor):
+  the same app, from the device's own files. **Exports save straight into the app's folder**
+  instead of asking where every time: on an iPhone or iPad, Files › On My iPhone › **Foundry**; on
+  Android, **Documents › Connector Foundry**. A file of the same name is never replaced (the next
+  is "name 2.stl"). Not yet in the stores: docs/MOBILE.md has the build and release steps.
+
 ### Install it like an app
 
 - **Install the app.** Settings (while it can be installed) and the command palette have

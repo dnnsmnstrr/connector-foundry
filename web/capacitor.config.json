@@ -1,0 +1,19 @@
+{
+  "appId": "com.connectorfoundry.app",
+  "appName": "Connector Foundry",
+  "webDir": "dist",
+  "backgroundColor": "#111214",
+  "server": {
+    "appStartPath": "/app/index.html"
+  },
+  "ios": {
+    "contentInset": "never"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}
