@@ -16,6 +16,7 @@ import RenderActivity from "./components/RenderActivity.jsx";
 import InstallSheet from "./components/InstallSheet.jsx";
 import UpdateNotice from "./components/UpdateNotice.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
+import SettingsIcon from "./components/SettingsIcon.jsx";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
@@ -478,6 +479,7 @@ export default function App() {
     setMode("library");
     // On a phone the list shares the drawer with the form, on a tab.
     setDrawerTab("parts");
+    if (isDrawerLayout()) window.dispatchEvent(new Event("sidebar-drawer-full"));
     if (sidebarCollapsed) toggleSidebar();
     let tries = 0;
     const focus = () => {
@@ -923,7 +925,7 @@ export default function App() {
             aria-haspopup="dialog"
             title="Settings (s)"
           >
-            <span aria-hidden="true">⚙</span>
+            <SettingsIcon />
             <span className="settings-label"> Settings</span>
           </button>
         </div>

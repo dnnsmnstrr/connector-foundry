@@ -145,6 +145,12 @@ textarea {
   font-weight: 600;
 }
 
+.settings-tab > svg {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+
 .mode-tab:hover {
   background: #202126;
   color: #d8d9db;
@@ -3716,10 +3722,13 @@ a.bench-modal-header-button {
     padding: 0 var(--drawer-pad) env(safe-area-inset-bottom);
     overflow-x: hidden;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
     border: 1px solid #2a2b2e;
     border-bottom: none;
     border-radius: 14px 14px 0 0;
+    /* The sheet continues behind the home indicator so drawer content does
+       not stop at the safe-area edge. */
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
     transition: height 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   }

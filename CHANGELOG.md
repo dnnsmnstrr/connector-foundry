@@ -9,6 +9,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Find a part opens the phone drawer fully.** The search list reaches the top of the screen before
+  the keyboard appears, keeping the results visible.
+- **Settings has a custom gear icon.** The Settings button and command palette now use a drawn
+  icon instead of a system emoji, so its appearance stays consistent across platforms.
 - **Mobile releases build on EAS.** A version tag now starts cloud builds for iOS and Android, with
   the current web app synced into each Capacitor package.
 
