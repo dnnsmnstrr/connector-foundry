@@ -14,7 +14,10 @@ import { createHistory } from "./history.js";
 // Every change is an undo step (history.js), including a new document
 // ("Start", App.jsx's Open in Holes) and going back to the start screen
 // ("Pick another model"): undo brings the previous model and its holes
-// back. Nothing in the app clears the history short of a reload.
+// back. Nothing clears the history except a reload and the boot restore
+// of a stored document (replaceHolesSession() followed by
+// clearHolesHistory()), so undo never reaches behind where this launch
+// started.
 // Documents are immutable, so a step is one reference; a mesh source's
 // bytes are shared with it, never copied.
 let state = { doc: null };
@@ -79,6 +82,16 @@ export function setHolesDoc(next, { key = null, label = null } = {}) {
 export function subscribeHolesSession(listener) {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+// Puts a stored document back on startup without recording an undo step:
+// it is where this launch starts, not an edit of the previous one. App.jsx
+// clears the history right after this (clearHolesHistory()), so the first
+// undo doesn't bring back a document from before the app was closed.
+/** @param {any} doc */
+export function replaceHolesSession(doc) {
+  state = { doc };
+  emit();
 }
 
 // --- Undo history ---------------------------------------------------------

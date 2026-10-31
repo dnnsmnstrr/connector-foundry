@@ -16,11 +16,11 @@
 // hears as `controllerchange`; it then asks the new worker which build
 // it is, since a page loaded from the network may already be that build
 // (its old worker was still in control when it loaded), and only a
-// different build is news. The page is not reloaded for the user: the
-// Holes tab's model and the Library's selection live in memory only, so
-// the nav offers "Reload to update", which warns first when something
-// would be lost (desktopUpdates.js's restartWarning()), and the next cold
-// start takes the new build anyway.
+// different build is news. The page is not reloaded for the user: an app
+// left open keeps what it was doing, so the nav offers "Reload to update",
+// and the next cold start takes the new build anyway. The workspace
+// (lib/workspace.js) is kept in localStorage, so a reload comes back to
+// the same tab, bench and Holes document.
 //
 // Install. Chromium fires `beforeinstallprompt` when the app can be
 // installed, and the event's prompt() shows the browser's own dialog: it
@@ -309,8 +309,9 @@ export async function checkForWebUpdate() {
 }
 
 /**
- * Reloads into the new build. The caller asks first when work would be
- * lost (UpdateNotice, with desktopUpdates.js's restartWarning()).
+ * Reloads into the new build. The workspace is already kept in
+ * localStorage, so the reload comes back to the same tab, bench and Holes
+ * document; the caller flushes any write still on the debounce first.
  */
 export function reloadToUpdate() {
   const win = started?.win;

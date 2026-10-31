@@ -226,8 +226,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   `build-id` message, answered on a `MessageChannel`) and compares it with its own
   (`__BUILD_ID__`, defined by `vite-plugin-sw.mjs`), since a page loaded from the network may
   already be that build. Then `UpdateNotice` shows **Reload to update** and the palette's
-  `app.restartToUpdate`; the reload asks first when the Holes tab's model would be lost
-  (`desktopUpdates.js`'s `restartWarning()`), and is never made for the user. It also keeps
+  `app.restartToUpdate`; the workspace comes back after the reload like any other
+  (`lib/workspace.js`), and the reload is never made for the user. It also keeps
   Chromium's `beforeinstallprompt` (without `preventDefault()`) for **Install the app**
   (`app.install`, and Settings while it can be); iOS and Android browsers without the event get
   `components/InstallSheet.jsx`'s steps. `sw.spec.js` deploys a new `sw.js` under the running app
@@ -351,7 +351,8 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/holesRender.js`, `holesOverlay.js` | The Holes tab's render requests (the base alone, the base with its holes cut, the grounded mesh source), `cachedHoled()` (all of that straight from the render cache, so an undo shows with no render), the surface probe a moved hole is checked against, and what it draws over the model (hole rings, snap points, guide lines, the Option-held measurements) |
 | `src/lib/screwHoles.js`, `screwPresets.js`, `snapCandidates.js`, `holesSession.js`, `hooks/useHolesSession.js` | The Holes tab: its document and `difference()` codegen (screw holes; openConnect / MultiConnect slots cut by `lib/openconnect.scad` and `lib/multiconnect.scad`; round and rectangular / pill cutouts; 2020 extrusion sockets cut by `lib/exsocket.scad`; BitBeam pin holes cut by `lib/pinhole.scad`; KLIPPT channels cut by `lib/klippt.scad`; DeckMate sockets cut by `lib/deckmate.scad`; MagSafe charger and ring pockets); the fastener, slot, shape and socket presets; the Repeat form's row / grid / circle patterns (`repeatHole()`, which places only the copies the caller's mesh probe accepts); the face-feature snap points; the live document as module state, with its undo history |
 | `src/lib/benchConfig.js`, `benchPresets.js`, `hooks/useBenchPresets.js` | A bench setup as a file (serialise / check / hydrate), and the localStorage-backed named list of those documents |
-| `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component) with its undo history, and its mirror in the URL hash + sessionStorage so a reload restores it |
+| `src/lib/benchSession.js`, `benchUrlState.js`, `hooks/useBenchSession.js` | The live bench as module state (outlives the Bench component) with its undo history, and its mirror in the URL hash (plus the imported meshes in localStorage) so a reload restores it |
+| `src/lib/workspace.js` | The workspace in localStorage — the tab, Library selection, Bench and Holes document — so a relaunch (the desktop app opens a hash-less URL) or any reload comes back to it; debounced writes, flushed when the page hides, and checked like any stored state on the way back in |
 | `src/lib/benchLayout.js` | Which slots a node still offers, and where each 3D marker goes |
 | `src/lib/benchFold.js` | Fold for printing: a part's `fold` cut and direction (`foldSpec()`), the body a node is in (`bodyTagOf()`), and `foldPlan()`, which measures that body's unfolded render to pose it for `lib/fold.scad`'s `fold_print()` — the cut on y = 0, the hinge on the far end, where the cut face has to reach for a fold |
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
@@ -364,6 +365,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/threeMfWrite.js` | 3MF export: `indexedFromStl()` welds a binary STL exactly, `write3mf()` writes core-spec 3MF (millimetres, one object per body) zipped with three.js's fflate, `stlBodiesTo3mf()` both |
 | `src/components/PrintSheet.jsx` | "Print with EasyPrint…": a row per body (Share/Download STL, 3MF), every body in one 3MF on the Bench, Open EasyPrint, the steps |
 | `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
+| `src/lib/nativeApp.js`, `capacitor.config.json`, `ios/`, `android/`, `scripts/native-assets.mjs` | The iOS and Android store apps (Capacitor, docs/MOBILE.md): whether the page runs in one, and saving an export into the app's own folder (Files › Foundry on iOS, Documents › Connector Foundry on Android) through the Filesystem plugin, imported only there; the native projects; their icons and launch screens from `desktop/icon.svg` |
 | `src/lib/webApp.js`, `hooks/useWebApp.js`, `components/InstallSheet.jsx`, `scripts/ios-splash.mjs`, `scripts/vite-plugin-ios-splash.mjs` | The installed web app: the worker's registration, update checks for an app left open and the build it took over from (`__BUILD_ID__`), the install offer (Chromium's prompt, or the platform's steps); iOS launch screens rendered at build time (see "Phones, tablets and offline") |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout and whether the Library's drawer has tabs (`isDrawerLayout()`, `isDrawerTabsLayout()`, live through the hooks), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which tab shows; `DrawerTabs` is the Parameters / Parts control |
@@ -616,8 +618,8 @@ screen.
   there never resets an assembly. The same ref goes back down as Library's `initialSelection` when
   it remounts, so switching to the Bench and back lands on the part (and parameter edits) that
   were showing, not on the first part in the catalogue.
-- **The bench survives the mode switch and a reload.** The tree and the imported meshes live in
-  `src/lib/benchSession.js` (module state, read through `hooks/useBenchSession.js`), not in
+- **The workspace survives the mode switch and a relaunch.** The tree and the imported meshes live
+  in `src/lib/benchSession.js` (module state, read through `hooks/useBenchSession.js`), not in
   `Bench.jsx`'s own `useState` — the Bench unmounts whenever Library is up and used to take the
   setup with it. On remount its render is a cache hit in `openscad-client.js`. App also mirrors
   the tree into the URL hash (`src/lib/benchUrlState.js`): `#mode=bench&bench=<payload>`, the
@@ -626,12 +628,21 @@ screen.
   `history.replaceState`: at once for a mode switch, 300 ms after the last edit for the tree, so
   the address bar follows the bench without piling up history entries or rewriting per keystroke;
   the plain URL means Library with no bench. Imported STL meshes are
-  far too big for a URL, so they go to `sessionStorage` (same embedded shape as a config file),
-  which survives a reload of *that tab* only. On load, App restores the bench from the hash before
+  far too big for a URL, so they go to localStorage (same embedded shape as a config file), under
+  the workspace prefix.
+  Separately, `src/lib/workspace.js` keeps the whole session — the tab, Library's selection, the
+  Bench tree and the Holes document (a mesh source's raw STL, so it can be re-grounded and flipped
+  again) — in four localStorage entries under `connector-foundry:workspace:`. Writes are debounced
+  400 ms and flushed on `pagehide`/`visibilitychange`, before an update's reload or restart; an
+  imported mesh is written at once, and one too big for the ~5 MB an origin gets is dropped with a
+  warning rather than encoded only to fail. Settings backups leave the workspace out.
+  On load, App restores the workspace and any bench from the hash before
   rendering either mode (a `restored` gate also holds the mirror back, or it would overwrite the
   hash it's about to read), through the same `hydrateBenchConfig()` a file goes through — checks,
-  fresh ids, meshes rebuilt. A link that can't be restored (truncated, or naming a mesh only the
-  original tab had) leaves an empty session carrying a `notice` that the Bench's start picker
+  fresh ids, meshes rebuilt. A URL's `mode` and bench win over the stored ones; with no bench in
+  the URL the stored one comes back, so the desktop app (which opens a hash-less URL) lands where
+  it left off. A link that can't be restored (truncated, or naming a mesh only the
+  original browser had) leaves an empty session carrying a `notice` that the Bench's start picker
   shows in place of the config error, pointing at the config export, which does carry the meshes.
   A `hashchange` after that (a bench link pasted into this tab's address bar — a same-document
   navigation, so the app doesn't restart) restores again and switches to the hash's mode;
@@ -639,7 +650,9 @@ screen.
   Neither restore is an undo step, and both clear the bench's history
   (`replaceBenchSession(…, { record: false })`, then `clearBenchHistory()`): a link opened is
   navigation to another bench, and undo would otherwise bring back the previous one and step
-  through edits nobody made to this one. Replacements made inside the app — Open in Bench, a
+  through edits nobody made to this one. The Holes document's history is cleared the same way at
+  boot (`clearHolesHistory()`), so its first undo doesn't reach behind the relaunch.
+  Replacements made inside the app — Open in Bench, a
   loaded config, Start over — are steps ("Undo open in bench").
 - Settings → "Part list" sets the order of the system headings in every part list (Library
   sidebar, start-a-bench, attach-to-slot, Holes' start). Default is catalogue order — `catalogue.yaml` is kept

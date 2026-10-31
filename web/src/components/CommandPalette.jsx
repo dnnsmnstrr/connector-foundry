@@ -13,6 +13,7 @@ import {
 import { publicUrl } from "../lib/publicAsset.js";
 import { chordTokens } from "../lib/shortcuts.js";
 import { getCommandRecents, recordCommandRecent } from "../lib/uiPrefs.js";
+import SettingsIcon from "./SettingsIcon.jsx";
 
 /** @typedef {import("../lib/commands.js").Command} Command */
 /** @typedef {import("../lib/commands.js").CommandPage} CommandPage */
@@ -43,7 +44,7 @@ function actionIndex(e, mac) {
 // the list keeps one column of icons to scan down.
 const SECTION_GLYPHS = {
   "Go to": "→",
-  Settings: "⚙",
+  Settings: <SettingsIcon />,
   Help: "?",
   "3D view": "◎",
   General: "•",

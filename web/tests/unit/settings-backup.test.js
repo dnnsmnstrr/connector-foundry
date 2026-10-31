@@ -31,11 +31,13 @@ function memoryStorage(initial = {}, quota = Infinity) {
   };
 }
 
-test("export takes only the app's keys, both separators", () => {
+test("export takes only the app's keys, both separators, and never the workspace", () => {
   const storage = memoryStorage({
     "connector-foundry.sidebarCollapsed": "1",
     "connector-foundry:benchPresets": "[]",
     "connector-foundry:overrides:__global__": '{"parameterSets":{}}',
+    "connector-foundry:workspace:bench": '{"format":"connector-foundry/workspace"}',
+    "connector-foundry:workspace:imports": "[]",
     "other-app": "x",
   });
   const doc = exportSettings(storage);
@@ -51,17 +53,22 @@ test("an export imported elsewhere reproduces it exactly, leaving other apps alo
   const source = memoryStorage({
     "connector-foundry.systemOrder": '["A","B"]',
     "connector-foundry:benchPresets": "[1]",
+    "connector-foundry:workspace:bench": '{"root":{"partId":"basics/plate"}}',
   });
   const target = memoryStorage({
     "connector-foundry.sidebarWidth": "400",
     "connector-foundry:benchPresets": "[2]",
+    "connector-foundry:workspace:bench": '{"root":{"partId":"gopro/male"}}',
     "other-app": "x",
   });
   const entries = parseSettings(settingsToJson(exportSettings(source)));
   assert.equal(applySettings(entries, target), null);
+  // The target's own workspace survives: settings are not what this
+  // browser was doing (src/lib/workspace.js).
   assert.deepEqual(target.dump(), {
     "connector-foundry:benchPresets": "[1]",
     "connector-foundry.systemOrder": '["A","B"]',
+    "connector-foundry:workspace:bench": '{"root":{"partId":"gopro/male"}}',
     "other-app": "x",
   });
 });

@@ -69,6 +69,15 @@ export function groundedMesh(geometry, { flip = false } = {}) {
   return { stlBytes, extents: [max.x - min.x, max.y - min.y, max.z - min.z] };
 }
 
+// A geometry as the binary STL bytes it would import from — the Holes tab's
+// workspace keeps a mesh source this way (workspace.js): the grounded bytes
+// are derived from it, so the raw geometry is what has to come back. The
+// exported geometry is never changed.
+/** @param {import("three").BufferGeometry} geometry */
+export function geometryStlBytes(geometry) {
+  return exportStlBytesFor(geometry);
+}
+
 // The exporter's binary output is a DataView over a buffer it sized for
 // exactly this mesh, so the buffer itself is the file — no copy needed.
 function exportStlBytesFor(geometry) {

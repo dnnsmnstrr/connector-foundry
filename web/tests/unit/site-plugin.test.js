@@ -36,7 +36,7 @@ test("a part's card opens that part on the Bench", () => {
     assert.match(link, /^app\/#mode=bench&bench=[\w-]+$/);
     globalThis.window = {
       location: { pathname: "/app/", search: "", hash: link.slice(link.indexOf("#")) },
-      sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     };
     const session = restoreBenchFromUrl(byId);
     assert.equal(session?.assembly.root.partId, part.id);

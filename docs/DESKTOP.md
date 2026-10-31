@@ -69,11 +69,14 @@ The app updates itself. Shortly after it starts, and twice a day while it runs, 
 whether there is a newer release. If there is, it downloads it in the background (the header shows
 **Updating** with how far it has got) and checks the download against the release's checksums. Then
 a **Restart to update** button appears at the right of the header: click it and the app closes,
-installs the new version and opens again on the tab and bench you had. If you don't, the update
-installs the next time you quit. Your settings, saved defaults and presets are kept.
+installs the new version and opens again on the tab, bench and Holes document you had. If you
+don't, the update installs the next time you quit. Your settings, saved defaults, presets and
+workspace are kept.
 
-A restart brings back the bench (as a bench link would), but not a model on the Holes tab or meshes
-imported onto the Bench; the app asks before restarting when there are any.
+The app keeps your workspace in its own storage, so a restart — like closing and reopening it —
+brings back the tab you were on, the model and holes on the Holes tab, the bench with its imported
+meshes, and the Library's selected part. Nothing is lost, and the app doesn't ask before
+restarting.
 
 Most releases change only the app's interface, not the app around it. Then the app downloads just
 the interface, a few MB instead of the whole app, and the button says **Reload to update**: the

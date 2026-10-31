@@ -413,13 +413,17 @@ test("attaching a part: the picker over the scene, with its joint beside the sea
   await expect(page.getByRole("heading", { name: "Attached (1 of 3)" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Joint for Flat plate" })).toHaveValue("bolted");
 
-  // Escape with nothing typed cancels an attach.
+  // Escape with nothing typed cancels an attach. The board has three mount
+  // slots left, and the plate just attached may also have been measured by
+  // now, adding its own "bot" stack marker — whether it has is a race with
+  // that render, so count the mounts and pick one by name.
   await openPalette(page);
   await commandSearch(page).fill("attach");
   await expect(rows(page).first()).toHaveAccessibleName("Attach a part…");
   await page.keyboard.press("Enter");
-  await expect(rows(page)).toHaveCount(3);
-  await page.keyboard.press("Enter");
+  const mountRows = palette(page).getByRole("option", { name: /^mount_/ });
+  await expect(mountRows).toHaveCount(3);
+  await mountRows.first().click();
   await expect(page.getByRole("heading", { name: /^Attach to mount_/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(palette(page)).toHaveCount(0);

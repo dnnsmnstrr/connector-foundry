@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Foundry</string>
+    <string name="title_activity_main">Connector Foundry</string>
+    <string name="package_name">com.connectorfoundry.app</string>
+    <string name="custom_url_scheme">com.connectorfoundry.app</string>
+</resources>

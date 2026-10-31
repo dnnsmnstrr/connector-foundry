@@ -1,7 +1,22 @@
-// Hand the browser a file to save. Library's STL download, the Bench's
-// per-body STL exports and its .scad export all go through here.
+import { showCommandHud } from "./commandHud.js";
+import { appFolderLabel, nativePlatform, saveToAppFolder } from "./nativeApp.js";
+
+// Hand the browser a file to save. Every export goes through here: the
+// Library's STL, the Bench's bodies, .scad and config, the Holes tab's
+// models, the settings backup and the print sheet's files. In the iOS and
+// Android store apps the file goes straight into the app's own folder
+// instead (lib/nativeApp.js), with no sheet asking where, and the HUD says
+// where it went.
 export function downloadBlob(data, filename, type = "application/octet-stream") {
   const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const platform = nativePlatform();
+  if (platform) {
+    saveToAppFolder(blob, filename).then(
+      (saved) => showCommandHud(`Saved ${saved} to ${appFolderLabel(platform)}`, SAVED_NOTE_MS),
+      (error) => showCommandHud(`Couldn't save ${filename}: ${error?.message ?? error}`, SAVED_NOTE_MS),
+    );
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -26,3 +41,5 @@ export function downloadBlob(data, filename, type = "application/octet-stream") 
 }
 
 const REVOKE_AFTER_MS = 60_000;
+// Long enough to read a folder's name.
+const SAVED_NOTE_MS = 4000;

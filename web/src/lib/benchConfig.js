@@ -381,7 +381,8 @@ const base64ByBuffer = new WeakMap();
 
 // Chunked so a multi-megabyte mesh doesn't blow the argument limit of
 // String.fromCharCode(...bytes).
-function bytesToBase64(buffer) {
+/** @param {ArrayBufferLike} buffer */
+export function bytesToBase64(buffer) {
   const cached = base64ByBuffer.get(buffer);
   if (cached !== undefined) return cached;
   const bytes = new Uint8Array(buffer);
@@ -395,7 +396,8 @@ function bytesToBase64(buffer) {
   return encoded;
 }
 
-function base64ToBytes(b64) {
+/** @param {string} b64 */
+export function base64ToBytes(b64) {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

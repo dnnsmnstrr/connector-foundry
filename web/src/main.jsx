@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { warmRenderer } from "./lib/openscad-client.js";
+import { isNativeApp, startNativeApp } from "./lib/nativeApp.js";
 import { startWebApp } from "./lib/webApp.js";
 import "./styles.css";
 
@@ -36,8 +37,10 @@ if (!unsupported) {
   // offline. Only where it can work and should: the production build,
   // over https or on localhost (vite preview; the browser tests block it
   // unless a spec allows it). Nothing of this under the desktop app's
-  // foundry:// scheme, which serves dist from disk and updates itself.
-  if (window.location.protocol !== "foundry:") {
+  // foundry:// scheme, which serves dist from disk and updates itself, nor
+  // in the iOS and Android store apps (lib/nativeApp.js), which load the
+  // build from the app's own files and update through their store.
+  if (window.location.protocol !== "foundry:" && !isNativeApp()) {
     const secureHost =
       location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
     const worker = import.meta.env.PROD && secureHost && "serviceWorker" in navigator;
@@ -48,6 +51,9 @@ if (!unsupported) {
       scope: import.meta.env.BASE_URL,
     });
   }
+
+  // The store apps' own wiring: Android's back gesture (lib/nativeApp.js).
+  if (isNativeApp()) startNativeApp();
 
   ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

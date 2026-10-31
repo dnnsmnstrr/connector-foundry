@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import Modal from "./Modal.jsx";
 import { copyLink, openLink } from "../lib/commandCatalog.js";
 import { showCommandHud } from "../lib/commandHud.js";
+import { downloadBlob } from "../lib/download.js";
+import { isNativeApp } from "../lib/nativeApp.js";
 import {
   EASYPRINT_NOTE,
   EASYPRINT_STEPS,
@@ -27,6 +29,12 @@ import { stlBodiesTo3mf } from "../lib/threeMfWrite.js";
 // before the button is enabled — share() called after a render's await
 // has no activation left and is refused — so a body still rendering shows
 // "Rendering…" instead.
+//
+// In the iOS and Android store apps the first button is "Save STL": it
+// puts the file straight into the app's own folder (lib/nativeApp.js),
+// which is what a phone there wants most of the time; where the web view
+// can share the file too (iOS), a "Share…" beside it opens the share
+// sheet.
 //
 // `title` says what is being printed; `bodies` are the files, each with
 // its STL bytes (null while its render is on the way, or `error` when it
@@ -60,13 +68,20 @@ export default function PrintSheet({ title, bodies, allFileName, onClose }) {
   const failed = bodies.some((body) => !body.bytes && body.error);
   const all3mfName = allFileName ?? `${stem(bodies[0]?.name ?? title)}.3mf`;
 
-  const handOver = (file) => {
+  const native = isNativeApp();
+  // `share`: the share sheet where the browser has one; otherwise, and in
+  // the store apps' Save, downloadBlob(), which says where the file went.
+  const handOver = (file, share = !native) => {
+    if (!share) {
+      downloadBlob(file, file.name, file.type);
+      return;
+    }
     shareOrDownload(file, { desktop }).then((outcome) => {
       if (outcome === "shared") showCommandHud("Shared");
       else if (outcome === "downloaded") showCommandHud(`Saved ${file.name}`);
     });
   };
-  const handOverStl = (body) => handOver(modelFile(body.bytes, body.name));
+  const handOverStl = (body, share) => handOver(modelFile(body.bytes, body.name), share);
   // The 3MF is written on the tap, synchronously, so the activation is
   // still there to share it: a typical part takes tens of milliseconds,
   // a 200k-triangle import under a second on a laptop.
@@ -80,7 +95,12 @@ export default function PrintSheet({ title, bodies, allFileName, onClose }) {
     }
     handOver(modelFile(bytes, name));
   };
-  const verb = (kind) => (shares[kind] ? `Share ${kind.toUpperCase()}…` : `Download ${kind.toUpperCase()}`);
+  const verb = (kind) =>
+    native
+      ? `Save ${kind.toUpperCase()}`
+      : shares[kind]
+        ? `Share ${kind.toUpperCase()}…`
+        : `Download ${kind.toUpperCase()}`;
 
   return (
     <Modal title="Print with EasyPrint" className="print-sheet-modal" onClose={onClose}>
@@ -128,6 +148,16 @@ export default function PrintSheet({ title, bodies, allFileName, onClose }) {
                 >
                   3MF
                 </button>
+                {native && shares.stl && (
+                  <button
+                    type="button"
+                    className="download-button print-sheet-button print-sheet-secondary"
+                    disabled={!body.bytes}
+                    onClick={() => handOverStl(body, true)}
+                  >
+                    Share…
+                  </button>
+                )}
               </span>
             </li>
           ))}

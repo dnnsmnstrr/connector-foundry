@@ -7,6 +7,25 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### App
+
+- **Find a part opens the phone drawer fully.** The search list reaches the top of the screen before
+  the keyboard appears, keeping the results visible.
+- **Settings has a custom gear icon.** The Settings button and command palette now use a drawn
+  icon instead of a system emoji, so its appearance stays consistent across platforms.
+- **Mobile releases build on EAS.** A version tag now starts cloud builds for iOS and Android, with
+  the current web app synced into each Capacitor package.
+
+### Workspace
+
+- **Your work comes back after a relaunch.** Closing and reopening the app — in a browser, or the
+  desktop app updating itself — now returns to the tab you were on, the Library's selected part,
+  the bench with its imported meshes, and the model and holes on the Holes tab. The workspace is
+  kept in the browser's storage, written as you work and when the page goes away; a bench link
+  still wins over it, and settings backups leave it out. Imported meshes too large for that
+  storage aren't kept between launches (export a config to keep one). The update warnings about
+  losing the Holes tab or imported meshes are gone, since nothing is lost.
+
 ### Parts
 
 - **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays
@@ -71,6 +90,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   bar's Inset and Radius did).
 - **An even viewer toolbar.** Under 900 px wide the Helpers toggle lost its label and shrank to
   half the height of Undo, Redo, Fit and View beside it; it is now as tall as they are.
+
+### iOS and Android apps
+
+- **Apps for the App Store and Google Play** (`web/ios/`, `web/android/`, built with Capacitor):
+  the same app, from the device's own files. **Exports save straight into the app's folder**
+  instead of asking where every time: on an iPhone or iPad, Files › On My iPhone › **Foundry**; on
+  Android, **Documents › Connector Foundry**. A file of the same name is never replaced (the next
+  is "name 2.stl"). Not yet in the stores: docs/MOBILE.md has the build and release steps.
 
 ### Install it like an app
 

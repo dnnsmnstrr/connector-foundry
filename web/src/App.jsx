@@ -16,6 +16,7 @@ import RenderActivity from "./components/RenderActivity.jsx";
 import InstallSheet from "./components/InstallSheet.jsx";
 import UpdateNotice from "./components/UpdateNotice.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
+import SettingsIcon from "./components/SettingsIcon.jsx";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useCatalogue, useGlobalDefaults } from "./hooks/useCatalogue.js";
@@ -33,11 +34,27 @@ import {
   loadBenchConfig,
   replaceBenchSession,
 } from "./lib/benchSession.js";
-import { getHolesSession, setHolesDoc } from "./lib/holesSession.js";
+import {
+  clearHolesHistory,
+  getHolesSession,
+  replaceHolesSession,
+  setHolesDoc,
+  subscribeHolesSession,
+} from "./lib/holesSession.js";
 import { recordLibrary, requestLibrarySelection } from "./lib/librarySession.js";
 import { createHolesDoc, setNextSpec } from "./lib/screwHoles.js";
 import { getPreset as getHolePreset, presetSpecFor } from "./lib/screwPresets.js";
-import { readUrlState, restoreBenchFromUrl, saveSessionImports, writeUrlState } from "./lib/benchUrlState.js";
+import { readUrlState, restoreBenchFromUrl, writeUrlState } from "./lib/benchUrlState.js";
+import {
+  flushWorkspace,
+  restoreWorkspaceBench,
+  restoreWorkspaceHoles,
+  restoreWorkspaceView,
+  saveWorkspaceImports,
+  scheduleWorkspaceBench,
+  scheduleWorkspaceHoles,
+  scheduleWorkspaceView,
+} from "./lib/workspace.js";
 import { listedParts } from "./lib/catalogueUtils.js";
 import {
   GUIDES_URL,
@@ -62,6 +79,7 @@ import { hasCommandModifier, ignoresShortcut, isEditableTarget } from "./lib/isE
 import { cancelRenders, getRenderActivity } from "./lib/openscad-client.js";
 import { SETTINGS_EXTENSION, downloadSettings, importSettingsFile } from "./lib/settingsBackup.js";
 import { chordText } from "./lib/shortcuts.js";
+import { isNativeApp, onNativeBack } from "./lib/nativeApp.js";
 import { promptInstall } from "./lib/webApp.js";
 import { tabBridge } from "./lib/webmcp.js";
 import {
@@ -200,6 +218,10 @@ export default function App() {
   // "library" | "bench" | "holes" — from the URL hash on first load, so a
   // reload lands on the tab that was showing.
   const [mode, setMode] = useState(() => readUrlState().mode ?? "library");
+  // Whether the workspace stored from last time (and any bench in the
+  // URL) has been read back into the stores. The app shows its boot splash
+  // until it has, so no mode renders against half-restored state.
+  const [restored, setRestored] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The "?" sheet (components/ShortcutsModal.jsx).
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -222,17 +244,31 @@ export default function App() {
   // every parameter keystroke; nothing here needs to re-render for it).
   // Read by switchToBench() when the "Bench follows Library" setting is
   // on — the same hand-over "Open in Bench" does, just on a plain switch.
+  // Also persisted as part of the workspace (lib/workspace.js), so the
+  // part and parameters are still there next launch.
   const librarySelection = useRef(null);
+  // Read by the selection callback below, which is stable so Library
+  // doesn't re-subscribe on every tab switch.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const restoredRef = useRef(false);
+  restoredRef.current = restored;
   const onLibrarySelectionChange = useCallback((selection) => {
     librarySelection.current = selection;
+    if (restoredRef.current) {
+      scheduleWorkspaceView({ mode: modeRef.current, library: selection });
+    }
   }, []);
 
   // The bench in the URL -> the session. A link that can't be restored
-  // (cut short, or naming an imported mesh only the original tab had)
-  // leaves an empty bench with a note for its start screen rather than
-  // failing silently. `keepCurrent`: a URL with no bench leaves the
-  // session alone on first load (there's nothing to replace) but clears
-  // it on a later external hash change (the user navigated to "no bench").
+  // (cut short, or naming an imported mesh this browser never had) leaves
+  // an empty bench with a note for its start screen rather than failing
+  // silently. With no bench in the URL, the one stored from last launch
+  // comes back instead — a link always wins over the workspace, since
+  // following a link is a request to see that bench. `keepCurrent`: on
+  // first load there is nothing to replace, so a URL with no bench leaves
+  // the session alone; on a later external hash change (the user navigated
+  // to "no bench") it clears the session.
   //
   // Not an undoable step, and the bench's undo history goes with it: a
   // link opened or a hash typed is navigation to another bench, not an
@@ -243,8 +279,13 @@ export default function App() {
   const catalogueById = useMemo(() => (parts ? new Map(parts.map((p) => [p.id, p])) : null), [parts]);
   const restoreFromUrl = useCallback(
     (keepCurrent) => {
+      let fromUrl = true;
       try {
-        const session = restoreBenchFromUrl(catalogueById);
+        let session = restoreBenchFromUrl(catalogueById);
+        if (!session && keepCurrent) {
+          fromUrl = false;
+          session = restoreWorkspaceBench(catalogueById);
+        }
         if (session) replaceBenchSession(session, { record: false });
         else if (!keepCurrent) {
           replaceBenchSession({ assembly: null, importedParts: new Map() }, { record: false });
@@ -254,7 +295,7 @@ export default function App() {
           {
             assembly: null,
             importedParts: new Map(),
-            notice: `Couldn't restore the bench from this link: ${err.message}`,
+            notice: `Couldn't restore the bench ${fromUrl ? "from this link" : "from this browser"}: ${err.message}`,
           },
           { record: false },
         );
@@ -265,12 +306,18 @@ export default function App() {
   );
 
   // Once, before showing either mode, as soon as the catalogue the tree
-  // has to be checked against is here. Gates the URL mirror below too:
-  // writing before restoring would wipe the very hash being restored.
-  const [restored, setRestored] = useState(false);
+  // has to be checked against is here. Gates the URL mirror and every
+  // workspace write below too: writing before restoring would wipe the
+  // very state being restored.
   useEffect(() => {
     if (!catalogueById || restored) return;
+    const url = readUrlState();
+    const stored = restoreWorkspaceView(catalogueById);
+    if (stored?.library) librarySelection.current = stored.library;
+    if (!url.mode && stored?.mode) setMode(stored.mode);
     restoreFromUrl(true);
+    replaceHolesSession(restoreWorkspaceHoles(catalogueById));
+    clearHolesHistory();
     setRestored(true);
   }, [catalogueById, restored, restoreFromUrl]);
 
@@ -309,10 +356,24 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [restored, mode, assembly]);
 
-  // Imported meshes -> sessionStorage, for a reload of this tab (they
-  // are far too big for the URL). Keyed on which meshes the tree
-  // references, not on every edit, since serialising a mesh is the one
-  // expensive part of this.
+  // The workspace — the tab and the Library's selection, the Bench, the
+  // Holes document — -> localStorage, so the next launch (or a reload)
+  // comes back to it. lib/workspace.js debounces the writes; the pagehide
+  // listener below flushes them when the window goes away.
+  useEffect(() => {
+    if (!restored) return;
+    scheduleWorkspaceView({ mode, library: librarySelection.current });
+  }, [restored, mode]);
+  useEffect(() => {
+    if (!restored) return;
+    scheduleWorkspaceBench(assembly);
+  }, [restored, assembly]);
+
+  // Imported meshes -> localStorage (they are far too big for the URL),
+  // shared by the URL's bench and the saved one. Keyed on which meshes the
+  // tree references, not on every edit, since serialising a mesh is the
+  // one expensive part of this. Written at once, not debounced: a bench
+  // tree that names a mesh must never be stored before its bytes.
   const referencedImports = assembly
     ? [assembly.root.partId, ...assembly.nodes.map((n) => n.partId)]
         .filter((id) => importedParts.has(id))
@@ -320,9 +381,41 @@ export default function App() {
     : "";
   useEffect(() => {
     if (!restored || !catalogueById) return;
-    saveSessionImports(assembly, new Map([...catalogueById, ...importedParts]));
+    saveWorkspaceImports(assembly, new Map([...catalogueById, ...importedParts]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, catalogueById, importedParts, referencedImports, assembly === null]);
+
+  // The Holes document changes on every hole drag, which shouldn't
+  // re-render App (and with it the whole tab) — subscribe to its store
+  // instead of reading it through a hook here.
+  useEffect(() => {
+    if (!restored) return;
+    const save = () => scheduleWorkspaceHoles(getHolesSession().doc);
+    save();
+    const unsubscribe = subscribeHolesSession(save);
+    return () => {
+      unsubscribe();
+    };
+  }, [restored]);
+
+  // Whatever is still waiting for the debounce when the page goes away
+  // (a reload, the window closing, a phone backgrounding the app) is
+  // written now. `pagehide` covers a normal close; visibility covers a
+  // mobile OS that may kill a hidden app without one.
+  useEffect(() => {
+    const flush = () => {
+      flushWorkspace();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   // Library's selection (with its current parameters) becomes the root of
   // a fresh bench — "Open in Bench" and, with the setting on, a plain
@@ -357,20 +450,23 @@ export default function App() {
 
   // Android's back gesture with the drawer open puts the drawer away, as
   // it does a phone's own sheet, rather than leaving the app: an
-  // installed app with no history to go back to quits on back. A
-  // CloseWatcher (Chromium 120 on) hears it; a dialog opened over the
+  // installed app with no history to go back to quits on back. In Chrome
+  // a CloseWatcher (Chromium 120 on) hears it; a dialog opened over the
   // drawer has a newer one of its own, which back closes first. Touch
   // screens only: with a keyboard the watcher takes Escape as well, which
-  // the tabs use for their own things.
+  // the tabs use for their own things. The Android store app's web view
+  // sends back to the shell instead, which asks lib/nativeApp.js.
   useEffect(() => {
-    const Watcher = /** @type {any} */ (window).CloseWatcher;
-    if (sidebarCollapsed || typeof Watcher !== "function" || !isDrawerLayout()) return undefined;
-    if (!window.matchMedia("(pointer: coarse)").matches) return undefined;
-    const watcher = new Watcher();
-    watcher.onclose = () => {
+    if (sidebarCollapsed || !isDrawerLayout()) return undefined;
+    const close = () => {
       setSidebarCollapsedState(true);
       setSidebarCollapsed(true);
     };
+    if (isNativeApp()) return onNativeBack(close);
+    const Watcher = /** @type {any} */ (window).CloseWatcher;
+    if (typeof Watcher !== "function" || !window.matchMedia("(pointer: coarse)").matches) return undefined;
+    const watcher = new Watcher();
+    watcher.onclose = close;
     return () => watcher.destroy();
   }, [sidebarCollapsed]);
 
@@ -383,6 +479,7 @@ export default function App() {
     setMode("library");
     // On a phone the list shares the drawer with the form, on a tab.
     setDrawerTab("parts");
+    if (isDrawerLayout()) window.dispatchEvent(new Event("sidebar-drawer-full"));
     if (sidebarCollapsed) toggleSidebar();
     let tries = 0;
     const focus = () => {
@@ -707,9 +804,10 @@ export default function App() {
       builtin("app.layerling", { subtitle: "layerling.com", actions: linkActions(LAYERLING_URL) }),
       builtin("app.easyprint", { subtitle: "printables.com/slice", actions: linkActions(EASYPRINT_URL) }),
       builtin("app.install", { when: webApp.install !== null, run: installApp }),
-      // The desktop app knows where it came from.
+      // The desktop app knows where it came from, and the store apps are
+      // not where to send someone for a desktop download.
       builtin("app.releases", {
-        when: !document.documentElement.classList.contains("desktop"),
+        when: !document.documentElement.classList.contains("desktop") && !isNativeApp(),
         actions: linkActions(RELEASES_URL),
       }),
       // After the rest: a guide ties with the command of its name ("bench"),
@@ -827,7 +925,7 @@ export default function App() {
             aria-haspopup="dialog"
             title="Settings (s)"
           >
-            <span aria-hidden="true">⚙</span>
+            <SettingsIcon />
             <span className="settings-label"> Settings</span>
           </button>
         </div>

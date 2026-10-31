@@ -41,9 +41,10 @@ const SETTLE_MS = 280;
 function measureRests(aside, button) {
   const shell = aside.closest(".shell-body");
   const top = shell ? shell.getBoundingClientRect().top : 0;
-  // Closed is the handle and, under it, the home indicator's inset (the
-  // sheet's bottom padding).
-  const closed = button.offsetHeight + (parseFloat(getComputedStyle(aside).paddingBottom) || 0);
+  // The sheet fills the bottom safe area so its contents can scroll behind
+  // the home indicator; the padding keeps the last control reachable above it.
+  const safeArea = parseFloat(getComputedStyle(aside).paddingBottom) || 0;
+  const closed = button.offsetHeight + safeArea;
   return drawerRests(window.innerHeight - top, closed);
 }
 
@@ -59,6 +60,7 @@ function measureRests(aside, button) {
 function placeSheet(aside, height, rests, animate) {
   const root = document.documentElement;
   if (!animate) root.classList.add("drawer-still");
+  // The CSS safe-area padding is inside the sheet and the measured height.
   aside.style.setProperty("--drawer-height", `${Math.round(height)}px`);
   const shell = /** @type {HTMLElement | null} */ (aside.closest(".shell-body"));
   shell?.style.setProperty("--drawer-inset", `${drawerInset(height, rests)}px`);
@@ -120,12 +122,19 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       const rests = measureRests(aside, button);
       placeSheet(aside, collapsed ? rests.closed : rests[openRest.current], rests, animate);
     }
+    const openFully = () => {
+      if (!isDrawerLayout()) return;
+      openRest.current = "full";
+      if (!collapsed) layout(true);
+    };
     layout(placed.current);
     placed.current = true;
     const relayout = () => layout(false);
     window.addEventListener("resize", relayout);
+    window.addEventListener("sidebar-drawer-full", openFully);
     return () => {
       window.removeEventListener("resize", relayout);
+      window.removeEventListener("sidebar-drawer-full", openFully);
       // Gone with its tab (the Bench's start screen has no sidebar): the
       // next tab's handle sets its own.
       shell?.style.removeProperty("--drawer-inset");

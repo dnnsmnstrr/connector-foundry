@@ -1,0 +1,1159 @@
+# Single source of truth for what exists. The CLI, the tests, the web app
+# and the generated README all read this file — adding a part means adding
+# a .scad file and one entry here.
+#
+# confidence:
+#   exact       — the geometry comes from, or is checked against, a
+#                 reference implementation of the standard. Every part at
+#                 this level has entries in references.yaml, and
+#                 `make verify` re-proves the claim.
+#   parametric  — a starting point. Verify against real hardware.
+#   unverified  — worse than parametric: a starting point that is known
+#                 or strongly suspected to be dimensionally wrong, kept
+#                 in the catalogue for the module/slot scaffolding but
+#                 not fit to print. Say why in print_note, and say what
+#                 the real fix is (usually: import the real part — see
+#                 web/src/lib/importedPart.js — rather than guess again).
+#   imported    — never written here. It's what the web Bench labels a
+#                 part a user dragged in via STL import at runtime: "we
+#                 didn't derive this, the user brought it." Session-
+#                 local, never persisted to this file — see the Bench
+#                 "Licensing/hygiene" note in web/README.md.
+#
+# options: for a parameter whose values are a fixed set, list them. The
+#   web app turns those into a dropdown instead of a free-text box, and
+#   the CLI rejects a value that is not on the list — so nobody has to
+#   remember that a board variant is spelled "lite" and its chamfers are
+#   spelled "Corners". A test holds `options` and `defaults` together.
+#
+# minimums: for a number parameter with a floor the module asserts, that
+#   floor. The web app's field stops there (and raises a lower value to
+#   it when you leave the field), and the CLI rejects anything under it,
+#   instead of either finding out from an OpenSCAD assertion. A test
+#   keeps defaults and variants at or above it.
+#
+# maximums: the same for a ceiling — the web field stops at it and the
+#   CLI rejects anything over it.
+#
+# license: omitted means the repository's MIT licence. A part that calls
+#   into a vendored upstream carries that upstream's terms instead — see
+#   the README "Licensing" section. This field is not decoration: it is
+#   what a downstream user has to read before shipping a part.
+#
+# slots: for a part with enough surface area to place something off-
+#   centre, its "mount_<i>_<j>" anchor grid — see lib/slots.scad's
+#   grid_mount_anchors(). `pitch` (mm) is always required.
+#   `count_params`, if present, names the two current parameters whose
+#   values ARE the slot count on each axis (e.g. openGrid: one slot per
+#   cell, so count is exactly [cells_x, cells_y] — an even cell count
+#   has no center cell, so those indices land on half-integers, which
+#   is correct, not a bug). Omit `count_params` when the grid is a free
+#   subdivision instead of tied to a specific feature (e.g. Gridfinity):
+#   the web editor then derives the nearest-odd count from the part's
+#   own rendered bounding box ÷ pitch, same formula as slot_count() in
+#   lib/slots.scad. tests/test_slots.py renders and probes the grid
+#   either way, so this can't drift from the geometry.
+#
+# side_slots: for a part with a row of anchors along one or more of its
+#   side faces, not just the top grid `slots` covers — see
+#   lib/slots.scad's side_row_anchors() and
+#   parts/bitbeam/plate.scad. `pitch` (mm) is required; `faces`
+#   lists one entry per side face that can carry a row, each naming the
+#   anchor prefix ("<name>_<i>"), the boolean parameter that turns that
+#   face's row on or off (`enabled_param`), and the current parameter
+#   whose value is that row's anchor count (`count_param`, e.g. a
+#   plate's own grid_y for its xpos/xneg rows, since a row along an edge
+#   has as many anchors as the top grid has in that direction). A face
+#   with no row in the current instance (enabled_param is false) simply
+#   contributes no anchors, same as a face with side_holes off has none
+#   to click.
+#
+# anchors: for a part with named anchors beyond the default "mount" on
+#   its own faces — see parts/basics/plate.scad and post.scad — the
+#   list of which of "bot"/"xpos"/"xneg"/"ypos"/"yneg" it declares.
+#   Every name here sits at the exact center of that face of the part's
+#   own rendered bounding box, so the web editor derives its position
+#   the same way for any part, without parsing the .scad: no formula to
+#   restate here, just which faces exist. Mutually exclusive with
+#   `slots` in this catalogue (a part either has a handful of fixed
+#   named faces or a pitched grid, never both) — nothing stops a part
+#   from declaring both if a future one legitimately needs to.
+#
+# source / source_url: one line on where the geometry comes from, and
+#   the link to it. The web app and the README table show both. An
+#   `exact` part with no check in references.yaml has to say why in
+#   `source` — see tests/test_reference.py for the three accepted
+#   phrases.
+#
+# mount_offset: where a part's "mount" (and "bot") anchor sits relative
+#   to the center of that face of its own rendered bounding box, in mm —
+#   for a part whose mating feature isn't centered in its own box (a
+#   DeckMate screw pattern, the GoPro female's middle prong). Omitted
+#   means the face center. Either a fixed `[x, y]`, or, when the offset
+#   depends on the part's parameters, a map with an `x` and/or `y` entry
+#   that is a number or `{param, offset, scale, unless}`: the named
+#   parameter's current value plus `offset` (default 0), times `scale`
+#   (default 1), or 0 when the boolean
+#   parameter named by `unless` is true. cli/foundry.py's mount_offset()
+#   and web/src/lib/slots.js evaluate both forms the same way, and
+#   tests/test_anchors.py holds the result to the rendered geometry at
+#   the defaults and every variant.
+#
+# hidden: true keeps a part out of every part list (web app, README
+#   table) while the CLI and the Bench's code can still use it — the
+#   BitBeam pin and axle are LEGO-Technic fasteners that print badly and
+#   that the pin joint needs to exist regardless.
+#
+# attached_defaults: parameter values a part gets instead of `defaults`
+#   when the web Bench attaches it to another part — what the part is
+#   when it is on something rather than on its own. An openGrid
+#   connector fused onto a plate is just its head; the snap body is for
+#   the version that goes into a board, i.e. a bench root. A saved user
+#   default for the same parameter still wins (web/src/lib/userOverrides.js's
+#   resolveAttachedParams()). Keys must be parameters with a default.
+#
+# attached_up: [x, y] — an axis in the part's own mating plane that
+#   should point up when the Bench attaches the part to a side face.
+#   The Bench starts such a part at the spin that turns this axis as
+#   close to world up as it goes (web/src/lib/benchOrientation.js's
+#   uprightSpin()), so an openConnect head lands on the side of a box
+#   with its slide direction already vertical. Nothing happens on a top
+#   or bottom slot, where every spin keeps the axis level; the user's
+#   own rotation still applies afterwards.
+parts:
+  - id: gridfinity/base
+    system: Gridfinity
+    name: Bin base
+    file: parts/gridfinity/base.scad
+    module: gf_base
+    confidence: exact
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: Feet down, no supports.
+    slots:
+      pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
+    defaults:
+      gx: 1
+      gy: 1
+      magnets: false
+      screws: false
+    variants:
+      - name: with-magnets
+        params: { magnets: true }
+      - name: with-magnets-and-screws
+        params: { magnets: true, screws: true }
+      - name: 2x2-corners-only
+        params: { gx: 2, gy: 2, magnets: true, only_corners: true }
+      - name: thumbscrew
+        params: { thumbscrew: true }
+
+  - id: gridfinity/bin
+    system: Gridfinity
+    name: Bin
+    file: parts/gridfinity/bin.scad
+    module: gf_bin
+    confidence: exact
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored — its bin generator's new_bin()/bin_render()
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: >-
+      Feet down, no supports. gz is the height in 7mm units, the stacking
+      lip on top. filled makes it solid up to the lip, with a flat top to
+      cut your own cavities into in the Holes tab; divx/divy, scoop and
+      tabs apply to a bin with compartments.
+    slots:
+      pitch: 14  # same free subdivision as the bin base
+    defaults:
+      gx: 1
+      gy: 1
+      gz: 3
+      filled: false
+      divx: 1
+      divy: 1
+      scoop: true
+      tabs: true
+      lip: true
+      magnets: false
+      screws: false
+    variants:
+      - name: filled-2x1
+        params: { gx: 2, filled: true }
+      - name: 2x2-four-compartments-magnets
+        params: { gx: 2, gy: 2, gz: 6, divx: 2, divy: 2, magnets: true }
+      - name: no-lip
+        params: { lip: false }
+
+  - id: gridfinity/baseplate
+    system: Gridfinity
+    name: Baseplate
+    file: parts/gridfinity/baseplate.scad
+    module: gf_baseplate
+    confidence: exact
+    source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
+    source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
+    print_note: >-
+      Modelled pockets down so the flat back is the "mount" face; flip it
+      in the slicer to print back-down. Magnets and screw holes only
+      apply to the weighted, skeletonized and screw-together styles.
+    slots:
+      pitch: 14  # same free subdivision as the bin base
+    anchors: [bot]
+    defaults:
+      gx: 1
+      gy: 1
+      style: thin
+      magnets: false
+      screw_holes: none
+    options:
+      style: [thin, weighted, skeletonized, screw_together, screw_together_minimal]
+      screw_holes: [none, countersink, counterbore]
+    variants:
+      - name: weighted-2x1
+        params: { gx: 2, style: weighted }
+      - name: screw-together-magnets
+        params: { style: screw_together, magnets: true, screw_holes: countersink }
+
+  - id: opengrid/board
+    system: openGrid
+    name: Board
+    file: parts/opengrid/board.scad
+    module: og_board
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks openGrid.scad (openGrid by David D, OpenSCAD by
+      BlackjackDuck), vendored. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks
+    print_note: >-
+      Grid face up, flat on the bed. A board is exactly cells x 28mm with
+      no border, so boards butt together. lite is 4mm, full 6.8mm, heavy
+      13.8mm (two halves back to back, with a sealed cavity per cell).
+    slots:
+      pitch: 28  # OG_PITCH — one slot per cell
+      count_params: [cells_x, cells_y]
+    defaults:
+      cells_x: 2
+      cells_y: 2
+      variant: full
+      chamfers: "None"
+      connector_holes: false
+      screw_mounting: "None"
+    options:
+      variant: [full, lite, heavy]
+      # Spelling and capitalisation are upstream's, passed through
+      # verbatim — openGrid.scad compares these strings directly.
+      chamfers: ["None", Corners, Everywhere]
+      screw_mounting: ["None", Corners, Everywhere, "By Row and Column"]
+    variants:
+      - name: lite-1x1
+        params: { cells_x: 1, cells_y: 1, variant: lite }
+      - name: heavy
+        params: { variant: heavy }
+      - name: full-2x2-finished
+        params: { chamfers: Corners, connector_holes: true, screw_mounting: Corners }
+
+  - id: opengrid/snap
+    system: openGrid
+    name: Snap
+    file: parts/opengrid/snap.scad
+    module: og_snap
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks opengrid-snap.scad (openGrid by David D, snap by
+      metasyntactic), vendored. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks
+    print_note: >-
+      Print in PETG or another filament with some flex so the wings can
+      compress; no supports. The lite snap is half height (3.4mm), which
+      is not the same as a lite board.
+    defaults:
+      variant: full
+      directional: false
+    options:
+      variant: [full, lite]
+    variants:
+      - name: lite
+        params: { variant: lite }
+      - name: directional
+        params: { directional: true }
+
+  # openGrid connectors: openGrid-projects' snap body (mitufy, CC-BY
+  # 4.0 — attribution, nothing else; vendored as vendor/opengrid-projects)
+  # with a connector head on it. The matching slots are what the web
+  # app's Holes tab cuts into a part (lib/openconnect.scad's oc_slot(),
+  # lib/multiconnect.scad's mc_slot()), so a custom mount is "any part,
+  # with a slot in it" and one of these in the board.
+  - id: opengrid/openconnect
+    system: openGrid
+    name: openConnect snap
+    file: parts/opengrid/openconnect.scad
+    module: og_openconnect
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      openGrid-projects (mitufy, CC-BY 4.0), vendored — its snap body
+      and openConnect head, as its parametric snap generator renders
+      them (text label off).
+    source_url: https://github.com/mitufy/opengrid-projects
+    print_note: >-
+      Snap on the bed, head up; no supports (the head's taper is 45°).
+      Goes into any openGrid board cell; anything with an openConnect
+      slot (Holes tab) or a MultiConnect slot hangs on it. The lite
+      snap is half height (3.4mm) for lite boards. directional is the
+      body for a wall-mounted board — its deeper back nub takes the
+      load — symmetric for a horizontal one. body none is the head
+      alone, for fusing onto another part (the Bench's default when
+      attaching it). body screw is the head on openGrid's 16mm snap
+      thread instead of a snap (upstream's openConnect screw): print it
+      thread down, then screw it into a threaded openGrid snap or into
+      the openGrid thread the Holes tab cuts, turning it by the coin
+      slot in its face. Screwed home, the head points the way a snap's
+      does. variant picks the thread length (full 6.8mm, lite 3.4mm).
+    attached_defaults:
+      body: none
+    # The head's +Y is the way it slides to seat: up, on a wall.
+    attached_up: [0, 1]
+    defaults:
+      variant: full
+      body: directional
+    options:
+      variant: [full, lite]
+      body: [directional, symmetric, none, screw]
+    variants:
+      - name: lite
+        params: { variant: lite }
+      - name: symmetric
+        params: { body: symmetric }
+      - name: head-only
+        params: { body: none }
+      - name: screw
+        params: { body: screw }
+
+  - id: opengrid/multiconnect
+    system: openGrid
+    name: MultiConnect snap
+    file: parts/opengrid/multiconnect.scad
+    module: og_multiconnect
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      openGrid-projects (mitufy, CC-BY 4.0), vendored, for the snap
+      body; the MultiConnect head is this repo's own, from the
+      published numbers (lib/constants.scad), checked against the
+      head that generator renders.
+    source_url: https://github.com/mitufy/opengrid-projects
+    print_note: >-
+      Snap on the bed, head up; no supports. Hangs any Multiboard
+      accessory — or anything with a MultiConnect slot from the Holes
+      tab — off an openGrid board. variant and body as for the
+      openConnect snap, body none being the head alone for fusing onto
+      another part, body screw the head on openGrid's snap thread (a
+      coin slot across the disc instead of the dimple).
+    attached_defaults:
+      body: none
+    defaults:
+      variant: full
+      body: directional
+    options:
+      variant: [full, lite]
+      body: [directional, symmetric, none, screw]
+    variants:
+      - name: lite
+        params: { variant: lite }
+      - name: symmetric
+        params: { body: symmetric }
+      - name: head-only
+        params: { body: none }
+      - name: screw
+        params: { body: screw }
+
+  - id: gopro/male
+    system: GoPro
+    name: Two-prong male buckle
+    file: parts/gopro/male.scad
+    module: gopro_male
+    confidence: exact
+    source: GoProScad (ridercz, MIT), vendored
+    source_url: https://github.com/ridercz/GoProScad
+    print_note: >-
+      Legs down; use a brim. Mates with any GoPro three-prong buckle.
+      leg_dia is the round leg ends' diameter: the standard 15, from 14
+      to 20 for a little less or more material around the bolt; over 17,
+      raise leg_h to at least leg_dia so a mating buckle clears the plate.
+    minimums:
+      leg_dia: 14
+    maximums:
+      leg_dia: 20
+    defaults:
+      base_h: 3
+      base_w: 20
+      leg_h: 17
+      leg_dia: 15
+    variants:
+      - name: wide-plate
+        params: { base_w: 30 }
+
+  - id: gopro/female
+    system: GoPro
+    name: Three-prong female buckle
+    file: parts/gopro/female.scad
+    module: gopro_female
+    confidence: exact
+    source: GoProScad (ridercz, MIT), vendored
+    source_url: https://github.com/ridercz/GoProScad
+    print_note: >-
+      Legs down; use a brim. outer_w is the far outer leg's width: the
+      standard 3mm leg plus a captive pocket for an M5 hex nut in the
+      rest. 3 makes all three prongs the same width, with a plain
+      through-hole and no pocket. nut_sides 4 with nut_dia 11.5 takes a
+      square nut instead. A far leg wider than the near one runs the
+      plate further to that side; "mount" sits over the middle prong
+      regardless. symmetric pads the near leg to outer_w too, for a
+      plate centred on the prongs. leg_dia is the round leg ends'
+      diameter: the standard 15, from 14 to 20 for a little less or more
+      material around the bolt; over 17, raise leg_h to at least leg_dia
+      so a mating buckle clears the plate.
+    # Only the far leg is outer_w wide, so the middle prong — where
+    # "mount" sits — is (outer_w - 3)/2 off the plate's center, until
+    # `symmetric` pads the other leg to match.
+    mount_offset:
+      y: { param: outer_w, offset: -3, scale: 0.5, unless: symmetric }
+    # The far leg is never narrower than the other prongs (GP_LEG_T,
+    # asserted in parts/gopro/female.scad): 3 is the equal-prongs buckle.
+    minimums:
+      outer_w: 3
+      leg_dia: 14
+    maximums:
+      leg_dia: 20
+    defaults:
+      base_h: 3
+      base_w: 20
+      leg_h: 17
+      leg_dia: 15
+      outer_w: 6
+      nut_sides: 6
+      nut_dia: 9.5
+      symmetric: false
+    variants:
+      - name: equal-prongs
+        params: { outer_w: 3 }
+      - name: square-nut
+        params: { nut_sides: 4, nut_dia: 11.5 }
+      - name: symmetric
+        params: { symmetric: true }
+
+  # DeckMate / Mechanism: three of Mechanism's own models, imported
+  # unmodified (CC BY-NC 4.0 — see README "Licensing"). Two of them carry
+  # Mechanism's three-hole screw pattern; `screw_pattern: deckmate` is
+  # what makes the "screwed" joint available on them in the Bench (see
+  # lib/joints.scad's deckmate_screw_flange()), and `mount_offset` is
+  # where their "mount"/"bot" anchors sit relative to the bounding-box
+  # center — at the pattern's reference point, so mount-to-mount lines
+  # the holes up. The web editor reads it to place the markers;
+  # tests/test_anchors.py checks it against the rendered geometry.
+  - id: deckmate/innie
+    system: DeckMate / Mechanism
+    name: Innie
+    file: parts/deckmate/innie.scad
+    module: deckmate_innie
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's Universal Grip STL — the manufacturer's own model,
+      imported unmodified. CC BY-NC 4.0 — see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
+    print_note: >-
+      The socket half. Flat back up as "mount" (where Mechanism puts the
+      adhesive); the socket side has undercuts, so flip it in the slicer.
+      "bot" sits over the socket recess, not on material.
+    anchors: [bot]
+
+  - id: deckmate/outie
+    system: DeckMate / Mechanism
+    name: Outie
+    file: parts/deckmate/outie.scad
+    module: deckmate_outie
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's Bot Print STL — the manufacturer's own model, imported
+      unmodified; slim is cut from Mechanism's Adhesive Puck STL
+      (printables.com/model/1337452, also unmodified). CC BY-NC 4.0 —
+      see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
+    print_note: >-
+      The rail half; slides into an Innie. Base up as "mount". Fuse it,
+      or use the screwed joint on its three-hole pattern and print the
+      rail on its own, rail up. fill_holes plugs the holes on a fused one.
+      slim is Mechanism's own slim Outie, from its Adhesive Puck: no
+      ears for the side holes and the U's outer edge brought in, 30.6mm
+      wide instead of 35.3mm, holes solid — for fusing onto something,
+      not for the screwed joint.
+    screw_pattern: deckmate
+    mount_offset: [0, 3.391]
+    defaults:
+      fill_holes: false
+      slim: false
+    variants:
+      - name: filled-holes
+        params: { fill_holes: true }
+      - name: slim
+        params: { slim: true }
+
+  - id: deckmate/universal
+    system: DeckMate / Mechanism
+    name: Universal base
+    file: parts/deckmate/universal.scad
+    module: deckmate_universal
+    confidence: exact
+    license: CC-BY-NC-4.0
+    source: >-
+      Mechanism's Deck Mate Universal STL — the manufacturer's own model,
+      imported unmodified. CC BY-NC 4.0 — see README "Licensing".
+    source_url: https://getmechanism.com/pages/digital-files
+    print_note: >-
+      Mechanism's 56.7 x 28.4 x 3mm base plate: hole pattern down as
+      "bot", adhesive face up as "mount". Stack an Outie on "bot" with the
+      screwed joint (no flange needed). Prints flat either way up.
+    anchors: [bot]
+    screw_pattern: deckmate
+    mount_offset: [0, 4.896]
+
+  - id: klippt/base
+    system: KLIPPT
+    name: Base
+    file: parts/klippt/base.scad
+    module: klippt_base
+    confidence: exact
+    license: CC-BY-SA-4.0
+    source: >-
+      KLIPPT by FH (printables.com/@bequ3) — the designer's own base
+      models (the base STEP, tessellated; the screw base STL), imported
+      unmodified. CC BY-SA 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/424351-klippt-locking-cable-clip
+    print_note: >-
+      Flange on the bed, no supports. A KLIPPT clip slides on from the
+      side, its lips under the 20mm flange, gripping the 18mm neck. The
+      neck's flat face is "mount": stick or fuse it onto a part, or with
+      screw use the countersunk hole (head on the flange side, under the
+      clip).
+    anchors: [bot]
+    defaults:
+      screw: false
+    variants:
+      - name: screw
+        params: { screw: true }
+
+  - id: klippt/clip_mount
+    system: KLIPPT
+    name: Clip mount
+    file: parts/klippt/clip_mount.scad
+    module: klippt_clip_mount
+    confidence: exact
+    license: CC-BY-SA-4.0
+    source: >-
+      KLIPPT by FH (printables.com/@bequ3) — cut at render time from the
+      designer's own "cable clip small smooth" STL (unmodified): its lips,
+      flange gap and lock as they are, the top filled flat. CC BY-SA 4.0 —
+      see README "Licensing".
+    source_url: https://www.printables.com/model/424351-klippt-locking-cable-clip
+    print_note: >-
+      The counterpart of the KLIPPT base: fuse its flat top ("mount") onto
+      a part, and the part slides onto a base like a clip. Lips down as
+      "bot". plate is the solid above the clip's floor. On its own, print
+      it on its end (slide direction up), the way KLIPPT prints its clips:
+      the floor's arch then needs no bridge.
+    anchors: [bot]
+    mount_offset: [1.42, 0]
+    defaults:
+      plate: 1
+    variants:
+      - name: thick-plate
+        params: { plate: 3 }
+
+  - id: hsw/wall
+    system: Honeycomb Storage Wall
+    name: Wall panel
+    file: parts/hsw/wall.scad
+    module: hsw_wall
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      Honeycomb Storage Wall by RostaP; each cell is halfhex() from geru's
+      3d-scad-hsw-customizable (after Xander and EdwinEesting, CC-BY 4.0),
+      vendored, laid out to match its own grid().
+    source_url: https://github.com/geru/3d-scad-hsw-customizable
+    print_note: >-
+      Front face on the bed (the 20mm openings), no supports. Columns are
+      rows cells tall, every other one half a cell lower. flat_edges trims
+      the panel to a rectangle with a flat wall all round, so panels butt
+      together; the end columns are then half cells. "mount" is the back,
+      against the wall.
+    anchors: [bot]
+    defaults:
+      cols: 4
+      rows: 3
+      flat_edges: false
+    variants:
+      - name: flat-edges
+        params: { cols: 5, rows: 4, flat_edges: true }
+
+  - id: hsw/insert
+    system: Honeycomb Storage Wall
+    name: Insert
+    file: parts/hsw/insert.scad
+    module: hsw_insert
+    confidence: exact
+    source: geru's 3d-scad-hsw-clip (Hugh Kern, MIT, after KYZ's V2 clips), vendored
+    source_url: https://github.com/geru/3d-scad-hsw-clip
+    print_note: >-
+      Base on the bed, clip up, no supports. A one-way clip: push it into
+      any HSW cell and its spring snaps it behind the lip; press the spring
+      to take it out. The base's top is "mount", for fusing a hook or
+      holder onto. base hex covers the cell, a millimetre short of its
+      neighbours; rect is a bar across it.
+    anchors: [bot]
+    defaults:
+      base: hex
+      base_h: 3
+    options:
+      base: [hex, rect]
+    variants:
+      - name: rect
+        params: { base: rect }
+
+  - id: skadis/board
+    system: Skådis
+    name: Board
+    file: parts/skadis/board.scad
+    module: skadis_board
+    confidence: exact
+    source: >-
+      lib/skadis.scad: Skådis's 5 x 15mm slots in a checkerboard on a 20mm
+      grid, checked against breckenedge's parametric-skadis-tower (CC-BY-SA
+      4.0, measured against, not vendored).
+    source_url: https://github.com/breckenedge/parametric-skadis-tower
+    print_note: >-
+      Flat on the bed, no supports. 5mm thick, slots 40mm apart along a row
+      and rows 20mm apart, every other row shifted 20mm, as on a Skådis
+      board; cols counts the slots in a row, in halves: 2.5 is five 20mm
+      cells across, which makes the board symmetric left to right (a whole
+      number leaves one side starting on a gap). The slots are cut 5.2mm wide,
+      so moulded Skådis hooks go in. A board is exactly 2 x cols x rows
+      20mm cells, so boards butt together. "mount" is the back, against the
+      wall.
+    anchors: [bot]
+    defaults:
+      cols: 2
+      rows: 4
+    variants:
+      - name: 3x6
+        params: { cols: 3, rows: 6 }
+      - name: symmetric
+        params: { cols: 2.5, rows: 5 }
+
+  - id: skadis/peg
+    system: Skådis
+    name: Peg
+    file: parts/skadis/peg.scad
+    module: skadis_peg
+    confidence: exact
+    source: >-
+      lib/skadis.scad's hook tab, checked against this repo's Skådis board
+      (itself checked against parametric-skadis-tower).
+    source_url: https://github.com/breckenedge/parametric-skadis-tower
+    print_note: >-
+      Print it on its side, a tab flat on the bed, so the layers run along
+      the arm. Each tab goes straight through a slot, drops 6mm and hangs
+      behind the board; lift it to take it off. pegs 2 puts two tabs 40mm
+      apart, for two slots in a row, so the part cannot turn. The plate's
+      front is "mount", for fusing a holder or shelf onto.
+    anchors: [bot]
+    defaults:
+      pegs: 1
+      plate: 2
+    options:
+      pegs: [1, 2]
+    variants:
+      - name: two-pegs
+        params: { pegs: 2 }
+
+  - id: molle/spine
+    system: MOLLE
+    name: Spine
+    file: parts/molle/spine.scad
+    module: molle_spine
+    confidence: parametric
+    source: >-
+      lib/molle.scad, from the PALS grid as the webbing defines it: 25.4mm
+      (1") rows with a 25.4mm gap, bar-tacked every 38.1mm (1.5"). No
+      published geometry drawing or open model to check against.
+    source_url: https://en.wikipedia.org/wiki/Pouch_Attachment_Ladder_System
+    print_note: >-
+      Print it on its side, the profile flat on the bed, so the layers run
+      along the tongue; PETG flexes better than PLA. Slide the tongue down
+      behind rows rows of webbing from above, until the barb clicks in under
+      the bottom row; press the tip back to take it off. cols 2 puts two
+      tongues 38.1mm apart, for two columns, so the part cannot swing.
+      webbing is the gap the webbing sits in: measure yours, and go tighter
+      for a firmer grip. The plate's front is "mount".
+    minimums:
+      rows: 1
+      cols: 1
+      webbing: 1
+      plate: 1.5
+    defaults:
+      rows: 2
+      cols: 1
+      webbing: 2
+      plate: 3
+    variants:
+      - name: two-cols
+        params: { cols: 2 }
+      - name: one-row
+        params: { rows: 1 }
+
+  - id: molle/panel
+    system: MOLLE
+    name: Panel
+    file: parts/molle/panel.scad
+    module: molle_panel
+    confidence: parametric
+    source: >-
+      lib/molle.scad: a laser-cut MOLLE panel's slits, every 25.4mm up and
+      38.1mm across, with a channel behind each column for the strap. No
+      published geometry drawing or open model to check against.
+    source_url: https://en.wikipedia.org/wiki/Pouch_Attachment_Ladder_System
+    print_note: >-
+      Front down, ribs up, no supports. A pouch strap goes in at one slit,
+      behind the strip, out at the next; the 30 x 5mm slits take a 1" strap,
+      and channel is the room behind the skin for it to run in (0 for a
+      bare slotted skin). rows counts strips, rows + 1 rows of slits. A
+      panel is exactly cols x 38.1 by (rows + 1) x 25.4mm, so panels butt
+      together. "mount" is the back.
+    anchors: [bot]
+    minimums:
+      cols: 1
+      rows: 1
+      channel: 0
+    defaults:
+      cols: 3
+      rows: 4
+      channel: 3
+    variants:
+      - name: flat
+        params: { channel: 0 }
+      - name: 2x6
+        params: { cols: 2, rows: 6 }
+
+  - id: molle/rigid_panel
+    system: MOLLE
+    name: Rigid panel
+    file: parts/molle/rigid_panel.scad
+    module: molle_rigid_panel
+    confidence: parametric
+    source: >-
+      lib/molle.scad: rigid panels have no standard; the default opening is
+      DV8 Offroad's published 1.5" x 1" (38.1 x 25.4mm), on PALS spacing up
+      and a 12.7mm bar across. No open model to check against.
+    source_url: https://nomadicsupply.com/dv8-offroad-universal-molle-panel-23x15-unmp-06/
+    print_note: >-
+      Flat on the bed, no supports. Open windows that pouch straps wrap
+      round and molle/insert plugs into. cols x rows openings, each open_w x
+      open_h with open_r corners, centred in pitch_x x pitch_y cells: a
+      panel is exactly cols x pitch_x by rows x pitch_y, so panels butt
+      together. To match a truck panel, measure its openings and the
+      distance between their centres. Mounting holes come from the Holes
+      tab. "mount" is the back.
+    anchors: [bot]
+    minimums:
+      cols: 1
+      rows: 1
+      open_r: 0
+      thickness: 1
+    defaults:
+      cols: 4
+      rows: 3
+      open_w: 38.1
+      open_h: 25.4
+      open_r: 3
+      pitch_x: 50.8
+      pitch_y: 50.8
+      thickness: 4
+    variants:
+      - name: tight-grid
+        params: { open_w: 38.1, open_h: 31.75, pitch_x: 50.8, pitch_y: 44.45 }
+
+  - id: molle/insert
+    system: MOLLE
+    name: Panel insert
+    file: parts/molle/insert.scad
+    module: molle_insert
+    confidence: parametric
+    source: >-
+      lib/molle.scad's rigid-panel opening: a base plate behind the panel
+      and a boss that fits the opening. Rigid panels have no standard, so
+      the opening and the panel's thickness are parameters.
+    source_url: https://nomadicsupply.com/dv8-offroad-universal-molle-panel-23x15-unmp-06/
+    print_note: >-
+      Base down, boss up, no supports. Set open_w, open_h and open_r to your
+      panel's opening and panel_t to its thickness (2mm for a typical steel
+      panel, 4 for molle/rigid_panel's default); the boss is FIT_CLEARANCE a
+      side smaller and 0.2mm short of the panel's front, so a bolted part
+      clamps the panel. The base goes in from behind the panel. hole drills
+      one centre through-hole; for heat-set inserts, nut traps or a grid of
+      holes, use the Holes tab on the boss face. "mount" is the boss face.
+    anchors: [bot]
+    minimums:
+      open_r: 0
+      panel_t: 0.5
+      margin: 1
+      base: 1
+      hole: 0
+    defaults:
+      open_w: 38.1
+      open_h: 25.4
+      open_r: 3
+      panel_t: 2
+      margin: 6
+      base: 3
+      hole: 0
+    variants:
+      - name: center-hole
+        params: { hole: 5.5 }
+      - name: printed-panel
+        params: { panel_t: 4 }
+
+  - id: camera/arca_plate
+    system: Camera
+    name: Arca-style plate
+    file: parts/camera/arca_plate.scad
+    module: arca_plate
+    confidence: parametric
+    source: >-
+      lib/camera.scad, from Wimberley's published figure of the Arca-Swiss
+      style dovetail (45° flanks, 38mm real and 41.9mm sharp width); flank
+      height and thickness are this repo's choice. No published standard
+      or open model to check against.
+    source_url: https://www.tripodhead.com/products/product-details2.cfm?product=arca-swiss-geometry
+    print_note: >-
+      Clamp face on the bed, flanks up, no supports. Makers differ by tenths
+      of a millimetre: print a short one first and try it in your clamp. It
+      is FIT_CLEARANCE a side narrower than nominal. screw cuts a slot for a
+      1/4"-20 camera screw, its head sunk from the clamp face; leave it off
+      for a plate fused onto a part. "mount" is the top, where the camera
+      or part sits.
+    anchors: [bot]
+    defaults:
+      length: 50
+      thickness: 10
+      screw: false
+    variants:
+      - name: camera-screw
+        params: { screw: true }
+      - name: long
+        params: { length: 100 }
+
+  - id: camera/tripod_socket
+    system: Camera
+    name: Tripod socket
+    file: parts/camera/tripod_socket.scad
+    module: tripod_socket
+    confidence: exact
+    source: >-
+      BOSL2's UTS threads (threaded_rod() as a mask) and its hex nut table,
+      vendored; checked with BOSL2's own screw and nut.
+    source_url: https://github.com/BelfrySCAD/BOSL2
+    print_note: >-
+      Mouth on the bed, no supports. A part fused onto its top ("mount")
+      screws onto a tripod, light stand or camera rig. size 1/4 is the
+      camera thread (1/4"-20), 3/8 the tripod-head one (3/8"-16). style
+      thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket
+      for a real hex nut, pressed in from the mouth, for weight a printed
+      thread will not hold.
+    anchors: [bot]
+    defaults:
+      size: "1/4"
+      style: thread
+      diameter: 20
+      depth: 8
+      top: 2
+    options:
+      size: ["1/4", "3/8"]
+      style: [thread, nut]
+    variants:
+      - name: nut
+        params: { style: nut }
+      - name: three-eighths
+        params: { size: "3/8", diameter: 24, depth: 10 }
+
+  - id: bitbeam/beam
+    system: BitBeam
+    name: Beam
+    file: parts/bitbeam/beam.scad
+    module: bitbeam_beam
+    confidence: exact
+    license: BSD-3-Clause
+    source: bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc
+    source_url: https://github.com/ondratu/bitbeam-lib
+    print_note: >-
+      Print flat, no supports. 4.8mm holes on an 8mm pitch through top and
+      bottom, and through the sides with side_holes on. LEGO
+      Technic-compatible.
+    defaults:
+      len: 5
+      side_holes: true
+
+  - id: bitbeam/pin
+    system: BitBeam
+    name: Friction pin
+    file: parts/bitbeam/pin.scad
+    module: bitbeam_pin
+    confidence: exact
+    hidden: true
+    source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin 2780
+    source_url: https://github.com/cfinke/technic.scad
+    print_note: >-
+      A split friction pin; prints standing up and wants a printer that
+      does 0.75mm gaps cleanly. Lengths are per half, in 7.8mm Technic
+      units. Used by the Bench's pin joint.
+    defaults:
+      top_length: 1
+      bottom_length: 1
+      friction: true
+    variants:
+      - name: long-top
+        params: { top_length: 2 }
+      - name: smooth
+        params: { friction: false }
+
+  - id: bitbeam/axle
+    system: BitBeam
+    name: Axle
+    file: parts/bitbeam/axle.scad
+    module: bitbeam_axle
+    confidence: exact
+    hidden: true
+    source: technic.scad (cfinke, MIT), vendored — LEGO Technic axle 3705 and friends
+    source_url: https://github.com/cfinke/technic.scad
+    print_note: >-
+      Prints standing up (a long one wants a brim). length is in 7.8mm
+      Technic units; 4 is LEGO's 3705.
+    defaults:
+      length: 4
+    variants:
+      - name: 2L
+        params: { length: 2 }
+      - name: 8L
+        params: { length: 8 }
+
+  - id: bitbeam/plate
+    system: BitBeam
+    name: Plate
+    file: parts/bitbeam/plate.scad
+    module: bitbeam_plate
+    confidence: exact
+    license: BSD-3-Clause
+    source: >-
+      bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per
+      bitbeam.cc. Nobody publishes a model of a plate like this, so there
+      is no reference geometry to check against.
+    source_url: https://github.com/ondratu/bitbeam-lib
+    print_note: >-
+      Flat on the bed, no supports. Every hole is a real BitBeam hole, top
+      and side. Side holes need height 1 (8mm); go thinner and turn
+      side_holes off. Sizes are in 8mm units.
+    slots:
+      pitch: 8
+      count_params: [grid_x, grid_y]
+    side_slots:
+      pitch: 8
+      faces:
+        - { name: xpos, enabled_param: side_holes, count_param: grid_y }
+        - { name: xneg, enabled_param: side_holes, count_param: grid_y }
+        - { name: ypos, enabled_param: side_holes, count_param: grid_x }
+        - { name: yneg, enabled_param: side_holes, count_param: grid_x }
+    anchors: [bot, xpos, xneg, ypos, yneg]
+    defaults:
+      grid_x: 3
+      grid_y: 3
+      height: 1
+      side_holes: true
+
+  - id: basics/plate
+    system: Basics
+    name: Flat plate
+    file: parts/basics/plate.scad
+    module: basics_plate
+    confidence: exact
+    source: Generic geometry, not tied to an external spec
+    print_note: >-
+      Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm
+      with 4mm corners by default — one Gridfinity unit, so it lines up
+      with a Gridfinity base or baseplate.
+    anchors: [bot, xpos, xneg, ypos, yneg]
+    defaults:
+      w: 42
+      d: 42
+      t: 4
+      r: 4
+    variants:
+      - name: with-bolts
+        params: { bolts: true }
+
+  - id: basics/post
+    system: Basics
+    name: Round post
+    file: parts/basics/post.scad
+    module: basics_post
+    confidence: exact
+    source: Generic geometry, not tied to an external spec
+    print_note: Stands on its flat end ("bot"), no supports.
+    anchors: [bot]
+    defaults:
+      dia: 10
+      h: 20
+    variants:
+      - name: bored
+        params: { bore: 4 }
+
+  - id: basics/dovetail_rail
+    system: Basics
+    name: Dovetail rail
+    file: parts/basics/dovetail_rail.scad
+    module: dovetail_rail
+    confidence: exact
+    source: Generic geometry, not tied to an external spec
+    print_note: >-
+      Tip down, no supports. A generic dovetail, not DeckMate-compatible —
+      import Mechanism's own model for that.
+    defaults:
+      rail_len: 36
+      end_stop: false
+    variants:
+      - name: with-end-stop
+        params: { end_stop: true }
+
+  - id: basics/dovetail_channel
+    system: Basics
+    name: Dovetail channel
+    file: parts/basics/dovetail_channel.scad
+    module: dovetail_channel
+    confidence: exact
+    source: Generic geometry, not tied to an external spec
+    print_note: Mouth down, no supports. Mates with the dovetail rail.
+    defaults:
+      rail_len: 36
+      wall: 2.4
+      clearance: 0.3
+
+  - id: extrusion2020/tab
+    system: 2020 Extrusion
+    name: T-slot tab (hammer-head)
+    file: parts/extrusion2020/tab.scad
+    module: ex_tab
+    confidence: parametric
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
+    print_note: >-
+      Check EX_* in lib/constants.scad against your rail. tab_len up to
+      6mm drops into the slot face-first and twists to lock; a longer head
+      feeds in from an open end.
+    defaults:
+      tab_len: 6
+      head_t: 2.0
+      shaft_len: 8
+    variants:
+      - name: end-feed-length
+        params: { tab_len: 16 }
+
+  - id: extrusion2020/clip
+    system: 2020 Extrusion
+    name: Snap-in clip
+    file: parts/extrusion2020/clip.scad
+    module: ex_clip
+    confidence: parametric
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
+    print_note: >-
+      Check EX_* in lib/constants.scad against your rail. Pushes straight
+      into the slot mid-rail. Print in PETG or nylon so the legs can flex.
+    defaults:
+      leg_len: 7
+      post_h: 8
+
+  - id: extrusion2020/endcap
+    system: 2020 Extrusion
+    name: End-face plate
+    file: parts/extrusion2020/endcap.scad
+    module: ex_endcap
+    confidence: parametric
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
+    print_note: >-
+      Check EX_* in lib/constants.scad against your rail. Keys print
+      face-down; the plate corners overhang them, so add a brim.
+    defaults:
+      plate_t: 3
+      boss_h: 2
+
+  - id: extrusion2020/corner-bracket
+    system: 2020 Extrusion
+    name: Corner bracket
+    file: parts/extrusion2020/corner-bracket.scad
+    module: ex_corner_bracket
+    confidence: parametric
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
+    print_note: >-
+      Check EX_* in lib/constants.scad against your rail. Base flange
+      down; check the bore spacing against your T-nuts.
+    defaults: {}
+
+  - id: extrusion2020/c-clip
+    system: 2020 Extrusion
+    name: Profile C-clip
+    file: parts/extrusion2020/c-clip.scad
+    module: ex_c_clip
+    confidence: parametric
+    source: Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)
+    source_url: https://github.com/nophead/NopSCADlib
+    print_note: >-
+      Check EX_* in lib/constants.scad against your rail. Snaps over the
+      outside of the profile; print with the ring axis vertical.
+    defaults: {}
+
+  - id: extrusion2020/rail
+    system: 2020 Extrusion
+    name: T-slot rail (printable stand-in)
+    file: parts/extrusion2020/rail.scad
+    module: ex_rail
+    confidence: parametric
+    license: Apache-2.0
+    source: >-
+      AluminumExtrusionProfile (Jen Reed, Apache-2.0), vendored — its 2020
+      preset, which is close to but not E2020t; references.yaml records
+      the gap.
+    source_url: https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library
+    print_note: >-
+      A printable stand-in for real rail, for trying fittings and Bench
+      layouts. Lies flat by default; "vertical" stands it on end. Slots
+      along the top at 20mm pitch, on both ends and on the bottom. slot
+      "v" is a V-slot profile.
+    slots:
+      pitch: 20  # EX_PROFILE — one profile width along the top slot; a free subdivision
+    anchors: [bot, xpos, xneg]
+    defaults:
+      len: 100
+      slot: "t"
+      orientation: horizontal
+    options:
+      slot: ["t", "v"]
+      orientation: [horizontal, vertical]
+    variants:
+      - name: v-slot
+        params: { slot: "v" }
+      - name: short-40
+        params: { len: 40 }
+      - name: vertical-60
+        params: { orientation: vertical, len: 60 }

@@ -4,7 +4,7 @@ import { useDesktopUpdates } from "../hooks/useDesktopUpdates.js";
 import { useWebApp } from "../hooks/useWebApp.js";
 import { builtin, openLink } from "../lib/commandCatalog.js";
 import { showCommandHud } from "../lib/commandHud.js";
-import { getHolesSession } from "../lib/holesSession.js";
+import { flushWorkspace } from "../lib/workspace.js";
 import { checkForWebUpdate, reloadToUpdate } from "../lib/webApp.js";
 import {
   checkForUpdates,
@@ -13,7 +13,6 @@ import {
   needsShellNotice,
   reportStarted,
   restartToUpdate,
-  restartWarning,
   setAutoCheck,
   setKeepUpdated,
   updateSummary,
@@ -120,7 +119,7 @@ export default function UpdateNotice() {
         className="mode-tab update-tab"
         onClick={reloadWebApp}
         aria-label="Reload to update"
-        title="Load the new version: the bench and the tab you are on come back"
+        title="Load the new version: the tab, bench and Holes document come back"
       >
         <span className="update-label">Reload to update</span>
         <span className="update-label-short" aria-hidden="true">
@@ -200,18 +199,9 @@ function webCommands(state) {
   ];
 }
 
-// Reloads into the new build, after asking when the reload would lose
-// work: the bench comes back from the URL and its imported meshes from
-// session storage, but the Holes tab's model lives in memory only.
+// Reloads into the new build. The workspace is written first, so the
+// reload comes back to the same tab, bench and Holes document.
 function reloadWebApp() {
-  const warning = restartWarning({
-    importedMeshes: 0,
-    holes: getHolesSession().doc !== null,
-    reload: true,
-  });
-  // (An imported mesh too big for session storage is not kept either,
-  // lib/benchUrlState.js, and the bench's own notice says so after the
-  // reload: too rare to hold up every update with a question.)
-  if (warning && !window.confirm(`Reload to load the new version? ${warning}`)) return;
+  flushWorkspace();
   reloadToUpdate();
 }
