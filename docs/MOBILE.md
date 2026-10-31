@@ -85,8 +85,38 @@ Before the first upload, once:
 - **Play:** a Play Console app for `com.connectorfoundry.app` and an upload key (Android Studio's
   Generate Signed Bundle makes one; keep it out of the repository).
 
-Each release: set the version — `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in Xcode, and
-`versionName` / `versionCode` in `android/app/build.gradle` (the build number must grow with every
-upload) — then `npm run native:sync`, archive in Xcode and upload, and build a signed `.aab` for
-Play. The store apps carry the web build they were synced with: a web deploy does not reach them
-until the next store release.
+For a local release, set the version — `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in Xcode,
+and `versionName` / `versionCode` in `android/app/build.gradle` — then run `npm run native:sync`,
+archive in Xcode and upload, and build a signed `.aab` for Play. The store apps carry the web build
+they were synced with: a web deploy does not reach them until the next store release. The EAS flow
+below automates the cloud build and build-number increment.
+
+## Cloud builds with EAS
+
+The native projects stay Capacitor projects; Expo is used only to build and sign their store
+binaries. `app.config.js` gives EAS the existing bundle identifiers and reads the app version from
+`package.json`. The `eas-build-post-install` hook runs `npm run native:sync` on EAS, so every cloud
+build contains the current web app and generated OpenSCAD catalogue. The production profile keeps
+the store-facing version in source and lets EAS increment iOS's build number and Android's version
+code remotely.
+
+One-time setup, from `web/`:
+
+1. Sign in with `npx eas-cli login`, then run `npx eas-cli init` to create and link the EAS project.
+   Add the project ID it returns as `extra.eas.projectId` in `app.config.js`.
+2. Set up signing with `npx eas-cli credentials:configure-build -p ios -e production` and
+   `npx eas-cli credentials:configure-build -p android -e production`, following the prompts. EAS
+   can create and keep the Android upload key and Apple distribution credentials.
+3. Run `npx eas-cli build:version:set` for iOS and Android, initializing each with the latest build
+   number already accepted by its store. This avoids duplicate build numbers when moving to EAS.
+4. Create an Expo access token and add it to the GitHub repository as the `EXPO_TOKEN` Actions
+   secret.
+
+After setup, pushing a `v<version>` tag starts `.github/workflows/mobile.yml`. It checks that the
+tag matches `package.json`, then builds both store apps on EAS. The builds and logs are available
+in the Expo dashboard. Uploading to TestFlight or Google Play remains a separate submit step until
+the App Store Connect and Google Play submission credentials are configured; neither store
+automatically releases a submitted build to everyone.
+
+For a one-off test build, run `npx eas-cli build --platform all --profile preview` from `web/`;
+the preview profile creates internally distributed builds rather than store builds.

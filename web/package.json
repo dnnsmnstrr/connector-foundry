@@ -23,6 +23,7 @@
     "icons:web": "node scripts/web-icons.mjs",
     "icons:native": "node scripts/native-assets.mjs",
     "native:sync": "npm run build && cap sync",
+    "eas-build-post-install": "npm run native:sync",
     "pretest:desktop": "npm run icon",
     "desktop:install": "node scripts/install-desktop.mjs",
     "desktop:shell": "node scripts/shell-hash.mjs --bump",

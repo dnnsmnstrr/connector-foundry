@@ -7,6 +7,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### App
+
+- **Mobile releases build on EAS.** A version tag now starts cloud builds for iOS and Android, with
+  the current web app synced into each Capacitor package.
+
 ### Workspace
 
 - **Your work comes back after a relaunch.** Closing and reopening the app — in a browser, or the
