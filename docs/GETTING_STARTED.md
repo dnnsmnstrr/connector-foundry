@@ -158,10 +158,13 @@ agents like Claude Code.
 ## Save and share
 
 - **The address bar is a link to your bench.** The app keeps the bench in the URL as you work, so a
-  reload comes back to it and the link opens the same bench for someone else. Imported meshes are too
-  big for a link: they stay with this browser tab only. **Send this bench to another device** (in
-  Cmd/Ctrl+K) shares the link through your device's share sheet, or copies it; from the desktop
-  app, the link opens the bench in the web app.
+  reload comes back to it and the link opens the same bench for someone else. The app also
+  remembers the whole workspace — the tab, the Library's selected part, the bench with its imported
+  meshes, and the Holes document — in this browser, so closing and reopening it (or relaunching the
+  desktop app) comes back to what you were doing. Imported meshes are too big for a link: they stay
+  in this browser, and a config file moves them to another device. **Send this bench to another
+  device** (in Cmd/Ctrl+K) shares the link through your device's share sheet, or copies it; from the
+  desktop app, the link opens the bench in the web app.
 - **Download config** (on the Bench) saves the whole bench to a `.bench.json` file, imported meshes
   included, to open again later from **Import config…**.
 - **Presets** keep benches you reuse in this browser.

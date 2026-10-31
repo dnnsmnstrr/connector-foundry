@@ -92,7 +92,9 @@ or deleted, a field typed (one step per field), a Repeat, a new model and "Pick 
 too — and Shift+Cmd+Z (Shift+Ctrl+Z or Ctrl+Y) redoes; so do the Undo and Redo buttons in the
 viewer's toolbar, which say what they would undo. After "Pick another model" the start picker
 offers Undo, and Cmd/Ctrl+Z works in its search straight away. The history keeps the last 100 steps and
-lasts until the page reloads, through switches to the other tabs. `?` lists every shortcut.
+lasts until the page reloads, through switches to the other tabs. `?` lists every shortcut. The
+model and its holes come back after a reload or a relaunch (the app keeps the workspace in this
+browser), but the undo history does not: the first undo after reopening stays within this session.
 
 **Repeat…** turns the selected hole into a pattern of the same hole on its face: a row (count,
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally

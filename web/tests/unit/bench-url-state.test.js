@@ -2,16 +2,17 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  STORED_IMPORTS_KEY,
   encodeTree,
   readUrlState,
   restoreBenchFromUrl,
-  saveSessionImports,
+  saveStoredImports,
   writeUrlState,
 } from "../../src/lib/benchUrlState.js";
 import { catalogue, sampleAssembly, samplePartsById } from "./bench-fixtures.js";
 
 // Just enough of a browser window: a location whose hash replaceState
-// rewrites, and a sessionStorage.
+// rewrites, and a localStorage.
 function fakeWindow() {
   const store = new Map();
   const location = { pathname: "/app/", search: "", hash: "" };
@@ -24,7 +25,7 @@ function fakeWindow() {
         location.hash = at < 0 ? "" : url.slice(at);
       },
     },
-    sessionStorage: {
+    localStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
       setItem: (k, v) => store.set(k, String(v)),
       removeItem: (k) => store.delete(k),
@@ -40,7 +41,7 @@ test("a bench written to the URL comes back, non-ASCII name included", () => {
   const assembly = sampleAssembly();
   const partsById = samplePartsById();
   writeUrlState({ mode: "bench", assembly });
-  saveSessionImports(assembly, partsById);
+  saveStoredImports(assembly, partsById);
   assert.equal(readUrlState().mode, "bench");
   // URL-safe base64: nothing that needs escaping in a hash.
   assert.match(readUrlState().bench, /^[A-Za-z0-9_-]+$/);
@@ -68,14 +69,14 @@ test("a truncated or garbled payload is a readable error, not a crash", () => {
   }
 });
 
-test("a link naming a mesh this tab never saw says where to get it", () => {
+test("a link naming a mesh this browser never saw says where to get it", () => {
   writeUrlState({ mode: "bench", assembly: sampleAssembly() });
-  assert.throws(() => restoreBenchFromUrl(catalogue), /only kept in the tab it was uploaded in/);
+  assert.throws(() => restoreBenchFromUrl(catalogue), /isn't stored in this browser/);
 });
 
-test("a stale, broken mesh left in the tab doesn't break a link that doesn't use it", () => {
-  globalThis.window.sessionStorage.setItem(
-    "connector-foundry:benchImports",
+test("a stale, broken mesh left in the browser doesn't break a link that doesn't use it", () => {
+  globalThis.window.localStorage.setItem(
+    STORED_IMPORTS_KEY,
     JSON.stringify([{ id: "imported:1", name: "old.stl", anchors: [], stl: "not base64!" }]),
   );
   const assembly = { root: { id: "root", partId: "basics/plate", params: { w: 40 } }, nodes: [] };
@@ -89,7 +90,7 @@ function encodeTreeOf(json) {
   return Buffer.from(json).toString("base64url");
 }
 
-test("meshes that can never fit the session quota are not encoded at all", () => {
+test("meshes that can never fit the storage quota are not encoded at all", () => {
   const assembly = sampleAssembly();
   const partsById = samplePartsById();
   const imported = partsById.get("imported:900");
@@ -98,11 +99,11 @@ test("meshes that can never fit the session quota are not encoded at all", () =>
   const realWarn = console.warn;
   console.warn = (...args) => warnings.push(args.join(" "));
   try {
-    saveSessionImports(assembly, partsById);
+    saveStoredImports(assembly, partsById);
   } finally {
     console.warn = realWarn;
   }
-  assert.equal(globalThis.window.sessionStorage.getItem("connector-foundry:benchImports"), null);
+  assert.equal(globalThis.window.localStorage.getItem(STORED_IMPORTS_KEY), null);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /too big/);
 });

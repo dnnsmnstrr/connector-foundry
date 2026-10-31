@@ -129,7 +129,8 @@ A STEP file is converted to a mesh in the browser (OpenCASCADE compiled to WebAs
 millimetres whatever unit the file declares); a 3MF is unpacked and scaled by its declared unit;
 one that holds several bodies asks which to use. Meshes are validated and repaired on
 the way in (welded, winding fixed) and refused with an explanation if they have real holes. Imports
-live in your browser tab only; nothing is fetched or committed.
+live in this browser's storage only; nothing is fetched or committed. (One too large for that
+storage isn't kept between launches; export a config to keep it.)
 
 Export walks the whole tree: one STL per body, or the generated `.scad`. **Print with EasyPrint…**
 renders every body and offers each as an STL, or all of them in one 3MF, to share or save and print
@@ -146,5 +147,6 @@ parameters, joints, offsets, rotations, and any imported meshes embedded, so the
 to reopen later — from the sidebar of a running bench, the start picker, or the command palette's
 "Load a saved preset…". The bench also
 stays put when you switch to the Library and back, and lives in the page URL, so a reload (or the
-link, pasted elsewhere) brings it back — imported meshes excepted, which only the tab that uploaded
-them has; use a config file to move those.
+link, pasted elsewhere) brings it back. The app also keeps it — imported meshes included — in this
+browser, so closing and reopening the app (the desktop app included) comes back to it; a config
+file still moves it to another device.

@@ -1,6 +1,5 @@
-import { getBenchSession } from "./benchSession.js";
 import { desktopBridge } from "./desktopBridge.js";
-import { getHolesSession } from "./holesSession.js";
+import { flushWorkspace } from "./workspace.js";
 
 // The desktop app's updater status (desktop/updates.cjs), as one store for
 // the whole page: Settings > Updates, the nav's notice and the palette's
@@ -58,39 +57,13 @@ export function checkForUpdates() {
 }
 
 /**
- * What a restart would lose, as a sentence, or null when nothing. The
- * window comes back on the same address (desktop/updates.cjs), which
- * holds the tab and the bench; meshes imported onto the bench and the
- * Holes document live only in this page. An interface update's reload
- * loses the same.
- * @param {{ importedMeshes: number, holes: boolean, reload?: boolean }} work
- */
-export function restartWarning({ importedMeshes, holes, reload = false }) {
-  const lost = [
-    holes && "the model on the Holes tab and its holes",
-    importedMeshes > 0 &&
-      (importedMeshes === 1 ? "the mesh imported onto the Bench" : "the meshes imported onto the Bench"),
-  ].filter(Boolean);
-  return lost.length
-    ? `The bench comes back after the ${reload ? "reload" : "restart"}, but ${lost.join(" and ")} won't.`
-    : null;
-}
-
-/**
  * Restarts the app to install the downloaded update, or reloads the window
- * for an interface update, after asking if that would lose work.
+ * for an interface update. The workspace is written first: the restart opens
+ * the same page again, and lib/workspace.js brings the tab, bench and Holes
+ * document back, so there is no work to warn about.
  */
 export function restartToUpdate() {
-  const reload = Boolean(status?.reload);
-  const warning = restartWarning({
-    importedMeshes: getBenchSession().importedParts.size,
-    holes: getHolesSession().doc !== null,
-    reload,
-  });
-  const question = reload
-    ? `Reload to load version ${status?.latest}?`
-    : `Restart to install version ${status?.latest}?`;
-  if (warning && !window.confirm(`${question} ${warning}`)) return;
+  flushWorkspace();
   return desktopBridge()?.updates.install();
 }
 

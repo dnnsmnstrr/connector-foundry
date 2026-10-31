@@ -7,6 +7,16 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Workspace
+
+- **Your work comes back after a relaunch.** Closing and reopening the app — in a browser, or the
+  desktop app updating itself — now returns to the tab you were on, the Library's selected part,
+  the bench with its imported meshes, and the model and holes on the Holes tab. The workspace is
+  kept in the browser's storage, written as you work and when the page goes away; a bench link
+  still wins over it, and settings backups leave it out. Imported meshes too large for that
+  storage aren't kept between launches (export a config to keep one). The update warnings about
+  losing the Holes tab or imported meshes are gone, since nothing is lost.
+
 ### Parts
 
 - **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays

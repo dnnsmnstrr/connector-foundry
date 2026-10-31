@@ -1,16 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  dismissShellNotice,
-  needsShellNotice,
-  restartWarning,
-  updateSummary,
-} from "../../src/lib/desktopUpdates.js";
+import { dismissShellNotice, needsShellNotice, updateSummary } from "../../src/lib/desktopUpdates.js";
 
 // The page's side of the desktop updater (src/lib/desktopUpdates.js): the
-// line Settings and the palette show, what a restart would lose, and when
-// the nav asks for the app to be updated by hand.
+// line Settings and the palette show, and when the nav asks for the app to
+// be updated by hand.
 
 const base = {
   version: "0.4.0",
@@ -46,23 +41,6 @@ test("one line says where the updater stands", () => {
   assert.equal(summary({ state: "installing" }), "Installing version 0.5.0…");
   assert.equal(summary({ state: "error", error: "Couldn't reach GitHub." }), "Couldn't reach GitHub.");
   assert.equal(summary({ state: "error" }), "The update failed");
-});
-
-test("a restart warns only about what the address doesn't bring back", () => {
-  assert.equal(restartWarning({ importedMeshes: 0, holes: false }), null);
-  assert.match(restartWarning({ importedMeshes: 1, holes: false }), /the mesh imported onto the Bench won't/);
-  assert.match(restartWarning({ importedMeshes: 2, holes: false }), /the meshes imported/);
-  assert.match(
-    restartWarning({ importedMeshes: 2, holes: true }),
-    /the model on the Holes tab and its holes and the meshes imported onto the Bench won't\.$/,
-  );
-});
-
-test("an interface update's reload warns the same way", () => {
-  assert.match(
-    restartWarning({ importedMeshes: 1, holes: false, reload: true }),
-    /^The bench comes back after the reload, but the mesh imported/,
-  );
 });
 
 test("the nav asks for a new app once per version, only when this copy can't install it", () => {

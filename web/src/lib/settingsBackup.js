@@ -10,16 +10,20 @@
 // copied as the raw strings each module wrote, never reinterpreted: each
 // module already validates what it reads, so a stale or hand-edited
 // value degrades the same way it would had it never left storage.
-// sessionStorage (one tab's imported meshes) is not settings and stays out.
+// The workspace (workspace.js: the tab, bench and Holes document) is not
+// settings: it is what this browser was doing, and it stays out so an
+// import can't hand this session another machine's bench, and an export
+// doesn't carry several megabytes of imported meshes in a settings file.
 //
 // An import replaces: the app's keys that the file doesn't have are
 // removed, so the result is exactly the exported state. It is all or
 // nothing — if a write fails (a file with large presets can exceed the
 // browser's ~5 MB) the previous values are put back. The caller reloads
 // the page afterwards, so every module re-reads storage from scratch
-// instead of each needing its own "reload" hook.
+// instead of each needing its own "reload" hook; the workspace survives
+// both the import and that reload.
 import { downloadBlob } from "./download.js";
-import { getHolesSession } from "./holesSession.js";
+import { isWorkspaceKey } from "./workspace.js";
 
 export const SETTINGS_FORMAT = "connector-foundry-settings";
 export const SETTINGS_VERSION = 1;
@@ -27,7 +31,9 @@ export const SETTINGS_EXTENSION = ".settings.json";
 
 export function isAppKey(key) {
   return (
-    typeof key === "string" && (key.startsWith("connector-foundry.") || key.startsWith("connector-foundry:"))
+    typeof key === "string" &&
+    (key.startsWith("connector-foundry.") || key.startsWith("connector-foundry:")) &&
+    !isWorkspaceKey(key)
   );
 }
 
@@ -129,9 +135,9 @@ export function downloadSettings() {
 
 // Settings' "Import settings…" and the command palette's, once a file is
 // chosen: check it, ask, apply, reload. Applying means a reload (see the
-// header); the bench survives it — it lives in the URL — but a Holes
-// document only lives in memory, so the question says so. Resolves to
-// null (applied, or the user said no), or a message for the user.
+// header), which the workspace lives through like any other reload.
+// Resolves to null (applied, or the user said no), or a message for the
+// user.
 /** @param {File} file */
 export async function importSettingsFile(file) {
   let entries;
@@ -140,8 +146,7 @@ export async function importSettingsFile(file) {
   } catch (err) {
     return `Couldn't import "${file.name}": ${err.message}`;
   }
-  const holesWarning = getHolesSession().doc ? " The Holes tab starts over." : "";
-  const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.${holesWarning}`;
+  const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.`;
   if (!window.confirm(question)) return null;
   const problem = applySettings(entries);
   if (!problem) window.location.reload();
