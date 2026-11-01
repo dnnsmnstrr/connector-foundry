@@ -39,7 +39,8 @@ only the slot convention:
 | [3d-scad-hsw-customizable](https://github.com/geru/3d-scad-hsw-customizable) | CC-BY 4.0 | `hsw/wall` |
 | [3d-scad-hsw-clip](https://github.com/geru/3d-scad-hsw-clip) | MIT | `hsw/insert` |
 | [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | BSD-3-Clause | `bitbeam/beam`, `bitbeam/plate` |
-| [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/pin`, `bitbeam/half-pin`, `bitbeam/axle` |
+| [BitBeam](https://bitbeam.cc/en/how-to/screws-pins-shafts) | CC-BY-NC-SA 4.0 | `bitbeam/pin`, `bitbeam/half-pin` |
+| [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/axle` |
 | [AluminumExtrusionProfile](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) | Apache-2.0 | `extrusion2020/rail` |
 | [Mechanism](https://getmechanism.com/pages/digital-files) (STL files; the Adhesive Puck from [their Printables account](https://www.printables.com/model/1337452-mechanismdeckmate-adhesive-puck)) | CC BY-NC 4.0 | `deckmate/*` |
 
@@ -173,6 +174,7 @@ LEGO-compatible fasteners print poorly, so print real ones or use the finished B
 | ![Tripod socket](docs/img/camera_tripod_socket.png)<br>Tripod socket | Camera | exact | MIT | [BOSL2's UTS threads (threaded_rod() as a mask) and its hex nut table, vendored; checked with BOSL2's own screw and nut.](https://github.com/BelfrySCAD/BOSL2) | Mouth on the bed, no supports. A part fused onto its top ("mount") screws onto a tripod, light stand or camera rig. size 1/4 is the camera thread (1/4"-20), 3/8 the tripod-head one (3/8"-16). style thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket for a real hex nut, pressed in from the mouth, for weight a printed thread will not hold. |
 | ![MagSafe mount](docs/img/magsafe_mount.png)<br>MagSafe mount | MagSafe | parametric | MIT | Generic geometry, sized for the aftermarket MagSafe rings sold to go in it (54 x 46, 55 x 45 and 56 x 46mm); Apple's own ring is about 54.1mm across. No published standard for the inserts to check against. | A round plate with an optional pocket on its bottom for a MagSafe magnet ring or steel disk, glued or pressed in; the phone goes on that face, and "mount" on top is where the plate is fused to something. recess ring leaves the middle standing, disk cuts it all; set insert_od, insert_id and recess_depth to your insert's own size (the pocket is FIT_CLEARANCE bigger) and diameter to leave a rim round it. hole opens the middle right through, for a donut. Print it pocket up (flip it in the slicer); a plain plate prints either way up. |
 | ![Beam](docs/img/bitbeam_beam.png)<br>Beam | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc](https://github.com/ondratu/bitbeam-lib) | Print flat, no supports. 4.8mm holes on an 8mm pitch through top and bottom, and through the sides with side_holes on. LEGO Technic-compatible. |
+| Half pin | BitBeam | parametric | CC-BY-NC-SA-4.0 | [BitBeam's published pin dimensions and forked-end design, adapted for this parametric model. CC BY-NC-SA 4.0 — see README "Licensing".](https://bitbeam.cc/en/how-to/screws-pins-shafts) | Smooth 4.6mm shaft, 4.9mm forked ends; a single 8mm BitBeam unit by default. The broad slits are easier to print than fine ridges. PET or PETG gives the ends useful flex. |
 | ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc. Nobody publishes a model of a plate like this, so there is no reference geometry to check against.](https://github.com/ondratu/bitbeam-lib) | Flat on the bed, no supports. Every hole is a real BitBeam hole, top and side. Side holes need height 1 (8mm); go thinner and turn side_holes off. Sizes are in 8mm units. |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Generic geometry, not tied to an external spec | Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm with 4mm corners by default — one Gridfinity unit, so it lines up with a Gridfinity base or baseplate. |
 | ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Generic geometry, not tied to an external spec | Stands on its flat end ("bot"), no supports. |
@@ -200,7 +202,7 @@ measure: [docs/ACCURACY.md](docs/ACCURACY.md).
 
 ## Licensing
 
-This repository's own files are MIT. Seventeen parts are not, and each catalogue entry says so:
+This repository's own files are MIT. Nineteen parts are not, and each catalogue entry says so:
 
 | Parts | Licence | Why |
 | --- | --- | --- |
@@ -210,14 +212,15 @@ This repository's own files are MIT. Seventeen parts are not, and each catalogue
 | `klippt/base`, `klippt/clip_mount`, the Holes tab's KLIPPT channel | **CC BY-SA 4.0** | KLIPPT by FH ([printables.com/@bequ3](https://www.printables.com/@bequ3), [model 424351](https://www.printables.com/model/424351-klippt-locking-cable-clip)): the designer's own files (the base STEP tessellated, the screw base and "cable clip small smooth" STLs as published), redistributed unmodified with that credit; the clip mount and the Holes tab's KLIPPT channel (`lib/klippt.scad`) are cut from the clip at render time. ShareAlike applies to adaptations — a part with a base or a clip mount fused onto it, or a KLIPPT channel cut into it, is one, so share it under BY-SA. |
 | `modgrid/grid`, `modgrid/connector`, `modgrid/bit_holder` | **CC BY-NC-SA 4.0** | MOD-GRID by 3dedc (TinyToolShop, [MakerWorld model 2811701](https://makerworld.com/en/models/2811701-mod-grid)): rebuilt from measurements of the designer's own STLs (none of which ships here), so adaptations of the design under its terms. NonCommercial applies to the files, to prints of them and to a part with a MOD-GRID pin fused onto it; ShareAlike to adaptations — such a part is one, so share it under BY-NC-SA. |
 | `soldr/base` | **CC BY-NC-SA 4.0** | SOLDR by soldr.pro ([Printables model 1471127](https://www.printables.com/model/1471127-soldr-modular-usb-c-powered-soldering-station)): rebuilt from measurements of the designer's own module STLs (none of which ships here), so an adaptation of the design under its terms. NonCommercial applies to the file, to prints of it and to a part with a SOLDR base fused onto it; ShareAlike to adaptations — such a part is one, so share it under BY-NC-SA. |
+| `bitbeam/pin`, `bitbeam/half-pin` | **CC BY-NC-SA 4.0** | BitBeam's published pin shape and dimensions ([official guide](https://bitbeam.cc/en/how-to/screws-pins-shafts)), adapted here. NonCommercial applies to the pin files and prints; ShareAlike applies to adaptations. |
 | `hsw/wall` | **CC-BY 4.0** | It runs `vendor/hsw-customizable` code (Xander, EdwinEesting, geru). Attribution, nothing else. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
 | `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile`. Permissive, just not MIT. |
 | everything else | MIT | — |
 
-BitBeam's own site (bitbeam.cc) is CC-BY-NC-SA and its STL pack is not used; the geometry comes
-from `bitbeam-lib`, a separately and permissively licensed implementation by the same author, and
-from `technic.scad` for the pin and axle (a BitBeam pin *is* a LEGO Technic pin). NopSCADlib (GPL)
+BitBeam's pin shape and dimensions follow its CC-BY-NC-SA guide; its STL pack is not used.
+`bitbeam-lib`, a separately and permissively licensed implementation by the same author, supplies
+the beam and plate geometry. `technic.scad` supplies the axle profile. NopSCADlib (GPL)
 is measured, never called or vendored. The Honeycomb Storage Wall is RostaP's design, whose own
 models are CC BY-NC; neither is used here. The wall and the insert run two OpenSCAD
 implementations their authors publish under CC-BY 4.0 and MIT. `openscad-wasm` bundles OpenSCAD itself (GPL-2.0) as an

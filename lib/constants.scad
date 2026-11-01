@@ -194,18 +194,16 @@ DOVETAIL_WALL_T          = 2.4; // channel only
 // beam.scad reassigns them from BITBEAM_UNIT/BITBEAM_HOLE_DIA anyway so
 // this section stays the one place that can change them. The plate
 // (parts/bitbeam/plate.scad) is bitbeam-lib's cube_base() the same way.
-// bitbeam-lib has no pin or axle; those come from technic.scad, below.
+// bitbeam-lib has no pin or axle: pin dimensions are in
+// lib/bitbeam_pin.scad, while the axle still uses technic.scad below.
 // ============================================================
 
 BITBEAM_UNIT      = 8;    // beam cross-section and hole pitch
 BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
 
-// No pin or axle dimensions here on purpose: parts/bitbeam/pin.scad and
-// axle.scad wrap vendor/technic.scad (cfinke, MIT), whose LEGO Technic
-// pin and axle are what a BitBeam pin and axle are, and a fastener has
-// to match LEGO's holes rather than this repo's restatement of them —
-// so those parts take the library's numbers as-is. (pin.scad's
-// BITBEAM_PIN_LEN, which the pin joint needs, is derived from them.)
+// The pin's published dimensions are in lib/bitbeam_pin.scad. The axle
+// still wraps vendor/technic.scad (cfinke, MIT), since the BitBeam axle
+// uses that Technic-compatible profile.
 
 // ============================================================
 // 2020 extrusion — parametric, supplier-dependent, but no longer guessed.
@@ -267,7 +265,7 @@ EX_BORE_R       = 5.2 / 2; // center bore clearance
 // generator settings; the openGrid connectors: their generator's).
 // "draft" doubles both (coarser, faster — for laying out a Bench),
 // "fine" halves both (rounder holes, slower renders). Parts that need
-// an exact facet count to match a reference keep it whatever this says
+// a fixed facet count for their dimensions set it in their own module
 // (the BitBeam pin and axle, the 2020 rail's profile, the Holes tab's
 // cutters).
 //
@@ -288,10 +286,10 @@ function detail_fs(fs) = max(0.01, fs * detail_scale());
 
 // OpenSCAD's own defaults, scaled — the detail of every curve a part
 // doesn't set itself. Files that have to reset $fa/$fs after an
-// upstream changed them (parts/bitbeam/pin.scad, axle.scad) reset them
+// upstream changed them (parts/bitbeam/axle.scad) reset them
 // to these same values: the last top-level assignment wins, so any
 // other value there would silently override the setting for a whole
-// Bench assembly that includes them.
+// Bench assembly that includes it.
 DETAIL_FA = detail_fa(12);
 DETAIL_FS = detail_fs(2);
 $fa = DETAIL_FA;

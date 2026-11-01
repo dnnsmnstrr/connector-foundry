@@ -111,8 +111,8 @@
 #
 # hidden: true keeps a part out of every part list (web app, README
 #   table) while the CLI and the Bench's code can still use it — the
-#   BitBeam pin and axle are LEGO-Technic fasteners that print badly and
-#   that the pin joint needs to exist regardless.
+#   full BitBeam pin and axle support the Bench's pin joint. The one-unit
+#   half pin is listed so users can attach it by hand.
 #
 # attached_defaults: parameter values a part gets instead of `defaults`
 #   when the web Bench attaches it to another part — what the part is
@@ -1315,15 +1315,18 @@ parts:
     name: Friction pin
     file: parts/bitbeam/pin.scad
     module: bitbeam_pin
-    confidence: exact
+    confidence: parametric
     keywords: [technic, LEGO]
     hidden: true
-    source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin 2780
-    source_url: https://github.com/cfinke/technic.scad
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      BitBeam's published pin dimensions and forked-end design, adapted for this parametric model.
+      CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://bitbeam.cc/en/how-to/screws-pins-shafts
     print_note: >-
-      A split friction pin; prints standing up and wants a printer that
-      does 0.75mm gaps cleanly. Lengths are per half, in 7.8mm Technic
-      units. Used by the Bench's pin joint.
+      Smooth 4.6mm shaft, 4.9mm forked ends; its broad slits are easier to
+      print than fine ridges. Lengths are per end in 8mm BitBeam units.
+      Used by the Bench's pin joint; print in PET or PETG for flex.
     defaults:
       top_length: 1
       bottom_length: 1
@@ -1339,16 +1342,22 @@ parts:
     name: Half pin
     file: parts/bitbeam/half_pin.scad
     module: bitbeam_half_pin
-    confidence: exact
+    confidence: parametric
     keywords: [technic, LEGO]
-    source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin half
-    source_url: https://github.com/cfinke/technic.scad
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      BitBeam's published pin dimensions and forked-end design, adapted for this parametric model.
+      CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://bitbeam.cc/en/how-to/screws-pins-shafts
     print_note: >-
-      A single friction-pin half for attaching something to a BitBeam hole.
-      Default length is one BitBeam unit (8mm); prints standing up.
+      Smooth 4.6mm shaft, 4.9mm forked ends; a single 8mm BitBeam unit by
+      default. The broad slits are easier to print than fine ridges. PET
+      or PETG gives the ends useful flex.
     defaults:
       length: 1
       friction: true
+    minimums:
+      length: 1
 
   - id: bitbeam/axle
     system: BitBeam

@@ -1,9 +1,9 @@
 // BitBeam axle — a LEGO Technic axle (parts 3704/3705/3706/... by
 // length), the cross-section shaft that turns freely in a beam's round
 // hole and locks in a gear's or wheel's axle hole. Geometry comes from
-// vendor/technic.scad (cfinke, MIT); see pin.scad's header for why a
-// BitBeam fastener is a LEGO one and why nothing here is overridden
-// from lib/constants.scad. The former "shaft" here was a plain
+// vendor/technic.scad (cfinke, MIT); the axle keeps Technic's 7.8mm
+// cross-section so it matches its square drive holes. Nothing here is
+// overridden from lib/constants.scad. The former "shaft" here was a plain
 // chamfered cylinder, which turns in a hole but drives nothing.
 //
 // `length` is in Technic units (7.8mm), so 4 is LEGO's 3705.
