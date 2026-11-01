@@ -345,6 +345,40 @@ test("printer settings invalidate downloads and refresh the preview", async ({ p
   await expect(download).toBeEnabled();
 });
 
+test("Settings shows the running Electron app and interface versions", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.addInitScript(() => {
+    window.foundryDesktop = {
+      updates: {
+        status: async () => ({
+          version: "0.5.0",
+          web: "0.6.0",
+          autoCheck: true,
+          keepUpdated: true,
+          state: "idle",
+          latest: null,
+          progress: null,
+          releaseUrl: null,
+          checkedAt: null,
+          error: null,
+          manual: null,
+          justUpdated: null,
+          reload: false,
+          shellNeeded: false,
+        }),
+        onStatus: () => () => {},
+        loaded: () => {},
+      },
+    };
+  });
+  await page.goto("/app/");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.locator(".settings-update-status")).toContainText(
+    "App version 0.5.0 · interface version 0.6.0",
+  );
+});
+
 test("Bench edits keep explicit exports while discarding the obsolete preview", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

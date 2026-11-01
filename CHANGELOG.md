@@ -9,6 +9,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Settings shows the interface version.** In the desktop app, Updates lists the running app
+  version and the interface version separately, even when they match.
 - **Find a part opens the phone drawer fully.** The search list reaches the top of the screen before
   the keyboard appears, keeping the results visible.
 - **Settings has a custom gear icon.** The Settings button and command palette now use a drawn

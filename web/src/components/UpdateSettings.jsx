@@ -9,7 +9,7 @@ import {
 import InfoTip from "./InfoTip.jsx";
 
 // Settings > Updates, in the desktop app only (desktop/updates.cjs): the
-// version running (and the interface's, when an interface update runs),
+// app and interface versions,
 // where the updater stands, a check by hand, the restart (or reload) that
 // installs a downloaded update, and the switches for the automatic checks
 // and interface updates. When this copy can't install updates itself (run
@@ -50,8 +50,7 @@ export default function UpdateSettings() {
       </h4>
       <p className="settings-update-status" role="status">
         <span>
-          Version {status.version}
-          {status.web !== status.version && ` · interface ${status.web}`}
+          App version {status.version} · interface version {status.web}
         </span>
         <span className="muted">
           {" — "}
