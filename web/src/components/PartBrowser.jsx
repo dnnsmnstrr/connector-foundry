@@ -43,16 +43,21 @@ export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocu
 
   return (
     <>
-      <input
-        type="search"
-        className="search-input"
-        placeholder="Search parts…"
-        aria-label="Search parts"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        autoFocus={focusOnOpen}
-        data-autofocus={focusOnOpen ? "" : undefined}
-      />
+      <div className="part-search">
+        <input
+          type="search"
+          className="search-input"
+          placeholder="Search parts…"
+          aria-label="Search parts"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus={focusOnOpen}
+          data-autofocus={focusOnOpen ? "" : undefined}
+        />
+        <kbd className="shortcut-hint part-search-hint" aria-hidden="true" title="Press / to search parts">
+          /
+        </kbd>
+      </div>
       {toolbar}
       {filtered.length === 0 && (
         <p className="muted no-results" role="status">

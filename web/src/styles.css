@@ -349,6 +349,25 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
+.part-search {
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.part-search .search-input {
+  margin-bottom: 0;
+  padding-right: 2.4rem;
+}
+
+.part-search-hint {
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  margin: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .search-input::placeholder {
   color: #8b8c91;
 }

@@ -653,6 +653,8 @@ test("/ jumps to the Library's part search from any mode", async ({ page }) => {
   await mockWorker(page, true);
   await page.goto("/app/");
   const search = page.getByRole("searchbox", { name: "Search parts" });
+  await expect(page.locator(".part-search-hint")).toHaveText("/");
+  await expect(page.locator(".part-search-hint")).toBeVisible();
   await search.fill("post");
   await page.keyboard.press("Tab");
   await page.keyboard.press("/");
