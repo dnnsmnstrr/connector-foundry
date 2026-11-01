@@ -561,7 +561,7 @@ export function partCommand(part, { id, actions, section = "Parts", searchOnly =
     badge: part.confidence,
     subtitle: part.system ?? "Imported",
     section,
-    keywords: [part.id, part.system ?? "imported"],
+    keywords: [part.id, part.system ?? "imported", ...(part.keywords ?? [])],
     thumbnail: part.thumbnail,
     actions,
     searchOnly,

@@ -84,6 +84,7 @@ export function matchesSearch(part, query) {
     part.name.toLowerCase().includes(q) ||
     part.system.toLowerCase().includes(q) ||
     part.id.toLowerCase().includes(q) ||
-    part.confidence.toLowerCase().includes(q)
+    part.confidence.toLowerCase().includes(q) ||
+    (part.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(q))
   );
 }

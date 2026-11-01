@@ -39,7 +39,7 @@ only the slot convention:
 | [3d-scad-hsw-customizable](https://github.com/geru/3d-scad-hsw-customizable) | CC-BY 4.0 | `hsw/wall` |
 | [3d-scad-hsw-clip](https://github.com/geru/3d-scad-hsw-clip) | MIT | `hsw/insert` |
 | [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | BSD-3-Clause | `bitbeam/beam`, `bitbeam/plate` |
-| [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/pin`, `bitbeam/axle` |
+| [technic.scad](https://github.com/cfinke/technic.scad) | MIT | `bitbeam/pin`, `bitbeam/half-pin`, `bitbeam/axle` |
 | [AluminumExtrusionProfile](https://github.com/ServerNinja/OpenSCAD_AluminumExtrusionProfile_Library) | Apache-2.0 | `extrusion2020/rail` |
 | [Mechanism](https://getmechanism.com/pages/digital-files) (STL files; the Adhesive Puck from [their Printables account](https://www.printables.com/model/1337452-mechanismdeckmate-adhesive-puck)) | CC BY-NC 4.0 | `deckmate/*` |
 

@@ -25,6 +25,7 @@ REQUIRED_KEYS = {"id", "name", "file", "module", "system", "confidence", "source
 # Every key some reader acts on: cli/foundry.py, tests/, and
 # web/src + web/scripts (grep for part.<field>).
 KNOWN_KEYS = REQUIRED_KEYS | {
+    "keywords",
     "anchors",
     "attached_defaults",
     "attached_up",
@@ -121,6 +122,11 @@ def test_files_exist_and_confidence_is_known():
             problems.append(f"{part['id']}: hidden must be true or false")
         if "license" in part and not isinstance(part["license"], str):
             problems.append(f"{part['id']}: license must be a string")
+        if "keywords" in part and (
+            not isinstance(part["keywords"], list)
+            or any(not isinstance(keyword, str) or not keyword.strip() for keyword in part["keywords"])
+        ):
+            problems.append(f"{part['id']}: keywords must be a list of non-empty strings")
         if "source_url" in part and not str(part["source_url"]).startswith(("https://", "http://")):
             problems.append(f"{part['id']}: source_url must be an http(s) URL")
     assert not problems, "\n".join(problems)

@@ -833,6 +833,25 @@ shape_checks:
       max_surface_max_mm: 0.05
       min_section_iou: 0.999
 
+  - id: bitbeam/half-pin
+    part: bitbeam/half-pin
+    reference_source: technic-scad
+    ours: |
+      include <{repo}/parts/bitbeam/half_pin.scad>
+      bitbeam_half_pin(anchor = BOTTOM);
+    reference: |
+      include <{technic-scad}/Technic.scad>
+      $fn = 32;
+      technic_pin_half(length = 1, friction = true);
+    align: none
+    sections_z: [0.5, 2.0, 4.0, 6.0, 7.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
   - id: bitbeam/axle-4L
     part: bitbeam/axle
     reference_source: technic-scad

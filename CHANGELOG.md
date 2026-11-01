@@ -28,6 +28,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **BitBeam half pin.** Attach a one-sided Technic-compatible friction pin to a part; its default
+  length is one BitBeam unit (8 mm). Part searches also match catalogue keywords, so BitBeam parts
+  appear when searching for Technic or LEGO.
+
 - **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays
   it out to print on its side, the head's half on its cut face and the rest of the snap (or the
   screw's thread) beside it on a one-layer hinge, to fold up after printing — stronger at the

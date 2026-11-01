@@ -26,6 +26,10 @@
 #   remember that a board variant is spelled "lite" and its chamfers are
 #   spelled "Corners". A test holds `options` and `defaults` together.
 #
+# keywords: extra words that should find a part in searches, without
+#   changing its displayed name. Useful for standards and ecosystems that
+#   use a different name for the same fit.
+#
 # minimums: for a number parameter with a floor the module asserts, that
 #   floor. The web app's field stops there (and raises a lower value to
 #   it when you leave the field), and the CLI rejects anything under it,
@@ -1291,6 +1295,7 @@ parts:
     file: parts/bitbeam/beam.scad
     module: bitbeam_beam
     confidence: exact
+    keywords: [technic, LEGO]
     license: BSD-3-Clause
     source: bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc
     source_url: https://github.com/ondratu/bitbeam-lib
@@ -1311,6 +1316,7 @@ parts:
     file: parts/bitbeam/pin.scad
     module: bitbeam_pin
     confidence: exact
+    keywords: [technic, LEGO]
     hidden: true
     source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin 2780
     source_url: https://github.com/cfinke/technic.scad
@@ -1328,12 +1334,29 @@ parts:
       - name: smooth
         params: { friction: false }
 
+  - id: bitbeam/half-pin
+    system: BitBeam
+    name: Half pin
+    file: parts/bitbeam/half_pin.scad
+    module: bitbeam_half_pin
+    confidence: exact
+    keywords: [technic, LEGO]
+    source: technic.scad (cfinke, MIT), vendored — LEGO Technic pin half
+    source_url: https://github.com/cfinke/technic.scad
+    print_note: >-
+      A single friction-pin half for attaching something to a BitBeam hole.
+      Default length is one BitBeam unit (8mm); prints standing up.
+    defaults:
+      length: 1
+      friction: true
+
   - id: bitbeam/axle
     system: BitBeam
     name: Axle
     file: parts/bitbeam/axle.scad
     module: bitbeam_axle
     confidence: exact
+    keywords: [technic, LEGO]
     hidden: true
     source: technic.scad (cfinke, MIT), vendored — LEGO Technic axle 3705 and friends
     source_url: https://github.com/cfinke/technic.scad
@@ -1354,6 +1377,7 @@ parts:
     file: parts/bitbeam/plate.scad
     module: bitbeam_plate
     confidence: exact
+    keywords: [technic, LEGO]
     license: BSD-3-Clause
     source: >-
       bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per
