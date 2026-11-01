@@ -11,7 +11,7 @@
 //   pin    - each side gets an IDENTICAL flange (just a BITBEAM_HOLE_DIA
 //            bore), and the two flanges' bores line up face to face when
 //            joined. Structurally different from the other three: the
-//            fastener is a real bitbeam_pin (parts/bitbeam/pin.scad), a
+//            fastener is a two-ended BitBeam pin (parts/bitbeam/pin_joint.scad), a
 //            separate THIRD printable body, not integral to either
 //            flange — see pin_flange()'s own comment for why, and the
 //            web editor's assembly.js for how body-splitting handles a
@@ -113,13 +113,9 @@ module snap_flange_b(anchor = BOTTOM, spin = 0, orient = UP) {
 // Pin flange: fuses onto either side's mount face — unlike bolted's
 // insert/clearance split or snap's peg/socket split, a pin joint's two
 // flanges are IDENTICAL, just a single BITBEAM_HOLE_DIA bore through
-// the center. Both flanges' bores end up face to face when the joint is
-// assembled, forming one channel a real bitbeam_pin (a LEGO Technic pin,
-// via vendor/technic.scad) slides into spanning the seam, collar in the
-// seam — exactly how two beams pin together, just with a flange standing
-// in for the beam's own body. The bore is a fixed nominal diameter, same
-// as a real beam's hole; the pin's friction ridges do the gripping, as
-// in any Technic hole, so there is nothing to tune here.
+// the center. Both bores align to form one channel for the two-ended
+// BitBeam pin helper to span the seam, with one forked tip in each part.
+// The bore stays a fixed nominal diameter, matching BitBeam's beam hole.
 module pin_flange(anchor = BOTTOM, spin = 0, orient = UP) {
     attachable(anchor, spin, orient, size = _JOINT_PIN_SIZE, anchors = [mount_anchor(_JOINT_PIN_SIZE.z / 2)]) {
         difference() {

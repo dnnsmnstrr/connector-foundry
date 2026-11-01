@@ -770,7 +770,7 @@ def readme():
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for part in catalogue["parts"]:
-        # `hidden` parts (bitbeam/pin, bitbeam/axle) exist for the Bench's
+        # `hidden` parts (bitbeam/pin-joint, bitbeam/axle) exist for the Bench's
         # pin joint and the CLI, not for the gallery — same rule as the
         # web app's part lists.
         if part.get("hidden"):

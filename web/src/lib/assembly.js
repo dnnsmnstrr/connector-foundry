@@ -670,7 +670,7 @@ function emitJointChild(ctx, child, hide, indent) {
     // it exactly half into each flange's bore, spanning the join the
     // same way a pin spans two adjacent beams' aligned holes.
     const pinUnit = (unitHide) =>
-      `${unitHide ? "hide_this() " : ""}attach(BOTTOM, "mount", overlap = BITBEAM_PIN_LEN / 2) bitbeam_pin();`;
+      `${unitHide ? "hide_this() " : ""}attach(BOTTOM, "mount", overlap = BITBEAM_PIN_LEN / 2) bitbeam_joint_pin();`;
     lines.push(dispatchBlock(ctx, `${child.id}_pin`, pinUnit, indent + "    "));
   }
   lines.push(`${indent}}`);
@@ -726,9 +726,11 @@ export function compileToScad(assembly, partsById, importedFiles, foldLayout = n
   if (needsJoints) includes.add(`include <../lib/joints.scad>`);
   const needsPin = assembly.nodes.some((c) => c.joint === "pin");
   if (needsPin) {
-    const pin = partsById.get("bitbeam/pin");
+    const pin = partsById.get("bitbeam/pin-joint");
     if (!pin)
-      throw new Error('A pin joint needs the catalogue part "bitbeam/pin", which is not in this catalogue.');
+      throw new Error(
+        'A pin joint needs the catalogue part "bitbeam/pin-joint", which is not in this catalogue.',
+      );
     includes.add(`include <../${pin.file}>`);
   }
 

@@ -1,7 +1,6 @@
 // A BitBeam (LEGO Technic-compatible) pin hole: the Holes tab's "BitBeam
-// pin hole" (web/src/lib/screwHoles.js), cut into a part so a BitBeam /
-// Technic friction pin (parts/bitbeam/pin.scad) goes into it as it does
-// into a beam.
+// pin hole" (web/src/lib/screwHoles.js), cut into a part so a one-ended
+// BitBeam pin (parts/bitbeam/pin.scad) can attach to it.
 //
 // The hole is a beam's, as vendor/bitbeam-lib's holes() cuts it (its
 // default, rim = false): BITBEAM_HOLE_DIA through, and a groove 0.2 mm

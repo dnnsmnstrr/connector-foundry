@@ -32,8 +32,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
-- **BitBeam half pin.** Attach a one-sided BitBeam pin to a part; its default length is one unit
-  (8 mm), with a simple flexible fork at each end. Part searches also match catalogue keywords, so
+- **BitBeam pin.** Attach a one-sided BitBeam pin to a part; it defaults to one unit (8 mm), has a
+  solid mounting end, and a flexible fork only at its projecting tip. Choose lengths from half a
+  unit through 16 units. Part searches also match catalogue keywords, so
   BitBeam parts appear when searching for Technic or LEGO.
 
 - **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays

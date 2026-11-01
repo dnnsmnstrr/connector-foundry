@@ -1,31 +1,26 @@
-// A two-sided BitBeam pin used by the Bench's pin joint. Each half is
-// one 8mm BitBeam unit, so the default spans two aligned holes. Its
-// smooth shaft and broad forked ends are defined in lib/bitbeam_pin.scad.
+// A single BitBeam pin for attaching a part to a BitBeam hole. `length`
+// is measured in 8mm units, so the default projects one unit from the
+// mating face. Only the projecting tip is forked; the mount end stays
+// solid so it can attach cleanly to another part.
 //
-// Functional face is BOTTOM; "mount" is on TOP. The Bench centers the
-// pin on the seam between its two parts.
+// Functional face is BOTTOM; `mount` is on TOP. Attaching the mount to
+// a part leaves the pin projecting below it.
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 include <../../lib/bitbeam_pin.scad>
 
-// The lengths are counts of 8mm BitBeam units on each side of the joint.
-function bitbeam_pin_len(top_length = 1, bottom_length = 1) =
-    (top_length + bottom_length) * BITBEAM_UNIT;
+$fa = DETAIL_FA;
+$fs = DETAIL_FS;
 
-// The Bench assembly centers this whole pin on the seam between its flanges.
-BITBEAM_PIN_LEN = bitbeam_pin_len();
-
-module bitbeam_pin(top_length = 1, bottom_length = 1, friction = true,
-                   anchor = BOTTOM, spin = 0, orient = UP) {
-    assert(top_length >= 1 && bottom_length >= 1,
-        "bitbeam_pin: each end is at least one BitBeam unit");
-    len = bitbeam_pin_len(top_length, bottom_length);
+module bitbeam_pin(length = 1, friction = true, anchor = BOTTOM, spin = 0, orient = UP) {
+    assert(length >= 0.5, "bitbeam_pin: length must be at least half a BitBeam unit");
+    len = length * BITBEAM_UNIT;
     dia = friction ? BITBEAM_PIN_WIDE_DIA : BITBEAM_PIN_NARROW_DIA;
     size = [dia, dia, len];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(len / 2)]) {
-        translate([0, 0, -len / 2]) bitbeam_pin_geometry(len, friction);
+        translate([0, 0, -len / 2]) bitbeam_pin_geometry(len, false, friction);
         children();
     }
 }

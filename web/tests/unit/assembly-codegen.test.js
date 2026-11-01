@@ -89,6 +89,27 @@ intersection() {
   assert.equal(compileToScad(smallTree(), parts), expected);
 });
 
+test("a pin joint includes the hidden two-ended BitBeam pin helper", () => {
+  const pinParts = new Map(parts);
+  pinParts.set("bitbeam/pin-joint", {
+    id: "bitbeam/pin-joint",
+    name: "Pin joint helper",
+    file: "parts/bitbeam/pin_joint.scad",
+    module: "bitbeam_joint_pin",
+  });
+  const tree = {
+    root: { id: "root", partId: "basics/plate", params: { w: 40 } },
+    nodes: [
+      node({ id: "pin-child", parentId: "root", partId: "basics/plate", slotName: "mount", joint: "pin" }),
+    ],
+  };
+
+  const scad = compileToScad(tree, pinParts);
+  assert.match(scad, /include <\.\.\/parts\/bitbeam\/pin_joint\.scad>/);
+  assert.match(scad, /bitbeam_joint_pin\(\)/);
+  assert.doesNotMatch(scad, /bitbeam_pin\(\)/);
+});
+
 test("a quote in a slot or anchor name stays inside its string literal", () => {
   const tree = smallTree();
   tree.nodes[0].slotName = 'mount"); evil(); //';

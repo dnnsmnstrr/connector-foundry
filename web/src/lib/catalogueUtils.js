@@ -45,7 +45,7 @@ export function resolveSystemOrder(parts, saved) {
 }
 
 // The parts a picker lists: the catalogue minus entries it marks `hidden`
-// itself (bitbeam/pin, bitbeam/axle — parts the Bench's pin joint needs
+// itself (bitbeam/pin-joint, bitbeam/axle — parts the Bench's pin joint needs
 // to exist but nobody picks by hand) and minus whatever the user has
 // hidden in Settings (`hidden` is uiPrefs.js's { systems, parts }).
 // Everything left out stays in `parts` for the code that looks parts up

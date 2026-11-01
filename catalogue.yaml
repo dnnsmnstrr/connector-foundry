@@ -111,8 +111,9 @@
 #
 # hidden: true keeps a part out of every part list (web app, README
 #   table) while the CLI and the Bench's code can still use it — the
-#   full BitBeam pin and axle support the Bench's pin joint. The one-unit
-#   half pin is listed so users can attach it by hand.
+#   BitBeam's full pin-joint helper and axle support the Bench. The public
+#   pin is a one-ended part users can attach by hand; half-pin remains hidden
+#   as a compatibility alias for saved benches.
 #
 # attached_defaults: parameter values a part gets instead of `defaults`
 #   when the web Bench attaches it to another part — what the part is
@@ -1317,6 +1318,31 @@ parts:
     module: bitbeam_pin
     confidence: parametric
     keywords: [technic, LEGO]
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      BitBeam's published pin dimensions and forked-end design, adapted for this parametric model.
+      CC BY-NC-SA 4.0 — see README "Licensing".
+    source_url: https://bitbeam.cc/en/how-to/screws-pins-shafts
+    print_note: >-
+      One-ended pin: smooth 4.6mm shaft, 4.9mm forked projecting tip and a
+      solid mounting end. Broad slits are easier to print than fine ridges.
+      Length is in 8mm BitBeam units; 0.5 is a trial half-unit and the
+      available lengths extend to 16 units. Print in PET or PETG for flex.
+    defaults:
+      length: 1
+      friction: true
+    options:
+      length: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 15.5, 16]
+    minimums:
+      length: 0.5
+
+  - id: bitbeam/pin-joint
+    system: BitBeam
+    name: Pin joint helper
+    file: parts/bitbeam/pin_joint.scad
+    module: bitbeam_joint_pin
+    confidence: parametric
+    keywords: [technic, LEGO]
     hidden: true
     license: CC-BY-NC-SA-4.0
     source: >-
@@ -1324,9 +1350,8 @@ parts:
       CC BY-NC-SA 4.0 — see README "Licensing".
     source_url: https://bitbeam.cc/en/how-to/screws-pins-shafts
     print_note: >-
-      Smooth 4.6mm shaft, 4.9mm forked ends; its broad slits are easier to
-      print than fine ridges. Lengths are per end in 8mm BitBeam units.
-      Used by the Bench's pin joint; print in PET or PETG for flex.
+      Internal two-ended pin for the Bench's pin joint. Each end is at
+      least one 8mm unit; print in PET or PETG for flex.
     defaults:
       top_length: 1
       bottom_length: 1
@@ -1339,25 +1364,25 @@ parts:
 
   - id: bitbeam/half-pin
     system: BitBeam
-    name: Half pin
+    name: Legacy half pin
     file: parts/bitbeam/half_pin.scad
     module: bitbeam_half_pin
     confidence: parametric
     keywords: [technic, LEGO]
+    hidden: true
     license: CC-BY-NC-SA-4.0
     source: >-
       BitBeam's published pin dimensions and forked-end design, adapted for this parametric model.
       CC BY-NC-SA 4.0 — see README "Licensing".
     source_url: https://bitbeam.cc/en/how-to/screws-pins-shafts
     print_note: >-
-      Smooth 4.6mm shaft, 4.9mm forked ends; a single 8mm BitBeam unit by
-      default. The broad slits are easier to print than fine ridges. PET
-      or PETG gives the ends useful flex.
+      Compatibility alias for saved benches. One projecting tip is forked;
+      the mounting end is solid. Length is in 8mm BitBeam units.
     defaults:
       length: 1
       friction: true
     minimums:
-      length: 1
+      length: 0.5
 
   - id: bitbeam/axle
     system: BitBeam
