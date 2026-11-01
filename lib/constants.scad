@@ -206,6 +206,16 @@ BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
 // uses that Technic-compatible profile.
 
 // ============================================================
+// System pitches — printer- or project-specific XY unit dimensions.
+// Override from Settings or `foundry settings set --set NAME=VALUE`.
+// These values adjust the repeating cell spacing; system-specific feature
+// sizes (such as a MOD-GRID 5mm hole) remain fixed.
+// ============================================================
+
+GRIDFINITY_PITCH = 42; // one Gridfinity cell, mm
+MODGRID_PITCH = 8;     // MOD-GRID hole-to-hole spacing, mm
+
+// ============================================================
 // 2020 extrusion — parametric, supplier-dependent, but no longer guessed.
 //
 // Real 20-series T-slot varies between suppliers, so every value here is
@@ -323,6 +333,7 @@ FIT_CLEARANCE = 0.15;
 // vector_axis(UP, DOWN)), which preserves y — the pattern is symmetric
 // in x, so it survives every hop in a chain unmirrored.
 // ============================================================
+
 DM_SCREW_SPAN  = 29.106;   // side-hole center distance, along x
 DM_SCREW_DROP  = 10.59;    // third hole, this far toward -y from the side pair's midpoint
 DM_SCREW_HOLES = [[DM_SCREW_SPAN / 2, 0], [-DM_SCREW_SPAN / 2, 0], [0, -DM_SCREW_DROP]];

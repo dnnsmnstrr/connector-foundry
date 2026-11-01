@@ -127,6 +127,12 @@ loosely. Repeat makes at most 100 holes at once (a 10 × 10 grid): repeat again 
 edge for more. MOD-GRID is CC BY-NC-SA 4.0, and a part with its holes cut in is an adaptation
 under those terms (README, "Licensing").
 
+In the Library, `modgrid/connector` also offers two fit prototypes alongside the default compliant
+snap: a screw-expanded dowel, whose tapered bore is sized by `screw_diameter`, and a 4 mm
+BitBeam-inspired square fork pin. Try the dowel with a screw near the selected major diameter;
+the bore is configurable from 1.5 to 2.6 mm. These prototypes have not been validated across
+printers or screw types yet.
+
 Two **tripod nut trap** presets take a 1/4"-20 or 3/8"-16 hex nut (camera and tripod-head
 threads), so any part screws onto a tripod; `camera/tripod_socket` prints the thread instead.
 

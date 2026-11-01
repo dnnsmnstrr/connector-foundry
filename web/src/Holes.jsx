@@ -89,8 +89,8 @@ import {
   setDocName,
   setHolesSpec,
   setNextSpec,
-  STANDARD_SPACINGS,
   getSpacing,
+  standardSpacings,
   sharedSpec,
   spacingLabel,
   sourceLabel,
@@ -177,6 +177,7 @@ const TOUCH_SNAP_PX = 22;
  */
 export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librarySelection }) {
   const globalOverrides = useGlobalOverrides();
+  const systemSpacings = useMemo(() => standardSpacings(globalOverrides), [globalOverrides]);
   const catalogueById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
   const session = useHolesSession();
   const { doc } = session;
@@ -245,11 +246,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const tabbed = useDrawerTabsLayout();
   const [drawerTab, setDrawerTab] = useState(/** @type {"holes" | "types"} */ ("holes"));
   const [measurePoint, setMeasurePoint] = useState(null);
-  // The system spacing Measure shows round the selected hole (an id of
-  // STANDARD_SPACINGS, the Repeat form's too), or null for none: its next
+  // The system spacing Measure shows round the selected hole (from the
+  // current systemSpacings, also used by Repeat), or null for none: its next
   // holes as snap points.
   const [pitchId, setPitchId] = useState(null);
-  const pitchSpacing = getSpacing(pitchId);
+  const pitchSpacing = useMemo(() => getSpacing(pitchId, globalOverrides), [pitchId, globalOverrides]);
   const hoverPoint = useRef(null);
   const [benchBusy, setBenchBusy] = useState(false);
   // The last handle or move commit: the holes it set (the very array, so
@@ -1299,7 +1300,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           searchLabel: "Search spacings",
           note: "While measuring, the system's next holes round the selected one, as snap points.",
           items: () =>
-            [null, ...STANDARD_SPACINGS].map((spacing) => ({
+            [null, ...systemSpacings].map((spacing) => ({
               id: `holes.pitch:${spacing?.id ?? "none"}`,
               title: spacing ? spacingLabel(spacing) : "None",
               section: "Measure spacing",
@@ -1617,6 +1618,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       {repeatResult && (
         <RepeatFields
           options={repeatOptions}
+          spacings={systemSpacings}
           onChange={(patch) => setRepeatOptions((o) => ({ ...o, ...patch }))}
           placed={repeatResult.ids.length - 1}
           skipped={repeatResult.skipped}
@@ -1867,7 +1869,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
                       }}
                     >
                       <option value="">Spacing: none</option>
-                      {STANDARD_SPACINGS.map((spacing) => (
+                      {systemSpacings.map((spacing) => (
                         <option key={spacing.id} value={spacing.id}>
                           {spacing.short}
                         </option>

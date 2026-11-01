@@ -120,7 +120,17 @@ export function clearOverrides(partId, keys) {
 }
 
 export function getGlobalOverrides() {
-  return read(GLOBAL_ID);
+  const overrides = read(GLOBAL_ID);
+  for (const [key, { min, max }] of Object.entries(SYSTEM_PITCH_LIMITS)) {
+    const value = overrides[key];
+    if (
+      value !== undefined &&
+      (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max)
+    ) {
+      delete overrides[key];
+    }
+  }
+  return overrides;
 }
 
 export function setGlobalOverrides(params) {
@@ -128,11 +138,39 @@ export function setGlobalOverrides(params) {
 }
 
 export function updateGlobalOverrides(params) {
-  return updateOverrides(GLOBAL_ID, params);
+  setOverrides(GLOBAL_ID, { ...getGlobalOverrides(), ...params });
+  return getGlobalOverrides();
 }
 
 export function clearGlobalOverrides(keys) {
   clearOverrides(GLOBAL_ID, keys);
+}
+
+export const SYSTEM_PITCH_LIMITS = Object.freeze({
+  GRIDFINITY_PITCH: Object.freeze({ min: 36, max: 48 }),
+  MODGRID_PITCH: Object.freeze({ min: 6, max: 12 }),
+});
+
+/**
+ * Save a validated system pitch, or clear its override when it matches the
+ * catalogue default. The returned value is the sanitized global settings map.
+ * @param {"GRIDFINITY_PITCH" | "MODGRID_PITCH"} key
+ * @param {number} value millimetres
+ * @param {number} catalogueDefault
+ */
+export function setSystemPitch(key, value, catalogueDefault) {
+  const bounds = SYSTEM_PITCH_LIMITS[key];
+  if (
+    !bounds ||
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < bounds.min ||
+    value > bounds.max
+  )
+    return getGlobalOverrides();
+  if (value === catalogueDefault) clearGlobalOverrides([key]);
+  else updateGlobalOverrides({ [key]: value });
+  return getGlobalOverrides();
 }
 
 // Circle detail (lib/constants.scad's CIRCLE_DETAIL: "draft" | "normal" |

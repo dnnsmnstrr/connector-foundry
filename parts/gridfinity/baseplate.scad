@@ -6,7 +6,7 @@
 //
 // Convention: the functional face is BOTTOM, so the plate is modelled
 // POCKETS DOWN — the flat back faces up and carries "mount" (plus a
-// "mount_<i>_<j>" grid at GRID_DIMENSIONS_MM.x/3, the same 14mm free
+// "mount_<i>_<j>" grid at GRIDFINITY_PITCH/3, 14mm by default, the same free
 // subdivision the bin base uses), and "bot" is the centre of the pocket
 // face. That is the opposite of how it prints: turn it back-down in the
 // slicer. The trade-off is deliberate — on the Bench the back is the
@@ -41,9 +41,9 @@ module gf_baseplate(gx = 1, gy = 1, style = "thin", magnets = false, screw_holes
     // them on the minimal styles, and so does its height calculation.
     holes = bundle_hole_options(magnet_hole = magnets, crush_ribs = magnets, chamfer = magnets);
     height = BASEPLATE_HEIGHT + calculate_offset(style_plate, magnets, style_hole);
-    size = [gx * GRID_DIMENSIONS_MM.x, gy * GRID_DIMENSIONS_MM.y, height];
+    size = [gx * GRIDFINITY_PITCH, gy * GRIDFINITY_PITCH, height];
 
-    slot_pitch = GRID_DIMENSIONS_MM.x / 3;
+    slot_pitch = GRIDFINITY_PITCH / 3;
     anchors = concat(
         [mount_anchor(size.z / 2), named_anchor("bot", [0, 0, -size.z / 2], DOWN, 0)],
         grid_mount_anchors(size, slot_pitch, size.z / 2));
@@ -55,7 +55,7 @@ module gf_baseplate(gx = 1, gy = 1, style = "thin", magnets = false, screw_holes
         // (gridfinity-rebuilt-baseplate.scad's file level, which `use`
         // doesn't run) — see base.scad.
         xrot(180) down(size.z / 2)
-            gridfinityBaseplate([gx, gy], GRID_DIMENSIONS_MM.x, [0, 0],
+            gridfinityBaseplate([gx, gy], GRIDFINITY_PITCH, [0, 0],
                                 style_plate, holes, style_hole,
                                 $fa = detail_fa(8), $fs = detail_fs(0.25));
         children();

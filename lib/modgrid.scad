@@ -54,7 +54,6 @@ include <../vendor/BOSL2/std.scad>
 include <constants.scad>
 
 // The grid.
-MODGRID_PITCH    = 8;    // hole to hole, both ways
 MODGRID_HOLE     = 5;    // square
 MODGRID_T        = 3;    // plate thickness
 MODGRID_EDGE     = 1.5;  // plate past the outer cells' 8mm squares

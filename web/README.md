@@ -1498,9 +1498,9 @@ things specific to the web implementation:
   comes out the other end as real `-D NAME=value` flags (`openscad-worker.js`) — the same
   mechanism `cli/foundry.py`'s `run_openscad()` uses, and it overrides a constant set via
   `include` the same way on both: confirmed with a native `openscad -D FIT_CLEARANCE=...` run
-  before relying on it here, not assumed. Only affects a part that actually reads
-  `FIT_CLEARANCE` — Gridfinity/GoPro/openGrid and the 2020 rail wrap a vendored module with its
-  own geometry and won't move.
+  before relying on it here, not assumed. Fit clearance only affects a part that actually reads
+  `FIT_CLEARANCE`; the system pitch overrides are passed through Gridfinity's wrappers and the
+  shared MOD-GRID constants.
 
 ## Local dev
 

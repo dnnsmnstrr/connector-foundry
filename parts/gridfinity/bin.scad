@@ -8,7 +8,7 @@
 // it still stacks and takes a bin on top, with a flat top face to cut
 // custom cavities into — the Holes tab's job (a tool's outline, a row
 // of magnet pockets, a 2020 socket ...). The "mount" anchor, and the
-// "mount_<i>_<j>" grid at GRID_DIMENSIONS_MM.x/3 (14mm) pitch, sit on
+// "mount_<i>_<j>" grid at GRIDFINITY_PITCH/3 (14mm by default), sit on
 // TOP — the lip's top edge, where the next bin stacks — as every part's
 // do on its bounding box's top face (the web app places them there).
 //
@@ -48,7 +48,8 @@ module gf_bin(gx = 1, gy = 1, gz = 3, filled = false, divx = 1, divy = 1,
     // gridz_define 0 (7mm units, the lip not counted), no z snap: what
     // upstream's generator does by default.
     bin = new_bin(grid_size = [gx, gy], height_mm = height(gz, 0, false),
-                  include_lip = lip, hole_options = holes);
+                  include_lip = lip, hole_options = holes,
+                  grid_dimensions = [GRIDFINITY_PITCH, GRIDFINITY_PITCH]);
 
     // Upstream's generator renders at $fa = 4, $fs = 0.25 (its file
     // level). The lip's height depends on its fillet's facets, so the
@@ -56,7 +57,7 @@ module gf_bin(gx = 1, gy = 1, gz = 3, filled = false, divx = 1, divy = 1,
     fa = detail_fa(4);
     fs = detail_fs(0.25);
     size = let($fa = fa, $fs = fs) bin_get_bounding_box(bin);
-    slot_pitch = GRID_DIMENSIONS_MM.x / 3;
+    slot_pitch = GRIDFINITY_PITCH / 3;
     anchors = concat([mount_anchor(size.z / 2)], grid_mount_anchors(size, slot_pitch, size.z / 2));
 
     attachable(anchor, spin, orient, size = size, anchors = anchors) {

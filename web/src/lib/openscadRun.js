@@ -163,10 +163,10 @@ export async function runOpenscad(
   // an assembly's body selector, plus any global settings (e.g.
   // FIT_CLEARANCE — see web/src/lib/userOverrides.js) as real -D
   // flags, which OpenSCAD honours over a plain top-level assignment
-  // even when that assignment came from an included file (verified:
-  // lib/constants.scad's FIT_CLEARANCE=0.15 is overridden by
-  // `-D FIT_CLEARANCE=0.3` the same way for a native `openscad` run
-  // as it is here) — same mechanism the CLI uses (run_openscad()).
+  // even when that assignment came from an included file. The existing
+  // FIT_CLEARANCE override check established that behavior for both
+  // native and wasm renders; system pitches use the same mechanism as
+  // the CLI (run_openscad()).
   const extraArgs = [...(part ? ["-D", `part=${scadLiteral(part)}`] : []), ...defineArgs(globalOverrides)];
 
   // Two request shapes: a single catalogue part (scadFile + module +

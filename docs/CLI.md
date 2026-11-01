@@ -154,10 +154,13 @@ foundry defaults clear gridfinity/base                      # ... or all of that
 
 Settings work the same way for every part at once: the constants in `lib/constants.scad` that
 depend on your printer rather than on a part.
+Gridfinity pitch is limited to 36–48 mm and MOD-GRID pitch to 6–12 mm; the browser's Settings panel
+stores these same system pitches for its parts and grid helpers.
 
 ```bash
 foundry settings set --fit-clearance 0.25   # the gap where printed parts fit together (0.15 by default)
 foundry settings set --circle-detail fine   # draft, normal or fine: how finely curves are faceted
+foundry settings set --set GRIDFINITY_PITCH=42.2 --set MODGRID_PITCH=8.1  # system XY pitches (mm)
 foundry settings show
 foundry settings clear
 ```

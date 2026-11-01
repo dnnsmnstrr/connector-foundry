@@ -26,6 +26,7 @@ import { useUserCommands } from "./hooks/useUserCommands.js";
 import { useWebApp } from "./hooks/useWebApp.js";
 import iconUrl from "../desktop/icon.svg";
 import { useWebMcp } from "./hooks/useWebMcp.js";
+import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { createAssembly } from "./lib/assembly.js";
 import { getPreset as getBenchPreset } from "./lib/benchPresets.js";
 import {
@@ -105,6 +106,42 @@ const MODE_LABELS = { library: "the Library", bench: "the Bench", holes: "Holes"
 
 // The palette's Mod+K, as the nav button's hint shows it: ⌘K on a Mac.
 const PALETTE_KEYS = chordText(["Mod", "K"]);
+
+/**
+ * Catalogue geometry metadata that mirrors the two overridable system
+ * pitches. Rendered geometry uses the same values as global -D overrides.
+ * @param {any[]} parts
+ * @param {Record<string, any>} overrides
+ */
+function partsWithSystemPitches(parts, overrides) {
+  return parts.map((part) => {
+    const pitch =
+      part.system === "Gridfinity"
+        ? (overrides.GRIDFINITY_PITCH ?? 42)
+        : part.system === "MOD-GRID"
+          ? (overrides.MODGRID_PITCH ?? 8)
+          : null;
+    if (pitch === null) return part;
+    const slots = part.slots
+      ? { ...part.slots, pitch: part.system === "Gridfinity" ? pitch / 3 : pitch }
+      : part.slots;
+    const resize = part.resize
+      ? Object.fromEntries(
+          Object.entries(part.resize).map(([axis, entry]) => [
+            axis,
+            entry &&
+            typeof entry === "object" &&
+            (entry.param === "gx" ||
+              entry.param === "gy" ||
+              (part.system === "MOD-GRID" && ["cols", "rows"].includes(entry.param)))
+              ? { ...entry, per: pitch }
+              : entry,
+          ]),
+        )
+      : part.resize;
+    return { ...part, slots, resize };
+  });
+}
 
 // The global palette's list: every command the mounted sources offer
 // (hooks/useCommands.js), recent ones first; a model file dropped on it goes
@@ -215,6 +252,11 @@ function ShellBody({ children }) {
 export default function App() {
   const { parts, error } = useCatalogue();
   const globalDefaults = useGlobalDefaults();
+  const globalOverrides = useGlobalOverrides();
+  const partsForModes = useMemo(
+    () => (parts ? partsWithSystemPitches(parts, globalOverrides) : parts),
+    [parts, globalOverrides],
+  );
   // "library" | "bench" | "holes" — from the URL hash on first load, so a
   // reload lands on the tab that was showing.
   const [mode, setMode] = useState(() => readUrlState().mode ?? "library");
@@ -936,7 +978,7 @@ export default function App() {
         <ModeErrorBoundary key={mode} label={MODE_LABELS[mode]}>
           {mode === "library" ? (
             <Library
-              parts={parts}
+              parts={partsForModes}
               onOpenInBench={openInBench}
               onAddHoles={openInHoles}
               onSelectionChange={onLibrarySelectionChange}
@@ -947,19 +989,23 @@ export default function App() {
             />
           ) : mode === "holes" ? (
             <Holes
-              parts={parts}
+              parts={partsForModes}
               sidebarCollapsed={sidebarCollapsed}
               onToggleSidebar={toggleSidebar}
               librarySelection={librarySelection.current}
             />
           ) : (
-            <Bench parts={parts} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+            <Bench
+              parts={partsForModes}
+              sidebarCollapsed={sidebarCollapsed}
+              onToggleSidebar={toggleSidebar}
+            />
           )}
         </ModeErrorBoundary>
       </ShellBody>
       {settingsOpen && (
         <SettingsModal
-          parts={parts}
+          parts={partsForModes}
           globalDefaults={globalDefaults}
           onClose={() => setSettingsOpen(false)}
           onShowShortcuts={() => {

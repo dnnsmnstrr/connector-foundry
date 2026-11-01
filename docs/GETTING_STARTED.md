@@ -97,6 +97,8 @@ Two settings change every part, under **⚙ Settings** at the top right (or the 
   default. If snaps are too tight on your printer, raise it a little; if they rattle, lower it.
 - **Circle detail** is how finely curves are faceted: **Draft** renders faster, **Fine** gives rounder
   holes.
+- **System units** adjusts the Gridfinity cell pitch and MOD-GRID hole spacing for a printer or a
+  nonstandard grid. The same values affect part previews, Bench attachments and the Holes tab.
 
 To keep your own values for one part — "my Gridfinity bins always have magnet holes" — set them and
 click **Save as my default**. [User overrides](OVERRIDES.md) has the details. Settings can hide the

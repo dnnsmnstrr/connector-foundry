@@ -17,6 +17,7 @@ const PATTERNS = [
 /**
  * @param {{
  *   options: Record<string, any>,
+ *   spacings?: readonly { id: string, label: string, short: string, across: number, up: number, stagger: boolean }[],
  *   onChange: (patch: Record<string, any>) => void,
  *   placed: number,
  *   skipped: number,
@@ -24,7 +25,15 @@ const PATTERNS = [
  *   onCancel: () => void,
  * }} props
  */
-export default function RepeatFields({ options, onChange, placed, skipped, onApply, onCancel }) {
+export default function RepeatFields({
+  options,
+  spacings = STANDARD_SPACINGS,
+  onChange,
+  placed,
+  skipped,
+  onApply,
+  onCancel,
+}) {
   const id = useId();
   /**
    * @param {string} key
@@ -107,9 +116,9 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
             <span className="field-label">Standard spacing</span>
             <select
               id={`${id}-standard`}
-              value={matchSpacing(options)?.id ?? ""}
+              value={matchSpacing(options, spacings)?.id ?? ""}
               onChange={(e) => {
-                const spacing = STANDARD_SPACINGS.find((s) => s.id === e.target.value);
+                const spacing = spacings.find((s) => s.id === e.target.value);
                 if (spacing)
                   onChange({
                     spacingAcross: spacing.across,
@@ -120,7 +129,7 @@ export default function RepeatFields({ options, onChange, placed, skipped, onApp
               }}
             >
               <option value="">Custom</option>
-              {STANDARD_SPACINGS.map((s) => (
+              {spacings.map((s) => (
                 <option key={s.id} value={s.id}>
                   {spacingLabel(s)}
                 </option>

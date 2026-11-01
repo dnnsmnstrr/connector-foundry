@@ -9,6 +9,7 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **System pitches are adjustable.** Settings can tune Gridfinity's cell pitch and MOD-GRID's hole spacing; the Library, Bench and Holes tab use the same saved values.
 - **Part search shows its `/` shortcut.** A small key hint beside the search field makes the quick
   search key easier to discover.
 - **Settings shows the interface version.** In the desktop app, Updates lists the running app
@@ -32,6 +33,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
+  snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
+  square fork pin. The two new styles are fit prototypes; the compliant style remains the default.
 - **BitBeam pin.** Attach a one-sided BitBeam pin to a part; it defaults to one unit (8 mm), has a
   solid mounting end, and a flexible fork only at its projecting tip. Enter any length from half
   a unit through 16 units. Part searches also match catalogue keywords, so

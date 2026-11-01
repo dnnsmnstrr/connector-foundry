@@ -19,6 +19,8 @@ import {
 import {
   clearGlobalOverrides,
   getGlobalOverrides,
+  SYSTEM_PITCH_LIMITS,
+  setSystemPitch as setSystemPitchOverride,
   setCircleDetail,
   updateGlobalOverrides,
 } from "../lib/userOverrides.js";
@@ -90,6 +92,65 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
   // saving the default as one (userOverrides.js's setCircleDetail()).
   const detailDefault = globalDefaults?.CIRCLE_DETAIL ?? "normal";
   const detail = saved.CIRCLE_DETAIL ?? detailDefault;
+
+  const gridfinityPitchDefault = globalDefaults?.GRIDFINITY_PITCH ?? 42;
+  const modgridPitchDefault = globalDefaults?.MODGRID_PITCH ?? 8;
+
+  /** @param {"GRIDFINITY_PITCH" | "MODGRID_PITCH"} key @param {number} value @param {number} defaultValue */
+  function applySystemPitch(key, value, defaultValue) {
+    setSaved(setSystemPitchOverride(key, value, defaultValue));
+  }
+
+  /**
+   * @param {"GRIDFINITY_PITCH" | "MODGRID_PITCH"} key
+   * @param {string} label
+   * @param {number} defaultValue
+   * @param {number} min
+   * @param {number} max
+   * @param {string} description
+   */
+  function systemPitchField(key, label, defaultValue, min, max, description) {
+    const value = saved[key] ?? defaultValue;
+    const differs = value !== defaultValue;
+    return (
+      <label className="field has-info-tip" key={key}>
+        <span className="field-label">
+          {differs && (
+            <span
+              className="field-differs"
+              role="img"
+              aria-label={`Differs from catalogue default ${defaultValue} mm`}
+              title={`Catalogue default: ${defaultValue} mm`}
+            />
+          )}
+          {label} (mm)
+          <InfoTip label={`About ${label.toLowerCase()}`} text={description} />
+          {differs && (
+            <button
+              type="button"
+              className="field-reset"
+              aria-label={`Reset ${label.toLowerCase()} to catalogue default`}
+              title="Reset to catalogue default"
+              onClick={() => {
+                clearGlobalOverrides([key]);
+                setSaved(getGlobalOverrides());
+              }}
+            >
+              ↺
+            </button>
+          )}
+        </span>
+        <DecimalInput
+          aria-label={`${label} (mm)`}
+          min={min}
+          max={max}
+          step="0.1"
+          value={value}
+          onChange={(next) => applySystemPitch(key, next, defaultValue)}
+        />
+      </label>
+    );
+  }
   function applyDetail(value) {
     setCircleDetail(value, detailDefault);
     setSaved(getGlobalOverrides());
@@ -224,6 +285,28 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           <option value="fine">Fine</option>
         </select>
       </label>
+
+      <h4 className="settings-section">System units</h4>
+      <p className="muted settings-help">
+        Adjust the repeating XY pitch for these systems. Feature sizes such as the MOD-GRID hole remain
+        unchanged.
+      </p>
+      {systemPitchField(
+        "GRIDFINITY_PITCH",
+        "Gridfinity cell pitch",
+        gridfinityPitchDefault,
+        SYSTEM_PITCH_LIMITS.GRIDFINITY_PITCH.min,
+        SYSTEM_PITCH_LIMITS.GRIDFINITY_PITCH.max,
+        "The centre-to-centre size of a Gridfinity cell. This updates Gridfinity parts and the Holes tab's Gridfinity spacing.",
+      )}
+      {systemPitchField(
+        "MODGRID_PITCH",
+        "MOD-GRID hole pitch",
+        modgridPitchDefault,
+        SYSTEM_PITCH_LIMITS.MODGRID_PITCH.min,
+        SYSTEM_PITCH_LIMITS.MODGRID_PITCH.max,
+        "The centre-to-centre spacing between MOD-GRID holes. This updates MOD-GRID parts, anchors and the Holes tab's MOD-GRID spacing.",
+      )}
 
       <h4 className="settings-section">Editing</h4>
       <label className="field has-info-tip">

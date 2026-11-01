@@ -751,9 +751,38 @@ export const STANDARD_SPACINGS = Object.freeze([
   },
 ]);
 
-/** @param {string | null | undefined} id */
-export function getSpacing(id) {
-  return STANDARD_SPACINGS.find((s) => s.id === id) ?? null;
+/**
+ * Standard hole spacings after applying the optional global system pitches.
+ * Gridfinity's four magnet holes stay 8mm from each cell edge; MOD-GRID
+ * holes use the configured hole-to-hole pitch directly.
+ * @param {Record<string, any>} [overrides]
+ */
+export function standardSpacings(overrides = {}) {
+  const gridfinityPitch = overrides.GRIDFINITY_PITCH;
+  const modgridPitch = overrides.MODGRID_PITCH;
+  if (
+    (gridfinityPitch === undefined || gridfinityPitch === 42) &&
+    (modgridPitch === undefined || modgridPitch === 8)
+  )
+    return STANDARD_SPACINGS;
+  return STANDARD_SPACINGS.map((spacing) => {
+    if (spacing.id === "gridfinity" && Number.isFinite(gridfinityPitch)) {
+      const magnetPitch = gridfinityPitch - 16;
+      return { ...spacing, across: magnetPitch, up: magnetPitch };
+    }
+    if (spacing.id === "modgrid" && Number.isFinite(modgridPitch)) {
+      return { ...spacing, across: modgridPitch, up: modgridPitch };
+    }
+    return spacing;
+  });
+}
+
+/**
+ * @param {string | null | undefined} id
+ * @param {Record<string, any>} [overrides]
+ */
+export function getSpacing(id, overrides = {}) {
+  return standardSpacings(overrides).find((s) => s.id === id) ?? null;
 }
 
 // A spacing as the menus list it: its name and its steps.
@@ -766,13 +795,16 @@ export function spacingLabel({ label, across, up, stagger }) {
 // Which of STANDARD_SPACINGS a grid's options are, or null (custom): the
 // one they were set to (`standard`) while the numbers still match it,
 // else the first whose numbers they are.
-/** @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean, standard?: string | null }} options */
-export function matchSpacing({ spacingAcross, spacingUp, stagger, standard }) {
+/**
+ * @param {{ spacingAcross?: number, spacingUp?: number, stagger?: boolean, standard?: string | null }} options
+ * @param {readonly { id: string, across: number, up: number, stagger: boolean }[]} [spacings]
+ */
+export function matchSpacing({ spacingAcross, spacingUp, stagger, standard }, spacings = STANDARD_SPACINGS) {
   const fits = (/** @type {{ across: number, up: number, stagger: boolean }} */ s) =>
     s.across === spacingAcross && s.up === spacingUp && s.stagger === Boolean(stagger);
-  const picked = getSpacing(standard);
+  const picked = spacings.find((s) => s.id === standard);
   if (picked && fits(picked)) return picked;
-  return STANDARD_SPACINGS.find(fits) ?? null;
+  return spacings.find(fits) ?? null;
 }
 // Copies beyond this are a slip of the keyboard, not a pattern: each is
 // a cutter in the render.

@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { getGlobalOverrides, getGlobalVersion, subscribeGlobalOverrides } from "../lib/userOverrides.js";
 
-// Settings edits invalidate both the preview and its downloadable result.
+// Settings edits invalidate renders and keep any system-spacing helpers live.
 export function useGlobalOverrides() {
   const version = useSyncExternalStore(subscribeGlobalOverrides, getGlobalVersion, getGlobalVersion);
   // `version` is the store's change counter: it is in the list so the memo

@@ -33,27 +33,125 @@ include <../../lib/modgrid.scad>
 // either side.
 function modgrid_plate_width(pegs) = pegs * MODGRID_PITCH - 1.4;
 
+function modgrid_connector_pin_length(style, depth) =
+    style == "bitbeam" ? 4 : style == "dowel" ? depth : MODGRID_PIN_LEN;
+
+function modgrid_connector_width(pegs, style) =
+    style == "bitbeam" ? (pegs == 1 ? BITBEAM_SQUARE_W : MODGRID_PITCH + BITBEAM_SQUARE_W) :
+    modgrid_plate_width(pegs);
+
+// The v2 dowel prototype uses a 4.8mm projection into the grid and
+// tested at 4.65mm across, leaving 0.175mm clearance on each side.
+MODGRID_DOWEL_W = 4.65;
+MODGRID_DOWEL_SLOT = 0.7;
+MODGRID_DOWEL_ROOT = 0.55;
+MODGRID_DOWEL_TIP_BORE_RATIO = 0.60;
+MODGRID_DOWEL_BORE_CLEARANCE = 0.20;
+
+// The BitBeam-style experiment was checked as a short, square split pin:
+// 4mm projecting length, a 4.6mm shaft, and a 4.9mm entry tip.
+BITBEAM_SQUARE_W = 4.6;
+BITBEAM_SQUARE_TIP = 4.9;
+BITBEAM_SQUARE_LENGTH = 4;
+BITBEAM_SQUARE_TAPER = 0.5;
+BITBEAM_SQUARE_SLOT = 0.9;
+BITBEAM_SQUARE_FORK = 2;
+
+module modgrid_dowel_peg(depth, screw_diameter, plate) {
+    bore_root = screw_diameter + MODGRID_DOWEL_BORE_CLEARANCE;
+    bore_tip = screw_diameter * MODGRID_DOWEL_TIP_BORE_RATIO;
+
+    difference() {
+        // The tapered entry tip leaves the four slotted petals free to flare.
+        hull() {
+            translate([0, 0, -depth + 0.55])
+                cube([MODGRID_DOWEL_W, MODGRID_DOWEL_W, depth - 0.55], center = [true, true, false]);
+            translate([0, 0, -depth])
+                cube([MODGRID_DOWEL_W - 0.5, MODGRID_DOWEL_W - 0.5, 0.08], center = [true, true, false]);
+        }
+
+        // A screw entered from the carrier side wedges the tip petals outward.
+        translate([0, 0, -depth]) cylinder(d1 = bore_tip, d2 = bore_root, h = depth);
+        translate([0, 0, -0.01]) cylinder(d = bore_root, h = plate + 0.02);
+        translate([-MODGRID_DOWEL_SLOT / 2, -MODGRID_DOWEL_W / 2 - 0.05, -depth - 0.01])
+            cube([MODGRID_DOWEL_SLOT, MODGRID_DOWEL_W + 0.1, depth - MODGRID_DOWEL_ROOT + 0.02]);
+        translate([-MODGRID_DOWEL_W / 2 - 0.05, -MODGRID_DOWEL_SLOT / 2, -depth - 0.01])
+            cube([MODGRID_DOWEL_W + 0.1, MODGRID_DOWEL_SLOT, depth - MODGRID_DOWEL_ROOT + 0.02]);
+    }
+}
+
+module modgrid_bitbeam_square_peg() {
+    difference() {
+        union() {
+            translate([0, 0, -BITBEAM_SQUARE_LENGTH])
+                linear_extrude(height = BITBEAM_SQUARE_TAPER, scale = BITBEAM_SQUARE_W / BITBEAM_SQUARE_TIP)
+                    square([BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP], center = true);
+            translate([0, 0, -BITBEAM_SQUARE_LENGTH + BITBEAM_SQUARE_TAPER])
+                cube([BITBEAM_SQUARE_W, BITBEAM_SQUARE_W,
+                      BITBEAM_SQUARE_LENGTH - BITBEAM_SQUARE_TAPER], center = [true, true, false]);
+        }
+
+        // The fork is at the grid-entry tip, away from the carrier root.
+        translate([-BITBEAM_SQUARE_SLOT / 2, -BITBEAM_SQUARE_TIP, -BITBEAM_SQUARE_LENGTH - 0.01])
+            cube([BITBEAM_SQUARE_SLOT, 2 * BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_FORK + 0.02]);
+    }
+}
+
 module modgrid_connector(pegs = 2, rows = 1, depth = MODGRID_PIN_DEPTH, plate = 1.5,
+                         style = "compliant", screw_diameter = 2.0,
                          anchor = BOTTOM, spin = 0, orient = UP) {
     assert(pegs == 1 || pegs == 2, "pegs must be 1 or 2");
     assert(rows >= 1 && rows == round(rows), "rows must be a whole number, at least 1");
     assert(depth >= 2 && depth <= MODGRID_HOLE, "depth must be from 2 to 5 (the hole)");
     assert(plate >= 0, "plate must not be negative");
+    assert(in_list(style, ["compliant", "dowel", "bitbeam"]), "style must be compliant, dowel or bitbeam");
+    assert(screw_diameter >= 1.5 && screw_diameter <= 2.6,
+           "screw_diameter must be from 1.5 to 2.6mm");
     length = (rows - 1) * MODGRID_PITCH + depth;
-    width = modgrid_plate_width(pegs);
-    size = [plate > 0 ? max(width, modgrid_pin_width(pegs)) : modgrid_pin_width(pegs), length,
-            MODGRID_PIN_LEN + plate];
+    pin_length = modgrid_connector_pin_length(style, depth);
+    peg_width = style == "dowel" ? MODGRID_DOWEL_W : BITBEAM_SQUARE_W;
+    peg_span = pegs == 1 ? peg_width : MODGRID_PITCH + peg_width;
+    carrier_width = modgrid_connector_width(pegs, style);
+    width = style == "compliant" ? (plate > 0 ? max(carrier_width, modgrid_pin_width(pegs)) :
+             modgrid_pin_width(pegs)) : (plate > 0 ? max(carrier_width, peg_span) : peg_span);
+    part_length = style == "bitbeam" ? (rows - 1) * MODGRID_PITCH + BITBEAM_SQUARE_W :
+                  style == "dowel" ? (rows - 1) * MODGRID_PITCH + max(depth, MODGRID_DOWEL_W) : length;
+    size = [width, part_length, pin_length + plate];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
-        // Profile frame to part frame: a quarter turn about X takes the
-        // pegs (-y) down and the depth (+z) to -y; then centred. render()
-        // merges pegs and plate, which the preview (the README gallery)
-        // otherwise draws in two colours.
-        translate([0, length / 2, (MODGRID_PIN_LEN - plate) / 2]) rotate([90, 0, 0]) render(convexity = 4) {
-            modgrid_pin(depth, rows, overlap = plate > 0 ? 0.01 : 0, pegs = pegs,
-                        $fa = detail_fa(6), $fs = detail_fs(0.2));
-            if (plate > 0)
-                translate([-width / 2, 0, 0]) cube([width, plate, length]);
+        if (style == "compliant") {
+            // Keep the established profile frame and exact dimensions for
+            // the default connector, which is checked against the reference grid.
+            translate([0, length / 2, (MODGRID_PIN_LEN - plate) / 2]) rotate([90, 0, 0]) render(convexity = 4) {
+                modgrid_pin(depth, rows, overlap = plate > 0 ? 0.01 : 0, pegs = pegs,
+                            $fa = detail_fa(6), $fs = detail_fs(0.2));
+                if (plate > 0)
+                    translate([-carrier_width / 2, 0, 0]) cube([carrier_width, plate, length]);
+            }
+        } else {
+            // These test styles use the prototype's square pins directly in
+            // the part frame: their roots meet the carrier, and their tips
+            // point down toward the grid. The full volume is merged so the
+            // browser preview shows one solid, as the compliant branch does.
+            translate([0, 0, (pin_length - plate) / 2]) render(convexity = 4) {
+                if (plate > 0)
+                    difference() {
+                        translate([-carrier_width / 2, -part_length / 2, 0])
+                            cube([carrier_width, part_length, plate]);
+                        if (style == "dowel")
+                            for (row = [0 : rows - 1], x = pegs == 1 ? [0] : [-MODGRID_PITCH / 2, MODGRID_PITCH / 2]) {
+                                y = (row - (rows - 1) / 2) * MODGRID_PITCH;
+                                translate([x, y, -0.01])
+                                    cylinder(d = screw_diameter + MODGRID_DOWEL_BORE_CLEARANCE, h = plate + 0.02);
+                            }
+                    }
+                for (row = [0 : rows - 1], x = pegs == 1 ? [0] : [-MODGRID_PITCH / 2, MODGRID_PITCH / 2]) {
+                    y = (row - (rows - 1) / 2) * MODGRID_PITCH;
+                    translate([x, y, 0])
+                        if (style == "dowel") modgrid_dowel_peg(depth, screw_diameter, plate);
+                        else modgrid_bitbeam_square_peg();
+                }
+            }
         }
         children();
     }

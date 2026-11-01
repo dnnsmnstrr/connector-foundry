@@ -312,6 +312,15 @@ def check_settings(overrides: dict[str, object]) -> None:
     detail = overrides.get("CIRCLE_DETAIL")
     if detail is not None and detail not in circle_details():
         raise typer.BadParameter(f"CIRCLE_DETAIL={detail!r} is not one of {', '.join(circle_details())}")
+    bounds = {"GRIDFINITY_PITCH": (36, 48), "MODGRID_PITCH": (6, 12)}
+    for name, (minimum, maximum) in bounds.items():
+        if name not in overrides:
+            continue
+        value = overrides[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise typer.BadParameter(f"{name} must be a finite number from {minimum} to {maximum}mm")
+        if not minimum <= value <= maximum:
+            raise typer.BadParameter(f"{name} must be from {minimum} to {maximum}mm")
 
 
 def check_parameters(part: dict, overrides: dict[str, object]) -> None:

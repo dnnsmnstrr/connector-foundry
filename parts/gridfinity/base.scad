@@ -1,6 +1,6 @@
 // Gridfinity bin base. Functional face is BOTTOM (also the print
 // orientation); mates through the "mount" anchor on TOP, or through any
-// slot in the "mount_<i>_<j>" grid at GRID_DIMENSIONS_MM.x/3 (14mm)
+// slot in the "mount_<i>_<j>" grid at GRIDFINITY_PITCH/3 (14mm by default)
 // pitch — a 1x1 base gets a 3x3 grid, and it scales with gx/gy for
 // free since the pitch is fixed and the footprint grows (see
 // lib/slots.scad's grid_mount_anchors()).
@@ -27,8 +27,8 @@ module gf_base(gx = 1, gy = 1, magnets = false, screws = false,
                only_corners = false, thumbscrew = false,
                anchor = BOTTOM, spin = 0, orient = UP) {
 
-    size = [gx * GRID_DIMENSIONS_MM.x - BASE_GAP_MM.x,
-            gy * GRID_DIMENSIONS_MM.y - BASE_GAP_MM.y,
+    size = [gx * GRIDFINITY_PITCH - BASE_GAP_MM.x,
+            gy * GRIDFINITY_PITCH - BASE_GAP_MM.y,
             BASE_HEIGHT];
 
     // Hole extras only apply when there is a hole to apply them to.
@@ -39,7 +39,7 @@ module gf_base(gx = 1, gy = 1, magnets = false, screws = false,
         chamfer     = (magnets || screws) && chamfer,
         supportless = (magnets || screws) && supportless);
 
-    slot_pitch = GRID_DIMENSIONS_MM.x / 3;
+    slot_pitch = GRIDFINITY_PITCH / 3;
     anchors = concat([mount_anchor(size.z / 2)], grid_mount_anchors(size, slot_pitch, size.z / 2));
 
     attachable(anchor, spin, orient, size = size, anchors = anchors) {
@@ -50,7 +50,8 @@ module gf_base(gx = 1, gy = 1, magnets = false, screws = false,
         // Passed on this call alone, so a part stacked on the base keeps
         // its own detail.
         down(size.z / 2)
-            gridfinityBase([gx, gy], hole_options = holes,
+            gridfinityBase([gx, gy], grid_dimensions = [GRIDFINITY_PITCH, GRIDFINITY_PITCH],
+                           hole_options = holes,
                            only_corners = only_corners, thumbscrew = thumbscrew,
                            $fa = detail_fa(4), $fs = detail_fs(0.25));
         children();
