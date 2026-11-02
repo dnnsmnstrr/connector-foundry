@@ -43,14 +43,17 @@ sources:
     license: CC-BY-NC-SA-4.0
     url: https://github.com/AndyLevesque/QuackWorks
     note: >
-      Vendored as a submodule, and parts/opengrid/*.scad call it
-      directly — so those two parts are CC-BY-NC-SA, not MIT. See the
+      Vendored as a submodule, and parts/opengrid/board.scad and
+      snap.scad and lib/underware.scad (parts/underware/*.scad) call it
+      directly — so those parts are CC-BY-NC-SA, not MIT. See the
       per-part `license` field in catalogue.yaml and the README
       "Licensing" section. openGrid design by David D; OpenSCAD
-      implementation by Andy (BlackjackDuck), snap by metasyntactic.
+      implementation by Andy (BlackjackDuck), snap by metasyntactic;
+      Underware by Hands on Katie and BlackjackDuck.
       Because our parts are wrappers, the shape checks below are
-      guarding the wrapper (envelope, anchors, restated constants)
-      rather than re-deriving upstream's geometry.
+      guarding the wrapper (envelope, anchors, restated constants, the
+      sweeps and mounting holes lib/underware.scad re-expresses) rather
+      than re-deriving upstream's geometry.
 
   opengrid-projects:
     kind: submodule
@@ -1120,6 +1123,228 @@ shape_checks:
       max_surface_max_mm: 0.15
       min_section_iou: 0.99
 
+  # Underware: each body against upstream's own script, run with its
+  # customizer variables set as a user would set them. Show_Attached
+  # places the base as ours (centred, underside on z = 0) and the top
+  # fitted on it, 6.533mm up (interlockFromFloor), so ours is raised to
+  # match. lib/underware.scad sweeps upstream's profiles itself and
+  # re-expresses the mounting holes (its header says why), so these
+  # checks are what hold that to upstream: the width-dependent hole
+  # grid, every mounting method, a top's inside height and its flex
+  # compensation. An L is centred on its own bounding box, which puts
+  # it 0.0085mm off upstream's placement on each axis (the profile's
+  # 0.017mm overhang, split): ours is moved back by that.
+  - id: underware/i-base-snap
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 4, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 4;
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-multiboard-2-wide
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 3, width_units = 2, mounting = "Direct Multiboard Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 3;
+      Channel_Width_in_Units = 2;
+      Mounting_Method = "Direct Multiboard Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-multipoint
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Direct Multipoint Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Direct Multipoint Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-magnet
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Magnet", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Magnet";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-wood-screw
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Wood Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Wood Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-top
+    part: underware/i_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 4, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      Channel_Length_Units = 4;
+    align: none
+    sections_z: [7, 8.5, 10, 12.5, 15.5, 17.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-top-2-wide-24-tall
+    part: underware/i_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 3, width_units = 2, height = 24, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      Channel_Length_Units = 3;
+      Channel_Width_in_Units = 2;
+      Channel_Internal_Height = 24;
+    align: none
+    sections_z: [7, 8.5, 10, 18, 27.5, 29.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-base-snap
+    part: underware/l_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      translate([0.0085, -0.0085, 0]) uw_l_channel_base(anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-base-multiboard-2-wide
+    part: underware/l_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      translate([0.0085, -0.0085, 0]) uw_l_channel_base(x_units = 2, y_units = 3, width_units = 2, mounting = "Direct Multiboard Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      L_Channel_Length_in_Units_X_Axis = 2;
+      L_Channel_Length_in_Units_Y_Axis = 3;
+      Channel_Width_in_Units = 2;
+      Mounting_Method = "Direct Multiboard Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-top-18-tall
+    part: underware/l_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_top.scad>
+      translate([0.0085, -0.0085, 6.533]) uw_l_channel_top(x_units = 3, y_units = 2, height = 18, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      L_Channel_Length_in_Units_X_Axis = 3;
+      L_Channel_Length_in_Units_Y_Axis = 2;
+      Channel_Internal_Height = 18;
+    align: none
+    sections_z: [7, 8.5, 10, 15, 21.5, 23.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
 fit_checks:
   - id: gopro/male-into-our-female
     part: gopro/male
@@ -1820,3 +2045,35 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.1]
+
+  # Underware: a top fitted on its base, where upstream's Show_Attached
+  # draws it (interlockFromFloor up), straight and L. The snap is a press
+  # fit drawn line on line: the parts touch and do not overlap.
+  - id: underware/i-top-on-base
+    part: underware/i_channel_top
+    why: >
+      The top has to snap onto the base: the two profiles are drawn to
+      meet, and a top drawn too wide or too low would bind or fall off.
+    a: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Flat", anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]
+
+  - id: underware/l-top-on-base
+    part: underware/l_channel_top
+    why: >
+      The same for the L, whose corner is a mitre of the two legs.
+    a: |
+      include <{repo}/parts/underware/l_channel_top.scad>
+      up(6.533) uw_l_channel_top(x_units = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      uw_l_channel_base(x_units = 2, mounting = "Flat", anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]

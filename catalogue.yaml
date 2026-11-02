@@ -1665,3 +1665,213 @@ parts:
         params: { len: 40 }
       - name: vertical-60
         params: { orientation: vertical, len: 60 }
+
+  # Underware (Hands on Katie and BlackjackDuck): under-desk cable
+  # channels, a base that mounts to the surface and a top that snaps onto
+  # it. One part per printable body, as upstream exports them. The cross-
+  # sections are upstream's own; lib/underware.scad sweeps them and cuts
+  # the mounting holes (its header says why not upstream's modules), and
+  # references.yaml holds each body to upstream's own script.
+  - id: underware/i_channel_base
+    system: Underware
+    name: Straight channel base
+    file: parts/underware/i_channel_base.scad
+    module: uw_i_channel_base
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile, swept by lib/underware.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, raceway, Multiboard, Hands on Katie]
+    print_note: >-
+      Flat on the bed, no supports. The half that mounts under the desk:
+      a straight channel length_units x 25mm long and width_units x 25mm
+      wide, with one mounting hole per 25mm square. mounting Threaded Snap
+      Connector is threaded for Underware's snap connector, a Multiboard
+      snap that screws in (upstream's Underware_Connectors.scad, under
+      Multiboard's licence, so not in this catalogue); the direct screw
+      options seat a Multiboard or Multipoint screw head in the floor;
+      Magnet pockets a 4 x 1.5mm magnet from underneath; Wood Screw
+      countersinks a 3.5mm screw; Flat has no holes, for tape. The top
+      snaps on. "bot" is the underside.
+    anchors: [bot]
+    defaults:
+      length_units: 4
+      width_units: 1
+      mounting: Threaded Snap Connector
+    options:
+      # Spelling and capitalisation are upstream's customizer's.
+      mounting:
+        - Threaded Snap Connector
+        - Direct Multiboard Screw
+        - Direct Multipoint Screw
+        - Magnet
+        - Wood Screw
+        - Flat
+    minimums:
+      length_units: 1
+      width_units: 1
+    # Render time follows the hole count, the threaded snap holes being
+    # the slow kind: about 0.45s each in the browser on top of 1.3s
+    # (8 x 1: 4.4s; 6 x 2: 8.1s; 12 x 3: 21s), a tenth of that natively.
+    resize:
+      x: { param: width_units, per: 25, step: 1, max: 2 }
+      y: { param: length_units, per: 25, step: 1, max: 8 }
+    variants:
+      - name: multiboard-screw
+        params: { mounting: Direct Multiboard Screw }
+      - name: multipoint-screw
+        params: { mounting: Direct Multipoint Screw }
+      - name: magnet
+        params: { mounting: Magnet }
+      - name: wood-screw
+        params: { mounting: Wood Screw }
+      - name: flat
+        params: { mounting: Flat }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/i_channel_top
+    system: Underware
+    name: Straight channel top
+    file: parts/underware/i_channel_top.scad
+    module: uw_i_channel_top
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile, swept by lib/underware.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, raceway, cover, Hands on Katie]
+    print_note: >-
+      Modelled as fitted, roof up; print it roof down (flip it in the
+      slicer), no supports. Snaps onto a straight channel base of the same
+      length_units and width_units. height is the room inside the channel,
+      in mm: 12 as standard, upstream offers steps of 6 up to 72. A top
+      wider than one unit or taller than 18mm is drawn 1% narrower, as
+      upstream's is, so it grips harder. The roof carries a slot per 25mm
+      square, for a hook or clip along the channel.
+    slots:
+      pitch: 25  # UW_GRID — one slot per grid square, over the base's mounting holes
+      count_params: [width_units, length_units]
+    defaults:
+      length_units: 4
+      width_units: 1
+      height: 12
+    minimums:
+      length_units: 1
+      width_units: 1
+      height: 12
+    # Only the length: width and height change the 1% flex compensation
+    # (past one unit wide or 18mm tall), so their slope is not constant.
+    # A top has no holes and renders in about 1.4s in the browser at any
+    # size; 12 units is 300mm, near a large print bed.
+    resize:
+      y: { param: length_units, per: 25, step: 1, max: 12 }
+    variants:
+      - name: tall-24
+        params: { height: 24 }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/l_channel_base
+    system: Underware
+    name: L channel base
+    file: parts/underware/l_channel_base.scad
+    module: uw_l_channel_base
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile and L path, swept by
+      lib/underware.scad. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, corner, Multiboard, Hands on Katie]
+    print_note: >-
+      Flat on the bed, no supports. A 90° corner: a corner square with
+      legs x_units and y_units x 25mm long beyond it, width_units x 25mm
+      wide, one mounting hole per 25mm square along the channel; mounting
+      as for the straight base. "mount" and "bot" sit over the corner
+      square, not the empty inside of the L. The L top snaps on.
+    anchors: [bot]
+    mount_offset:
+      x: { param: x_units, scale: 12.5 }
+      y: { param: y_units, scale: -12.5 }
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      mounting: Threaded Snap Connector
+    options:
+      mounting:
+        - Threaded Snap Connector
+        - Direct Multiboard Screw
+        - Direct Multipoint Screw
+        - Magnet
+        - Wood Screw
+        - Flat
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+    # As for the straight base, render time follows the hole count:
+    # 4 x 4 (nine holes) takes 5.6s in the browser, 3 x 3 two units wide
+    # (sixteen) 7.7s, 8 x 8 (seventeen) 14s.
+    resize:
+      x: { param: x_units, per: 25, step: 1, max: 4 }
+      y: { param: y_units, per: 25, step: 1, max: 4 }
+    variants:
+      - name: multiboard-screw
+        params: { mounting: Direct Multiboard Screw }
+      - name: long-2x3
+        params: { x_units: 2, y_units: 3 }
+      - name: wide-2
+        params: { width_units: 2, mounting: Wood Screw }
+
+  - id: underware/l_channel_top
+    system: Underware
+    name: L channel top
+    file: parts/underware/l_channel_top.scad
+    module: uw_l_channel_top
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile and L path, swept by
+      lib/underware.scad. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, corner, cover, Hands on Katie]
+    print_note: >-
+      Modelled as fitted, roof up; print it roof down (flip it in the
+      slicer), no supports. Snaps onto an L channel base of the same
+      x_units, y_units and width_units; height as for the straight top
+      (upstream's L top has no 1% flex compensation). "mount" sits over
+      the corner square.
+    mount_offset:
+      x: { param: x_units, scale: 12.5 }
+      y: { param: y_units, scale: -12.5 }
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 12
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 12
+    # About 1.4s in the browser at any size, 8 x 8 and 72mm tall too.
+    # The 1% flex compensation that keeps the straight top's width and
+    # height off its handles is not applied to an L.
+    resize:
+      x: { param: x_units, per: 25, step: 1, max: 8 }
+      y: { param: y_units, per: 25, step: 1, max: 8 }
+      z: { param: height, step: 6, max: 72 }
+    variants:
+      - name: tall-18
+        params: { height: 18 }
+      - name: long-3x2
+        params: { x_units: 3, y_units: 2 }

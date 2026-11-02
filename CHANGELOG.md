@@ -33,6 +33,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **Underware cable channels.** Hands on Katie and BlackjackDuck's under-desk cable channels:
+  a straight channel and an L corner, each as its base and its snap-on top, sized in 25 mm units,
+  with the top's inside height and the base's mounting (threaded snap, Multiboard or Multipoint
+  screw, magnet, wood screw or flat) as upstream offers them. Their profiles are upstream's own
+  (QuackWorks, CC-BY-NC-SA). Cut cable exits into them on the Holes tab, or fuse a hook or a
+  connector onto a top's roof slots or a base's underside on the Bench.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.
