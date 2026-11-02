@@ -46,6 +46,10 @@ export const DOC_GROUPS = [
     ],
   },
   {
+    title: "Reference",
+    docs: [{ file: "SYSTEMS.md", slug: "systems", label: "Systems" }],
+  },
+  {
     title: "Under the hood",
     docs: [{ file: "ACCURACY.md", slug: "accuracy", label: "Accuracy" }],
   },

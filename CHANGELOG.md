@@ -134,6 +134,15 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   a pinch misses the 3D view. Every dialog has a × at the top on a touch screen, and Android's back
   gesture puts the drawer away instead of leaving the app.
 
+### Guides
+
+- **Systems.** A new guide with an entry for every system in the catalogue: who made it, its
+  website, the designer's own files on Printables, MakerWorld or Thangs, its subreddit, the other
+  OpenSCAD libraries and web generators that model it (Perplexing Labs among them), and related
+  projects. It ends with the systems that share a unit: three openGrid cells are two Gridfinity
+  cells (84 mm), BitBeam, LEGO Technic and MOD-GRID are all on 8 mm, Skådis lines up with them
+  every 40 mm, and Gridfinity and SOLDR take the same magnets.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts

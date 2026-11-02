@@ -62,6 +62,8 @@ and `references.yaml` checks the parts against them once they are in `refs/manua
 pin keeps the designer's layout but is reshaped so its legs bend instead of snapping off, and is
 checked to fit the designer's grid.
 Each catalogue entry links its own source; see "Licensing" for what the non-MIT ones mean for you.
+[Systems](docs/SYSTEMS.md) has an entry per system: its designer, website, community, other
+OpenSCAD implementations, and which systems share a unit.
 
 ## Quick start
 
