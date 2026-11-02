@@ -68,6 +68,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   screw, magnet, wood screw or flat) as upstream offers them. Their profiles are upstream's own
   (QuackWorks, CC-BY-NC-SA). Cut cable exits into them on the Holes tab, or fuse a hook or a
   connector onto a top's roof slots or a base's underside on the Bench.
+- **Underware for openGrid.** David D's one-piece channels, whose walls end in grips that snap
+  straight into an openGrid board, with no base: `underware/opengrid_i_channel` and
+  `underware/opengrid_l_channel`, sized in openGrid's 28 mm cells, any length, width and height.
+  They come first in the Underware list. The geometry is Pedro Leite's Monokini (CC-BY-NC-SA),
+  checked against Monokini's scripts and David D's own files. The L's curved wall is solid all the
+  way up, where Monokini's turns into thin slots above about 10 mm.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.
@@ -209,6 +215,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Videos.** The guides can show a video, such as Zack Freedman's Gridfinity introduction or
   David D's openGrid one, under its own thumbnail. It loads from YouTube only when you press
   play.
+
+### Website
+
+- **Part pictures without the white box.** Every part's picture — on the landing page's part
+  cards and hero, in the command palette, and in the README — is cut out on a transparent
+  background with smoothed edges, so the part stands on the dark card instead of in a near-white
+  rectangle. `foundry preview --all` renders them that way (it now needs Pillow, which
+  `pip install -e .` brings).
 
 ## 0.5.0 — 2026-10-28
 

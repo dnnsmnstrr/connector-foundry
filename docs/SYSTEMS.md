@@ -209,19 +209,29 @@ upstream's own channel profiles (`lib/underware.scad`), so the Holes tab can cut
 screw holes into them and the Bench can fuse a hook or a connector onto a top's roof or a base's
 underside. CC BY-NC-SA 4.0, prints included.
 
-- **In the catalogue:** `underware/i_channel_base`, `underware/i_channel_top`,
-  `underware/l_channel_base`, `underware/l_channel_top`. Left out: the junctions (T, X, Y), which
-  need upstream's "channel clear" cuts; the snap connector, which is under
-  [Multiboard](#multiboard)'s licence rather than CC BY-NC-SA.
+David D's Underware for openGrid is the one-piece version for openGrid boards: no base, just a
+channel whose walls end in grips that snap straight into a board's cells, sized in openGrid's
+28 mm cells. It comes first in the Library's Underware list. Its straight and L channels are built
+from Pedro Leite's OpenSCAD version, Monokini (`lib/underware_opengrid.scad`), and checked against
+both Monokini's scripts and David D's own files.
+
+- **In the catalogue:** `underware/opengrid_i_channel`, `underware/opengrid_l_channel` (for
+  openGrid); `underware/i_channel_base`, `underware/i_channel_top`, `underware/l_channel_base`,
+  `underware/l_channel_top` (the original). Left out: the junctions (T, X, Y), which need
+  upstream's "channel clear" cuts; the snap connector, which is under [Multiboard](#multiboard)'s
+  licence rather than CC BY-NC-SA.
 - **Home:** [handsonkatie.com/underware](https://www.handsonkatie.com/underware).
 - **Original files:** [Underware 2.0 on MakerWorld](https://makerworld.com/en/models/783010),
   [Underware for openGrid](https://www.printables.com/model/1214427).
 - **Community:** [Hands on Katie on YouTube](https://www.youtube.com/channel/UCLqQ5m7AXj_oyUvLZPsts0Q),
   [Patreon](https://www.patreon.com/HandsonKatie).
 - **OpenSCAD:** [QuackWorks/Underware](https://github.com/AndyLevesque/QuackWorks/tree/main/Underware)
-  (BlackjackDuck's; vendored here, and every part checked against its script).
-- **In the browser:** Perplexing Labs' Underware for openGrid.
-- **Related:** [openGrid](#opengrid), whose boards the bases snap to.
+  (BlackjackDuck's; vendored here, and every part checked against its script);
+  [Monokini](https://github.com/pleite/Monokini) (Pedro Leite's, for openGrid; vendored here too).
+- **In the browser:** Perplexing Labs' Underware for openGrid;
+  [Underware for openGrid Customizer](https://makerworld.com/en/models/1329404) (Monokini, on
+  MakerWorld).
+- **Related:** [openGrid](#opengrid), whose boards the bases and the openGrid channels snap to.
 
 ## Mounts and clips
 
