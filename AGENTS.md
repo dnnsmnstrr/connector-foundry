@@ -100,6 +100,8 @@ Which ones to add on top of `make check`:
   `#fragment` in the published guides and that the hero's meshes match its pair list
   (`web/tests/unit/build-docs.test.js`, `hero-meshes.test.js`); `npm run test:browser` runs
   `site.spec.js`. Changed a hero part or the pair list: `node scripts/hero-parts.mjs` in `web/`.
+  Added a video to a guide (a paragraph that is only a YouTube link): `node
+  scripts/video-thumbnails.mjs` in `web/`, and commit the thumbnail it writes.
 
 ## Rules that are easy to break
 

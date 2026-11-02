@@ -1,6 +1,7 @@
 // The guides' pages (docs/**, written by scripts/build-docs.mjs): a copy
 // button on each code block, the "On this page" list following the
-// reader, and the guide list folding away on a phone.
+// reader, the guide list folding away on a phone, and videos that load
+// only when played.
 import "./site.css";
 import "./docs.css";
 import { watchHeader } from "./common.js";
@@ -9,6 +10,31 @@ watchHeader();
 copyButtons();
 tocFollowsScroll();
 sidebarToggle();
+playVideos();
+
+// A video is a link until it is clicked (build-docs.mjs's videoFigure()),
+// so reading a guide sends nothing to YouTube; the click swaps in the
+// player from YouTube's no-cookie domain, already playing. A click with a
+// modifier key held still opens YouTube in a new tab, as a link does.
+function playVideos() {
+  for (const link of /** @type {NodeListOf<HTMLAnchorElement>} */ (
+    document.querySelectorAll(".video-link[data-video]")
+  )) {
+    link.addEventListener("click", (event) => {
+      const id = link.dataset.video ?? "";
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !/^[\w-]{11}$/.test(id)) return;
+      event.preventDefault();
+      const player = document.createElement("iframe");
+      player.className = "video-player";
+      player.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`;
+      player.title = link.querySelector(".video-title")?.textContent ?? "Video";
+      player.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      player.allowFullscreen = true;
+      link.replaceWith(player);
+      player.focus();
+    });
+  }
+}
 
 function copyButtons() {
   if (!navigator.clipboard) return;

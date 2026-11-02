@@ -277,7 +277,12 @@ before.
   when one changes. Which guides are published, under what name and in what order is
   `DOC_GROUPS` in that script; the rest of `docs/` (packaging notes, deferred work) is linked on
   GitHub. A link between published guides points at the website's page, any other relative link
-  at the file on GitHub, and headings get GitHub's ids, so a `#fragment` works on both. The
+  at the file on GitHub, and headings get GitHub's ids, so a `#fragment` works on both. A
+  paragraph that is only a YouTube link becomes a video: a play box that `src/site/docs.js` swaps
+  for the player (from youtube-nocookie.com) on a click, so a guide sends nothing to YouTube
+  until then; on GitHub it stays a link. The box shows the video's thumbnail from
+  `docs/img/videos/<id>.webp`, our own committed copy, which `scripts/video-thumbnails.mjs`
+  fetches for a new video (a unit test fails until it has). The
   generated `docs/` folder here is ignored by Git, like `public/`.
 - It puts the shared header and footer (`src/site/partials/`) into every page that has
   `<!-- site:header -->` / `<!-- site:footer -->`, and fills `{{base}}` and `{{repo}}` in links

@@ -312,6 +312,116 @@
   border-radius: 10px;
 }
 
+/* A video (build-docs.mjs's videoFigure()): a play box the player's size
+   until clicked, then the player in its place. */
+.prose .video {
+  margin: 1.5rem 0;
+}
+
+.video-link,
+.video-player {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+/* .prose's own link colour and underline would win over a lone class. */
+.prose .video-link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  padding: 1.1rem 1.25rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, var(--orange-glow), transparent 55%),
+    linear-gradient(180deg, var(--surface-2), var(--bg-raised));
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* The thumbnail fills the box; a 4:3 fallback's letterbox bars are cropped
+   off by the cover fit. The shade over its lower half, stacked above the
+   picture, keeps the title readable on a bright one. */
+.video-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-link:has(.video-thumb)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, transparent 35%, rgb(0 0 0 / 0.88));
+}
+
+.video-title,
+.video-note {
+  position: relative;
+  z-index: 2;
+}
+
+.video-link:has(.video-thumb) .video-title {
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+}
+
+.video-link:has(.video-thumb) .video-note {
+  color: var(--text-2);
+}
+
+.video-play {
+  position: absolute;
+  z-index: 2;
+  top: 42%;
+  left: 50%;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--orange);
+  transform: translate(-50%, -50%);
+  transition: transform 0.2s var(--ease-out);
+}
+
+/* The triangle, nudged right of centre as a play symbol is drawn. */
+.video-play::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 54%;
+  border-style: solid;
+  border-width: 12px 0 12px 20px;
+  border-color: transparent transparent transparent var(--bg);
+  transform: translate(-50%, -50%);
+}
+
+.video-link:hover .video-play,
+.video-link:focus-visible .video-play {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.video-title {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.video-note {
+  color: var(--text-3);
+  font-size: 0.85rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-play {
+    transition: none;
+  }
+}
+
 .prose hr {
   margin: 2.5rem 0;
   border: none;

@@ -23,6 +23,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, "..", "..");
 export const DOCS_SOURCE = path.join(REPO_ROOT, "docs");
 export const DOCS_OUT = path.resolve(__dirname, "..", "docs");
+// A video's thumbnail, <id>.webp, committed like the gallery renders and
+// copied next to the pages (scripts/video-thumbnails.mjs fetches it).
+export const VIDEO_THUMBS = path.join(DOCS_SOURCE, "img", "videos");
 
 // What the website publishes, in the order the sidebar lists it. The rest
 // of docs/ is for people working on the code (MACOS.md, WINDOWS.md,
@@ -127,6 +130,68 @@ function highlight(code, lang) {
 }
 
 /**
+ * The video id of a YouTube watch or share link, or null for any other
+ * href. Only an 11-character id passes: it goes into an embed URL.
+ * @param {string} href
+ * @returns {string | null}
+ */
+export function youtubeId(href) {
+  let url;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www|m)\./, "");
+  const id =
+    host === "youtube.com" && url.pathname === "/watch"
+      ? url.searchParams.get("v")
+      : host === "youtu.be"
+        ? url.pathname.slice(1)
+        : null;
+  return id && /^[\w-]{11}$/.test(id) ? id : null;
+}
+
+// The link token of a paragraph that is nothing but a YouTube link, and
+// its video id; null for any other paragraph.
+function videoLink(tokens) {
+  const [only] = tokens;
+  const id = tokens.length === 1 && only.type === "link" ? youtubeId(only.href) : null;
+  return id ? { id, link: only } : null;
+}
+
+/**
+ * The ids of the videos a guide shows, in order.
+ * @param {string} markdown
+ * @returns {string[]}
+ */
+export function guideVideos(markdown) {
+  return new Marked({ gfm: true })
+    .lexer(markdown)
+    .flatMap((token) => (token.type === "paragraph" ? (videoLink(token.tokens)?.id ?? []) : []));
+}
+
+// A paragraph that is nothing but a YouTube link is a video: a play box
+// the size of the player, which src/site/docs.js swaps for the player on
+// a click. Nothing loads from YouTube before then: the thumbnail is our
+// own copy. Without the script the box is still the link, and on GitHub
+// it stays a plain link.
+function videoFigure(id, href, text) {
+  const thumb = fs.existsSync(path.join(VIDEO_THUMBS, `${id}.webp`))
+    ? `
+    <img class="video-thumb" src="../img/videos/${id}.webp" alt="" loading="lazy" decoding="async">`
+    : "";
+  return `<figure class="video">
+  <a class="video-link" href="${escapeHtml(href)}" data-video="${id}">${thumb}
+    <span class="video-play" aria-hidden="true"></span>
+    <span class="video-title">${text}</span>
+    <span class="video-note">Plays from YouTube</span>
+  </a>
+</figure>
+`;
+}
+
+/**
  * One guide's Markdown as the website's article.
  * @param {string} markdown
  * @returns {{ html: string, title: string, lede: string, toc: { depth: number, id: string, text: string }[] }}
@@ -157,6 +222,11 @@ export function renderGuide(markdown) {
         const resolved = resolveDocLink(href);
         const titleAttr = linkTitle ? ` title="${escapeHtml(linkTitle)}"` : "";
         return `<a href="${escapeHtml(resolved)}"${titleAttr}>${text}</a>`;
+      },
+      paragraph({ tokens }) {
+        const video = videoLink(tokens);
+        if (video) return videoFigure(video.id, video.link.href, this.parser.parseInline(video.link.tokens));
+        return `<p>${this.parser.parseInline(tokens)}</p>\n`;
       },
       image({ href, text }) {
         const src = /^[a-z][a-z0-9+.-]*:/i.test(href)
@@ -346,6 +416,8 @@ export function buildDocs() {
   });
   const index = path.join(DOCS_OUT, "index.html");
   fs.writeFileSync(index, indexPage(guides));
+  if (fs.existsSync(VIDEO_THUMBS))
+    fs.cpSync(VIDEO_THUMBS, path.join(DOCS_OUT, "img", "videos"), { recursive: true });
   return [path.relative(path.resolve(__dirname, ".."), index), ...written];
 }
 

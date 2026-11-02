@@ -143,6 +143,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   cells (84 mm), BitBeam, LEGO Technic and MOD-GRID are all on 8 mm, Skådis lines up with them
   every 40 mm, and Gridfinity and SOLDR take the same magnets.
 
+- **Videos.** The guides can show a video, such as Zack Freedman's Gridfinity introduction or
+  David D's openGrid one, under its own thumbnail. It loads from YouTube only when you press
+  play.
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts
