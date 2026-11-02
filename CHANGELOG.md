@@ -38,6 +38,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   rectangles, any number each way; and `goews/hanger`, the hanger plate every GOEWS accessory
   hangs by, any number of units wide, to fuse onto any part so it hangs on a GOEWS wall. Rebuilt from
   MrExo3D's files and checked against them; CC-BY 4.0, like GOEWS itself.
+- **Underware cable channels.** Hands on Katie and BlackjackDuck's under-desk cable channels:
+  a straight channel and an L corner, each as its base and its snap-on top, sized in 25 mm units,
+  with the top's inside height and the base's mounting (threaded snap, Multiboard or Multipoint
+  screw, magnet, wood screw or flat) as upstream offers them. Their profiles are upstream's own
+  (QuackWorks, CC-BY-NC-SA). Cut cable exits into them on the Holes tab, or fuse a hook or a
+  connector onto a top's roof slots or a base's underside on the Bench.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.

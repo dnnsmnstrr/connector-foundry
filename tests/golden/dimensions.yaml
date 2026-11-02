@@ -807,3 +807,109 @@ soldr/base:
     - 28.8
     - 3.0
     volume_mm3: 4343.9
+underware/i_channel_base:
+  default:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 10236.85
+  flat:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 10714.32
+  magnet:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 10630.57
+  multiboard-screw:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 8807.92
+  multipoint-screw:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 8566.04
+  wide-2x3:
+    bbox:
+    - 50.034
+    - 75.0
+    - 9.63
+    volume_mm3: 13882.03
+  wood-screw:
+    bbox:
+    - 25.034
+    - 100.0
+    - 9.63
+    volume_mm3: 10494.14
+underware/i_channel_top:
+  default:
+    bbox:
+    - 25.034
+    - 100.0
+    - 10.968
+    volume_mm3: 7292.25
+  tall-24:
+    bbox:
+    - 24.784
+    - 100.0
+    - 22.968
+    volume_mm3: 12042.25
+  wide-2x3:
+    bbox:
+    - 49.534
+    - 75.0
+    - 10.968
+    volume_mm3: 9144.19
+underware/l_channel_base:
+  default:
+    bbox:
+    - 50.017
+    - 50.017
+    - 9.63
+    volume_mm3: 7677.63
+  long-2x3:
+    bbox:
+    - 75.017
+    - 100.017
+    - 9.63
+    volume_mm3: 15355.27
+  multiboard-screw:
+    bbox:
+    - 50.017
+    - 50.017
+    - 9.63
+    volume_mm3: 6605.94
+  wide-2:
+    bbox:
+    - 75.017
+    - 75.017
+    - 9.63
+    volume_mm3: 19023.97
+underware/l_channel_top:
+  default:
+    bbox:
+    - 50.017
+    - 50.017
+    - 10.968
+    volume_mm3: 5469.19
+  long-3x2:
+    bbox:
+    - 100.017
+    - 75.017
+    - 10.968
+    volume_mm3: 10938.37
+  tall-18:
+    bbox:
+    - 50.017
+    - 50.017
+    - 16.968
+    volume_mm3: 7269.19
