@@ -103,7 +103,11 @@ browser), but the undo history does not: the first undo after reopening stays wi
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
 staggered half a step, or set to a **standard spacing** — the systems Measure shows, above;
 Gridfinity's lays out a cell's 2 × 2 magnet or screw holes) or a circle (count and radius round the hole's spot, the hole itself moving
-onto the circle or staying in the middle). The copies are previewed in green; any that would miss
+onto the circle or staying in the middle). A row or a grid runs from the hole as its first corner,
+or, with **Centre on this hole**, lies round its spot instead: the hole stays put where a hole of
+the pattern lands on it (the middle of an odd row, or of an odd × odd grid) and otherwise moves to
+the first corner, so a 2 × 2 on a VESA spacing puts a mount's four screws round the point you
+clicked. The copies are previewed in green; any that would miss
 the face — past its edge, into another hole — are left out and counted, and afterwards the whole
 pattern is selected to edit or delete together.
 

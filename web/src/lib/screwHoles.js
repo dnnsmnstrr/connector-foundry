@@ -709,6 +709,11 @@ export function flipHoles(doc, height) {
 //   skadisFill    circle: instead of a ring, every point of a Skådis
 //                 board's pattern (SKADIS_SPACING) within the radius,
 //                 centred on the selected hole, which stays put
+//   centered      row, grid: lay the pattern out round the selected hole's
+//                 spot instead of from it. The hole stays where a point of
+//                 the pattern falls on its spot (the middle of an odd row,
+//                 of an odd × odd grid); otherwise it moves to the
+//                 pattern's first point, as a circle's does onto its ring
 //   standard      grid: the STANDARD_SPACINGS id its spacing was set to,
 //                 or null — only which name the form shows (matchSpacing())
 export const REPEAT_DEFAULTS = Object.freeze({
@@ -724,6 +729,7 @@ export const REPEAT_DEFAULTS = Object.freeze({
   circleCount: 6,
   radius: 15,
   keepCenter: false,
+  centered: false,
   skadisFill: false,
   standard: /** @type {string | null} */ (null),
 });
@@ -898,13 +904,35 @@ export function repeatPoints(hole, options) {
   const at = ([a, b]) => hole.point.map((p, i) => p + ex[i] * a + ey[i] * b);
   let offsets = [];
   let move = null;
-  if (o.pattern === "grid") {
-    const cols = int(o.columns, 1);
-    const rows = int(o.rows, 1);
-    const shift = (j) => (o.stagger && j % 2 ? num(o.spacingAcross) / 2 : 0);
-    for (let j = 0; j < rows; j++)
-      for (let i = 0; i < cols; i++)
-        if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
+  if (o.pattern === "grid" || o.pattern === "row") {
+    // Every point of the pattern, the selected hole's own first, and the
+    // middle of its extent (where a centred one goes).
+    const points = [];
+    let middle = [0, 0];
+    if (o.pattern === "grid") {
+      const cols = int(o.columns, 1);
+      const rows = int(o.rows, 1);
+      const across = num(o.spacingAcross);
+      const staggered = o.stagger && rows > 1;
+      const shift = (j) => (staggered && j % 2 ? across / 2 : 0);
+      for (let j = 0; j < rows; j++)
+        for (let i = 0; i < cols; i++) points.push([i * across + shift(j), j * num(o.spacingUp)]);
+      middle = [
+        ((cols - 1) * across + (staggered ? across / 2 : 0)) / 2,
+        ((rows - 1) * num(o.spacingUp)) / 2,
+      ];
+    } else {
+      const n = int(o.count, 1);
+      const step = num(o.spacing);
+      for (let i = 0; i < n; i++) points.push(o.along === "up" ? [0, i * step] : [i * step, 0]);
+      middle = o.along === "up" ? [0, ((n - 1) * step) / 2] : [((n - 1) * step) / 2, 0];
+    }
+    const placed = o.centered ? points.map(([a, b]) => [a - middle[0], b - middle[1]]) : points;
+    // The selected hole is the point on its own spot, or, with none
+    // there, moves to the first.
+    const own = placed.findIndex(([a, b]) => Math.hypot(a, b) < 1e-9);
+    if (own < 0) move = at(placed[0]);
+    offsets = placed.filter((_, k) => k !== (own < 0 ? 0 : own));
   } else if (o.pattern === "circle" && o.skadisFill) {
     // The checkerboard's points within the radius, nearest first, then
     // round from straight up (as a ring starts), the hole itself on one.
@@ -935,10 +963,6 @@ export function repeatPoints(hole, options) {
       move = at(ring[0]);
       offsets = ring.slice(1);
     }
-  } else {
-    const n = int(o.count, 1);
-    const step = num(o.spacing);
-    for (let i = 1; i < n; i++) offsets.push(o.along === "up" ? [0, i * step] : [i * step, 0]);
   }
   return { copies: offsets.slice(0, REPEAT_MAX_HOLES - 1).map(at), move };
 }

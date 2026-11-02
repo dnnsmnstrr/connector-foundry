@@ -70,6 +70,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Pegboard and VESA.** Hole presets for a US pegboard's 1/4" and 3/16" holes and for VESA
   monitor-mount screws (M4, M6), and their spacings for Measure and Repeat: a US pegboard's inch,
   and the VESA 75, 100, 200 × 100 and 200 patterns, whose 2 × 2 Repeat is a mount's four screws.
+- **Repeat round a hole.** A Repeat row or grid can be centred on the selected hole instead of
+  starting from it: **Centre on this hole** lays the pattern out round the hole's spot, keeping the
+  hole in the middle when the pattern has one there.
 
 ### Library
 

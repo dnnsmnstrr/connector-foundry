@@ -1260,6 +1260,53 @@ test("repeat: a row, a grid and a circle on the hole's face, in the face's own a
   );
 });
 
+test("repeat: a centred row or grid lies round the hole's spot, keeping the hole where one lands on it", () => {
+  // On the top face: across is +X, up is +Y.
+  const { doc, hole } = addHole(plateDoc(), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("m3-cap").spec,
+  });
+  const points = (options) =>
+    repeatHole(doc, hole.id, { ...options, centered: true }).doc.holes.map((h) => h.point);
+  // An odd row has its middle on the spot: the hole stays there.
+  assert.deepEqual(points({ pattern: "row", count: 3, spacing: 10 }), [
+    [0, 0, 4],
+    [-10, 0, 4],
+    [10, 0, 4],
+  ]);
+  // An even one has none: the hole moves to its first point.
+  assert.deepEqual(points({ pattern: "row", count: 2, spacing: 10, along: "up" }), [
+    [0, -5, 4],
+    [0, 5, 4],
+  ]);
+  // A 3 x 3 grid keeps the hole in its middle; a 2 x 2 one, a VESA mount's
+  // four screws round the spot, moves it to a corner.
+  const nine = points({ pattern: "grid", columns: 3, rows: 3, spacingAcross: 10, spacingUp: 5 });
+  assert.equal(nine.length, 9);
+  assert.deepEqual(nine[0], [0, 0, 4]);
+  assert.deepEqual(nine.slice(1, 3), [
+    [-10, -5, 4],
+    [0, -5, 4],
+  ]);
+  assert.deepEqual(points({ pattern: "grid", columns: 2, rows: 2, spacingAcross: 100, spacingUp: 100 }), [
+    [-50, -50, 4],
+    [50, -50, 4],
+    [-50, 50, 4],
+    [50, 50, 4],
+  ]);
+  // A staggered grid is centred on its extent, the shifted rows included.
+  assert.deepEqual(
+    points({ pattern: "grid", columns: 2, rows: 2, spacingAcross: 40, spacingUp: 20, stagger: true }),
+    [
+      [-30, -10, 4],
+      [10, -10, 4],
+      [-10, 10, 4],
+      [30, 10, 4],
+    ],
+  );
+});
+
 test("repeat: copies off the model, or on a hole already there, are skipped", () => {
   let { doc, hole } = addHole(plateDoc(), { point: [0, 0, 4], normal: [0, 0, 1] });
   ({ doc } = addHole(doc, { point: [20, 0, 4], normal: [0, 0, 1] }));
