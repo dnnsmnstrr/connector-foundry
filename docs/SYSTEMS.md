@@ -138,6 +138,32 @@ measurements, so a part of ours screws into a tile and a hole of ours takes Mult
   [mb-tile-generator](https://github.com/slynn1324/mb-tile-generator).
 - **In the browser:** Perplexing Labs' Multiboard hexgrid.
 
+### GOEWS
+
+The Greatly Over Engineered Wall System, by MrExo3D: tiles screwed straight to the wall, hexagonal
+cells 42 mm across their flats (each row 36.373 mm above the last and half a cell over) or GOEWS
+GRID's 42 × 36.373 mm rectangles, with no inserts or tile connectors. Every cell has a window; an
+accessory's hanger plate drops into it onto 45° cleats, and an optional M14 × 2 bolt through the
+plate locks it. Built on [Gridfinity's 42 mm](#goews-and-gridfinity-42-mm-across), so its shelves
+take Gridfinity bins. CC BY 4.0, with commercial use explicitly allowed.
+
+- **In the catalogue:** `goews/tile` (hex or grid, any number of cells each way) and
+  `goews/hanger` (the hanger plate, any number of units wide, to fuse onto any part so it hangs on a
+  GOEWS wall), rebuilt from the designer's STLs and checked against them.
+- **Home:** [goews.ws](https://goews.ws/), with a [Part Builder](https://build.goews.ws/) and
+  [Anything GOEWS](https://anything.goews.ws/), which turns any STL into a GOEWS accessory.
+- **Original files:**
+  [Printables](https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system),
+  [MakerWorld](https://makerworld.com/en/models/829453-goews-greatly-over-engineered-wall-system).
+- **Community:** [r/GOEWS](https://www.reddit.com/r/GOEWS/), [lemmy.ca/c/GOEWS](https://lemmy.ca/c/GOEWS/).
+- **OpenSCAD:** jimfunk's [goews-rebuilt-openscad](https://github.com/jimfunk/goews-rebuilt-openscad)
+  (no licence file on GitHub; its
+  [Printables copy](https://www.printables.com/model/1183799-goews-rebuilt-in-openscad) is CC BY),
+  which adds a "thicker cleats" variant that doesn't fit the original.
+- **Related:** joncruz's [GOEWS in FreeCAD](https://www.printables.com/model/1196368-goews-in-freecad),
+  and [GOEWS Square – 42H Legacy](https://www.printables.com/model/1093740-goews-square-42h-legacy),
+  a square variant on 42 mm both ways.
+
 ### Honeycomb Storage Wall
 
 A wall of hexagonal cells, 20 mm across their openings, that inserts clip into from the front.
@@ -317,6 +343,7 @@ adapter. Their grids, in millimetres:
 | --- | --- | --- |
 | [Gridfinity](#gridfinity) | 42 × 42 cells, 7 high | 7 mm (6 × 7 across, 1 × 7 up) |
 | [openGrid](#opengrid) | 28 × 28 cells | 7 mm (4 × 7) |
+| [GOEWS](#goews) | 42 across, rows 36.373 up (42 · √3/2) | Gridfinity's 42 mm, across only |
 | [BitBeam](#bitbeam) and LEGO Technic | 8 mm pitch, Ø4.8 round holes | 8 mm |
 | [MOD-GRID](#mod-grid) | 8 mm pitch, 5 mm square holes | 8 mm |
 | [Skådis](#skådis) | slots 40 apart along a row, rows 20 apart | 20 mm |
@@ -333,6 +360,14 @@ of 7 mm, Gridfinity's height unit (28 = 4 × 7, 42 = 6 × 7), so they meet every
 Gridfinity baseplate an even number of cells wide covers a whole number of openGrid cells, and
 so lines up with the board's cells behind it. openGrid's documentation lists Gridfinity among the
 systems it is compatible with, and David D's intro video has a chapter on it.
+
+### GOEWS and Gridfinity: 42 mm across
+
+**GOEWS is Gridfinity's 42 mm across:** one cell per Gridfinity cell, so a GOEWS shelf takes
+Gridfinity bins. Not up the wall: a hex tile's rows are 42 · √3/2 = 36.373 mm apart, and GOEWS
+GRID keeps those rows; only the "42H Legacy" square variant is 42 mm both ways. It has no use for
+Gridfinity's 7 mm height unit (a tile is 6 mm thick). Across, it meets openGrid every 84 mm as
+Gridfinity does (three openGrid cells, two GOEWS cells); up, its rows never meet openGrid's.
 
 ### BitBeam, LEGO Technic and MOD-GRID: 8 mm
 
