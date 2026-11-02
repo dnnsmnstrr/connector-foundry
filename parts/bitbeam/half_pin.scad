@@ -12,8 +12,7 @@ $fs = DETAIL_FS;
 module bitbeam_half_pin(length = 1, friction = true, anchor = BOTTOM, spin = 0, orient = UP) {
     assert(length >= 0.5, "bitbeam_half_pin: length must be at least half a BitBeam unit");
     len = length * BITBEAM_UNIT;
-    dia = friction ? BITBEAM_PIN_WIDE_DIA : BITBEAM_PIN_NARROW_DIA;
-    size = [dia, dia, len];
+    size = bitbeam_pin_size(len, friction);
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(len / 2)]) {
         translate([0, 0, -len / 2]) bitbeam_pin_geometry(len, false, friction);
