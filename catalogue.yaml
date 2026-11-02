@@ -807,6 +807,93 @@ parts:
       - name: rect
         params: { base: rect }
 
+  # GOEWS (MrExo3D, CC-BY 4.0 — see README "Licensing"): rebuilt from the
+  # designer's STLs, not imported (lib/goews.scad). references.yaml checks
+  # each part against those files, which Printables hands out without a
+  # login but nothing here fetches: download them and drop them in
+  # refs/manual/goews/ for those checks to run.
+  - id: goews/tile
+    system: GOEWS
+    name: Tile
+    file: parts/goews/tile.scad
+    module: goews_tile
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D, Printables model 1090032 — rebuilt from the
+      designer's single hex tile and 3x3 GOEWS GRID tile STLs, measured,
+      and checked against them. CC-BY 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system
+    keywords: [wall, hex, goews grid, gridfinity, cleat]
+    print_note: >-
+      Print it back down (turned over from how it renders), no supports.
+      hex is the designer's hex tile, 42mm across each cell's flats, every
+      other row half a cell over; grid is GOEWS GRID, 42 x 36.373mm cells.
+      Every cell has a window a hanger plate hangs in, an M14 x 2 thread
+      above it for the bolt that locks the plate, and a countersunk hole
+      for a 4mm wall screw below it (two on grid). "mount" is the back,
+      against the wall.
+    anchors: [bot]
+    # parts/goews/tile.scad asserts both at least 1.
+    minimums:
+      cols: 1
+      rows: 1
+    defaults:
+      style: hex
+      cols: 2
+      rows: 2
+    options:
+      style: [hex, grid]
+    # A cell per 42mm across and a row per 42 x sqrt(3) / 2 up. A hex
+    # tile's second row is half a cell over and adds 21mm to X, so the
+    # handle keeps two rows (on either style, one entry per axis): below
+    # that, Y would move X. The threads are most of the work: a hex 4 x 4
+    # renders in 6.9s in openscad-wasm, 6 x 6 in 12.8s (4.2s natively).
+    resize:
+      x: { param: cols, per: 42, step: 1, max: 4 }
+      y: { param: rows, per: 36.3731, step: 1, min: 2, max: 4 }
+    variants:
+      - name: grid
+        params: { style: grid }
+      - name: hex-3x3
+        params: { cols: 3, rows: 3 }
+
+  - id: goews/hanger
+    system: GOEWS
+    name: Hanger plate
+    file: parts/goews/hanger.scad
+    module: goews_hanger
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D, Printables model 1090032 — rebuilt from the
+      designer's 2x and 3x hanging plate blank STLs, measured, and checked
+      against them and in the tile. CC-BY 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system
+    keywords: [hanging plate, hook, cleat, wall]
+    print_note: >-
+      The plate every GOEWS accessory hangs by, for fusing onto any part so
+      it hangs on a GOEWS tile; "mount" is the plate's front, the hangers'
+      flat bottom edge down. units puts that many hangers side by side, one
+      per cell of a row; plate is the plate's thickness (3). Push a hanger
+      into the top of a cell's window and drop it onto the cleats; a GOEWS
+      bolt through the notch above it locks it there. Print it on its side,
+      a long edge on the bed, so the layers run along the hangers.
+    attached_up: [0, 1]
+    # parts/goews/hanger.scad asserts both.
+    minimums:
+      units: 1
+      plate: 1
+    defaults:
+      units: 1
+      plate: 3
+    # A hanger per 42mm. 6 units render in 0.4s in openscad-wasm.
+    resize:
+      x: { param: units, per: 42, step: 1, max: 6 }
+    variants:
+      - name: three-units
+        params: { units: 3 }
+
   - id: skadis/board
     system: Skådis
     name: Board
