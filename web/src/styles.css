@@ -1347,8 +1347,11 @@ a.mode-tab {
   position: static;
 }
 
-/* The secondary action: outlined, like the header's "Open in Bench". */
-.layerling-button {
+/* The secondary action: outlined, like the header's "Open in Bench". A
+   view has one filled button, its main way out (Download STL, or Print…
+   on a phone); every other action beside it is outlined. */
+.layerling-button,
+.secondary-button {
   background: transparent;
   border: 1px solid #3a5aa0;
   color: #9db4e8;
@@ -1479,10 +1482,22 @@ a.mode-tab {
   }
 }
 
-.bench-reset {
-  width: 100%;
-  margin-top: 0.75rem;
-  background: #2a2b2e;
+/* Start over (Bench) and Pick another model (Holes): a quiet text button
+   under the name, not a full-width one. Start over throws the bench away
+   (Undo brings it back), so it shouldn't be the loudest thing in the
+   sidebar. */
+.render-button.bench-reset {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0;
+  background: transparent;
+  color: #9db4e8;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.render-button.bench-reset:hover {
+  text-decoration: underline;
 }
 
 .bench-child-list {
@@ -3658,8 +3673,9 @@ a.bench-modal-header-button {
    phone (36 % of it visible in portrait, none in landscape), and a
    finger on the canvas orbits rather than scrolls, so there was no way
    past it but the header. Up to 900 px wide: an iPad in portrait (768-
-   834 px) got the desktop layout with a 290 px viewer; 600-900 px get
-   the form beside the viewer (below). The nav and the column keep
+   834 px) got the desktop layout with a 290 px viewer. The Library's
+   form is in the drawer at every width here (.library-tabbed, below).
+   The nav and the column keep
    clear of a notch and the home indicator (env(); the page is laid out
    under them by viewport-fit=cover, which Safari would otherwise inset
    itself).
@@ -3851,6 +3867,25 @@ a.bench-modal-header-button {
 
   :root:not(.desktop) .sidebar-toggle-text {
     display: inline;
+  }
+
+  /* With tabs under it (SidebarToggle.jsx), the handle is only its grip:
+     the tabs say what the sheet holds, and they sit right under it, closed
+     or open, pinned there while the panel scrolls. */
+  :root:not(.desktop) .sidebar-toggle.has-tabs {
+    height: 1.5rem;
+    margin-bottom: 0;
+  }
+
+  :root:not(.desktop) .sidebar-toggle.has-tabs .sidebar-toggle-text {
+    display: none;
+  }
+
+  /* The row drags the sheet as the grip does (SidebarToggle.jsx): the
+     browser mustn't scroll or zoom from it instead. */
+  :root:not(.desktop) .sidebar-toggle.has-tabs + .drawer-tabs {
+    top: 1.5rem;
+    touch-action: none;
   }
 
   :root:not(.desktop) .system-group h2 {
@@ -4078,33 +4113,6 @@ a.bench-modal-header-button {
   .undo-redo-button {
     width: 44px;
     height: 44px;
-  }
-}
-
-/* ---------------------------------------------------------------------
-   Tablets in portrait (600-900 px; the stacked layout above applies):
-   the Library's form beside its viewer, both the viewer's height, under
-   the header and above the part list. An iPad mini got a 680 px viewer
-   with the form 280 px below the fold; an iPad the desktop layout's
-   290 px viewer. The Bench and Holes have no form in the grid, so the
-   viewer fills the row there as before.
-   ------------------------------------------------------------------- */
-@media (max-width: 900px) and (min-width: 600px) {
-  :root:not(.desktop) .workspace-body {
-    display: grid;
-    grid-template-columns: minmax(200px, 38%) minmax(0, 1fr);
-  }
-
-  :root:not(.desktop) .params-panel {
-    border-top: none;
-    border-right: 1px solid #2a2b2e;
-    overflow-y: auto;
-    max-height: 60vh;
-    max-height: 60svh;
-  }
-
-  :root:not(.desktop) .workspace-body > .viewer-panel {
-    order: 0;
   }
 }
 
@@ -4626,6 +4634,9 @@ a.bench-modal-header-button {
    sidebar beside it. */
 .find-part-button {
   display: none;
+  background: transparent;
+  border: 1px solid #3a5aa0;
+  color: #9db4e8;
 }
 
 @media (max-width: 900px) {
@@ -4676,15 +4687,16 @@ a.bench-modal-header-button {
 }
 
 /* ---------------------------------------------------------------------
-   The Library on a phone (under 600 px; Library.jsx, lib/drawer.js's
-   DRAWER_TABS_QUERY): the parameter form is in the drawer too, on a tab
+   The Library on a phone or a tablet (the narrow layout; Library.jsx,
+   lib/drawer.js): the parameter form is in the drawer too, on a tab
    beside the part list (components/DrawerTabs.jsx), and the view runs from
    the header to the foot of the screen, as the Bench's does, its buttons
-   kept clear of the drawer. A tablet keeps its form beside the view.
+   kept clear of the drawer.
    ------------------------------------------------------------------- */
 .drawer-tabs {
-  /* Under the handle while the panel scrolls; the ring of the sheet's
-     colour covers what scrolls through the gap around it. */
+  /* Under the handle's grip, closed or open, and pinned there while the
+     panel scrolls; the ring of the sheet's colour covers what scrolls
+     through the gap around it. */
   position: sticky;
   top: var(--drawer-handle, 0);
   z-index: 1;
@@ -4737,7 +4749,7 @@ a.bench-modal-header-button {
   margin-top: 0.6rem;
 }
 
-@media (max-width: 599.98px) {
+@media (max-width: 900px) {
   :root:not(.desktop) .app.library-tabbed {
     height: 100%;
     padding-bottom: 0;

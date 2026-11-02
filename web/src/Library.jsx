@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import DrawerTabs from "./components/DrawerTabs.jsx";
+import { DrawerTabPanel } from "./components/DrawerTabs.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import PartBrowser from "./components/PartBrowser.jsx";
 import PrintSheet from "./components/PrintSheet.jsx";
@@ -17,7 +17,7 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useLibraryHistory } from "./hooks/useLibraryHistory.js";
 import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommands } from "./hooks/useCommands.js";
-import { useDrawerLayout, useDrawerTab, useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { useDrawerLayout, useDrawerTab } from "./hooks/useDrawerLayout.js";
 import { setDrawerTab } from "./lib/drawer.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
@@ -114,8 +114,8 @@ function ghostFor(handle, axes, box) {
 // edits) that were showing, not to the first part in the catalogue.
 // `onFindPart()` is the shell's part search (the `/` key): on a phone the
 // part list is in the bottom drawer, so the header's "Find a part" button
-// (shown in the narrow layout only) opens it there. Under a phone's 600 px
-// the drawer holds the parameter form too, on a tab beside the part list
+// (shown in the narrow layout only) opens it there. The drawer holds the
+// parameter form too, on a tab beside the part list
 // (components/DrawerTabs.jsx), and the view runs to the foot of the
 // screen; a part picked from the list turns to its parameters.
 //
@@ -163,8 +163,8 @@ export default function Library({
   const globalOverrides = useGlobalOverrides();
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
-  // On a phone the form is in the drawer, on a tab beside the part list.
-  const tabbed = useDrawerTabsLayout();
+  // On a phone or a tablet the form is in the drawer, on a tab beside the
+  // part list.
   const drawer = useDrawerLayout();
   const drawerTab = useDrawerTab();
 
@@ -472,7 +472,7 @@ export default function Library({
         }),
       selected && builtin("library.layerling", { disabled: waiting, run: copyToLayerling }),
       selected &&
-        tabbed &&
+        drawer &&
         builtin("library.parameters", {
           when: sidebarCollapsed || drawerTab !== "params",
           run: showParameters,
@@ -502,7 +502,7 @@ export default function Library({
     if (sidebarCollapsed) onToggleSidebar();
   }
 
-  // A part picked in the phone's drawer: its parameters next, in the same
+  // A part picked in the drawer: its parameters next, in the same
   // drawer, while the view above renders it.
   function pickInDrawer(part) {
     select(part);
@@ -539,40 +539,47 @@ export default function Library({
         )}
       </p>
       {/* In the drawer it would be out of sight: the header has it there. */}
-      {renderError && !tabbed && (
+      {renderError && !drawer && (
         <p className="error-text" role="alert">
           {renderError}
         </p>
       )}
-      {!tabbed && retryButton}
+      {!drawer && retryButton}
     </div>
   );
-  const classes = ["app", sidebarCollapsed && "sidebar-collapsed", tabbed && "library-tabbed"];
+  const classes = ["app", sidebarCollapsed && "sidebar-collapsed", drawer && "library-tabbed"];
+  // In the narrow layout, with a part open, the drawer's two tabs, on its handle.
+  const drawerTabs =
+    drawer && selected
+      ? {
+          id: "library-drawer",
+          label: "Part",
+          tabs: [
+            { id: "params", label: "Parameters" },
+            { id: "parts", label: "Parts" },
+          ],
+          selected: drawerTab,
+          onSelect: (/** @type {string} */ id) => setDrawerTab(id === "parts" ? "parts" : "params"),
+        }
+      : undefined;
   return (
     <div className={classes.filter(Boolean).join(" ")}>
       <aside className="sidebar">
         <SidebarToggle
           collapsed={sidebarCollapsed}
           onToggle={onToggleSidebar}
-          title={tabbed ? "Parameters and parts" : "Part list"}
+          title={drawer ? "Parameters and parts" : "Part list"}
+          tabs={drawerTabs}
         />
         {!sidebarCollapsed &&
-          (tabbed && selected ? (
-            <DrawerTabs
-              label="Part"
-              tabs={[
-                { id: "params", label: "Parameters" },
-                { id: "parts", label: "Parts" },
-              ]}
-              selected={drawerTab}
-              onSelect={(id) => setDrawerTab(id === "parts" ? "parts" : "params")}
-            >
+          (drawerTabs ? (
+            <DrawerTabPanel id={drawerTabs.id} selected={drawerTab}>
               {drawerTab === "params" ? (
                 paramsPanel
               ) : (
                 <PartBrowser parts={parts} activeId={selectedId} onPick={pickInDrawer} />
               )}
-            </DrawerTabs>
+            </DrawerTabPanel>
           ) : (
             <PartBrowser parts={parts} activeId={selectedId} onPick={select} />
           ))}
@@ -614,12 +621,12 @@ export default function Library({
                 )}
                 {/* On a phone the form, and the error under it, are in the
                     drawer: the error is here instead, in sight. */}
-                {renderError && tabbed && (
+                {renderError && drawer && (
                   <p className="error-text library-header-error" role="alert">
                     {renderError}
                   </p>
                 )}
-                {tabbed && retryButton}
+                {drawer && retryButton}
               </div>
               <div className="part-header-actions">
                 <button type="button" className="render-button find-part-button" onClick={onFindPart}>
@@ -645,7 +652,7 @@ export default function Library({
             </header>
 
             <div className="workspace-body">
-              {!tabbed && paramsPanel}
+              {!drawer && paramsPanel}
 
               <div className="viewer-panel">
                 {stlBuffer ? (

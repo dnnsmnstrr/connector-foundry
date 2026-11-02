@@ -11,7 +11,7 @@ import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
-import DrawerTabs from "./components/DrawerTabs.jsx";
+import { DrawerTabPanel } from "./components/DrawerTabs.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
@@ -25,7 +25,7 @@ import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
-import { useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { useDrawerLayout } from "./hooks/useDrawerLayout.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -246,11 +246,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [measureOn, setMeasureOn] = useState(false);
   const measuring = altHeld || measureOn;
   const coarse = hasCoarsePointer();
-  // On a phone (lib/drawer.js's DRAWER_TABS_QUERY) the drawer has two tabs
+  // In the narrow layout (lib/drawer.js) the drawer has two tabs
   // as the Library's does: the hole being edited, the list and the export
   // on one, the hole types on the other, which on one long page pushed
   // everything after them a screen down.
-  const tabbed = useDrawerTabsLayout();
+  const tabbed = useDrawerLayout();
   const [drawerTab, setDrawerTab] = useState(/** @type {"holes" | "types"} */ ("holes"));
   const [measurePoint, setMeasurePoint] = useState(null);
   // The system spacing Measure shows round the selected hole (from the
@@ -1777,24 +1777,30 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           collapsed={sidebarCollapsed}
           onToggle={onToggleSidebar}
           title={tabbed ? "Holes and hole types" : "Hole list"}
+          tabs={
+            tabbed
+              ? {
+                  id: "holes-drawer",
+                  label: "Holes",
+                  tabs: [
+                    { id: "holes", label: "Holes" },
+                    { id: "types", label: "Hole types" },
+                  ],
+                  selected: drawerTab,
+                  onSelect: (id) => setDrawerTab(id === "types" ? "types" : "holes"),
+                }
+              : undefined
+          }
         />
         {!sidebarCollapsed &&
           (tabbed ? (
-            <DrawerTabs
-              label="Holes"
-              tabs={[
-                { id: "holes", label: "Holes" },
-                { id: "types", label: "Hole types" },
-              ]}
-              selected={drawerTab}
-              onSelect={(id) => setDrawerTab(id === "types" ? "types" : "holes")}
-            >
+            <DrawerTabPanel id="holes-drawer" selected={drawerTab}>
               {drawerTab === "types" ? (
                 <PresetPicker value={editingPresetId} onPick={pickPresetInDrawer} />
               ) : (
                 holesPanel
               )}
-            </DrawerTabs>
+            </DrawerTabPanel>
           ) : (
             holesPanel
           ))}

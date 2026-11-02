@@ -271,12 +271,12 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
   await expect(download).toBeEnabled();
   // An edit starts a render by itself (once the edits pause), with no
   // Render click and no "out of date" note; until it lands, no download.
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect(download).toBeDisabled();
   await expect(page.getByText(/out of date/)).toHaveCount(0);
   await expect.poll(() => jobCount(page)).toBe(2);
   // Another edit while it runs cancels it and queues the new values.
-  await page.getByRole("spinbutton", { name: /w/ }).first().fill("60");
+  await page.getByRole("spinbutton", { name: /Width/ }).first().fill("60");
   expect(await page.evaluate(() => window.__renders.jobs[1].worker.terminated)).toBe(true);
   await finish(page, 1); // a late message from the terminated worker
   await expect(download).toBeDisabled();
@@ -284,7 +284,7 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
   await finish(page, 2);
   await expect(download).toBeEnabled();
   // Quick successive edits are one render, not one per keystroke.
-  const field = page.getByRole("spinbutton", { name: /w/ }).first();
+  const field = page.getByRole("spinbutton", { name: /Width/ }).first();
   await field.fill("6");
   await field.fill("61");
   await field.fill("612");
@@ -398,7 +398,7 @@ test("Bench edits keep explicit exports while discarding the obsolete preview", 
   const exported = page.waitForEvent("download");
   await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
   await page.getByText("Base parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect.poll(() => jobCount(page)).toBe(2); // export survives the edit
   expect(await page.evaluate(() => window.__renders.jobs[0].worker.terminated)).toBe(true);
   expect(await page.evaluate(() => window.__renders.jobs[1].request.part)).toBe("root");
@@ -423,12 +423,12 @@ test("Bench state survives mode switches and URL reload", async ({ page }) => {
   // without the name prompt a fresh bench shows first.
   await page.getByRole("textbox", { name: "Name", exact: true }).fill("kept");
   await page.getByText("Base parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("57");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("57");
   await expect(page).toHaveURL(/bench=/);
   await page.getByTitle("Library (1)").click();
   await page.getByTitle("Bench (2)").click();
   await page.getByText("Base parameters", { exact: true }).click();
-  await expect(page.getByRole("spinbutton", { name: /w/ }).first()).toHaveValue("57");
+  await expect(page.getByRole("spinbutton", { name: /Width/ }).first()).toHaveValue("57");
   // Read the config after reload too, so a stale URL mirror cannot hide
   // behind the still-live session store.
   await page.reload();

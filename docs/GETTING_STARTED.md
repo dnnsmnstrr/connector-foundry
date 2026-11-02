@@ -22,8 +22,8 @@ render in a second or two on a computer, a few seconds on a phone.
 On a phone or tablet the 3D view comes first. The part list (and on the Bench and Holes tabs,
 everything that is in the sidebar on a computer) is a drawer at the bottom of the screen: tap its
 handle to open it, or drag the handle to pull it up or push it down (**Find a part** opens it at its
-search). On a phone the part's settings are in the drawer too, on a **Parameters** tab beside the
-**Parts** list; on a tablet they sit beside the view. Drag with one finger to turn the view, pinch to zoom, and tap a handle
+search). The part's settings are in the drawer too, on a **Parameters** tab beside the **Parts**
+list; the tabs show on the closed drawer, and tapping one opens the drawer on it. Drag with one finger to turn the view, pinch to zoom, and tap a handle
 to type a size.
 
 **Install it like an app.** Settings → **Install the app** (or the command palette's) adds it to
@@ -54,7 +54,7 @@ The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
    value you changed, and the ↺ beside it puts that one back; **Reset all** puts every
    one back. Most parts can also be resized in the 3D view: drag one of the small square handles, as in
    TinkerCAD. An outline shows the new size before you let go, with a label such as
-   "W 126 mm · gx 3", and the part renders once you do. Parts on a grid grow in the grid's own
+   "W 126 mm · 3 cells", and the part renders once you do. Parts on a grid grow in the grid's own
    steps — a Gridfinity unit is 42 mm. To type an exact size instead, click a handle.
 3. **Check the outside dimensions** under the part's name: width, height and depth in millimetres, as
    rendered.
@@ -111,8 +111,8 @@ The Bench builds one part out of several:
 
 1. **Choose a base part** (or **Open in Bench** from the Library, which brings its parameters along).
 2. **Click a green slot marker** on it. A picker opens over the scene: pick the part to attach, and the
-   joint beside the search — **fused** into one body, **bolted** with heat-set inserts, **snap**,
-   **pin** or **screwed**. [Joints](JOINTS.md) explains each one.
+   joint beside the search — **Fused** into one piece, **Bolted** with heat-set inserts,
+   **Snap-fit**, **Pinned** or **Screwed**. [Joints](JOINTS.md) explains each one.
 3. **Adjust the attached part** in the sidebar: its own parameters, an offset, a shift across the slot,
    a rotation. Click it in the scene to turn it in 90° steps, move it to another slot (`M`), or delete
    it.

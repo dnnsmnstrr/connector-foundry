@@ -26,6 +26,7 @@ REQUIRED_KEYS = {"id", "name", "file", "module", "system", "confidence", "source
 # web/src + web/scripts (grep for part.<field>).
 KNOWN_KEYS = REQUIRED_KEYS | {
     "keywords",
+    "labels",
     "anchors",
     "attached_defaults",
     "attached_up",
@@ -178,6 +179,22 @@ def test_variants_are_well_formed():
         duplicates = sorted({n for n in names if names.count(n) > 1})
         if duplicates:
             problems.append(f"{part['id']}: duplicate variant names {duplicates}")
+    assert not problems, "\n".join(problems)
+
+
+def test_labels_name_parameters_in_words():
+    problems = []
+    for part in _parts():
+        labels = part.get("labels", {})
+        if not isinstance(labels, dict):
+            problems.append(f"{part['id']}: labels must be a map")
+            continue
+        defaults = part.get("defaults", {})
+        for key, label in labels.items():
+            if key not in defaults:
+                problems.append(f"{part['id']}: labels.{key} is not a parameter with a default")
+            if not isinstance(label, str) or not label.strip():
+                problems.append(f"{part['id']}: labels.{key} must be a non-empty string")
     assert not problems, "\n".join(problems)
 
 

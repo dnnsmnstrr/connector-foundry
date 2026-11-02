@@ -404,7 +404,7 @@ test("attaching a part: the picker over the scene, with its joint beside the sea
   await expect(page.getByRole("heading", { name: "Attach a part to…" })).toBeVisible();
   await expect(rows(page)).toHaveCount(4);
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: /^Attach to mount_/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Attach to (Centre|.+ of centre)$/ })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(1);
   await page.getByRole("combobox", { name: "Joint" }).selectOption("bolted");
   await page.getByRole("combobox", { name: "Search parts" }).fill("plate");
@@ -421,10 +421,10 @@ test("attaching a part: the picker over the scene, with its joint beside the sea
   await commandSearch(page).fill("attach");
   await expect(rows(page).first()).toHaveAccessibleName("Attach a part…");
   await page.keyboard.press("Enter");
-  const mountRows = palette(page).getByRole("option", { name: /^mount_/ });
+  const mountRows = palette(page).getByRole("option", { name: /^(Centre|.+ of centre)/ });
   await expect(mountRows).toHaveCount(3);
   await mountRows.first().click();
-  await expect(page.getByRole("heading", { name: /^Attach to mount_/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Attach to (Centre|.+ of centre)$/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(palette(page)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Attached (1 of 3)" })).toBeVisible();
@@ -621,7 +621,7 @@ test("a model dropped on the attach picker is imported to attach on that slot", 
   await expect(rows(page).first()).toHaveAccessibleName("Attach a part…");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: /^Attach to mount_/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Attach to (Centre|.+ of centre)$/ })).toBeVisible();
   const dragged = await dropModel(page, palette(page));
   await expect(palette(page).locator(".command-palette-drop")).toHaveText(
     "Drop to import it and attach it here",

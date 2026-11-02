@@ -121,6 +121,7 @@ import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib
 import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
 import { askConfirm } from "./lib/confirm.js";
+import { slotLabel } from "./lib/labels.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -1566,7 +1567,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               const target = parseMarkerId(marker.id);
               return {
                 id: `bench.attachAt:${marker.id}`,
-                title: target.slotName,
+                title: slotLabel(target.slotName),
+                keywords: [target.slotName],
                 subtitle: target.parentId === ROOT_ID ? rootPart?.name : `on ${nodeName(target.parentId)}`,
                 section: "Open slots",
                 actions: [
@@ -2004,7 +2006,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               ))}
               <button
                 type="button"
-                className="download-button bench-export-button"
+                className="download-button bench-export-button secondary-button"
                 onClick={downloadConfig}
                 title="Save this bench as a file, imported meshes included, to open again later"
               >
@@ -2212,7 +2214,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           className="command-palette-side"
           page={{
             id: "bench-attach",
-            title: `Attach to ${pendingSlot.slotName}${pendingSlot.parentId !== ROOT_ID ? ` on ${pendingParentPart.name}` : ""}`,
+            title: `Attach to ${slotLabel(pendingSlot.slotName)}${pendingSlot.parentId !== ROOT_ID ? ` on ${pendingParentPart.name}` : ""}`,
             searchLabel: "Search parts",
             placeholder: "Search parts…",
             accessory: (

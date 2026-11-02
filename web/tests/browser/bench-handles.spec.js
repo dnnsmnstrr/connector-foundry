@@ -206,7 +206,7 @@ test("the root is selected from the sidebar or the scene, and shows its handles"
   await page.locator(".viewer-canvas canvas").click({ position: await canvasMiddle(page) });
   await expect(selectRoot(page)).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('details[data-node-params="root"]')).toHaveAttribute("open", "");
-  await expect(page.getByRole("spinbutton", { name: "cells_x", exact: true })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Cells X", exact: true })).toBeVisible();
 
   // An attached part with `resize` has handles of its own, and its pill
   // docks at the foot of the viewer rather than floating over its top
@@ -654,10 +654,10 @@ test("dragging an attached part's handle commits one change to that part, undone
   await expect(page.locator(".viewer-drag-label")).toBeHidden();
 
   // The sidebar has it, the selection stayed, and one undo takes it back.
-  await expect(await childField(page, "w")).toHaveValue(String(committed));
+  await expect(await childField(page, "Width")).toHaveValue(String(committed));
   await expect(page.locator(".viewer-overlay-docked .bench-rotate-panel")).toContainText("Flat plate");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(await childField(page, "w")).toHaveValue("20");
+  await expect(await childField(page, "Width")).toHaveValue("20");
   await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "20");
   expect(await jobCount(page)).toBe(5);
   expect(errors).toEqual([]);
@@ -683,7 +683,7 @@ test("an attached part's handles step with the arrows and take a typed size", as
   await size.fill("25");
   await page.keyboard.press("Enter");
   await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "35");
-  await expect(await childField(page, "w")).toHaveValue("35");
+  await expect(await childField(page, "Width")).toHaveValue("35");
 });
 
 test("a part on the root's side has its height handle on its far face, pointing out", async ({ page }) => {

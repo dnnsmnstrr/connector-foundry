@@ -144,7 +144,7 @@ test("the Holes tab opens on 3, takes a catalogue part, and exports the base as 
 
   // The part's parameters are under a toggle; a change re-renders the base.
   await page.getByText("Part parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
   expect((await jobs(page))[1].params.w).toBe(50);
 
@@ -181,7 +181,7 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
   await mockWorker(page);
   await page.goto("/app/");
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("55");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("55");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
   await expect(page).toHaveURL(/mode=holes/);
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
@@ -952,7 +952,7 @@ test("after a handle commit, typing a base parameter still waits for the typing 
   // The holes stay as they are while the base changes: that render is
   // not the move's, and waits out the typing as any base edit does.
   await page.getByText("Part parameters", { exact: true }).click();
-  const w = page.getByRole("spinbutton", { name: "w", exact: true });
+  const w = page.getByRole("spinbutton", { name: "Width", exact: true });
   await w.fill("");
   // Keys a little apart, as typed: well inside the 250 ms debounce, but
   // each long enough for a render with no delay to start.

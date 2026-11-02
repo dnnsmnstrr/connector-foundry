@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useDrawerLayout } from "../hooks/useDrawerLayout.js";
 import { DRAWER_DRAG_SLOP_PX, drawerInset, drawerRests, drawerSnap, isDrawerLayout } from "../lib/drawer.js";
+import { DrawerTabList } from "./DrawerTabs.jsx";
 
 // Collapse/expand control shared by the Library's, the Bench's and Holes'
 // sidebar — same `[` shortcut either way (see App.jsx's keydown handler),
@@ -27,7 +28,16 @@ import { DRAWER_DRAG_SLOP_PX, drawerInset, drawerRests, drawerSnap, isDrawerLayo
 // higher: the Holes snapping bar, a tab on the sheet's top edge drawn over
 // it, goes under the sheet then rather than over its content.
 //
-// Closed, the sidebar renders nothing past this button, as the column
+// With `tabs` (a phone's Library and Holes: components/DrawerTabs.jsx),
+// the tab list is part of the handle, a row under the grip in place of
+// the title it would only repeat. It stays in sight while the sheet is
+// closed, and a tap on a tab opens the sheet on that tab, so either of
+// them is one tap away. The closed rest is measured to the row's foot.
+// The grip is short there, so the row drags the sheet too: a press on a
+// tab is a tap until it moves past the slop, and only then is the
+// pointer captured, so a tap still reaches the tab under it.
+//
+// Closed, the sidebar renders nothing past this button and its tabs, as the column
 // does (each tab's `{!sidebarCollapsed && ...}`): a drag from closed
 // expands it on its first move, so the part list rides up with the
 // sheet, and a release at the closed rest collapses it once the sheet is
@@ -37,6 +47,10 @@ import { DRAWER_DRAG_SLOP_PX, drawerInset, drawerRests, drawerSnap, isDrawerLayo
 // when a sheet sent to its closed rest may collapse.
 const SETTLE_MS = 280;
 
+// Space under the tab row when the sheet is closed, px: the row's own
+// margin is for the panel below it.
+const TABS_CLOSED_GAP_PX = 8;
+
 /** @param {HTMLElement} aside @param {HTMLElement} button */
 function measureRests(aside, button) {
   const shell = aside.closest(".shell-body");
@@ -44,7 +58,13 @@ function measureRests(aside, button) {
   // The sheet fills the bottom safe area so its contents can scroll behind
   // the home indicator; the padding keeps the last control reachable above it.
   const safeArea = parseFloat(getComputedStyle(aside).paddingBottom) || 0;
-  const closed = button.offsetHeight + safeArea;
+  const tabs = button.nextElementSibling?.classList.contains("drawer-tabs")
+    ? button.nextElementSibling
+    : null;
+  const head = tabs
+    ? tabs.getBoundingClientRect().bottom - button.getBoundingClientRect().top + TABS_CLOSED_GAP_PX
+    : button.offsetHeight;
+  const closed = head + safeArea;
   return drawerRests(window.innerHeight - top, closed);
 }
 
@@ -81,12 +101,15 @@ function placeSheet(aside, height, rests, animate) {
  *   collapsed: boolean,
  *   onToggle: () => void,
  *   title: string,
+ *   tabs?: import("./DrawerTabs.jsx").DrawerTabsSpec,
  * }} props
  */
-export default function SidebarToggle({ collapsed, onToggle, title }) {
+export default function SidebarToggle({ collapsed, onToggle, title, tabs }) {
   // `title`: what the sheet holds ("Part list"), shown on the handle in
-  // the narrow layout and read in its label there.
+  // the narrow layout and read in its label there; `tabs`: the sheet's
+  // tabs, on the handle in place of the title (the narrow layout only).
   const drawer = useDrawerLayout();
+  const hasTabs = Boolean(tabs);
   const buttonRef = useRef(/** @type {HTMLButtonElement | null} */ (null));
   // The drag in progress, if any (see onPointerDown).
   const drag = useRef(null);
@@ -103,7 +126,9 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
 
   // The sheet to its rest whenever `collapsed` changes (a tap, `[`, the
   // palette, the Library's "Find a part"), and again on a resize — a
-  // phone's address bar hiding, or turning it — which moves the rests. Out
+  // phone's address bar hiding, or turning it — which moves the rests —
+  // and when the tab row comes or goes (the Library's comes with its first
+  // part, after the catalogue loads), which moves the closed one. Out
   // of the narrow layout the properties go, and the column is as it was.
   useLayoutEffect(() => {
     const button = buttonRef.current;
@@ -140,7 +165,7 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       shell?.style.removeProperty("--drawer-inset");
       shell?.classList.remove("drawer-past-half");
     };
-  }, [collapsed, drawer]);
+  }, [collapsed, drawer, hasTabs]);
 
   // Unmounted mid-drag or mid-settle: nothing will clear the class that
   // holds transitions off, or collapse the sheet.
@@ -164,8 +189,9 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
 
   function onPointerDown(e) {
     if (e.button !== 0 || settling.current || !isDrawerLayout()) return;
-    const button = e.currentTarget;
-    const aside = button.parentElement;
+    const button = buttonRef.current;
+    const aside = button?.parentElement;
+    if (!button || !aside) return;
     const rests = measureRests(aside, button);
     const height = aside.getBoundingClientRect().height;
     drag.current = {
@@ -179,7 +205,30 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       samples: [{ y: e.clientY, t: e.timeStamp }],
     };
     dragged.current = false;
-    button.setPointerCapture(e.pointerId);
+    // The grip takes the pointer at once. The tab row takes it only once
+    // it is a drag, or a tap's click would go to the row, not the tab; till
+    // then the window watches it, since a quick mouse is off the row before
+    // it has moved the slop.
+    if (e.currentTarget === button) {
+      button.setPointerCapture(e.pointerId);
+      return;
+    }
+    const row = e.currentTarget;
+    const id = e.pointerId;
+    const startY = e.clientY;
+    const stop = () => {
+      window.removeEventListener("pointermove", watch);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+    const watch = (/** @type {PointerEvent} */ ev) => {
+      if (ev.pointerId !== id || Math.abs(ev.clientY - startY) < DRAWER_DRAG_SLOP_PX) return;
+      stop();
+      if (drag.current?.id === id) row.setPointerCapture(id);
+    };
+    window.addEventListener("pointermove", watch);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
   }
 
   function onPointerMove(e) {
@@ -198,7 +247,7 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
     d.height = Math.min(d.rests.full, Math.max(d.rests.closed, d.startHeight + up));
     d.samples.push({ y: e.clientY, t: e.timeStamp });
     if (d.samples.length > 6) d.samples.shift();
-    placeSheet(e.currentTarget.parentElement, d.height, d.rests, false);
+    placeSheet(buttonRef.current.parentElement, d.height, d.rests, false);
   }
 
   function endDrag(e) {
@@ -214,7 +263,7 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
     const still = e.timeStamp - last.t > 80;
     const velocity = !still && last.t > first.t ? (first.y - last.y) / (last.t - first.t) : 0;
     const rest = drawerSnap(d.height, velocity, d.rests);
-    const aside = e.currentTarget.parentElement;
+    const aside = buttonRef.current.parentElement;
     if (rest === "closed") {
       settleClosed(aside, d.rests);
       return;
@@ -243,11 +292,12 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
     : collapsed
       ? "Show sidebar"
       : "Hide sidebar";
-  return (
+  const tabbed = drawer && tabs;
+  const handle = (
     <button
       ref={buttonRef}
       type="button"
-      className="sidebar-toggle"
+      className={tabbed ? "sidebar-toggle has-tabs" : "sidebar-toggle"}
       onClick={onClick}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -264,5 +314,26 @@ export default function SidebarToggle({ collapsed, onToggle, title }) {
       </span>
       <span className="sidebar-toggle-text">{title}</span>
     </button>
+  );
+  if (!tabbed) return handle;
+  return (
+    <>
+      {handle}
+      <DrawerTabList
+        {...tabs}
+        panelShown={!collapsed}
+        dragProps={{
+          onPointerDown,
+          onPointerMove,
+          onPointerUp: endDrag,
+          onPointerCancel: endDrag,
+          onLostPointerCapture: endDrag,
+        }}
+        // A closed sheet opens on the tab picked; an open one just shows it.
+        onPick={() => {
+          if (collapsed && !settling.current) onToggle();
+        }}
+      />
+    </>
   );
 }
