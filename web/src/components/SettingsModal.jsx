@@ -224,9 +224,9 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
     >
       {onInstall && (
         <>
-          <h4 className="settings-section">This device</h4>
+          <h4 className="settings-section">App</h4>
           <p className="muted settings-install-note">
-            Open it from its own icon, full screen and offline, and keep it up to date by itself.
+            Open it from its own icon, use it offline, and get updates automatically.
           </p>
           <button type="button" className="download-button settings-install" onClick={onInstall}>
             Install the app
@@ -247,7 +247,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           Fit clearance (mm)
           <InfoTip
             label="About fit clearance"
-            text="Extra gap in parts that fit into each other. Increase it if your printer prints tight. Affects the Basics parts, the 2020 extrusion fittings and bolted or snap joints; parts built on another project's model (Gridfinity, GoPro, openGrid) keep that model's fit."
+            text="Extra gap where parts fit into each other. Raise it if your prints come out too tight. Parts based on another project's design (Gridfinity, GoPro, openGrid) keep their own fit."
           />
           {differs && (
             <button
@@ -276,7 +276,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           Circle detail
           <InfoTip
             label="About circle detail"
-            text="How smooth holes and curves come out. Draft is coarser and renders faster, fine is rounder and slower. Parts that need an exact shape to fit (the BitBeam pin and axle, the 2020 rail, the MultiConnect head) and drilled holes keep theirs."
+            text="How smooth curves and holes are. Draft renders faster; Fine is rounder but slower. Parts that need an exact shape to fit, and drilled holes, keep their own detail."
           />
         </span>
         <select aria-label="Circle detail" value={detail} onChange={(e) => applyDetail(e.target.value)}>
@@ -286,26 +286,25 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
         </select>
       </label>
 
-      <h4 className="settings-section">System units</h4>
+      <h4 className="settings-section">Grid sizes</h4>
       <p className="muted settings-help">
-        Adjust the repeating XY pitch for these systems. Feature sizes such as the MOD-GRID hole remain
-        unchanged.
+        The spacing of each system's grid. Holes and other features keep their size.
       </p>
       {systemPitchField(
         "GRIDFINITY_PITCH",
-        "Gridfinity cell pitch",
+        "Gridfinity cell size",
         gridfinityPitchDefault,
         SYSTEM_PITCH_LIMITS.GRIDFINITY_PITCH.min,
         SYSTEM_PITCH_LIMITS.GRIDFINITY_PITCH.max,
-        "The centre-to-centre size of a Gridfinity cell. This updates Gridfinity parts and the Holes tab's Gridfinity spacing.",
+        "Distance from one Gridfinity cell's centre to the next. Used by Gridfinity parts and by Gridfinity spacing in Holes.",
       )}
       {systemPitchField(
         "MODGRID_PITCH",
-        "MOD-GRID hole pitch",
+        "MOD-GRID hole spacing",
         modgridPitchDefault,
         SYSTEM_PITCH_LIMITS.MODGRID_PITCH.min,
         SYSTEM_PITCH_LIMITS.MODGRID_PITCH.max,
-        "The centre-to-centre spacing between MOD-GRID holes. This updates MOD-GRID parts, anchors and the Holes tab's MOD-GRID spacing.",
+        "Distance from one MOD-GRID hole's centre to the next. Used by MOD-GRID parts and by MOD-GRID spacing in Holes.",
       )}
 
       <h4 className="settings-section">Editing</h4>
@@ -322,7 +321,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           Grid
           <InfoTip
             label="About the grid"
-            text="The step a length snaps to as you drag its resize handle or press an arrow key on it (counts, like Gridfinity units, keep their own steps), and the grid holes snap to when you place them (hold Shift to place one freely). The Grid menu in the 3D view sets the same value."
+            text="How far a size moves when you drag a handle or press an arrow key, and the grid new holes snap to. Hold Shift to place a hole freely. The Grid menu in the 3D view sets the same value."
           />
         </span>
         <select
@@ -337,8 +336,6 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           ))}
         </select>
       </label>
-
-      <h4 className="settings-section">Bench</h4>
       <label className="field field-checkbox has-info-tip">
         <input
           type="checkbox"
@@ -349,7 +346,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
           Start an empty Bench with the Library's part
           <InfoTip
             label="About starting the Bench"
-            text="When you switch to an empty Bench, the part selected in the Library, with its parameters, becomes its base, like the Open in Bench button. A bench you've started is never replaced."
+            text="Switching to an empty Bench uses the part open in the Library, with its parameters, as the base. A bench you've already started is never replaced."
           />
         </span>
       </label>
@@ -358,7 +355,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
         Part list
         <InfoTip
           label="About the part list"
-          text="The parts the Library and the Bench pickers offer, and the order of their groups. A hidden part still works in any bench, link or config that uses it. New groups appear at the end."
+          text="Which parts the Library and the pickers show, and in what order. Hidden parts still work in saved benches and shared links."
         />
       </h4>
       <ol className="settings-order-list" aria-label="Systems: shown or hidden, and their order">
@@ -430,12 +427,12 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
         })}
       </ol>
       <p className="muted settings-help">
-        Untick to hide, use the arrows to reorder.
+        Untick to hide. Use the arrows to reorder.
         {savedOrder && (
           <>
             {" "}
             <button type="button" className="field-reset settings-order-reset" onClick={resetSystemOrder}>
-              ↺ Reset to catalogue order
+              ↺ Reset order
             </button>
           </>
         )}
@@ -461,7 +458,7 @@ export default function SettingsModal({ parts, globalDefaults, onClose, onShowSh
         Backup
         <InfoTip
           label="About settings backups"
-          text="One file with everything on this page, your bench presets and the defaults you saved for parts. Import it on another computer or browser, or after a reinstall. Importing replaces what is here now."
+          text="Saves everything on this page, your bench presets and your part defaults to one file, to move to another computer or browser. Importing a file replaces your current settings."
         />
       </h4>
       <div className="settings-backup">

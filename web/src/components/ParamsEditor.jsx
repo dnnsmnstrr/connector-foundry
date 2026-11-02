@@ -89,8 +89,9 @@ export default function ParamsEditor({
             type="button"
             className="bench-modal-cancel params-defaults-button"
             onClick={resetAllToCatalogue}
+            title="Set every parameter back to the catalogue default"
           >
-            Reset all to catalogue
+            Reset all
           </button>
           <button type="button" className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
             Save as my default
@@ -108,7 +109,10 @@ export default function ParamsEditor({
       )}
       {showSavedNote && hasSavedOverride && (
         <p className="muted params-saved-note">
-          Your saved default for this part: {JSON.stringify(savedOverride)}
+          Your default for this part:{" "}
+          {Object.entries(savedOverride)
+            .map(([key, value]) => `${key} ${value === true ? "on" : value === false ? "off" : value}`)
+            .join(", ")}
         </p>
       )}
     </div>

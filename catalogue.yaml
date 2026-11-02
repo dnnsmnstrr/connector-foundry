@@ -205,8 +205,8 @@ parts:
     source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
     source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
     print_note: >-
-      Feet down, no supports. The 42mm cell pitch can be tuned globally in Settings for a nonstandard
-      Gridfinity grid.
+      Feet down, no supports. For a nonstandard Gridfinity grid, change the 42mm cell size in
+      Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
@@ -242,7 +242,7 @@ parts:
       Feet down, no supports. gz is the height in 7mm units, the stacking
       lip on top. filled makes it solid up to the lip, with a flat top to
       cut your own cavities into in the Holes tab; divx/divy, scoop and
-      tabs apply to a bin with compartments. The 42mm cell pitch can be tuned globally in Settings.
+      tabs apply to a bin with compartments. The 42mm cell size can be changed in Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
@@ -288,7 +288,7 @@ parts:
       Modelled pockets down so the flat back is the "mount" face; flip it
       in the slicer to print back-down. Magnets and screw holes only
       apply to the weighted, skeletonized and screw-together styles. The
-      42mm cell pitch can be tuned globally in Settings.
+      42mm cell size can be changed in Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
@@ -1002,8 +1002,8 @@ parts:
     source_url: https://makerworld.com/en/models/2811701-mod-grid
     print_note: >-
       Flat on the bed, no supports. 5mm square holes on an 8mm default pitch
-      through a 3mm plate, cols across and rows up. Settings can tune the
-      pitch for a nonstandard grid; the hole size remains 5mm. By default,
+      through a 3mm plate, cols across and rows up. For a nonstandard grid,
+      change the hole spacing in Settings → Grid sizes; the holes stay 5mm. By default,
       the panel is cols x 8 + 3 by rows x 8 + 3mm, so 12 x 4 is 99 x 35.
       Accessories plug into two neighbouring holes of a row. "mount" is
       the back, for fusing the grid onto a case or a lid.

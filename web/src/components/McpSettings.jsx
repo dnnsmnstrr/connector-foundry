@@ -62,7 +62,7 @@ export default function McpSettings() {
         Coding agents
         <InfoTip
           label="About coding agents"
-          text="Lets a coding agent on this computer, like Claude Code, use this window over MCP: search the parts, open and attach them, load a bench and run any command in the palette. What it does shows here, and Undo takes it back. Only programs on this computer that have the token can connect."
+          text="Lets a coding agent on this computer, like Claude Code, work in this window over MCP: find and attach parts, load benches and run commands. You see what it does, and Undo reverses it. Only programs with the token can connect."
         />
       </h4>
       <label className="field field-checkbox">

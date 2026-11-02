@@ -9,6 +9,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Plainer wording across the app and Settings.** Shorter hints in the Bench and Holes headers and
+  sidebars, and shorter explanations in Settings. The Bench calls its first part the base everywhere
+  (**Select base**, **Base parameters**), and its export buttons name each body's part instead of
+  an id (**Download STL** when there is only one). In Settings, System units is now **Grid sizes**
+  (Gridfinity cell size, MOD-GRID hole spacing), and the Bench option moved under Editing.
 - **Questions in the app's own dialog.** Replacing a bench or your holes, deleting a preset,
   importing settings and making a new MCP token now ask in the app's own dialog instead of the
   browser's. Some browsers answer the browser's "no" without showing it, which made **Add Holes**

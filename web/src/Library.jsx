@@ -629,7 +629,7 @@ export default function Library({
                   type="button"
                   className="render-button bench-open-button"
                   onClick={() => onOpenInBench(selected, params)}
-                  title="Start a new Bench with this part (and its current parameters) as the root"
+                  title="Start a new bench with this part and its current parameters as the base"
                 >
                   Open in Bench
                 </button>
@@ -637,7 +637,7 @@ export default function Library({
                   type="button"
                   className="render-button bench-open-button"
                   onClick={() => onAddHoles(selected, params)}
-                  title="Drill holes into this part (with its current parameters) in the Holes tab"
+                  title="Drill holes into this part, with its current parameters, in the Holes tab"
                 >
                   Add Holes
                 </button>

@@ -51,8 +51,8 @@ The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
    with its catalogue defaults, and the line under its name says how to print it: which side goes
    on the bed, and whether it needs supports.
 2. **Set its size.** Change a parameter in the sidebar and the part renders again. A dot marks a
-   value you changed, and the ↺ beside it puts that one back; **Reset all to catalogue** resets them
-   all. Most parts can also be resized in the 3D view: drag one of the small square handles, as in
+   value you changed, and the ↺ beside it puts that one back; **Reset all** puts every
+   one back. Most parts can also be resized in the 3D view: drag one of the small square handles, as in
    TinkerCAD. An outline shows the new size before you let go, with a label such as
    "W 126 mm · gx 3", and the part renders once you do. Parts on a grid grow in the grid's own
    steps — a Gridfinity unit is 42 mm. To type an exact size instead, click a handle.
@@ -97,7 +97,7 @@ Two settings change every part, under **⚙ Settings** at the top right (or the 
   default. If snaps are too tight on your printer, raise it a little; if they rattle, lower it.
 - **Circle detail** is how finely curves are faceted: **Draft** renders faster, **Fine** gives rounder
   holes.
-- **System units** adjusts the Gridfinity cell pitch and MOD-GRID hole spacing for a printer or a
+- **Grid sizes** changes the Gridfinity cell size and MOD-GRID hole spacing for a printer or a
   nonstandard grid. The same values affect part previews, Bench attachments and the Holes tab.
 
 To keep your own values for one part — "my Gridfinity bins always have magnet holes" — set them and

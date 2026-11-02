@@ -373,7 +373,7 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await page.evaluate(() => document.activeElement.blur());
   await page.keyboard.press("Delete");
   await expect(page.locator(".holes-row")).toHaveCount(0);
-  await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
+  await expect(page.getByText("None yet. Click a face in the scene to add one.")).toBeVisible();
 });
 
 test("a MagSafe pocket takes a charger puck with its cable channel, or a ring", async ({ page }) => {
@@ -478,7 +478,7 @@ test("deleting a hole while the guide lines are on the holed mesh doesn't crash 
   await page.evaluate(() => document.activeElement.blur());
   await page.keyboard.press("Delete");
   await expect(page.locator(".holes-row")).toHaveCount(0);
-  await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
+  await expect(page.getByText("None yet. Click a face in the scene to add one.")).toBeVisible();
   await page.waitForTimeout(300);
   expect(errors).toEqual([]);
   await expect(page.getByRole("heading", { name: "Holes", exact: true })).toBeVisible();
