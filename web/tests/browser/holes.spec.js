@@ -1169,10 +1169,16 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
     "Gridfinity Holes (26 mm)",
     "openGrid (28 mm)",
     "Skådis (40 × 20 mm, staggered)",
+    "Multiboard (25 mm)",
+    "US pegboard (25.4 mm)",
     "MOD-GRID (8 mm)",
     "BitBeam (8 mm)",
     "MOLLE rigid panel (50.8 mm)",
     "MOLLE slit panel (38.1 × 25.4 mm)",
+    "VESA monitor mount (75 mm)",
+    "VESA monitor mount (100 mm)",
+    "VESA monitor mount (200 × 100 mm)",
+    "VESA monitor mount (200 mm)",
   ]);
   await standard.selectOption("bitbeam");
   await expect(standard).toHaveValue("bitbeam");
