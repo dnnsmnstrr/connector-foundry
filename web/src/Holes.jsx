@@ -328,9 +328,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       ? `catalogue:${doc.source.partId}`
       : `mesh:${doc.source.name}`;
   const guidePart = doc?.source.kind === "catalogue" ? (catalogueById.get(doc.source.partId) ?? null) : null;
-  const ownGuides = useMemo(() => guideDefaults(guidePart, baseExtents), [guidePart, baseExtents]);
+  const ownGuides = useMemo(
+    () => guideDefaults(guidePart, baseExtents, globalOverrides),
+    [guidePart, baseExtents, globalOverrides],
+  );
   const typedGuides = guideEdit && guideEdit.model === guideModel ? guideEdit : null;
-  const inset = typedGuides?.inset ?? ownGuides.inset;
+  // A number, or the part's own per-face rule (a Gridfinity bin's top and
+  // its feet put their magnet holes different distances in), which
+  // analyzeFace() calls with each face's size; a typed inset is every
+  // face's.
+  const inset = typedGuides?.inset ?? ownGuides.insetFor ?? ownGuides.inset;
   const radius = typedGuides?.radius ?? ownGuides.radius;
   /** @param {{ inset?: number, radius?: number }} patch */
   const editGuides = (patch) => {
@@ -2020,7 +2027,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <SnapBar
               snapOn={snapOn}
               onSnapChange={setSnapOn}
-              inset={inset}
+              inset={typeof inset === "number" ? inset : (guideFace?.inset ?? ownGuides.inset)}
               onInsetChange={(mm) => editGuides({ inset: mm })}
               radius={radius}
               onRadiusChange={(mm) => editGuides({ radius: mm })}

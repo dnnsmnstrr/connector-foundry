@@ -79,8 +79,10 @@ function cacheFor(geometry) {
 // circle, { kind: "circle", radius, points: [[x,y,z], ...] } (a closed
 // polyline, in order). A line that leaves and re-enters an L-shaped
 // face is several pieces.
-// `options.inset` is the corner inset in mm, `options.radius` the
-// center circle's; candidates and guides are redone when either
+// `options.inset` is the corner inset in mm — or a function of the face's
+// extent ([w, h]) giving it, for a part whose inset depends on which face
+// (guideDefaults.js: a Gridfinity bin's top and its feet) — `options.radius`
+// the center circle's; candidates and guides are redone when either
 // changes — as a fresh record replacing the cached one, so a caller
 // comparing records by identity (a React memo) sees the change.
 // null for a triangle index this geometry doesn't have — a face kept
@@ -89,7 +91,6 @@ function cacheFor(geometry) {
 export function analyzeFace(geometry, faceIndex, options = {}) {
   const triangles = (geometry.index ? geometry.index.count : geometry.getAttribute("position").count) / 3;
   if (!Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex >= triangles) return null;
-  const inset = options.inset ?? DEFAULT_CORNER_INSET_MM;
   const radius = options.radius ?? DEFAULT_CENTER_RADIUS_MM;
   const cache = cacheFor(geometry);
   const key = cache.faceOf.get(faceIndex);
@@ -100,6 +101,8 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
     for (const t of face.triangles) cache.faceOf.set(t, face.key);
     cache.faces.set(face.key, face);
   }
+  const option = options.inset ?? DEFAULT_CORNER_INSET_MM;
+  const inset = typeof option === "function" ? option(face.extent) : option;
   if (face.inset !== inset || face.radius !== radius) {
     face = { ...face, inset, radius };
     const corners = cornerInsets(face, inset);

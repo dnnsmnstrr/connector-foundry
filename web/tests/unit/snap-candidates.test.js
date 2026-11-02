@@ -272,6 +272,33 @@ test("the center circle: drawn at the chosen radius, snap points where it meets 
   assert.equal(byKind(wide, "circle").length, 0);
 });
 
+test("an inset can be a function of the face's size: each face gets its own", () => {
+  const geometry = welded(new BoxGeometry(20, 10, 4));
+  const seen = [];
+  const face = analyzeFace(geometry, topTriangle(geometry, 1.99), {
+    radius: 0,
+    inset: (extent) => {
+      seen.push(extent.map((n) => Math.round(n)));
+      return 2;
+    },
+  });
+  // The face's own two sizes, in its own frame's order.
+  assert.deepEqual(
+    [...seen.at(-1)].sort((a, b) => a - b),
+    [10, 20],
+  );
+  assert.equal(face.inset, 2);
+  assert.deepEqual(
+    byKind(face, "corner").map((p) => p.map(Math.abs)),
+    [
+      [8, 3, 2],
+      [8, 3, 2],
+      [8, 3, 2],
+      [8, 3, 2],
+    ],
+  );
+});
+
 test("a dragged hole: the center catches it from three times as far, then the other points, then the lines", () => {
   // A 30 x 20 plate with a hole through it at (5, 0): the hole being dragged.
   const outline = new Shape();
