@@ -85,6 +85,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   points and guide lines, as a click does, and on the face's center from further off. The label by
   the hole names what it snapped to beside the distance moved ("12 mm right · face center"), and the
   point lights up.
+- **The guides stay put over a selected hole.** Hovering inside the selected hole (its bore, its
+  floor, a counterbore) no longer moves the guide lines and snap points to that inner face, so
+  they are still there when you grab the hole to drag it.
 - **Repeat round a hole.** A Repeat row or grid can be centred on the selected hole instead of
   starting from it: **Centre on this hole** lays the pattern out round the hole's spot, keeping the
   hole in the middle when the pattern has one there.

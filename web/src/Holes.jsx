@@ -47,6 +47,7 @@ import {
   holeResizeText,
   moveHole,
   movedOnFace,
+  pointInHole,
   nudgeHoles,
   oppositeSide,
   stepHoleSize,
@@ -635,7 +636,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       setMeasurePoint((prev) =>
         prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
       );
-    proposeGuideFace(resolved);
+    // Over a selected hole (its bore, its floor, a counterbore) the guide
+    // face stays where it is: the pointer is most likely there to drag the
+    // hole by its handle, aiming by those guides.
+    if (selectedHoles.some((h) => pointInHole(h, hit.point))) cancelPendingGuide();
+    else proposeGuideFace(resolved);
     const next = {
       faceKey: resolved.face.key,
       snapId: resolved.snap?.id ?? null,
