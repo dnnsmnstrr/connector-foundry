@@ -136,11 +136,16 @@
 #   picked there — `inset` (mm: how far in from each corner the corner
 #   snap points sit) and `radius` (mm: the circle round the face center),
 #   or `round: true` for a part whose face is round, whose circle then
-#   goes half way out to its rim. Anything left out comes from the part's
-#   size (web/src/lib/guideDefaults.js); the user's own edit wins until
-#   another model is picked. Read only by the web app: the CLI has no
-#   Holes tab. Gridfinity sets its inset so the corner points land on its
-#   magnet holes.
+#   goes half way out to its rim. For a part on a cell grid whose holes
+#   sit a set way into each cell, `cell` (mm), `cell_hole` (mm in from
+#   each cell's edge) and optionally `cell_setting` (the global setting
+#   that overrides `cell`, GRIDFINITY_PITCH) give each face its own inset:
+#   Gridfinity's magnet holes are 7.75mm in on a bin's top, 4.8mm on a
+#   foot's bottom, 8mm on a baseplate's underside, and the corner points
+#   land on them on whichever face is picked. Anything left out comes from
+#   the part's size (web/src/lib/guideDefaults.js); the user's own edit
+#   wins until another model is picked. Read only by the web app: the CLI
+#   has no Holes tab.
 #
 # fold: for a part carrying an openConnect head, where the web Bench's
 #   Fold for printing cuts the body the part is in (just in front of the
@@ -202,7 +207,7 @@ parts:
     print_note: >-
       Feet down, no supports. The 42mm cell pitch can be tuned globally in Settings for a nonstandard
       Gridfinity grid.
-    holes_guides: { inset: 4.8 }
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
     defaults:
@@ -238,7 +243,7 @@ parts:
       lip on top. filled makes it solid up to the lip, with a flat top to
       cut your own cavities into in the Holes tab; divx/divy, scoop and
       tabs apply to a bin with compartments. The 42mm cell pitch can be tuned globally in Settings.
-    holes_guides: { inset: 4.8 }
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     # parts/gridfinity/bin.scad asserts gz * 7 >= BASE_HEIGHT (7mm).
@@ -284,7 +289,7 @@ parts:
       in the slicer to print back-down. Magnets and screw holes only
       apply to the weighted, skeletonized and screw-together styles. The
       42mm cell pitch can be tuned globally in Settings.
-    holes_guides: { inset: 8 }
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     anchors: [bot]
