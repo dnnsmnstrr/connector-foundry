@@ -43,6 +43,7 @@ Deeper reading, by topic:
 | Using it: the app, the desktop app, the CLI | `docs/GETTING_STARTED.md`, `docs/DESKTOP.md`, `docs/CLI.md` (also on the website) |
 | Parts, slot convention, catalogue table, licensing | `README.md` |
 | Web app internals, module-by-module table, the WASM limits, the website | `web/README.md` |
+| The systems: designers, links, communities, shared units | `docs/SYSTEMS.md` (keep it in step when adding a system) |
 | Joints, Bench, Holes, overrides, accuracy checks | `docs/JOINTS.md`, `docs/BENCH.md`, `docs/HOLES.md`, `docs/OVERRIDES.md`, `docs/ACCURACY.md` |
 | Desktop packaging | `docs/MACOS.md`, `docs/WINDOWS.md` |
 | iOS and Android apps (Capacitor) | `docs/MOBILE.md` |
@@ -99,6 +100,8 @@ Which ones to add on top of `make check`:
   `#fragment` in the published guides and that the hero's meshes match its pair list
   (`web/tests/unit/build-docs.test.js`, `hero-meshes.test.js`); `npm run test:browser` runs
   `site.spec.js`. Changed a hero part or the pair list: `node scripts/hero-parts.mjs` in `web/`.
+  Added a video to a guide (a paragraph that is only a YouTube link): `node
+  scripts/video-thumbnails.mjs` in `web/`, and commit the thumbnail it writes.
 
 ## Rules that are easy to break
 

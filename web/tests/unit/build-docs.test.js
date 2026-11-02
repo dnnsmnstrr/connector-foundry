@@ -4,7 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { Marked } from "marked";
 
-import { DOC_GROUPS, REPO_ROOT, githubSlug, renderGuide, resolveDocLink } from "../../scripts/build-docs.mjs";
+import {
+  DOC_GROUPS,
+  DOCS_SOURCE,
+  REPO_ROOT,
+  VIDEO_THUMBS,
+  githubSlug,
+  guideVideos,
+  renderGuide,
+  resolveDocLink,
+  youtubeId,
+} from "../../scripts/build-docs.mjs";
 import { REPO_URL } from "../../src/lib/commandCatalog.js";
 
 test("heading ids are GitHub's, so a #fragment works on both", () => {
@@ -65,6 +75,52 @@ test("a guide renders with its ids, contents, lede and code", () => {
   assert.match(guide.html, /<div class="table-scroll"><table>/);
   assert.match(guide.html, /<span class="code-comment"># every part<\/span>/);
   assert.match(guide.html, /echo &#39;&lt;b&gt;&#39; https:\/\/example.org\/#anchor/);
+});
+
+test("a paragraph that is only a YouTube link becomes a video, any other link stays a link", () => {
+  assert.equal(youtubeId("https://www.youtube.com/watch?v=ra_9zU-mnl8"), "ra_9zU-mnl8");
+  assert.equal(youtubeId("https://youtu.be/2mDBue4fw3U?t=30"), "2mDBue4fw3U");
+  assert.equal(youtubeId("https://www.youtube.com/watch?v=x%22onload%3D"), null);
+  assert.equal(youtubeId("https://example.org/watch?v=ra_9zU-mnl8"), null);
+  assert.equal(youtubeId("../README.md"), null);
+
+  const guide = renderGuide(
+    [
+      "# Title",
+      "",
+      "The lede.",
+      "",
+      "[The *intro* video](https://www.youtube.com/watch?v=ra_9zU-mnl8)",
+      "",
+      "Watch [the intro](https://www.youtube.com/watch?v=ra_9zU-mnl8) first.",
+    ].join("\n"),
+  );
+  assert.equal(guide.lede, "The lede.");
+  assert.equal(guide.html.match(/class="video-link"/g)?.length, 1);
+  assert.match(
+    guide.html,
+    /<a class="video-link" href="https:\/\/www.youtube.com\/watch\?v=ra_9zU-mnl8" data-video="ra_9zU-mnl8">/,
+  );
+  assert.match(guide.html, /<span class="video-title">The <em>intro<\/em> video<\/span>/);
+  assert.match(
+    guide.html,
+    /<p>Watch <a href="https:\/\/www.youtube.com\/watch\?v=ra_9zU-mnl8">the intro<\/a> first.<\/p>/,
+  );
+});
+
+// The play box shows our copy of the thumbnail, never YouTube's, so a
+// video added to a guide needs scripts/video-thumbnails.mjs run once.
+test("every video in the published guides has its thumbnail committed", () => {
+  const missing = DOC_GROUPS.flatMap((group) => group.docs)
+    .flatMap((doc) => guideVideos(fs.readFileSync(path.join(DOCS_SOURCE, doc.file), "utf8")))
+    .filter((id) => !fs.existsSync(path.join(VIDEO_THUMBS, `${id}.webp`)));
+  assert.deepEqual(missing, [], "run `node scripts/video-thumbnails.mjs` in web/");
+  const guide = renderGuide("[A video](https://www.youtube.com/watch?v=ra_9zU-mnl8)");
+  assert.match(guide.html, /<img class="video-thumb" src="..\/img\/videos\/ra_9zU-mnl8.webp" alt=""/);
+  assert.deepEqual(
+    guideVideos("[A video](https://youtu.be/ra_9zU-mnl8)\n\nNot [a video](https://example.org/)."),
+    ["ra_9zU-mnl8"],
+  );
 });
 
 // Every relative link in the published guides, and every #fragment into a

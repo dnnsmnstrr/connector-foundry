@@ -32,12 +32,15 @@ with "Measure spacing…" in the command palette. A hole placed from a system's 
 when Measure is turned
 on with it selected, or when it is selected while Measure is on: a MOD-GRID hole MOD-GRID, a Skådis
 slot Skådis, a BitBeam pin hole BitBeam, the openConnect, MultiConnect and openGrid thread slots
-openGrid, the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
-Gridfinity. A spacing picked by hand stays until the selection or Measure changes. The spacings are
+openGrid, the Multiboard threads Multiboard (25 mm), the pegboard holes US pegboard, the VESA screws
+VESA 100 (M4) or VESA 200 (M6), the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the
+one Gridfinity bins take) Gridfinity. A spacing picked by hand stays until the selection or Measure changes. The spacings are
 the same as Repeat's standard spacings (below), from the same numbers: **Gridfinity Holes** (26 mm:
 a 42 mm cell's four magnet and screw holes, 8 mm in from its edges — the next cell's are 16 mm on), **openGrid** (28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered),
-**MOD-GRID** (8 mm), **BitBeam** (8 mm, a beam's unit), **MOLLE rigid panel** (50.8 mm) and **MOLLE
-slit panel** (38.1 × 25.4 mm). The steps run along the face's own directions, as the measurements
+**Multiboard** (25 mm), **US pegboard** (25.4 mm, an inch), **MOD-GRID** (8 mm), **BitBeam** (8 mm,
+a beam's unit), **MOLLE rigid panel** (50.8 mm), **MOLLE slit panel** (38.1 × 25.4 mm), and the
+**VESA** monitor-mount patterns **75**, **100**, **200 × 100** and **200** (mm; a Repeat grid of
+2 × 2 on one is the mount's four screws). The steps run along the face's own directions, as the measurements
 do; points off the face or in a hole are left out.
 
 **On a touch screen** there is no hover and no Option key: the first tap on a face shows its guide
@@ -100,7 +103,11 @@ browser), but the undo history does not: the first undo after reopening stays wi
 spacing, across or up the face), a grid (holes and spacing both ways, every other row optionally
 staggered half a step, or set to a **standard spacing** — the systems Measure shows, above;
 Gridfinity's lays out a cell's 2 × 2 magnet or screw holes) or a circle (count and radius round the hole's spot, the hole itself moving
-onto the circle or staying in the middle). The copies are previewed in green; any that would miss
+onto the circle or staying in the middle). A row or a grid runs from the hole as its first corner,
+or, with **Centre on this hole**, lies round its spot instead: the hole stays put where a hole of
+the pattern lands on it (the middle of an odd row, or of an odd × odd grid) and otherwise moves to
+the first corner, so a 2 × 2 on a VESA spacing puts a mount's four screws round the point you
+clicked. The copies are previewed in green; any that would miss
 the face — past its edge, into another hole — are left out and counted, and afterwards the whole
 pattern is selected to edit or delete together.
 
@@ -133,6 +140,12 @@ BitBeam-inspired square fork pin. Try the dowel with a screw near the selected m
 the bore is configurable from 1.5 to 2.6 mm. These prototypes have not been validated across
 printers or screw types yet.
 
+The **Pegboard (US)** presets cut a pegboard's round hole, through: **1/4"** (for a 1/4" board)
+or **3/16"** (for a 1/8" one), each 0.2 mm over so a hook's wire doesn't bind in a printed hole. Lay
+them out on the **US pegboard** spacing, an inch apart. The **VESA** presets are the socket cap
+holes for a monitor mount's screws, M4 for the 75 and 100 mm patterns and M6 for 200 mm, under a
+name that searching "vesa" finds; a 2 × 2 Repeat on a VESA spacing places all four.
+
 Two **tripod nut trap** presets take a 1/4"-20 or 3/8"-16 hex nut (camera and tripod-head
 threads), so any part screws onto a tripod; `camera/tripod_socket` prints the thread instead.
 
@@ -158,6 +171,12 @@ It has a direction too: the thread starts where it has to for a screwed-home hea
 way, so an openConnect head ends up with its slide direction up. "Full" is 8 mm deep for a
 full-size screw (6.8 mm of thread), "Lite" 4.5 mm for a lite one; depth, through and the
 clearance (upstream's 0.5 mm) are editable.
+
+The **Multiboard thread** presets cut a Multiboard tile's two holes as the tile cuts them, so
+Multiboard's own bolts screw into the part: "Big" (Ø22.5 mm, 2.5 mm pitch) for a big-thread bolt,
+"Small" (Ø7.03 mm, 3 mm pitch) for a small-thread one. Both go through, since a bolt's thread runs
+on past a tile's 6.4 mm; depth and clearance are editable. The numbers are the community's
+measurements, not yet checked against a printed tile ([Systems](SYSTEMS.md#multiboard)).
 
 The **Generic shapes** cut a plain cutout of any size instead of a fastener's hole: a **round** one
 (a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius

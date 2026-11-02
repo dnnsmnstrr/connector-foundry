@@ -43,13 +43,17 @@
 //   clearance  mm added to every radius
 //   spin       as above
 //
-// "thread" — openGrid's female snap thread (lib/ogthread.scad's
-// og_thread_hole()): Ø16 at 3 mm pitch, what the openGrid threaded snaps
-// have, so the openConnect and MultiConnect screws (those parts' body
-// "screw") screw into the model. The point is the thread's axis.
+// "thread" — a female thread (THREADS): openGrid's snap thread
+// (lib/ogthread.scad's og_thread_hole()), Ø16 at 3 mm pitch, what the
+// openGrid threaded snaps have, so the openConnect and MultiConnect
+// screws (those parts' body "screw") screw into the model; or one of a
+// Multiboard tile's two (lib/multiboard.scad's mb_thread_hole()), so
+// Multiboard's bolts do. The point is the thread's axis.
+//   profile    "opengrid", "mb-big" or "mb-small"
 //   depth      how deep the thread runs; 0 = through
-//   clearance  mm added to the 16 mm diameter (upstream's 0.5 makes its
-//              official 16.5)
+//   clearance  mm added to the thread's diameter (openGrid upstream's 0.5
+//              makes its official 16.5; Multiboard's is the tile's own
+//              hole at 0)
 //   spin       which way the screwed-in head's +Y points — up, for an
 //              openConnect head, the way it seats a slotted item — as for
 //              a slot; the thread's start is turned to match
@@ -269,10 +273,55 @@ export const EXTRUSION = Object.freeze({
   boltDiameter: 5.5,
 });
 
-// The thread's numbers (lib/constants.scad's OG_THREAD_*, OG_SNAP_H_*):
-// its diameter before clearance, and how long a screw's thread is — a
-// full-size screw's, and a lite one's — which a hole has to be at least.
-export const THREAD = Object.freeze({ diameter: 16, clearance: 0.5, fullLength: 6.8, liteLength: 3.4 });
+// Each thread's numbers, by a "thread" hole's `profile`: its diameter
+// before clearance (the crest of a screw that goes in), its pitch and
+// depth, the clearance a new hole gets, and how long a screw's thread is
+// — which a hole has to be at least. openGrid's are lib/constants.scad's
+// OG_THREAD_* and OG_SNAP_H_* (a full-size screw's, and a lite one's);
+// Multiboard's lib/multiboard.scad's MB_BIG, MB_SMALL and MB_TILE_T,
+// restated since the generated file only `use`s that library.
+export const THREADS = Object.freeze({
+  opengrid: Object.freeze({
+    label: "openGrid thread",
+    diameter: 16,
+    pitch: 3,
+    depth: 1,
+    clearance: 0.5,
+    fullLength: 6.8,
+    liteLength: 3.4,
+  }),
+  "mb-big": Object.freeze({
+    label: "Multiboard big thread",
+    diameter: 22.5,
+    pitch: 2.5,
+    depth: 0.55,
+    clearance: 0,
+    fullLength: 6.4,
+    liteLength: 6.4,
+  }),
+  "mb-small": Object.freeze({
+    label: "Multiboard small thread",
+    diameter: 7.025,
+    pitch: 3,
+    depth: 0.478,
+    clearance: 0,
+    fullLength: 6.4,
+    liteLength: 6.4,
+  }),
+});
+export const THREAD = THREADS.opengrid;
+
+/**
+ * A "thread" hole's numbers; openGrid's for a spec without a known profile.
+ * @param {{ profile?: string } | null | undefined} spec
+ */
+export function threadOf(spec) {
+  const profile = spec?.profile;
+  return typeof profile === "string" && Object.hasOwn(THREADS, profile) ? THREADS[profile] : THREAD;
+}
+
+// What a Multiboard profile is called in lib/multiboard.scad.
+const MB_THREAD_SIZE = Object.freeze({ "mb-big": "big", "mb-small": "small" });
 
 let nextHoleId = 1;
 
@@ -357,10 +406,14 @@ export function normalizeSpec(spec) {
     };
   }
   if (kind === "thread") {
+    // A saved hole from before Multiboard's threads has no profile: it is
+    // openGrid's.
+    const profile = Object.hasOwn(THREADS, spec?.profile) ? spec.profile : "opengrid";
     return {
       kind,
+      profile,
       depth: n(spec?.depth, 8),
-      clearance: n(spec?.clearance, THREAD.clearance),
+      clearance: n(spec?.clearance, THREADS[profile].clearance),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -656,6 +709,11 @@ export function flipHoles(doc, height) {
 //   skadisFill    circle: instead of a ring, every point of a Skådis
 //                 board's pattern (SKADIS_SPACING) within the radius,
 //                 centred on the selected hole, which stays put
+//   centered      row, grid: lay the pattern out round the selected hole's
+//                 spot instead of from it. The hole stays where a point of
+//                 the pattern falls on its spot (the middle of an odd row,
+//                 of an odd × odd grid); otherwise it moves to the
+//                 pattern's first point, as a circle's does onto its ring
 //   standard      grid: the STANDARD_SPACINGS id its spacing was set to,
 //                 or null — only which name the form shows (matchSpacing())
 export const REPEAT_DEFAULTS = Object.freeze({
@@ -671,6 +729,7 @@ export const REPEAT_DEFAULTS = Object.freeze({
   circleCount: 6,
   radius: 15,
   keepCenter: false,
+  centered: false,
   skadisFill: false,
   standard: /** @type {string | null} */ (null),
 });
@@ -690,12 +749,17 @@ export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 //   lays out a cell's 2 x 2; the next cell's holes are 42 − 26 = 16 mm on.
 // - openGrid: a cell, and a snap, every 28 mm (RAMP_SPACING_MM).
 // - Skådis: SKADIS_SPACING, every other row shifted half a step.
+// - Multiboard: a big hole every 25 mm both ways (lib/multiboard.scad's
+//   MB_PITCH), the small ones on the same grid between them.
+// - US pegboard: a hole every inch both ways.
 // - MOD-GRID: a hole every 8 mm both ways (lib/modgrid.scad's
 //   MODGRID_PITCH), which an accessory's 2x1 pin spans.
 // - BitBeam: a pin hole every 8 mm, a beam's unit (PINHOLE.unit).
 // - MOLLE: rigid panels put an opening every 2" both ways (PALS row pitch
 //   up, a 12.7 mm bar across: lib/molle.scad's RIGID_PITCH_*); laser-cut
 //   panels a slit every 1.5" across and 1" up.
+// - VESA (monitor mounts): the four screws of each common pattern, square
+//   but for 200 × 100, whose wider side runs across.
 // `short` is the name where room is tight (the viewer's toolbar).
 // MOD-GRID and BitBeam share their numbers, so a grid's options carry the
 // one picked (`standard`) for matchSpacing() to tell them apart.
@@ -724,6 +788,8 @@ export const STANDARD_SPACINGS = Object.freeze([
     up: SKADIS_SPACING.up,
     stagger: true,
   },
+  { id: "multiboard", label: "Multiboard", short: "Multiboard", across: 25, up: 25, stagger: false },
+  { id: "pegboard", label: "US pegboard", short: "Pegboard", across: 25.4, up: 25.4, stagger: false },
   { id: "modgrid", label: "MOD-GRID", short: "MOD-GRID", across: 8, up: 8, stagger: false },
   {
     id: "bitbeam",
@@ -749,6 +815,17 @@ export const STANDARD_SPACINGS = Object.freeze([
     up: 25.4,
     stagger: false,
   },
+  { id: "vesa-75", label: "VESA monitor mount", short: "VESA 75", across: 75, up: 75, stagger: false },
+  { id: "vesa-100", label: "VESA monitor mount", short: "VESA 100", across: 100, up: 100, stagger: false },
+  {
+    id: "vesa-200x100",
+    label: "VESA monitor mount",
+    short: "VESA 200×100",
+    across: 200,
+    up: 100,
+    stagger: false,
+  },
+  { id: "vesa-200", label: "VESA monitor mount", short: "VESA 200", across: 200, up: 200, stagger: false },
 ]);
 
 /**
@@ -827,13 +904,35 @@ export function repeatPoints(hole, options) {
   const at = ([a, b]) => hole.point.map((p, i) => p + ex[i] * a + ey[i] * b);
   let offsets = [];
   let move = null;
-  if (o.pattern === "grid") {
-    const cols = int(o.columns, 1);
-    const rows = int(o.rows, 1);
-    const shift = (j) => (o.stagger && j % 2 ? num(o.spacingAcross) / 2 : 0);
-    for (let j = 0; j < rows; j++)
-      for (let i = 0; i < cols; i++)
-        if (i || j) offsets.push([i * num(o.spacingAcross) + shift(j), j * num(o.spacingUp)]);
+  if (o.pattern === "grid" || o.pattern === "row") {
+    // Every point of the pattern, the selected hole's own first, and the
+    // middle of its extent (where a centred one goes).
+    const points = [];
+    let middle = [0, 0];
+    if (o.pattern === "grid") {
+      const cols = int(o.columns, 1);
+      const rows = int(o.rows, 1);
+      const across = num(o.spacingAcross);
+      const staggered = o.stagger && rows > 1;
+      const shift = (j) => (staggered && j % 2 ? across / 2 : 0);
+      for (let j = 0; j < rows; j++)
+        for (let i = 0; i < cols; i++) points.push([i * across + shift(j), j * num(o.spacingUp)]);
+      middle = [
+        ((cols - 1) * across + (staggered ? across / 2 : 0)) / 2,
+        ((rows - 1) * num(o.spacingUp)) / 2,
+      ];
+    } else {
+      const n = int(o.count, 1);
+      const step = num(o.spacing);
+      for (let i = 0; i < n; i++) points.push(o.along === "up" ? [0, i * step] : [i * step, 0]);
+      middle = o.along === "up" ? [0, ((n - 1) * step) / 2] : [((n - 1) * step) / 2, 0];
+    }
+    const placed = o.centered ? points.map(([a, b]) => [a - middle[0], b - middle[1]]) : points;
+    // The selected hole is the point on its own spot, or, with none
+    // there, moves to the first.
+    const own = placed.findIndex(([a, b]) => Math.hypot(a, b) < 1e-9);
+    if (own < 0) move = at(placed[0]);
+    offsets = placed.filter((_, k) => k !== (own < 0 ? 0 : own));
   } else if (o.pattern === "circle" && o.skadisFill) {
     // The checkerboard's points within the radius, nearest first, then
     // round from straight up (as a ring starts), the hole itself on one.
@@ -864,10 +963,6 @@ export function repeatPoints(hole, options) {
       move = at(ring[0]);
       offsets = ring.slice(1);
     }
-  } else {
-    const n = int(o.count, 1);
-    const step = num(o.spacing);
-    for (let i = 1; i < n; i++) offsets.push(o.along === "up" ? [0, i * step] : [i * step, 0]);
   }
   return { copies: offsets.slice(0, REPEAT_MAX_HOLES - 1).map(at), move };
 }
@@ -916,7 +1011,7 @@ export function findHoleNear(doc, point, toleranceMm) {
 export function holeFootprintRadius(spec) {
   if (spec.kind === "openconnect") return OPENCONNECT_FOOTPRINT.halfWidth;
   if (spec.kind === "multiconnect") return MULTICONNECT_FOOTPRINT.radius + spec.clearance;
-  if (spec.kind === "thread") return (THREAD.diameter + spec.clearance) / 2;
+  if (spec.kind === "thread") return (threadOf(spec).diameter + spec.clearance) / 2;
   if (spec.kind === "cylinder") return spec.diameter / 2;
   // A rectangle and a 2020 socket draw their own outline (slotOutline());
   // their ring — and the "a click here picks this hole" area — is the
@@ -1011,7 +1106,9 @@ export function holesToScad(doc, partsById, { throughLength, extents, importedFi
   if (holes.some((h) => isConnector(h.spec))) lines.push("include <../vendor/BOSL2/std.scad>");
   if (holes.some((h) => h.spec.kind === "openconnect")) lines.push("use <../lib/openconnect.scad>");
   if (holes.some((h) => h.spec.kind === "multiconnect")) lines.push("use <../lib/multiconnect.scad>");
-  if (holes.some((h) => h.spec.kind === "thread")) lines.push("use <../lib/ogthread.scad>");
+  const threads = holes.filter((h) => h.spec.kind === "thread");
+  if (threads.some((h) => threadOf(h.spec) === THREAD)) lines.push("use <../lib/ogthread.scad>");
+  if (threads.some((h) => threadOf(h.spec) !== THREAD)) lines.push("use <../lib/multiboard.scad>");
   if (holes.some((h) => h.spec.kind === "extrusion")) lines.push("use <../lib/exsocket.scad>");
   if (holes.some((h) => h.spec.kind === "pinhole")) lines.push("use <../lib/pinhole.scad>");
   if (holes.some((h) => h.spec.kind === "klippt")) lines.push("use <../lib/klippt.scad>");
@@ -1069,7 +1166,7 @@ export function holeLabel(hole, presetName = null) {
     return bits.join(", ");
   }
   if (s.kind === "thread") {
-    return `openGrid thread ${s.depth > 0 ? `${fmt(s.depth)} deep` : "through"}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
+    return `${threadOf(s).label} ${s.depth > 0 ? `${fmt(s.depth)} deep` : "through"}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
   }
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
@@ -1161,8 +1258,12 @@ export function cutterLines(hole, throughLength, extents = null) {
     const through = extents
       ? Math.min(throughLength, widthAlong(hole.normal, extents) + OVERSHOOT_MM)
       : throughLength;
+    const depth = fmt(s.depth > 0 ? s.depth : through);
+    const size = MB_THREAD_SIZE[/** @type {keyof typeof MB_THREAD_SIZE} */ (s.profile)];
     body.push(
-      `og_thread_hole(depth = ${fmt(s.depth > 0 ? s.depth : through)}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`,
+      size
+        ? `mb_thread_hole(size = ${scadLiteral(size)}, depth = ${depth}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`
+        : `og_thread_hole(depth = ${depth}, clearance = ${fmt(s.clearance)}, overshoot = ${fmt(OVERSHOOT_MM)});`,
     );
     m = slotFrameMatrix(hole);
   } else if (s.kind === "extrusion") {
@@ -1589,7 +1690,7 @@ export function slotOutline(hole) {
     return segments;
   }
   if (s.kind === "thread") {
-    loop(arc(0, 0, (THREAD.diameter + s.clearance) / 2, 0, 2 * Math.PI, 48).slice(0, -1));
+    loop(arc(0, 0, (threadOf(s).diameter + s.clearance) / 2, 0, 2 * Math.PI, 48).slice(0, -1));
   } else if (s.kind === "openconnect") {
     const f = OPENCONNECT_FOOTPRINT;
     loop([

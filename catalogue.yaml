@@ -485,6 +485,61 @@ parts:
       - name: screw
         params: { body: screw }
 
+  # Multiboard (Keep Making, now MultiBuild) is under the MultiBuild
+  # Licence — personal use, no redistribution — so no tile or Multiboard
+  # part is here. These only carry the tile's two threads, from the
+  # community's measurements (lib/multiboard.scad), MIT; parametric until
+  # checked against a printed tile.
+  - id: multiboard/snap
+    system: Multiboard
+    name: Big-thread snap
+    file: parts/multiboard/snap.scad
+    module: multiboard_snap
+    confidence: parametric
+    source: >-
+      lib/multiboard.scad: a Multiboard tile's big thread (Ø22.5mm,
+      2.5mm pitch) from the community's measurements as
+      shaggyone's multiboard-parametric cuts it. Multiboard compatible:
+      no Multiboard file is used. Not yet checked against a printed tile.
+    source_url: https://github.com/shaggyone/multiboard-parametric
+    print_note: >-
+      Thread down, head up; no supports (the head's 1mm ledge bridges).
+      Screws into a Multiboard tile's big hole until the head seats; the
+      octagonal head is 24mm across, so snaps fit in neighbouring holes.
+      Fuse a hook or holder onto "mount". clearance is how much narrower
+      the thread is than the tile's: more if it binds, less if it wobbles.
+    minimums:
+      clearance: 0
+    defaults:
+      length: 6.4
+      head: 3
+      clearance: 0.25
+
+  - id: multiboard/peg
+    system: Multiboard
+    name: Small-thread peg
+    file: parts/multiboard/peg.scad
+    module: multiboard_peg
+    confidence: parametric
+    source: >-
+      lib/multiboard.scad: a Multiboard tile's small thread (Ø7.03mm,
+      3mm pitch) from the community's measurements as
+      shaggyone's multiboard-parametric cuts it. Multiboard compatible:
+      no Multiboard file is used. Not yet checked against a printed tile.
+    source_url: https://github.com/shaggyone/multiboard-parametric
+    print_note: >-
+      Thread down, head up; no supports. Screws into one of a tile's small
+      holes, at the corners between cells, until the head seats. A head up
+      to 9mm across clears a big-thread snap in each hole round it.
+    minimums:
+      head_d: 8.025
+      clearance: 0
+    defaults:
+      length: 6.4
+      head_d: 9
+      head: 2
+      clearance: 0.25
+
   - id: gopro/male
     system: GoPro
     name: Two-prong male buckle

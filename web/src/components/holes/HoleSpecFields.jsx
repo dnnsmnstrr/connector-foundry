@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES, MAGSAFE_INSERT_OPTIONS, getPreset } from "../../lib/screwPresets.js";
-import { DECKMATE, EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill } from "../../lib/screwHoles.js";
+import { DECKMATE, EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill, threadOf } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
 
@@ -92,9 +92,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             ? "Which way the socket's square is turned: at 0 its sides run up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
             : spec.kind === "rectangle"
               ? "Which way the rectangle is turned: at 0 its height runs up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 45°."
-              : spec.kind === "thread"
-                ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
-                : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
+              : spec.kind === "thread" && threadOf(spec) !== THREAD
+                ? "Where the thread starts, so which way a bolt's head ends up turned once it is screwed in. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+                : spec.kind === "thread"
+                  ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
+                  : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
     <label className="field holes-direction-field" htmlFor={`${id}-spin`} title={spinTitle}>
       <span className="field-label">Direction (°)</span>
@@ -148,13 +150,19 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   }
 
   if (spec.kind === "thread") {
+    const thread = threadOf(spec);
+    const openGrid = thread === THREAD;
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
           <label
             className="field"
             htmlFor={`${id}-depth`}
-            title={`How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`}
+            title={
+              openGrid
+                ? `How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`
+                : `How deep the thread runs. A tile's is ${thread.fullLength} mm; a bolt's thread is longer, so through is usual.`
+            }
           >
             <span className="field-label">Depth (mm)</span>
             <DecimalInput
@@ -169,7 +177,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           <label
             className="field"
             htmlFor={`${id}-clear`}
-            title={`Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`}
+            title={
+              openGrid
+                ? `Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`
+                : `Added to the thread's ${thread.diameter} mm diameter. 0 cuts it as a tile does; more if the bolt is hard to turn.`
+            }
           >
             <span className="field-label">Clearance (mm)</span>
             <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
@@ -185,12 +197,21 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           <span className="field-label">Through</span>
         </label>
         {spinField}
-        <p className="muted holes-params-note">
-          The female thread of an openGrid threaded snap ({THREAD.diameter} mm, 3 mm pitch): the openConnect
-          and MultiConnect snaps' screw body screws into it, and ends up with its head pointing the direction
-          above. The point you click is the thread's axis; leave about 2 mm of material around its Ø
-          {THREAD.diameter + THREAD.clearance}.
-        </p>
+        {openGrid ? (
+          <p className="muted holes-params-note">
+            The female thread of an openGrid threaded snap ({THREAD.diameter} mm, 3 mm pitch): the openConnect
+            and MultiConnect snaps' screw body screws into it, and ends up with its head pointing the
+            direction above. The point you click is the thread's axis; leave about 2 mm of material around its
+            Ø{THREAD.diameter + THREAD.clearance}.
+          </p>
+        ) : (
+          <p className="muted holes-params-note">
+            A Multiboard tile's {spec.profile === "mb-big" ? "big" : "small"} hole (Ø{thread.diameter} mm,{" "}
+            {thread.pitch} mm pitch), cut as the tile cuts it, so Multiboard's{" "}
+            {spec.profile === "mb-big" ? "big" : "small"}-thread bolts screw into the model. The point you
+            click is the thread's axis; leave about 2 mm of material around it.
+          </p>
+        )}
       </div>
     );
   }

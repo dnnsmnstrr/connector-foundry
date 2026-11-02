@@ -574,6 +574,20 @@ molle/spine:
     - 89.7
     - 7.5
     volume_mm3: 29014.38
+multiboard/peg:
+  default:
+    bbox:
+    - 9.0
+    - 9.0
+    - 8.4
+    volume_mm3: 329.69
+multiboard/snap:
+  default:
+    bbox:
+    - 24.0
+    - 24.0
+    - 9.4
+    volume_mm3: 3779.4
 opengrid/board:
   default:
     bbox:

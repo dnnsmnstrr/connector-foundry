@@ -1,4 +1,5 @@
 import { memo, useId, useMemo, useState } from "react";
+import { threadOf } from "../../lib/screwHoles.js";
 import { presetGroups } from "../../lib/screwPresets.js";
 import { getPresetGroupsOpen, setPresetGroupOpen } from "../../lib/uiPrefs.js";
 import ScrewIcon from "./ScrewIcon.jsx";
@@ -134,7 +135,7 @@ function describe(spec) {
   if (spec.kind === "openconnect")
     return `openConnect slot, lock nub ${spec.lock}, ${spec.sideClearance} mm side / ${spec.depthClearance} mm depth clearance`;
   if (spec.kind === "thread")
-    return `openGrid snap thread, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance`;
+    return `${threadOf(spec).label}, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance`;
   if (spec.kind === "extrusion")
     return `Socket for a 2020 extrusion's end, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance${spec.keys ? ", keyed into its slots" : ""}${spec.bolt ? ", M5 bolt hole" : ""}`;
   if (spec.kind === "klippt")
