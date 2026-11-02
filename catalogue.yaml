@@ -1993,11 +1993,125 @@ parts:
         params: { orientation: vertical, len: 60 }
 
   # Underware (Hands on Katie and BlackjackDuck): under-desk cable
-  # channels, a base that mounts to the surface and a top that snaps onto
-  # it. One part per printable body, as upstream exports them. The cross-
-  # sections are upstream's own; lib/underware.scad sweeps them and cuts
-  # the mounting holes (its header says why not upstream's modules), and
-  # references.yaml holds each body to upstream's own script.
+  # channels. First the openGrid style, David D's one-piece channels that
+  # grip straight into an openGrid board, from Pedro Leite's Monokini
+  # through lib/underware_opengrid.scad; they come first because they are
+  # the ones to reach for on an openGrid board. Then the original two-
+  # piece system, a base that mounts to the surface and a top that snaps
+  # onto it. One part per printable body, as upstream exports them. The
+  # original's cross-sections are upstream's own; lib/underware.scad
+  # sweeps them and cuts the mounting holes (its header says why not
+  # upstream's modules). references.yaml holds each body to upstream's
+  # own script, and the openGrid channels to David D's files too.
+  - id: underware/opengrid_i_channel
+    system: Underware
+    name: openGrid straight channel
+    file: parts/underware/opengrid_i_channel.scad
+    module: uw_og_i_channel
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Underware for openGrid (David D, after Underware by Hands on Katie
+      and BlackjackDuck), from Pedro Leite's Monokini, vendored — called
+      by lib/underware_opengrid.scad. CC-BY-NC-SA — see README
+      "Licensing".
+    source_url: https://github.com/pleite/Monokini
+    keywords:
+      [cable management, cable channel, under desk, raceway, openGrid, Monokini, David D, Hands on Katie]
+    print_note: >-
+      Roof down on the bed (flip it in the slicer), no supports. One piece:
+      no base, the walls end in grips that snap straight into an openGrid
+      board's cells. length_units x 28mm long and
+      width_units cells wide, each wall 0.8mm in from the grid line so
+      channels side by side clear each other; two grips per 28mm square,
+      one on each outside wall. height is the whole channel, the 3.4mm
+      grips included: 22 as standard, upstream offers steps of 6 from 10
+      to 70. The roof carries a slot per 28mm square, for a hook or clip
+      along the channel.
+    slots:
+      pitch: 28  # UWOG_GRID — one slot per grid square, over the grips' cells
+      count_params: [width_units, length_units]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
+      height: Height (mm)
+    defaults:
+      length_units: 4
+      width_units: 1
+      height: 22
+    minimums:
+      length_units: 1
+      width_units: 1
+      height: 10
+    # A channel renders in about 0.7s in the browser at any size, 12 x 3
+    # and 70mm tall too (the grips are extrusions, not threads); 12 units
+    # is 336mm, near a large print bed.
+    resize:
+      x: { param: width_units, per: 28, step: 1, max: 3 }
+      y: { param: length_units, per: 28, step: 1, max: 12 }
+      z: { param: height, step: 1, max: 70 }
+    variants:
+      - name: single
+        params: { length_units: 1 }
+      - name: tall-34
+        params: { height: 34 }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/opengrid_l_channel
+    system: Underware
+    name: openGrid L channel
+    file: parts/underware/opengrid_l_channel.scad
+    module: uw_og_l_channel
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Underware for openGrid (David D, after Underware by Hands on Katie
+      and BlackjackDuck), from Pedro Leite's Monokini, vendored — its
+      channel and corner, assembled by lib/underware_opengrid.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/pleite/Monokini
+    keywords: [cable management, cable channel, under desk, corner, openGrid, Monokini, David D, Hands on Katie]
+    print_note: >-
+      Roof down on the bed (flip it in the slicer), no supports. A 90°
+      corner that grips into an openGrid board like the straight channel:
+      a rounded corner square with legs x_units and y_units x 28mm long
+      beyond it, width_units cells wide, grips on the outside walls of the
+      legs; height as for the straight channel. "mount" sits over the
+      corner square, not the empty inside of the L.
+    # The corner square's centre, off the bounding box's: half a leg, plus
+    # 0.3975mm on X and 0.4075mm on Y (the walls' 0.8mm separation and
+    # upstream's Nudge at the legs' ends, lib/underware_opengrid.scad).
+    mount_offset:
+      x: { param: x_units, offset: 0.02839, scale: -14 }
+      y: { param: y_units, offset: 0.02911, scale: -14 }
+    labels:
+      width_units: Width (units)
+      height: Height (mm)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 22
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 10
+    # About 0.7s in the browser at any size, 6 x 6 two units wide and 70mm
+    # tall too; 6 units is a 196mm leg beyond the corner square.
+    resize:
+      x: { param: x_units, per: 28, step: 1, max: 6 }
+      y: { param: y_units, per: 28, step: 1, max: 6 }
+      z: { param: height, step: 1, max: 70 }
+    variants:
+      - name: long-2x3
+        params: { x_units: 2, y_units: 3 }
+      - name: wide-2
+        params: { width_units: 2, height: 16 }
+
   - id: underware/i_channel_base
     system: Underware
     name: Straight channel base

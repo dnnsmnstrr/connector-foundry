@@ -68,6 +68,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   screw, magnet, wood screw or flat) as upstream offers them. Their profiles are upstream's own
   (QuackWorks, CC-BY-NC-SA). Cut cable exits into them on the Holes tab, or fuse a hook or a
   connector onto a top's roof slots or a base's underside on the Bench.
+- **Underware for openGrid.** David D's one-piece channels, whose walls end in grips that snap
+  straight into an openGrid board, with no base: `underware/opengrid_i_channel` and
+  `underware/opengrid_l_channel`, sized in openGrid's 28 mm cells, any length, width and height.
+  They come first in the Underware list. The geometry is Pedro Leite's Monokini (CC-BY-NC-SA),
+  checked against Monokini's scripts and David D's own files. The L's curved wall is solid all the
+  way up, where Monokini's turns into thin slots above about 10 mm.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.

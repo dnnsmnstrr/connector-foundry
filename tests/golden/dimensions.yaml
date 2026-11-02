@@ -945,3 +945,47 @@ underware/l_channel_top:
     - 50.017
     - 16.968
     volume_mm3: 7269.19
+underware/opengrid_i_channel:
+  default:
+    bbox:
+    - 26.4
+    - 112.01
+    - 22.0
+    volume_mm3: 13037.16
+  single:
+    bbox:
+    - 26.4
+    - 28.01
+    - 22.0
+    volume_mm3: 3260.12
+  tall-34:
+    bbox:
+    - 26.4
+    - 112.01
+    - 34.0
+    volume_mm3: 18413.64
+  wide-2x3:
+    bbox:
+    - 54.4
+    - 84.01
+    - 22.0
+    volume_mm3: 14482.71
+underware/opengrid_l_channel:
+  default:
+    bbox:
+    - 55.195
+    - 55.215
+    - 22.0
+    volume_mm3: 9002.61
+  long-2x3:
+    bbox:
+    - 83.195
+    - 111.215
+    - 22.0
+    volume_mm3: 18779.65
+  wide-2:
+    bbox:
+    - 83.195
+    - 83.215
+    - 16.0
+    volume_mm3: 14658.57
