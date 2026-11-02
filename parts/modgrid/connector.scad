@@ -57,6 +57,15 @@ BITBEAM_SQUARE_TAPER = 0.5;
 BITBEAM_SQUARE_SLOT = 0.9;
 BITBEAM_SQUARE_FORK = 2;
 
+// Small screw bores need a tighter segment size than OpenSCAD's global $fs:
+// even the global "fine" setting otherwise leaves a 2mm hole visibly faceted.
+module modgrid_dowel_bore_cylinder(d, h, d2 = undef) {
+    $fa = detail_fa(3);
+    $fs = detail_fs(0.25);
+    if (is_undef(d2)) cylinder(d = d, h = h);
+    else cylinder(d1 = d, d2 = d2, h = h);
+}
+
 module modgrid_dowel_peg(depth, screw_diameter, plate) {
     bore_root = screw_diameter + MODGRID_DOWEL_BORE_CLEARANCE;
     bore_tip = screw_diameter * MODGRID_DOWEL_TIP_BORE_RATIO;
@@ -64,15 +73,17 @@ module modgrid_dowel_peg(depth, screw_diameter, plate) {
     difference() {
         // The tapered entry tip leaves the four slotted petals free to flare.
         hull() {
-            translate([0, 0, -depth + 0.55])
-                cube([MODGRID_DOWEL_W, MODGRID_DOWEL_W, depth - 0.55], center = [true, true, false]);
-            translate([0, 0, -depth])
-                cube([MODGRID_DOWEL_W - 0.5, MODGRID_DOWEL_W - 0.5, 0.08], center = [true, true, false]);
+            // Extend into the carrier: a face-only join can preview as a
+            // detached bar in the WASM mesh even when the solids touch.
+            translate([-MODGRID_DOWEL_W / 2, -MODGRID_DOWEL_W / 2, -depth + 0.55])
+                cube([MODGRID_DOWEL_W, MODGRID_DOWEL_W, depth - 0.40]);
+            translate([-(MODGRID_DOWEL_W - 0.5) / 2, -(MODGRID_DOWEL_W - 0.5) / 2, -depth])
+                cube([MODGRID_DOWEL_W - 0.5, MODGRID_DOWEL_W - 0.5, 0.08]);
         }
 
-        // A screw entered from the carrier side wedges the tip petals outward.
-        translate([0, 0, -depth]) cylinder(d1 = bore_tip, d2 = bore_root, h = depth);
-        translate([0, 0, -0.01]) cylinder(d = bore_root, h = plate + 0.02);
+        // A screw entered from the carrier side (+Z) wedges the -Z tip petals outward.
+        translate([0, 0, -depth]) modgrid_dowel_bore_cylinder(bore_tip, depth, d2 = bore_root);
+        translate([0, 0, -0.01]) modgrid_dowel_bore_cylinder(bore_root, plate + 0.02);
         translate([-MODGRID_DOWEL_SLOT / 2, -MODGRID_DOWEL_W / 2 - 0.05, -depth - 0.01])
             cube([MODGRID_DOWEL_SLOT, MODGRID_DOWEL_W + 0.1, depth - MODGRID_DOWEL_ROOT + 0.02]);
         translate([-MODGRID_DOWEL_W / 2 - 0.05, -MODGRID_DOWEL_SLOT / 2, -depth - 0.01])
@@ -84,15 +95,20 @@ module modgrid_bitbeam_square_peg() {
     difference() {
         union() {
             translate([0, 0, -BITBEAM_SQUARE_LENGTH])
-                linear_extrude(height = BITBEAM_SQUARE_TAPER, scale = BITBEAM_SQUARE_W / BITBEAM_SQUARE_TIP)
+                linear_extrude(height = BITBEAM_SQUARE_TAPER,
+                               scale = BITBEAM_SQUARE_W / BITBEAM_SQUARE_TIP)
                     square([BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP], center = true);
-            translate([0, 0, -BITBEAM_SQUARE_LENGTH + BITBEAM_SQUARE_TAPER])
+            // Overlap the carrier slightly so the fork cannot become a
+            // separate shell when the browser converts the preview mesh.
+            translate([-BITBEAM_SQUARE_W / 2, -BITBEAM_SQUARE_W / 2,
+                       -BITBEAM_SQUARE_LENGTH + BITBEAM_SQUARE_TAPER - 0.15])
                 cube([BITBEAM_SQUARE_W, BITBEAM_SQUARE_W,
-                      BITBEAM_SQUARE_LENGTH - BITBEAM_SQUARE_TAPER], center = [true, true, false]);
+                      BITBEAM_SQUARE_LENGTH - BITBEAM_SQUARE_TAPER + 0.30]);
         }
 
-        // The fork is at the grid-entry tip, away from the carrier root.
-        translate([-BITBEAM_SQUARE_SLOT / 2, -BITBEAM_SQUARE_TIP, -BITBEAM_SQUARE_LENGTH - 0.01])
+        // The fork opens at the -Z grid-entry tip, away from the carrier root.
+        translate([-BITBEAM_SQUARE_SLOT / 2, -BITBEAM_SQUARE_TIP,
+                   -BITBEAM_SQUARE_LENGTH - 0.01])
             cube([BITBEAM_SQUARE_SLOT, 2 * BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_FORK + 0.02]);
     }
 }
@@ -130,8 +146,9 @@ module modgrid_connector(pegs = 2, rows = 1, depth = MODGRID_PIN_DEPTH, plate = 
             }
         } else {
             // These test styles use the prototype's square pins directly in
-            // the part frame: their roots meet the carrier, and their tips
-            // point down toward the grid. The full volume is merged so the
+            // the part frame: their roots meet the carrier at +Z, and their
+            // open tips point down toward the grid, as in the compliant style.
+            // The full volume is merged so the
             // browser preview shows one solid, as the compliant branch does.
             translate([0, 0, (pin_length - plate) / 2]) render(convexity = 4) {
                 if (plate > 0)
@@ -142,7 +159,8 @@ module modgrid_connector(pegs = 2, rows = 1, depth = MODGRID_PIN_DEPTH, plate = 
                             for (row = [0 : rows - 1], x = pegs == 1 ? [0] : [-MODGRID_PITCH / 2, MODGRID_PITCH / 2]) {
                                 y = (row - (rows - 1) / 2) * MODGRID_PITCH;
                                 translate([x, y, -0.01])
-                                    cylinder(d = screw_diameter + MODGRID_DOWEL_BORE_CLEARANCE, h = plate + 0.02);
+                                    modgrid_dowel_bore_cylinder(
+                                        screw_diameter + MODGRID_DOWEL_BORE_CLEARANCE, plate + 0.02);
                             }
                     }
                 for (row = [0 : rows - 1], x = pegs == 1 ? [0] : [-MODGRID_PITCH / 2, MODGRID_PITCH / 2]) {
