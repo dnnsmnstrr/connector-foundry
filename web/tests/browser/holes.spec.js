@@ -192,15 +192,40 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
     /^Undo add holes /,
   );
   // Nothing drilled yet, so a second hand-over replaces the base without asking.
-  let asked = false;
-  page.on("dialog", (dialog) => {
-    asked = true;
-    dialog.dismiss();
-  });
   await page.keyboard.press("1");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
   await expect(page).toHaveURL(/mode=holes/);
-  expect(asked).toBe(false);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// With holes drilled, Add Holes asks first, in the app's own dialog (a
+// browser that refuses window.confirm() would have made it a dead button):
+// Cancel keeps them, Replace starts over on the Library's part.
+test("Add Holes over drilled holes asks in the app's own dialog, and Cancel keeps them", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "drilling clicks the WebGL preview");
+  await drillAtFaceCenter(page);
+  await expect(page.locator(".holes-sidebar")).toContainText("Holes (1)");
+
+  await page.keyboard.press("1");
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  const question = page.getByRole("dialog", { name: /^Replace the holes you've placed/ });
+  await expect(question).toBeVisible();
+  await expect(question).toContainText("Undo brings them back.");
+  // The yes button has the focus, as a native confirm()'s had.
+  await expect(question.getByRole("button", { name: "Replace" })).toBeFocused();
+  await question.getByRole("button", { name: "Cancel" }).click();
+  await expect(question).toHaveCount(0);
+  await expect(page).not.toHaveURL(/mode=holes/);
+
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  await question.getByRole("button", { name: "Replace" }).click();
+  await expect(page).toHaveURL(/mode=holes/);
+  await expect(page.locator(".holes-sidebar")).not.toContainText("Holes (1)");
 });
 
 test("a click on a face drills a snapped hole and the render carries it", async ({ page }) => {
@@ -702,8 +727,11 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
 
   // "Pick another model" is a step too: the start picker offers it back.
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Pick another model", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Pick another model?" })
+    .getByRole("button", { name: "Pick another" })
+    .click();
   await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
   await page.getByRole("option", { name: "Undo pick another model", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();

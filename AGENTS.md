@@ -160,7 +160,9 @@ there.
 entry: its title, section, keywords and key hint in `web/src/lib/commandCatalog.js` (a unit test
 holds every hint to a row of `shortcuts.js`), its behaviour bound with `useCommands()`
 (`web/src/hooks/useCommands.js`) in the component that owns the state, before any early return.
-A part picker is a `CommandPalette` page, not a `Modal` with a `PartBrowser`. Running a command
+A part picker is a `CommandPalette` page, not a `Modal` with a `PartBrowser`; a yes-or-no
+question is `askConfirm()` (`web/src/lib/confirm.js`), never `window.confirm()`, which some
+browsers answer "no" without showing it. Running a command
 closes the palette in the same event, before whatever it opens mounts: never two modal dialogs
 at once (`isBehindOpenDialog()` reads the first open one, not the topmost). Anything a user's
 command can carry (`web/src/lib/userCommands.js`) is untrusted, like the rest of persisted

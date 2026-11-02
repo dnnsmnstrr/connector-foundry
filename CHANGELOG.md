@@ -9,6 +9,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Questions in the app's own dialog.** Replacing a bench or your holes, deleting a preset,
+  importing settings and making a new MCP token now ask in the app's own dialog instead of the
+  browser's. Some browsers answer the browser's "no" without showing it, which made **Add Holes**
+  (and Pick another model, Open in Bench over a bench) look like it did nothing.
 - **System pitches are adjustable.** Settings can tune Gridfinity's cell pitch and MOD-GRID's hole spacing; the Library, Bench and Holes tab use the same saved values.
 - **Part search shows its `/` shortcut.** A small key hint beside the search field makes the quick
   search key easier to discover.

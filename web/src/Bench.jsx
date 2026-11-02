@@ -120,6 +120,7 @@ import { getOverrides, resolveAttachedParams, resolveParams } from "./lib/userOv
 import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib/benchOrientation.js";
 import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
+import { askConfirm } from "./lib/confirm.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -1370,8 +1371,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // changes unless hydration succeeds, so a bad file leaves the current
   // bench exactly as it was; one that loads is an undo step (`label`
   // names it), so the bench it replaced can be had back.
-  function applyConfig(doc, what, label) {
-    if (assembly && !window.confirm(`Replace the current bench with ${what}?`)) return;
+  async function applyConfig(doc, what, label) {
+    if (
+      assembly &&
+      !(await askConfirm(`Replace the current bench with ${what}?`, {
+        detail: "Undo brings the bench back.",
+        confirmLabel: "Replace",
+      }))
+    )
+      return;
     try {
       loadBenchConfig(doc, catalogueById, label);
       selectNode(null);
@@ -1404,8 +1412,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     return !problem;
   }
 
-  function removePreset(name) {
-    if (!window.confirm(`Delete the preset "${name}"?`)) return;
+  async function removePreset(name) {
+    if (!(await askConfirm(`Delete the preset "${name}"?`, { confirmLabel: "Delete" }))) return;
     setConfigError(deletePreset(name));
   }
 
@@ -1491,8 +1499,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   const emptyDrop = useFileDrop(!assembly && !importMode ? (file) => startImport("root", file) : null);
   useCommandDrop({
     label: assembly ? "Drop to start a new bench on this model" : "Drop to import it as the base part",
-    onFile: (file) => {
-      if (assembly && !window.confirm(`Replace the current bench with a new one on "${file.name}"?`)) return;
+    onFile: async (file) => {
+      if (
+        assembly &&
+        !(await askConfirm(`Replace the current bench with a new one on "${file.name}"?`, {
+          detail: "Undo brings the bench back.",
+          confirmLabel: "Replace",
+        }))
+      )
+        return;
       startImport("root", file);
     },
   });

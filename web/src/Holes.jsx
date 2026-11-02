@@ -118,6 +118,7 @@ import {
 import { getGridSnap } from "./lib/uiPrefs.js";
 import { guideDefaults } from "./lib/guideDefaults.js";
 import { resolveParams } from "./lib/userOverrides.js";
+import { askConfirm } from "./lib/confirm.js";
 
 // Debounce between the last hole edit and the re-render it triggers, so
 // typing a diameter (or holding an arrow key) doesn't compile once per
@@ -585,12 +586,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return { key: one && `base:${one}`, label: one ? `edit ${one}` : "edit parameters" };
   }
 
-  function changeBase() {
+  async function changeBase() {
     if (
       doc.holes.length &&
-      !window.confirm(
-        `Pick another model? The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped.`,
-      )
+      !(await askConfirm("Pick another model?", {
+        detail: `The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped. Undo brings them back.`,
+        confirmLabel: "Pick another",
+      }))
     )
       return;
     ++baseRequest.current;
@@ -1300,13 +1302,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const emptyDrop = useFileDrop(!doc && !importOpen ? startImport : null);
   useCommandDrop({
     label: doc ? "Drop to drill holes in this model instead" : "Drop to drill holes in it",
-    onFile: (file) => {
+    onFile: async (file) => {
       const count = doc?.holes.length ?? 0;
       if (
         count &&
-        !window.confirm(
-          `Drill into "${file.name}" instead? The ${count} hole${count === 1 ? "" : "s"} on this model will be dropped.`,
-        )
+        !(await askConfirm(`Drill into "${file.name}" instead?`, {
+          detail: `The ${count} hole${count === 1 ? "" : "s"} on this model will be dropped. Undo brings them back.`,
+          confirmLabel: "Drill into it",
+        }))
       )
         return;
       startImport(file);

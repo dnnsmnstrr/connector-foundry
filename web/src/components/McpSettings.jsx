@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDesktopMcp } from "../hooks/useDesktopMcp.js";
 import { claudeCodeCommand, mcpJsonConfig } from "../lib/desktopBridge.js";
 import InfoTip from "./InfoTip.jsx";
+import { askConfirm } from "../lib/confirm.js";
 
 // Settings > Coding agents, in the desktop app only: the switch for its MCP
 // server (desktop/mcp.cjs), which lets a coding agent on this computer —
@@ -45,11 +46,12 @@ export default function McpSettings() {
     setCopied(ok ? which : "failed");
   }
 
-  function replaceToken() {
+  async function replaceToken() {
     if (
-      window.confirm(
-        "Make a new token? Coding agents set up with the old one can't connect until they have the new one.",
-      )
+      await askConfirm("Make a new token?", {
+        detail: "Coding agents set up with the old one can't connect until they have the new one.",
+        confirmLabel: "Make a new token",
+      })
     )
       mcp.newToken();
   }
