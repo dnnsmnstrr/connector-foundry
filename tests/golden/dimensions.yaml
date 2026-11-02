@@ -507,6 +507,12 @@ modgrid/bit_holder:
     - 14.312
     volume_mm3: 683.24
 modgrid/connector:
+  bitbeam-square:
+    bbox:
+    - 12.9
+    - 4.9
+    - 5.5
+    volume_mm3: 240.85
   default:
     bbox:
     - 14.6
@@ -519,6 +525,18 @@ modgrid/connector:
     - 4.9
     - 5.912
     volume_mm3: 177.36
+  dowel-2.5mm:
+    bbox:
+    - 14.6
+    - 4.8
+    - 6.3
+    volume_mm3: 236.77
+  dowel-2mm:
+    bbox:
+    - 14.6
+    - 4.8
+    - 6.3
+    volume_mm3: 245.84
   single:
     bbox:
     - 6.6

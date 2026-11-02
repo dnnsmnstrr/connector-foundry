@@ -65,9 +65,9 @@ module modgrid_dowel_peg(depth, screw_diameter, plate) {
         // The tapered entry tip leaves the four slotted petals free to flare.
         hull() {
             translate([0, 0, -depth + 0.55])
-                cube([MODGRID_DOWEL_W, MODGRID_DOWEL_W, depth - 0.55], center = [true, true, false]);
+                cube([MODGRID_DOWEL_W, MODGRID_DOWEL_W, depth - 0.55], anchor = BOTTOM);
             translate([0, 0, -depth])
-                cube([MODGRID_DOWEL_W - 0.5, MODGRID_DOWEL_W - 0.5, 0.08], center = [true, true, false]);
+                cube([MODGRID_DOWEL_W - 0.5, MODGRID_DOWEL_W - 0.5, 0.08], anchor = BOTTOM);
         }
 
         // A screw entered from the carrier side wedges the tip petals outward.
@@ -82,13 +82,17 @@ module modgrid_dowel_peg(depth, screw_diameter, plate) {
 
 module modgrid_bitbeam_square_peg() {
     difference() {
+        // prismoid() and cuboid() put every corner at an exact coordinate,
+        // so the tip and the shaft share their 4.6mm face exactly. A
+        // scaled linear_extrude() lands the tip's narrow end a hair off the
+        // shaft's walls, and the union exports as separate shells.
         union() {
             translate([0, 0, -BITBEAM_SQUARE_LENGTH])
-                linear_extrude(height = BITBEAM_SQUARE_TAPER, scale = BITBEAM_SQUARE_W / BITBEAM_SQUARE_TIP)
-                    square([BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP], center = true);
+                prismoid(size1 = [BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP],
+                         size2 = [BITBEAM_SQUARE_W, BITBEAM_SQUARE_W], h = BITBEAM_SQUARE_TAPER);
             translate([0, 0, -BITBEAM_SQUARE_LENGTH + BITBEAM_SQUARE_TAPER])
-                cube([BITBEAM_SQUARE_W, BITBEAM_SQUARE_W,
-                      BITBEAM_SQUARE_LENGTH - BITBEAM_SQUARE_TAPER], center = [true, true, false]);
+                cuboid([BITBEAM_SQUARE_W, BITBEAM_SQUARE_W, BITBEAM_SQUARE_LENGTH - BITBEAM_SQUARE_TAPER],
+                       anchor = BOTTOM);
         }
 
         // The fork is at the grid-entry tip, away from the carrier root.
