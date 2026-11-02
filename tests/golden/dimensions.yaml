@@ -239,6 +239,38 @@ extrusion2020/tab:
     - 10.7
     - 10.0
     volume_mm3: 476.43
+goews/hanger:
+  default:
+    bbox:
+    - 41.6
+    - 24.39
+    - 8.15
+    volume_mm3: 4161.35
+  three-units:
+    bbox:
+    - 125.6
+    - 24.39
+    - 8.15
+    volume_mm3: 12566.13
+goews/tile:
+  default:
+    bbox:
+    - 105.0
+    - 84.87
+    - 6.0
+    volume_mm3: 18322.81
+  grid:
+    bbox:
+    - 84.0
+    - 72.746
+    - 6.0
+    volume_mm3: 18759.94
+  hex-3x3:
+    bbox:
+    - 147.0
+    - 121.244
+    - 6.0
+    volume_mm3: 41226.33
 gopro/female:
   default:
     bbox:

@@ -170,6 +170,32 @@ sources:
     path: refs/manual/soldr/box-1x2.stl   # "soldr-1x2-box-full-space.stl"
     license: CC-BY-NC-SA-4.0 (SOLDR by soldr.pro)
 
+  # GOEWS's own files (MrExo3D, Printables model 1090032, CC-BY 4.0):
+  # what parts/goews/ is rebuilt from. Printables hands them out without
+  # a login, but not at a fixed URL, so nothing fetches them: download
+  # the model's files and copy these four into refs/manual/goews/ under
+  # the names below (the designer's own name after each). Without them,
+  # their checks are skipped.
+  goews-hex:
+    kind: file
+    path: refs/manual/goews/hex-single.stl   # "Goews Single Hex.stl" (Tiles)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-grid-3x3:
+    kind: file
+    path: refs/manual/goews/grid-3x3.stl     # "Goews Grid 36H Tile 3x3.stl" (GOEWS GRID Tiles)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-plate-2x:
+    kind: file
+    path: refs/manual/goews/plate-2x.stl     # "Goews 2x Hanging Plate Blank.stl" (Hanging Plates)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-plate-3x:
+    kind: file
+    path: refs/manual/goews/plate-3x.stl     # "Goews 3x Hanging Plate Blank.stl" (Hanging Plates)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
   nopscadlib:
     kind: git
     url: https://github.com/nophead/NopSCADlib.git
@@ -1120,6 +1146,81 @@ shape_checks:
       max_surface_max_mm: 0.15
       min_section_iou: 0.99
 
+  # GOEWS. The designer models a tile with its front on x = 0 and its back
+  # at x = -6, across along y and up along z, a hex cell's centre on the
+  # origin; a plate with its hangers' backs on x = 91. The matrices turn
+  # those into the parts' frames (tile: front down; plate: hangers down).
+  - id: goews/tile-hex
+    part: goews/tile
+    reference_source: goews-hex
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-hex}");
+    align: none
+    sections_z: [0.25, 1.5, 3.5, 5.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/tile-grid-3x3
+    part: goews/tile
+    params: {style: grid, cols: 3, rows: 3}
+    reference_source: goews-grid-3x3
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(style = "grid", cols = 3, rows = 3, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, -1, 0, 42], [0, 0, 1, -39.4355], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-grid-3x3}");
+    align: none
+    sections_z: [0.25, 1.5, 3.5, 5.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/hanger-2x
+    part: goews/hanger
+    params: {units: 2}
+    reference_source: goews-plate-2x
+    ours: |
+      include <{repo}/parts/goews/hanger.scad>
+      goews_hanger(units = 2, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, 1, 0, -21], [0, 0, 1, 159.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-2x}");
+    align: none
+    sections_z: [1, 2.5, 4, 5.1, 6.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/hanger-3x
+    part: goews/hanger
+    params: {units: 3}
+    reference_source: goews-plate-3x
+    ours: |
+      include <{repo}/parts/goews/hanger.scad>
+      goews_hanger(units = 3, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, 1, 0, -42], [0, 0, 1, 129.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-3x}");
+    align: none
+    sections_z: [1, 2.5, 4, 5.1, 6.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
 fit_checks:
   - id: gopro/male-into-our-female
     part: gopro/male
@@ -1820,3 +1921,60 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.1]
+
+  # GOEWS: a plate hung in a cell, its hangers' backs on the window's back
+  # ledge (5mm in: the plate stands 0.15mm off the tile's front) and their
+  # chamfered bottom on the floor's ramp, face to face, 0.4mm round the
+  # flanks. The window's bottom is GOEWS_WIN_Y0 from the hex cell's centre.
+  - id: goews/hanger-in-tile
+    part: goews/hanger
+    why: >
+      Our hanger plate has to hang in our tile: in the window, on the
+      cleats, its bolt notch over the thread.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.05
+      clearance_mm: [0.0, 0.05]
+
+  - id: goews/hanger-in-designer-tile
+    part: goews/hanger
+    reference_source: goews-hex
+    why: >
+      Our hanger plate has to hang in tiles people have printed from the
+      designer's file, not only in ours.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    b: |
+      multmatrix([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-hex}");
+    expect:
+      max_interference_mm3: 0.05
+      clearance_mm: [0.0, 0.05]
+
+  # And the designer's 2x plate in our GOEWS GRID tile, over the first two
+  # cells of its bottom row (their hex-frame origins 39.4355 below and 42
+  # apart either side of the tile's centre). Its hangers' chamfers lie on
+  # our ramps face to face, as ours do, which the meshes' rounding turns
+  # into 0.04mm3 a hanger.
+  - id: goews/designer-hanger-in-grid
+    part: goews/tile
+    params: {style: grid, cols: 3, rows: 3}
+    reference_source: goews-plate-2x
+    why: >
+      Our tile has to take the plates people have printed from the
+      designer's files, not only ours.
+    a: |
+      include <{repo}/lib/goews.scad>
+      translate([-21, -39.4355 + GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0])
+          multmatrix([[0, 1, 0, -21], [0, 0, 1, 159.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-2x}");
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(style = "grid", cols = 3, rows = 3, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.05]

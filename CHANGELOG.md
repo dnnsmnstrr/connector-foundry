@@ -33,6 +33,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **GOEWS.** A new system: `goews/tile`, the Greatly Over Engineered Wall System's wall tile, as
+  hex cells (42 mm across, every other row half a cell over) or GOEWS GRID's 42 × 36.373 mm
+  rectangles, any number each way; and `goews/hanger`, the hanger plate every GOEWS accessory
+  hangs by, any number of units wide, to fuse onto any part so it hangs on a GOEWS wall. Rebuilt from
+  MrExo3D's files and checked against them; CC-BY 4.0, like GOEWS itself.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.
