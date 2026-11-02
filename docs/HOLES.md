@@ -80,7 +80,12 @@ only drags); with a handle focused, the arrow keys grow or shrink it a Grid step
 (0.1 mm with the Grid off; Shift: ten steps). `Esc` cancels a drag. A resized hole is also what
 the next click drills, as an edit in the sidebar is. Screws and connector slots keep their
 hardware's size; every hole, those too, has a round handle in its middle: drag it to move the
-hole across its face, in whole Grid steps from where it was (Shift: freely). A spot off the face says "Off the face", and the hole
+hole across its face. With Snap on it catches on the face's snap points and guide lines as a click
+does, and on the face's center from further off (three times as far, up to a fifth of the face's
+narrower side), so a hole dragged near the middle lands exactly on it. Holes already on the face are
+not snapped to. The label by the hole says how far it has moved and, after a `·`, what it snapped
+to: "12 mm right, 4 mm up · face center". Away from them it moves in whole Grid steps from where it
+was; Shift, or Snap off, takes it freely. A spot off the face says "Off the face", and the hole
 stays. A cutout may still hang over the face's edge to notch it — only its centre has to stay on
 the face. The arrow keys nudge the selected holes along their face by one Grid step (Shift: ten),
 and refuse, with a note, a step that would take one off it.
