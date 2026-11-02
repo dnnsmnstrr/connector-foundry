@@ -75,6 +75,14 @@ const finish = (page, index, error) =>
 async function downloadBytes(download) {
   return readFile(await download.path());
 }
+// The app's own "Replace the current bench…?" question (lib/confirm.js),
+// answered yes whenever it comes up before an action, as the native
+// confirm() was answered here before.
+async function acceptReplace(page) {
+  const question = page.getByRole("dialog", { name: /^Replace the current bench/ });
+  await page.addLocatorHandler(question, (dialog) => dialog.getByRole("button", { name: "Replace" }).click());
+}
+
 async function importConfig(page, config) {
   const chooser = page.waitForEvent("filechooser");
   // The start picker's row over an empty bench, the sidebar's button on one.
@@ -456,7 +464,7 @@ test("embedded imported meshes survive config export and reload", async ({ page 
   expect(exported.imports[0].anchors).toEqual(doc.imports[0].anchors);
   await page.reload();
   await expect(page.getByRole("button", { name: "Download config", exact: true })).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
+  await acceptReplace(page);
   await importConfig(page, exported);
   const again = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download config", exact: true }).click();
@@ -476,7 +484,7 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   await libraryDownload.click();
   expect(extents(await downloadBytes(await first))).toEqual([40, 40, 4]);
   await page.getByTitle("Bench (2)").click();
-  page.on("dialog", (dialog) => dialog.accept());
+  await acceptReplace(page);
   const doc = config();
   doc.nodes.push({
     id: "child",

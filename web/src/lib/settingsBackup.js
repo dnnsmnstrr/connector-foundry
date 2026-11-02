@@ -24,6 +24,7 @@
 // both the import and that reload.
 import { downloadBlob } from "./download.js";
 import { isWorkspaceKey } from "./workspace.js";
+import { askConfirm } from "./confirm.js";
 
 export const SETTINGS_FORMAT = "connector-foundry-settings";
 export const SETTINGS_VERSION = 1;
@@ -146,8 +147,11 @@ export async function importSettingsFile(file) {
   } catch (err) {
     return `Couldn't import "${file.name}": ${err.message}`;
   }
-  const question = `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"? The app reloads to apply them.`;
-  if (!window.confirm(question)) return null;
+  const replace = await askConfirm(
+    `Replace all settings, bench presets and saved part defaults with the ones in "${file.name}"?`,
+    { detail: "The app reloads to apply them.", confirmLabel: "Replace" },
+  );
+  if (!replace) return null;
   const problem = applySettings(entries);
   if (!problem) window.location.reload();
   return problem;

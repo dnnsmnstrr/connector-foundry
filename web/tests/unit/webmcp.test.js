@@ -479,6 +479,18 @@ test("open_part says when the user kept what they had", () => {
   });
 });
 
+test("open_part waits for the user's answer when the app asks one", async () => {
+  const keep = sampleDeps({ openPart: () => Promise.resolve(false) }).deps;
+  assert.deepEqual(await tools(keep).open_part.execute({ partId: "opengrid/board", target: "bench" }), {
+    opened: false,
+    reason: "The user chose to keep what they had.",
+  });
+  const replace = sampleDeps({ openPart: () => Promise.resolve(true) }).deps;
+  const result = await tools(replace).open_part.execute({ partId: "opengrid/board", target: "holes" });
+  assert.equal(result.opened, "Board");
+  assert.equal(result.tab, "holes");
+});
+
 // --- State and benches ---------------------------------------------------------
 
 test("get_app_state reports each tab, the bench as a config without its meshes' bytes", () => {

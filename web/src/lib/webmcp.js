@@ -81,7 +81,7 @@ import { desktopBridge } from "./desktopBridge.js";
  * @property {() => { assembly: any, importedParts: Map<string, any> }} benchSession
  * @property {() => { doc: any }} holesSession
  * @property {() => number} renders how many renders are running
- * @property {(part: any, params: Record<string, any>, target: "library" | "bench" | "holes") => boolean} openPart
+ * @property {(part: any, params: Record<string, any>, target: "library" | "bench" | "holes") => boolean | Promise<boolean>} openPart
  *   false when the user chose to keep what was there
  * @property {(doc: any) => void} loadBench throws, with a message for the user, when it can't
  * @property {() => MountedTab | null} mounted what the tab on screen hands over (tabBridge)
@@ -718,10 +718,15 @@ export function createAppTools(get) {
         if (!TABS.includes(target)) throw new Error(`"target" is one of ${TABS.join(", ")}.`);
         const { params, unknown } = checkPartParams(part, input.params);
         const tab = /** @type {"library" | "bench" | "holes"} */ (target);
-        if (!deps.openPart(part, params, tab)) {
-          return { opened: false, reason: "The user chose to keep what they had." };
-        }
-        return { opened: part.name, tab, ...unknownNote(unknown) };
+        // The answer waits on the user when there is a bench or holes to
+        // replace (the app's own dialog, lib/confirm.js); the checks above
+        // still throw at once.
+        const answer = (/** @type {boolean} */ opened) =>
+          opened
+            ? { opened: part.name, tab, ...unknownNote(unknown) }
+            : { opened: false, reason: "The user chose to keep what they had." };
+        const opened = deps.openPart(part, params, tab);
+        return opened instanceof Promise ? opened.then(answer) : answer(opened);
       },
     },
     {

@@ -2343,6 +2343,33 @@ a.bench-modal-header-button {
   background: #202126;
 }
 
+/* A yes-or-no question (ConfirmDialog.jsx): the heading is the question,
+   Cancel and the yes button side by side under any detail. */
+.confirm-modal {
+  width: min(440px, 100vw - 2rem);
+}
+
+.confirm-detail {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.confirm-actions > button {
+  flex: 1;
+  margin-top: 0;
+}
+
+.confirm-yes {
+  position: static;
+}
+
 /* --- Command palette (components/CommandPalette.jsx) -----------------------
    Mod+K, and the Bench's and Holes' part pickers: a panel near the top of
    the window over a light backdrop, so the workspace (an attach picker's

@@ -160,8 +160,10 @@ test("an agent finds a part, opens it on the Bench, attaches to a slot and goes 
 
   // Replacing the bench asks the user, as Open in Bench does; a "no" is
   // the agent's answer too.
-  page.once("dialog", (dialog) => dialog.dismiss());
-  expect(await call(page, "open_part", { partId: "basics/plate", target: "bench" })).toEqual({
+  const asked = call(page, "open_part", { partId: "basics/plate", target: "bench" });
+  const question = page.getByRole("dialog", { name: /^Replace the current bench/ });
+  await question.getByRole("button", { name: "Cancel" }).click();
+  expect(await asked).toEqual({
     opened: false,
     reason: "The user chose to keep what they had.",
   });
