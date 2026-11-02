@@ -17,7 +17,7 @@ foundry settings set --set GRIDFINITY_PITCH=42.2 --set MODGRID_PITCH=8.1
 foundry render gridfinity/base --no-user-config  # true catalogue defaults (what tests and CI use)
 ```
 
-The web app's **Settings → System units** edits the same two pitches for its own saved settings.
+The web app's **Settings → Grid sizes** edits the same two pitches for its own saved settings.
 Gridfinity accepts 36–48 mm per cell and MOD-GRID 6–12 mm between holes. These change repeating
 XY spacing; feature sizes such as MOD-GRID's 5 mm square hole stay fixed.
 

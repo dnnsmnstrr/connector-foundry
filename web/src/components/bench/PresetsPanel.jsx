@@ -44,7 +44,7 @@ export default function PresetsPanel({
   const empty =
     emptyText === undefined
       ? onSave
-        ? "No presets yet — name the current bench above to keep it."
+        ? "No presets yet. Type a name above and press Save to keep this bench."
         : "No saved presets yet."
       : emptyText;
 

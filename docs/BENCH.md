@@ -31,7 +31,7 @@ attached part has:
   it); `Esc` cancels a move or drops the selection.
 - **Crop** — trim everything else to this part's vertical outline. A plate a few millimetres wider
   than the base it sits on, a bracket whose corner pokes past the rail: turn on Crop for the base
-  (the "Crop everything else to this outline" box in the sidebar's root section, or the Crop button
+  (the "Crop attached parts to this outline" box under the base part in the sidebar, or the Crop button
   over a selected part) and whatever sticks out past its footprint, straight up or down, is cut
   away — in the preview and in every exported body. Only the outer outline counts: a grid of holes
   or a screw hole in the cropping part is not cut through the others. One part crops at a time; the
@@ -60,7 +60,7 @@ attached part has:
   hangs on a wall (the catalogue's `attached_up`); the Rotation field turns it from there.
 
 **Resizing the base part.** Click the base part in the scene, away from the parts on it (its
-parameters open in the sidebar), or **Select root** beside its name in the sidebar: its name,
+parameters open in the sidebar), or **Select base** beside its name in the sidebar: its name,
 **Crop** and Deselect appear in the viewer's toolbar. Delete, Backspace, `M` and the arrow keys
 leave a selected base alone — removing it would remove everything. A base part whose size the
 catalogue knows (the Gridfinity parts, openGrid and Skådis boards, HSW walls, MOLLE panels,

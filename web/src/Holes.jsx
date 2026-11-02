@@ -11,7 +11,7 @@ import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
-import DrawerTabs from "./components/DrawerTabs.jsx";
+import { DrawerTabPanel } from "./components/DrawerTabs.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
@@ -25,7 +25,7 @@ import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
-import { useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { useDrawerLayout } from "./hooks/useDrawerLayout.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -246,11 +246,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [measureOn, setMeasureOn] = useState(false);
   const measuring = altHeld || measureOn;
   const coarse = hasCoarsePointer();
-  // On a phone (lib/drawer.js's DRAWER_TABS_QUERY) the drawer has two tabs
+  // In the narrow layout (lib/drawer.js) the drawer has two tabs
   // as the Library's does: the hole being edited, the list and the export
   // on one, the hole types on the other, which on one long page pushed
   // everything after them a screen down.
-  const tabbed = useDrawerTabsLayout();
+  const tabbed = useDrawerLayout();
   const [drawerTab, setDrawerTab] = useState(/** @type {"holes" | "types"} */ ("holes"));
   const [measurePoint, setMeasurePoint] = useState(null);
   // The system spacing Measure shows round the selected hole (from the
@@ -1421,7 +1421,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       title: "Drill screw holes",
       searchLabel: "Search parts",
       placeholder: "Search parts and commands…",
-      note: 'Pick a model to put screw holes into — a catalogue part, the bench as it stands, or type "import" for a mesh of your own.',
+      note: 'Pick a model to add screw holes to: a catalogue part or your bench. Type "import" to use your own mesh.',
       error: renderError,
       searchCommands: true,
       drop: () => ({ label: "Drop to drill holes in it", onFile: startImport }),
@@ -1484,10 +1484,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <div className="bench-empty-card">
           <p className="bench-empty-lead">No model yet.</p>
           <p className="muted">
-            Pick a model to put screw holes into — a catalogue part, a mesh of your own, or the bench as it
-            stands. Then click its faces: a hole snaps to the face's center, the center of each quadrant,
-            holes already in it, a set-in point at each corner, and the guide lines drawn across it — center
-            and quarter lines, a radial to each corner, and a circle of the radius you choose.
+            Pick a model to add screw holes to: a catalogue part, your own mesh, or your bench. Then click its
+            faces to drill. Holes snap to the face's center, its corners and the guide lines drawn across it.
           </p>
           <div className="bench-empty-actions">
             <button type="button" className="render-button" onClick={reopenStartPicker}>
@@ -1571,7 +1569,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       <p className="muted">
         {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
         {coarse
-          ? "Tap a face in the scene for its guides, again to drill a hole."
+          ? "Tap a face to see its guides, then again to drill a hole."
           : "Click a face in the scene to drill a hole."}
       </p>
       <label
@@ -1605,8 +1603,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             />
             {doc.holes.length > 0 && (
               <p className="muted holes-params-note">
-                Holes stay where they are in the part's coordinates; a change that moves a face moves it out
-                from under them.
+                Holes don't move with the part. If a change moves a face, check the holes on it.
               </p>
             )}
           </>
@@ -1614,7 +1611,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           <>
             <label
               className="field field-checkbox bench-crop-field"
-              title="Turn the mesh over (a half turn about X) so the other side faces up — for a file saved the way it prints rather than the way it is used. Holes already placed go with it."
+              title="Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it."
             >
               <input
                 type="checkbox"
@@ -1624,8 +1621,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               <span className="field-label">Flip upside down</span>
             </label>
             <p className="muted holes-params-note">
-              A mesh has no other parameters — change it in the file it came from, or in the Bench if it is
-              the bench.
+              An imported mesh has no other parameters. To change it, edit the original file, or the bench it
+              came from.
             </p>
           </>
         )}
@@ -1641,19 +1638,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       {multi ? (
         <p className="muted holes-editor-note">
           {shared.kind
-            ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
-            : "Holes of different kinds share no fields: pick a preset to make them one kind, or select one kind."}
+            ? "Changes apply to all of them. Fields that differ show “mixed”. Shift-click to add or remove a hole."
+            : "These holes are different kinds, so they share no fields. Pick a type to make them all one kind."}
         </p>
       ) : selected ? (
         <p className="muted holes-editor-note">
           {selectedPreset ? selectedPreset.name : "Custom"}
           {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at [
-          {formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
+          {formatPoint(selected.point)}]. Changes apply to this hole and the next ones you place.
         </p>
       ) : (
         <p className="muted holes-editor-note">
-          The screw — or connector slot — every new hole is made for: the one picked or edited last. Select a
-          hole to change it.
+          New holes are made for this screw or connector. Select a hole to change it instead.
         </p>
       )}
       {!tabbed && <PresetPicker value={editingPresetId} onPick={pickPreset} />}
@@ -1683,7 +1679,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           onClick={() => setRepeatOpen((open) => !open)}
           disabled={!selected}
           aria-expanded={Boolean(selected) && repeatOpen}
-          title="Copies of this hole in a row, a grid or round a circle on its face"
+          title="Copy this hole in a row, a grid or a circle"
         >
           Repeat…
         </button>
@@ -1720,7 +1716,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           Select all
         </button>
       </div>
-      {doc.holes.length === 0 && <p className="muted">None yet — click a face in the scene.</p>}
+      {doc.holes.length === 0 && <p className="muted">None yet. Click a face in the scene to add one.</p>}
       <ul className="holes-list">
         {doc.holes.map((h, i) => (
           <HoleRow
@@ -1758,7 +1754,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           className="download-button bench-export-button layerling-button print-button"
           onClick={openPrintSheet}
           disabled={status === "error"}
-          title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
+          title="Send the file to Prusa's EasyPrint, which slices and prints from a phone"
         >
           Print with EasyPrint…
         </button>
@@ -1781,24 +1777,30 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           collapsed={sidebarCollapsed}
           onToggle={onToggleSidebar}
           title={tabbed ? "Holes and hole types" : "Hole list"}
+          tabs={
+            tabbed
+              ? {
+                  id: "holes-drawer",
+                  label: "Holes",
+                  tabs: [
+                    { id: "holes", label: "Holes" },
+                    { id: "types", label: "Hole types" },
+                  ],
+                  selected: drawerTab,
+                  onSelect: (id) => setDrawerTab(id === "types" ? "types" : "holes"),
+                }
+              : undefined
+          }
         />
         {!sidebarCollapsed &&
           (tabbed ? (
-            <DrawerTabs
-              label="Holes"
-              tabs={[
-                { id: "holes", label: "Holes" },
-                { id: "types", label: "Hole types" },
-              ]}
-              selected={drawerTab}
-              onSelect={(id) => setDrawerTab(id === "types" ? "types" : "holes")}
-            >
+            <DrawerTabPanel id="holes-drawer" selected={drawerTab}>
               {drawerTab === "types" ? (
                 <PresetPicker value={editingPresetId} onPick={pickPresetInDrawer} />
               ) : (
                 holesPanel
               )}
-            </DrawerTabs>
+            </DrawerTabPanel>
           ) : (
             holesPanel
           ))}
@@ -1845,36 +1847,35 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <p className="print-note holes-note" aria-live="polite">
               {multi ? (
                 <>
-                  {selectedHoles.length} holes selected — edit them together in the sidebar; arrows nudge
-                  them, Delete removes them, Esc deselects.
+                  {selectedHoles.length} holes selected. Edit them together in the sidebar. Arrows nudge,
+                  Delete removes, Esc deselects.
                 </>
               ) : selected ? (
                 <>
-                  Hole {doc.holes.indexOf(selected) + 1} selected — drag its handles to resize or move it, or
-                  edit it in the sidebar; arrows nudge it, Delete removes it, Esc deselects.
+                  Hole {doc.holes.indexOf(selected) + 1} selected. Drag its handles or edit it in the sidebar.
+                  Arrows nudge, Delete removes, Esc deselects.
                 </>
               ) : doc.holes.length === 0 ? (
                 coarse ? (
                   <>
-                    Tap a face for its guides, then tap again to drill a hole; a tap near a snap point lands
-                    on it. Measure shows distances; Snapping off places freely.
+                    Tap a face to see its guides, then tap again to drill a hole. Taps near a snap point land
+                    on it. Measure shows distances.
                   </>
                 ) : (
                   <>
-                    Click a face to drill a hole. Hover for snap points and guides, hold Option for distances;
-                    Shift-click places freely.
+                    Click a face to drill a hole. Hover for snap points, hold Option for distances,
+                    Shift-click to place freely.
                   </>
                 )
               ) : coarse ? (
                 <>
-                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another (a
-                  new face shows its guides first), a hole to select it; press and hold one in the list to
-                  select several.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another, or
+                  a hole to select it. Press and hold one in the list to select several.
                 </>
               ) : (
                 <>
-                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Hover for snap points and
-                  guides, hold Option for distances; Shift-click places freely, or on a hole selects several.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Hover for snap points, hold
+                  Option for distances. Shift-click places freely, or selects several holes.
                 </>
               )}
               {status === "rendering" && " Rendering…"}

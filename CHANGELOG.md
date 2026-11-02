@@ -9,6 +9,26 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Parameters, slots and joints in plain words.** A part's fields say what they set and in what
+  unit (**Width (cells)** rather than `gx`, **Corner radius (mm)** rather than `r`); the parameter's
+  own name shows when the pointer rests on its label, and is still what the CLI, bench files and
+  links use. A Bench slot is named by where it is (**Centre**, **1 right, 2 front of centre**) rather than
+  `mount_1_-2`, joints read **Fused (one piece)**, **Bolted**, **Snap-fit**, and a resize label
+  counts "3 cells" rather than "gx 3".
+- **One main button per view.** In the Bench's Export, Download config is outlined beside the
+  filled Download STL; Start over and Holes' Pick another model are quiet text buttons; on a phone,
+  Find a part is outlined beside Print….
+- **Drawer tabs on the handle.** On a phone or a tablet, the Library's Parameters and Parts tabs and
+  Holes' Holes and Hole types tabs sit on the drawer's handle instead of a title that repeated them.
+  They show while the drawer is closed, and a tap on one opens the drawer on that tab. Tablets get
+  the tabs too: the Library's form moves from beside the view into the drawer, as on a phone.
+- **The model stays in sight on a phone.** With the drawer open, the 3D view centres and fits the
+  model in the part of the screen the drawer leaves, instead of behind it.
+- **Plainer wording across the app and Settings.** Shorter hints in the Bench and Holes headers and
+  sidebars, and shorter explanations in Settings. The Bench calls its first part the base everywhere
+  (**Select base**, **Base parameters**), and its export buttons name each body's part instead of
+  an id (**Download STL** when there is only one). In Settings, System units is now **Grid sizes**
+  (Gridfinity cell size, MOD-GRID hole spacing), and the Bench option moved under Editing.
 - **Questions in the app's own dialog.** Replacing a bench or your holes, deleting a preset,
   importing settings and making a new MCP token now ask in the app's own dialog instead of the
   browser's. Some browsers answer the browser's "no" without showing it, which made **Add Holes**

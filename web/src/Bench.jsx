@@ -121,6 +121,7 @@ import { nodeSpinAxis, nodeWorldFrame, nodeWorldMount, uprightSpin } from "./lib
 import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./lib/benchFold.js";
 import { rotateAbout } from "./lib/rotateDial.js";
 import { askConfirm } from "./lib/confirm.js";
+import { slotLabel } from "./lib/labels.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -1245,6 +1246,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     run?.(name);
   }
 
+  // A body's name on its export button: the part it starts at rather than
+  // the node id its file is named after ("n2_pin" is "Snap pin"). Two
+  // bodies of the same part keep the id too, or their buttons would read
+  // the same.
+  function bodyName(tag, tags) {
+    const nameOf = (t) => {
+      if (t === ROOT_ID) return rootPart?.name ?? t;
+      const id = t.replace(/_pin$/, "");
+      const name = partsById.get(getNode(assembly, id)?.partId)?.name ?? id;
+      return id === t ? name : `${name} pin`;
+    };
+    const name = nameOf(tag);
+    return tags.some((t) => t !== tag && nameOf(t) === name) ? `${name} (${tag})` : name;
+  }
+
   function downloadBody(tag) {
     withName(async (name) => {
       try {
@@ -1551,7 +1567,8 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               const target = parseMarkerId(marker.id);
               return {
                 id: `bench.attachAt:${marker.id}`,
-                title: target.slotName,
+                title: slotLabel(target.slotName),
+                keywords: [target.slotName],
                 subtitle: target.parentId === ROOT_ID ? rootPart?.name : `on ${nodeName(target.parentId)}`,
                 section: "Open slots",
                 actions: [
@@ -1675,7 +1692,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       title: "Start a bench",
       searchLabel: "Search parts",
       placeholder: "Search parts, presets and commands…",
-      note: 'Pick a base part with slots — a Gridfinity base or an openGrid board are good starting points — or type "import" for a model or a config of your own.',
+      note: 'Pick a base part to build on, like a Gridfinity base or an openGrid board. Type "import" to use your own model or bench file.',
       error: shownError,
       searchCommands: true,
       drop: () => ({
@@ -1812,7 +1829,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
       <div className="bench-rotate-panel">
         <span className="bench-rotate-name">
           {selectedPart.name}
-          <span className="muted">{rootSelected ? " · root" : ` · ${selectedNode.spin ?? 0}°`}</span>
+          <span className="muted">{rootSelected ? " · base" : ` · ${selectedNode.spin ?? 0}°`}</span>
         </span>
         {!rootSelected && (
           <>
@@ -1844,7 +1861,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               ? `Stop cropping to ${selectedPart.name}`
               : `Crop everything else to ${selectedPart.name}'s outline`
           }
-          title="Crop everything else to this part's vertical outline — edges that stick out past it are cut away"
+          title="Cut away anything else that sticks out past this part's outline"
         >
           Crop
         </button>
@@ -1886,7 +1903,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           <>
             <div className="bench-root-heading">
               <h2>{rootPart.name}</h2>
-              {/* Outside the "Root parameters" summary on purpose: a
+              {/* Outside the "Base parameters" summary on purpose: a
                   button in a <summary> toggles its <details> too. */}
               <button
                 type="button"
@@ -1897,14 +1914,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   rootSelected
                     ? "Deselect (Esc)"
                     : rootResizable
-                      ? "Select the root part: its outline, Crop, and handles to resize it in the scene"
-                      : "Select the root part: its outline and Crop in the scene"
+                      ? "Select the base part to crop to it or resize it with its handles"
+                      : "Select the base part to crop to it"
                 }
               >
-                Select root
+                Select base
               </button>
             </div>
-            <p className="muted">Root part. Click an open slot in the scene to attach something to it.</p>
+            <p className="muted">Base part. Click a marker in the scene to attach a part to it.</p>
             <label
               className="field bench-name-field"
               title="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export."
@@ -1928,14 +1945,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
             <label
               className="field field-checkbox bench-crop-field"
-              title="Everything attached is trimmed to this part's vertical outline — edges that stick out past it are cut away"
+              title="Cut away anything attached that sticks out past this part's outline"
             >
               <input
                 type="checkbox"
                 checked={assembly.cropTo === ROOT_ID}
                 onChange={(e) => nodeActions.setCrop(ROOT_ID, e.target.checked)}
               />
-              <span className="field-label">Crop everything else to this outline</span>
+              <span className="field-label">Crop attached parts to this outline</span>
             </label>
             {foldSpec(rootPart, assembly.root.params) && (
               <FoldSelect
@@ -1946,7 +1963,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             )}
 
             <details className="bench-node-params-details" data-node-params={ROOT_ID}>
-              <summary>Root parameters</summary>
+              <summary>Base parameters</summary>
               <ParamsEditor
                 className="bench-node-params"
                 part={rootPart}
@@ -1977,21 +1994,21 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
             <h3>Export</h3>
             <div className="bench-export">
-              {bodyTags(assembly).map((tag) => (
+              {bodyTags(assembly).map((tag, _, tags) => (
                 <button
                   type="button"
                   key={tag}
                   className="download-button bench-export-button"
                   onClick={() => downloadBody(tag)}
                 >
-                  STL: {tag}
+                  {tags.length === 1 ? "Download STL" : `STL: ${bodyName(tag, tags)}`}
                 </button>
               ))}
               <button
                 type="button"
-                className="download-button bench-export-button"
+                className="download-button bench-export-button secondary-button"
                 onClick={downloadConfig}
-                title="The bench setup as a file — parts, parameters, joints, rotations, and any imported meshes — to import again later"
+                title="Save this bench as a file, imported meshes included, to open again later"
               >
                 Download config
               </button>
@@ -2008,7 +2025,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 type="button"
                 className="download-button bench-export-button layerling-button print-button"
                 onClick={openPrintSheet}
-                title="Share or save every body's file and open Prusa's EasyPrint, which slices and prints from a phone"
+                title="Send the files to Prusa's EasyPrint, which slices and prints from a phone"
               >
                 Print with EasyPrint…
               </button>
@@ -2066,26 +2083,24 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             <p className="print-note" aria-live="polite">
               {showingLayout ? (
                 <>
-                  The body {foldedPartName} is part of, as it exports{" "}
-                  {fold.mode === "split" ? "split in two" : "folded on its hinge"}: cut in front of the head
-                  and laid on its side. Select a part, or turn off {FOLD_MODE_LABELS[fold.mode]}, to get back
-                  to the bench.
+                  The body with {foldedPartName}, as it exports:{" "}
+                  {fold.mode === "split" ? "split in two" : "folded on its hinge"} and laid on its side.
+                  Select a part or turn off {FOLD_MODE_LABELS[fold.mode]} to go back to the bench.
                 </>
               ) : moving ? (
                 <>
-                  Moving {selectedPart.name}: click an open slot marker to put it there, or step it with the
-                  arrow keys. Esc cancels.
+                  Moving {selectedPart.name}. Click a marker to put it there, or use the arrow keys. Esc
+                  cancels.
                 </>
               ) : roomToAttach ? (
                 <>
-                  {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"} on {rootPart.name}. Click a
-                  marker to attach a part there; click an attached part to select it, then turn, move, or
-                  delete it.
+                  {openSlots.length} open slot{openSlots.length === 1 ? "" : "s"}. Click a marker to attach a
+                  part, or click a part to turn, move or remove it.
                 </>
               ) : (
                 <>
-                  {MAX_ATTACHED} parts attached — the most a bench takes. Remove one to attach another; click
-                  an attached part to select it, then turn, move, or delete it.
+                  {MAX_ATTACHED} parts attached, the most a bench holds. Remove one to attach another, or
+                  click a part to turn or move it.
                 </>
               )}
               {/* No " Rendering…" appended here: the extra word wrapped the
@@ -2199,7 +2214,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           className="command-palette-side"
           page={{
             id: "bench-attach",
-            title: `Attach to ${pendingSlot.slotName}${pendingSlot.parentId !== ROOT_ID ? ` on ${pendingParentPart.name}` : ""}`,
+            title: `Attach to ${slotLabel(pendingSlot.slotName)}${pendingSlot.parentId !== ROOT_ID ? ` on ${pendingParentPart.name}` : ""}`,
             searchLabel: "Search parts",
             placeholder: "Search parts…",
             accessory: (

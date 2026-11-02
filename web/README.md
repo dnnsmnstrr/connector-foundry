@@ -135,11 +135,9 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   dependencies included, along with any syntax past ECMAScript 2022.
 - **The layout** (styles.css, the `max-width: 900px` blocks, browsers only — the desktop app keeps
   its panes at any width): the Bench and Holes are their header and the view down to the
-  screen's bottom edge, and so is the Library on a phone (under 600 px), whose form is in the
-  drawer; on a tablet the Library is one scrolling column with the part header, the 3D view at
-  60% of the viewport and the form. The sidebar is a bottom drawer over all of it in every tab (below,
-  "The sidebar on a phone"; the Library header's **Find a part** opens it at its search).
-  600–900 px wide (a tablet in portrait), the Library's form sits beside its viewer. The nav and
+  screen's bottom edge, and so is the Library, whose form is in the drawer. The sidebar is a
+  bottom drawer over all of it in every tab (below, "The sidebar on a phone"; the Library header's
+  **Find a part** opens it at its search). The nav and
   the column keep clear of a notch and the home indicator (`env(safe-area-inset-*)`, since the
   page asks for `viewport-fit=cover`); the nav keeps one row (the GitHub link goes under 480 px,
   the render's Cancel shows a ✕ alone) and scrolls sideways before anything falls off it. The
@@ -162,9 +160,12 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   Open or closed is the sidebar's one preference (`uiPrefs.js`), which on a phone defaults to
   closed until it is set. Closed, the content isn't rendered (as in the column): a drag from
   closed expands it on its first move, and a release at closed collapses it once the sheet is
-  down. Under 600 px (`DRAWER_TABS_QUERY`) the Library's drawer holds its form too:
+  down. The Library's drawer holds its form too:
   `components/DrawerTabs.jsx` puts **Parameters** and **Parts** on a segmented control (the ARIA
-  tabs pattern, pinned under the handle), and the view gets the Bench's full-height layout
+  tabs pattern), as Holes does **Holes** and **Hole types**. The tab list is part of the handle
+  (`SidebarToggle`'s `tabs`): a row under the grip in place of the title, in sight while the sheet
+  is closed (the closed rest is measured to its foot), and a tap on a tab opens the sheet on that
+  tab; the panel is the sheet's content. The view gets the Bench's full-height layout
   (`.library-tabbed`). Which tab shows is module state in `drawer.js`, so App's part search (`/`,
   Find a part, the palette) turns to Parts before it looks for the search box; a part picked
   there turns back to Parameters, and the palette's `library.parameters` opens the form. The
@@ -342,6 +343,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/renderError.js` | `isNativeStackOverflow()`: whether a worker render failed for want of native stack (the main-thread retry); `friendlyRenderError()`: the WASM stack-limit symptoms (`WASM_STACK_SYMPTOMS`, see "Known limit — nesting depth") turned into a message saying what to change, and a render that ran out of the browser's memory (`WASM_MEMORY_SYMPTOMS`, checked after them) into one saying so |
 | `src/components/PartBrowser.jsx` | Search box + grouped part list, the Library's sidebar (the Bench's and Holes' pickers are command palette pages built from the same `catalogueUtils.js`'s `partSections()`); headings follow the order set in Settings. Lists `catalogueUtils.js`'s `listedParts()`: the catalogue minus entries marked `hidden` (bitbeam/pin, bitbeam/axle) and minus what the user hid in Settings — all of which stay in the parts map for lookups by id |
 | `src/components/ParamsEditor.jsx` | One part's parameter fields plus reset / save-as-default / clear, used by Library and every Bench node |
+| `src/lib/labels.js` | What the screen calls things the code names: a parameter (`paramLabel()`: the catalogue's `labels`, or the name in words), an option, and a Bench slot (`slotLabel()`: "mount_1_-2" is "1 right, 2 front of centre"). The names themselves stay what files, links and agents use |
 | `src/components/StlViewer.jsx` | The three.js viewer every mode uses: the model, markers, guides, labels, the floating overlay, the resize handles and their ghost, the toolbar and the camera — see "3D viewer" below |
 | `src/lib/viewerCamera.js` | The viewer's camera maths, pure and Node-tested: the Home/Top/Front/Right views (`presetViewFitting()` backs them out to fit a narrow viewer), Fit, the `fitKey` re-fit policy, where a handle's grab target goes on screen, and how far the camera backs out to keep handles in reach |
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
@@ -375,7 +377,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/nativeApp.js`, `capacitor.config.json`, `ios/`, `android/`, `scripts/native-assets.mjs` | The iOS and Android store apps (Capacitor, docs/MOBILE.md): whether the page runs in one, and saving an export into the app's own folder (Files › Foundry on iOS, Documents › Connector Foundry on Android) through the Filesystem plugin, imported only there; the native projects; their icons and launch screens from `desktop/icon.svg` |
 | `src/lib/webApp.js`, `hooks/useWebApp.js`, `components/InstallSheet.jsx`, `scripts/ios-splash.mjs`, `scripts/vite-plugin-ios-splash.mjs` | The installed web app: the worker's registration, update checks for an app left open and the build it took over from (`__BUILD_ID__`), the install offer (Chromium's prompt, or the platform's steps); iOS launch screens rendered at build time (see "Phones, tablets and offline") |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
-| `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout and whether the Library's drawer has tabs (`isDrawerLayout()`, `isDrawerTabsLayout()`, live through the hooks), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which tab shows; `DrawerTabs` is the Parameters / Parts control |
+| `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout (`isDrawerLayout()`, live through the hook), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which of the Library's tabs shows; `DrawerTabs` is the tab list on the drawer's handle (Parameters / Parts, Holes / Hole types) and the panel under it |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
 | `src/lib/meshExtents.js`, `download.js`, `publicAsset.js`, `catalogueUtils.js` | Small helpers: memoised STL bounding boxes (`meshBounds()`'s min and max — the box resize handles stand on — and `meshExtents()`'s size; binary STL read straight off a `DataView`), "save this file", fetching the generated `public/` assets (the .scad bundle's URL with a hash of its content), grouping/search/slugs and the system-order resolution |
 | `index.html`, `src/site/landing.js`, `landing.css`, `site.css`, `common.js`, `partials/` | The website's landing page (see "The website" above): the hero's headline and pager, scroll-in, the gallery filter, the platform detection behind the download buttons; the styles every page of the site shares, and its header and footer |

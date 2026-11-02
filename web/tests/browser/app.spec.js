@@ -271,12 +271,12 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
   await expect(download).toBeEnabled();
   // An edit starts a render by itself (once the edits pause), with no
   // Render click and no "out of date" note; until it lands, no download.
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect(download).toBeDisabled();
   await expect(page.getByText(/out of date/)).toHaveCount(0);
   await expect.poll(() => jobCount(page)).toBe(2);
   // Another edit while it runs cancels it and queues the new values.
-  await page.getByRole("spinbutton", { name: /w/ }).first().fill("60");
+  await page.getByRole("spinbutton", { name: /Width/ }).first().fill("60");
   expect(await page.evaluate(() => window.__renders.jobs[1].worker.terminated)).toBe(true);
   await finish(page, 1); // a late message from the terminated worker
   await expect(download).toBeDisabled();
@@ -284,7 +284,7 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
   await finish(page, 2);
   await expect(download).toBeEnabled();
   // Quick successive edits are one render, not one per keystroke.
-  const field = page.getByRole("spinbutton", { name: /w/ }).first();
+  const field = page.getByRole("spinbutton", { name: /Width/ }).first();
   await field.fill("6");
   await field.fill("61");
   await field.fill("612");
@@ -396,9 +396,9 @@ test("Bench edits keep explicit exports while discarding the obsolete preview", 
   // preview is what the user waits for; Bench.jsx's extents effect).
   await expect.poll(() => jobCount(page)).toBe(1); // assembly preview, still running
   const exported = page.waitForEvent("download");
-  await page.getByRole("button", { name: "STL: root", exact: true }).click();
-  await page.getByText("Root parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
+  await page.getByText("Base parameters", { exact: true }).click();
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect.poll(() => jobCount(page)).toBe(2); // export survives the edit
   expect(await page.evaluate(() => window.__renders.jobs[0].worker.terminated)).toBe(true);
   expect(await page.evaluate(() => window.__renders.jobs[1].request.part)).toBe("root");
@@ -422,13 +422,13 @@ test("Bench state survives mode switches and URL reload", async ({ page }) => {
   // The name is bench state too; set, it also lets the export below start
   // without the name prompt a fresh bench shows first.
   await page.getByRole("textbox", { name: "Name", exact: true }).fill("kept");
-  await page.getByText("Root parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("57");
+  await page.getByText("Base parameters", { exact: true }).click();
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("57");
   await expect(page).toHaveURL(/bench=/);
   await page.getByTitle("Library (1)").click();
   await page.getByTitle("Bench (2)").click();
-  await page.getByText("Root parameters", { exact: true }).click();
-  await expect(page.getByRole("spinbutton", { name: /w/ }).first()).toHaveValue("57");
+  await page.getByText("Base parameters", { exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: /Width/ }).first()).toHaveValue("57");
   // Read the config after reload too, so a stale URL mirror cannot hide
   // behind the still-live session store.
   await page.reload();
@@ -498,7 +498,7 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   });
   await importConfig(page, doc);
   const exported = page.waitForEvent("download", { timeout: 90_000 });
-  await page.getByRole("button", { name: "STL: root", exact: true }).click();
+  await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
 });
 
@@ -525,8 +525,8 @@ test("a folded bench exports its body laid on its side, on a hinge or split", as
   // The fold needs every part measured (it places the cut from their
   // sizes); they are measured together, and the root's open slots are
   // counted from its size.
-  await expect(page.getByText(/[1-9]\d* open slots? on Flat plate/)).toBeVisible({ timeout: 90_000 });
-  const exportRoot = page.getByRole("button", { name: "STL: root", exact: true });
+  await expect(page.getByText(/[1-9]\d* open slots?\./)).toBeVisible({ timeout: 90_000 });
+  const exportRoot = page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true });
   // The cut runs 5.305 mm in front of the head's centre, so the head's
   // half is 20 + 5.305 deep; the plate strip (4 mm) lies the hinge's
   // 0.4 mm (less the halves' overlap) off the head's half (6.6 tall).

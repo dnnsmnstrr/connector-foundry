@@ -45,7 +45,7 @@ export default function UpdateSettings() {
         Updates
         <InfoTip
           label="About updates"
-          text="The app asks GitHub for the newest release, downloads it in the background and checks it against the release's checksums. It installs when you restart the app, or the next time you quit it. When a release leaves the app itself as it is, only its interface is downloaded, a few MB, and a reload loads it. Nothing else is sent: the check is a download like any other."
+          text="The app checks GitHub for new releases and downloads them in the background, verified against their checksums. An update installs when you restart or quit the app. Nothing about you is sent."
         />
       </h4>
       <p className="settings-update-status" role="status">
@@ -60,8 +60,8 @@ export default function UpdateSettings() {
       </p>
       {status.shellNeeded && status.state !== "up-to-date" && (
         <p className="muted settings-help">
-          Version {status.latest} changes the app itself, not only its interface, so it comes as the full
-          update. Until it is installed, the interface stays at {status.web}.
+          Version {status.latest} changes the app itself, so it needs the full update. Until then, the
+          interface stays at {status.web}.
         </p>
       )}
       {status.manual && status.state !== "up-to-date" && (
@@ -105,8 +105,8 @@ export default function UpdateSettings() {
         <span className="field-label">Update the interface without reinstalling</span>
       </label>
       <p className="muted settings-help">
-        When a release only changes the interface, download just that and load it with a reload. Turned off,
-        every update is the full download, and the app goes back to its own interface the next time it starts.
+        Small updates that only change the interface load with a reload instead of a full download. Turn this
+        off to always get the full update.
       </p>
     </>
   );

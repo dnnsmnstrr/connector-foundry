@@ -26,6 +26,14 @@
 #   remember that a board variant is spelled "lite" and its chamfers are
 #   spelled "Corners". A test holds `options` and `defaults` together.
 #
+# labels: what the web app calls a parameter beside its field, e.g.
+#   `gx: Width (cells)`, with the unit in brackets. A parameter without
+#   one is shown as its name in words (side_holes is "Side holes"; see
+#   web/src/lib/labels.js). The parameter's own name is what the
+#   CLI, saved defaults, bench files and links use, so a label can change
+#   freely. Read only by the web app; keys must be parameters with a
+#   default.
+#
 # keywords: extra words that should find a part in searches, without
 #   changing its displayed name. Useful for standards and ecosystems that
 #   use a different name for the same fit.
@@ -205,11 +213,16 @@ parts:
     source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
     source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
     print_note: >-
-      Feet down, no supports. The 42mm cell pitch can be tuned globally in Settings for a nonstandard
-      Gridfinity grid.
+      Feet down, no supports. For a nonstandard Gridfinity grid, change the 42mm cell size in
+      Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screws: Screw holes
     defaults:
       gx: 1
       gy: 1
@@ -242,13 +255,25 @@ parts:
       Feet down, no supports. gz is the height in 7mm units, the stacking
       lip on top. filled makes it solid up to the lip, with a flat top to
       cut your own cavities into in the Holes tab; divx/divy, scoop and
-      tabs apply to a bin with compartments. The 42mm cell pitch can be tuned globally in Settings.
+      tabs apply to a bin with compartments. The 42mm cell size can be changed in Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     # parts/gridfinity/bin.scad asserts gz * 7 >= BASE_HEIGHT (7mm).
     minimums:
       gz: 1
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screws: Screw holes
+      gz: Height (7 mm units)
+      filled: Solid to the lip
+      divx: Compartments across
+      divy: Compartments deep
+      scoop: Finger scoop
+      tabs: Label tabs
+      lip: Stacking lip
     defaults:
       gx: 1
       gy: 1
@@ -288,11 +313,16 @@ parts:
       Modelled pockets down so the flat back is the "mount" face; flip it
       in the slicer to print back-down. Magnets and screw holes only
       apply to the weighted, skeletonized and screw-together styles. The
-      42mm cell pitch can be tuned globally in Settings.
+      42mm cell size can be changed in Settings → Grid sizes.
     holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     anchors: [bot]
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screw_holes: Screw holes
     defaults:
       gx: 1
       gy: 1
@@ -331,6 +361,9 @@ parts:
     slots:
       pitch: 28  # OG_PITCH — one slot per cell
       count_params: [cells_x, cells_y]
+    labels:
+      cells_x: Width (cells)
+      cells_y: Height (cells)
     defaults:
       cells_x: 2
       cells_y: 2
@@ -531,6 +564,10 @@ parts:
       the thread is than the tile's: more if it binds, less if it wobbles.
     minimums:
       clearance: 0
+    labels:
+      length: Thread length (mm)
+      head: Head height (mm)
+      clearance: Thread clearance (mm)
     defaults:
       length: 6.4
       head: 3
@@ -556,6 +593,11 @@ parts:
     minimums:
       head_d: 8.025
       clearance: 0
+    labels:
+      length: Thread length (mm)
+      head_d: Head diameter (mm)
+      head: Head height (mm)
+      clearance: Thread clearance (mm)
     defaults:
       length: 6.4
       head_d: 9
@@ -579,6 +621,11 @@ parts:
       leg_dia: 14
     maximums:
       leg_dia: 20
+    labels:
+      base_h: Base height (mm)
+      base_w: Base width (mm)
+      leg_h: Prong height (mm)
+      leg_dia: Prong end diameter (mm)
     defaults:
       base_h: 3
       base_w: 20
@@ -620,6 +667,14 @@ parts:
       leg_dia: 14
     maximums:
       leg_dia: 20
+    labels:
+      base_h: Base height (mm)
+      base_w: Base width (mm)
+      leg_h: Prong height (mm)
+      leg_dia: Prong end diameter (mm)
+      outer_w: Outer prong width (mm)
+      nut_sides: Nut sides
+      nut_dia: Nut size across corners (mm)
     defaults:
       base_h: 3
       base_w: 20
@@ -733,6 +788,8 @@ parts:
       screw use the countersunk hole (head on the flange side, under the
       clip).
     anchors: [bot]
+    labels:
+      screw: Screw hole
     defaults:
       screw: false
     variants:
@@ -760,6 +817,8 @@ parts:
       the floor's arch then needs no bridge.
     anchors: [bot]
     mount_offset: [1.42, 0]
+    labels:
+      plate: Plate thickness (mm)
     defaults:
       plate: 1
     variants:
@@ -789,6 +848,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 4
       rows: 3
@@ -820,6 +881,9 @@ parts:
       holder onto. base hex covers the cell, a millimetre short of its
       neighbours; rect is a bar across it.
     anchors: [bot]
+    labels:
+      base: Base shape
+      base_h: Base height (mm)
     defaults:
       base: hex
       base_h: 3
@@ -860,6 +924,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       style: hex
       cols: 2
@@ -906,6 +972,9 @@ parts:
     minimums:
       units: 1
       plate: 1
+    labels:
+      units: Hangers
+      plate: Plate thickness (mm)
     defaults:
       units: 1
       plate: 3
@@ -942,6 +1011,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 2
       rows: 4
@@ -973,6 +1044,8 @@ parts:
       apart, for two slots in a row, so the part cannot turn. The plate's
       front is "mount", for fusing a holder or shelf onto.
     anchors: [bot]
+    labels:
+      plate: Plate thickness (mm)
     defaults:
       pegs: 1
       plate: 2
@@ -1002,8 +1075,8 @@ parts:
     source_url: https://makerworld.com/en/models/2811701-mod-grid
     print_note: >-
       Flat on the bed, no supports. 5mm square holes on an 8mm default pitch
-      through a 3mm plate, cols across and rows up. Settings can tune the
-      pitch for a nonstandard grid; the hole size remains 5mm. By default,
+      through a 3mm plate, cols across and rows up. For a nonstandard grid,
+      change the hole spacing in Settings → Grid sizes; the holes stay 5mm. By default,
       the panel is cols x 8 + 3 by rows x 8 + 3mm, so 12 x 4 is 99 x 35.
       Accessories plug into two neighbouring holes of a row. "mount" is
       the back, for fusing the grid onto a case or a lid.
@@ -1012,6 +1085,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 12
       rows: 4
@@ -1063,6 +1138,10 @@ parts:
     maximums:
       depth: 5
       screw_diameter: 2.6
+    labels:
+      depth: Peg depth (mm)
+      plate: Plate thickness (mm)
+      screw_diameter: Screw diameter (mm)
     defaults:
       pegs: 2
       rows: 1
@@ -1120,6 +1199,8 @@ parts:
     # parts/modgrid/bit_holder.scad asserts it.
     minimums:
       rows: 1
+    labels:
+      bit: Bit size
     defaults:
       bit: "4mm"
       rows: 1
@@ -1168,6 +1249,9 @@ parts:
       gy: 1
     # 2 x 1 by default: test_slots.py walks from one slot to its X
     # neighbour, and a 1 x 1 base has one slot.
+    labels:
+      gx: Width (units)
+      gy: Depth (units)
     defaults:
       gx: 2
       gy: 1
@@ -1213,6 +1297,10 @@ parts:
       cols: 1
       webbing: 1
       plate: 1.5
+    labels:
+      cols: Columns
+      webbing: Webbing gap (mm)
+      plate: Plate thickness (mm)
     defaults:
       rows: 2
       cols: 1
@@ -1253,6 +1341,9 @@ parts:
       cols: 1
       rows: 1
       channel: 0
+    labels:
+      cols: Columns
+      channel: Strap channel depth (mm)
     defaults:
       cols: 3
       rows: 4
@@ -1294,6 +1385,14 @@ parts:
       rows: 1
       open_r: 0
       thickness: 1
+    labels:
+      cols: Columns
+      open_w: Opening width (mm)
+      open_h: Opening height (mm)
+      open_r: Opening corner radius (mm)
+      pitch_x: Cell width (mm)
+      pitch_y: Cell height (mm)
+      thickness: Thickness (mm)
     defaults:
       cols: 4
       rows: 3
@@ -1340,6 +1439,14 @@ parts:
       margin: 1
       base: 1
       hole: 0
+    labels:
+      boss_w: Boss width (mm)
+      boss_h: Boss height (mm)
+      boss_r: Boss corner radius (mm)
+      panel_t: Panel thickness (mm)
+      margin: Base margin (mm)
+      base: Base thickness (mm)
+      hole: Centre hole diameter (mm)
     defaults:
       boss_w: 38
       boss_h: 25.3
@@ -1377,6 +1484,10 @@ parts:
     # parts/camera/arca_plate.scad asserts length >= 20.
     minimums:
       length: 20
+    labels:
+      length: Length (mm)
+      thickness: Thickness (mm)
+      screw: Screw hole
     defaults:
       length: 50
       thickness: 10
@@ -1408,6 +1519,11 @@ parts:
       thread will not hold.
     holes_guides: { round: true }
     anchors: [bot]
+    labels:
+      size: Thread size
+      diameter: Diameter (mm)
+      depth: Thread depth (mm)
+      top: Top thickness (mm)
     defaults:
       size: "1/4"
       style: thread
@@ -1450,6 +1566,13 @@ parts:
       thickness: 1
       recess_depth: 0.2
       hole: 0
+    labels:
+      diameter: Diameter (mm)
+      thickness: Thickness (mm)
+      recess_depth: Recess depth (mm)
+      insert_od: Insert outside diameter (mm)
+      insert_id: Insert inside diameter (mm)
+      hole: Centre hole diameter (mm)
     defaults:
       diameter: 60
       thickness: 4
@@ -1491,6 +1614,8 @@ parts:
       Print flat, no supports. 4.8mm holes on an 8mm pitch through top and
       bottom, and through the sides with side_holes on. LEGO
       Technic-compatible.
+    labels:
+      len: Length (holes)
     defaults:
       len: 5
       side_holes: true
@@ -1515,6 +1640,9 @@ parts:
       solid mounting end. Broad slits are easier to print than fine ridges.
       Length is in 8mm BitBeam units; 0.5 is a trial half-unit and the
       available lengths extend to 16 units. Print in PET or PETG for flex.
+    labels:
+      length: Length (8 mm units)
+      friction: Friction fit
     defaults:
       length: 1
       friction: true
@@ -1620,6 +1748,10 @@ parts:
         - { name: ypos, enabled_param: side_holes, count_param: grid_x }
         - { name: yneg, enabled_param: side_holes, count_param: grid_x }
     anchors: [bot, xpos, xneg, ypos, yneg]
+    labels:
+      grid_x: Width (cells)
+      grid_y: Depth (cells)
+      height: Thickness (units)
     defaults:
       grid_x: 3
       grid_y: 3
@@ -1647,6 +1779,11 @@ parts:
       with 4mm corners by default — one Gridfinity unit, so it lines up
       with a Gridfinity base or baseplate.
     anchors: [bot, xpos, xneg, ypos, yneg]
+    labels:
+      w: Width (mm)
+      d: Depth (mm)
+      t: Thickness (mm)
+      r: Corner radius (mm)
     defaults:
       w: 42
       d: 42
@@ -1672,6 +1809,9 @@ parts:
     print_note: Stands on its flat end ("bot"), no supports.
     holes_guides: { round: true }
     anchors: [bot]
+    labels:
+      dia: Diameter (mm)
+      h: Height (mm)
     defaults:
       dia: 10
       h: 20
@@ -1695,6 +1835,8 @@ parts:
     print_note: >-
       Tip down, no supports. A generic dovetail, not DeckMate-compatible —
       import Mechanism's own model for that.
+    labels:
+      rail_len: Length (mm)
     defaults:
       rail_len: 36
       end_stop: false
@@ -1713,6 +1855,10 @@ parts:
     confidence: exact
     source: Generic geometry, not tied to an external spec
     print_note: Mouth down, no supports. Mates with the dovetail rail.
+    labels:
+      rail_len: Length (mm)
+      wall: Wall thickness (mm)
+      clearance: Clearance (mm)
     defaults:
       rail_len: 36
       wall: 2.4
@@ -1732,6 +1878,10 @@ parts:
       Check EX_* in lib/constants.scad against your rail. tab_len up to
       6mm drops into the slot face-first and twists to lock; a longer head
       feeds in from an open end.
+    labels:
+      tab_len: Head length (mm)
+      head_t: Head thickness (mm)
+      shaft_len: Shaft length (mm)
     defaults:
       tab_len: 6
       head_t: 2.0
@@ -1751,6 +1901,9 @@ parts:
     print_note: >-
       Check EX_* in lib/constants.scad against your rail. Pushes straight
       into the slot mid-rail. Print in PETG or nylon so the legs can flex.
+    labels:
+      leg_len: Leg length (mm)
+      post_h: Post height (mm)
     defaults:
       leg_len: 7
       post_h: 8
@@ -1766,6 +1919,9 @@ parts:
     print_note: >-
       Check EX_* in lib/constants.scad against your rail. Keys print
       face-down; the plate corners overhang them, so add a brim.
+    labels:
+      plate_t: Plate thickness (mm)
+      boss_h: Boss height (mm)
     defaults:
       plate_t: 3
       boss_h: 2
@@ -1816,6 +1972,8 @@ parts:
     slots:
       pitch: 20  # EX_PROFILE — one profile width along the top slot; a free subdivision
     anchors: [bot, xpos, xneg]
+    labels:
+      len: Length (mm)
     defaults:
       len: 100
       slot: "t"
@@ -1865,6 +2023,9 @@ parts:
       countersinks a 3.5mm screw; Flat has no holes, for tape. The top
       snaps on. "bot" is the underside.
     anchors: [bot]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
     defaults:
       length_units: 4
       width_units: 1
@@ -1925,6 +2086,10 @@ parts:
     slots:
       pitch: 25  # UW_GRID — one slot per grid square, over the base's mounting holes
       count_params: [width_units, length_units]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
+      height: Inside height (mm)
     defaults:
       length_units: 4
       width_units: 1
@@ -1968,6 +2133,10 @@ parts:
     mount_offset:
       x: { param: x_units, scale: 12.5 }
       y: { param: y_units, scale: -12.5 }
+    labels:
+      width_units: Width (units)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
     defaults:
       x_units: 1
       y_units: 1
@@ -2021,6 +2190,11 @@ parts:
     mount_offset:
       x: { param: x_units, scale: 12.5 }
       y: { param: y_units, scale: -12.5 }
+    labels:
+      width_units: Width (units)
+      height: Inside height (mm)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
     defaults:
       x_units: 1
       y_units: 1

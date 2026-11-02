@@ -26,6 +26,8 @@
  * @property {number | null} step the parameter moves in multiples of this (a count), or null
  * @property {number} min the handle's lower bound for the parameter (always > 0)
  * @property {number} max its upper bound (Infinity when none)
+ * @property {string} [label] what the screen calls the parameter (labels.js's paramLabel():
+ *   "Width (cells)"), for the count in a drag label
  * @typedef {{ type: string, dir?: Vec3, normal?: Vec3 }} HandleConstraint
  *   `{ type: "line", dir }` or `{ type: "plane", normal }`, through the handle's point
  * @typedef {object} ResizeHandle
@@ -55,6 +57,8 @@
  *   span?: Vec3,
  * }} ViewerHandle a handle with its slider semantics, for StlViewer's `handles`
  */
+
+import { paramLabel } from "./labels.js";
 
 const AXIS_ORDER = ["x", "y", "xy", "z"];
 const AXIS_LETTERS = { x: "W", y: "D", z: "H", xy: "⌀" };
@@ -119,7 +123,7 @@ export function resizeAxes(part, params = {}) {
     if (!(min > 0)) min = floor;
     const highs = [part.maximums?.[param], entry.max].filter(isNumber);
     const max = Math.max(min, highs.length ? Math.min(...highs) : Infinity);
-    out.push({ axis, param, per, step, min, max });
+    out.push({ axis, param, per, step, min, max, label: paramLabel(part, param) });
   }
   return out;
 }
@@ -522,11 +526,23 @@ function signed(value) {
   return `${value < 0 ? "−" : "+"}${formatMm(Math.abs(value))}`;
 }
 
-// "W 126 mm · gx 3 (+21 each side)", "H 12 mm (+2)", "W 52 mm (−6 each
-// side)", "W 336 mm · gx 8 (+126 each side) · max".
+// A count in a label, in the unit its parameter's label names: "3 cells"
+// for "Width (cells)", "1 cell", "4 × 7 mm" for "Height (7 mm units)". A
+// label without a unit in brackets is shown with the value after it.
+function countText(axis, value) {
+  const text = formatValue(value);
+  const label = axis.label ?? axis.param;
+  const unit = /\(([^)]+)\)\s*$/.exec(label)?.[1];
+  if (!unit) return `${label} ${text}`;
+  if (/^\d/.test(unit)) return `${text} × ${unit.replace(/\s+units?$/, "")}`;
+  return `${text} ${value === 1 ? unit.replace(/s$/, "") : unit}`;
+}
+
+// "W 126 mm · 3 cells (+21 each side)", "H 12 mm (+2)", "W 52 mm (−6 each
+// side)", "W 336 mm · 8 cells (+126 each side) · max".
 function axisText(key, axis, size, startSize, value, atBound) {
   const letter = axisLetter(key);
-  const count = axis.step ? ` · ${axis.param} ${formatValue(value)}` : "";
+  const count = axis.step ? ` · ${countText(axis, value)}` : "";
   const delta = clean(size - startSize);
   let change = "";
   if (delta !== 0) change = key === "z" ? ` (${signed(delta)})` : ` (${signed(delta / 2)} each side)`;
@@ -588,11 +604,11 @@ export function viewerHandles(box, axes, params) {
     const name = named
       .map(({ key }, i) => (i ? AXIS_NAMES[key].toLowerCase() : AXIS_NAMES[key]))
       .join(" and ");
-    // "84 mm · gx 2" (a count), "40 mm" (a length).
+    // "84 mm · 2 cells" (a count), "40 mm" (a length).
     const valueText = named
       .map(({ key, axis }) => {
         const mm = `${formatMm(sizeAlong(key, h, size))} mm`;
-        return axis.step ? `${mm} · ${axis.param} ${formatValue(params[axis.param])}` : mm;
+        return axis.step ? `${mm} · ${countText(axis, params[axis.param])}` : mm;
       })
       .join(", ");
     const editValue = sizeAlong(h.axes[0], h, size);
