@@ -207,7 +207,7 @@ to one another.
 
 ## For contributors
 
-`foundry preview --all` renders the gallery images in `docs/img/`, `foundry goldens` prints (and with
-`--update` records) every part's bounding box and volume for the tests, and `foundry readme`
-regenerates the README's catalogue table. [AGENTS.md](../AGENTS.md) says which command proves which
+`foundry preview --all` renders the gallery images in `docs/img/`, cut out on a transparent
+background; `foundry goldens` prints (and with `--update` records) every part's bounding box and
+volume for the tests, and `foundry readme` regenerates the README's catalogue table. [AGENTS.md](../AGENTS.md) says which command proves which
 kind of change.

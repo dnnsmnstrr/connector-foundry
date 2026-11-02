@@ -49,8 +49,24 @@ GOLDEN_PATH = REPO_ROOT / "tests" / "golden" / "dimensions.yaml"
 # named rather than assuming "openscad" is the right one.
 OPENSCAD_BIN = os.environ.get("OPENSCAD_BIN", "openscad")
 
-# openscad flags that turn an STL export into the README gallery's PNG.
-PREVIEW_ARGS = ("--autocenter", "--viewall", "--colorscheme=Tomorrow", "--imgsize=640,480")
+# The README gallery's PNGs (render_preview()). openscad's PNG export has
+# no transparent background and no antialiasing, so each picture is drawn
+# PREVIEW_SUPERSAMPLE times larger, twice: once in the colour scheme whose
+# colours it keeps, once in a scheme with a far-off background that only
+# marks which pixels are background. A pixel showing both backgrounds is
+# empty: one test alone would also cut out a face that happens to be lit
+# to exactly the background's grey. Averaging the large picture down then
+# gives the edges their antialiasing.
+PREVIEW_SIZE = (640, 480)
+PREVIEW_SUPERSAMPLE = 3
+PREVIEW_ARGS = (
+    "--autocenter",
+    "--viewall",
+    f"--imgsize={PREVIEW_SIZE[0] * PREVIEW_SUPERSAMPLE},{PREVIEW_SIZE[1] * PREVIEW_SUPERSAMPLE}",
+)
+# (scheme name, its background colour), from openscad's
+# color-schemes/render/*.json; the first scheme's colours are kept.
+PREVIEW_SCHEMES = (("Tomorrow", (0xF8, 0xF8, 0xF8)), ("Nocturnal Gem", (0x0C, 0x0C, 0x0C)))
 
 
 class OpenSCADError(RuntimeError):
@@ -466,11 +482,43 @@ def render_part(
 
 
 def render_preview(part: dict, out_dir: Path) -> Path:
-    """Render one catalogue part at its defaults to <out_dir>/<slug>.png."""
+    """Render one catalogue part at its defaults to <out_dir>/<slug>.png,
+    on a transparent background (see PREVIEW_SCHEMES)."""
     out_png = out_dir / f"{slug(part['id'])}.png"
-    with _stub_file(part, part.get("defaults", {}), out_dir) as stub:
-        run_openscad(stub, out_png, {}, extra_args=PREVIEW_ARGS)
+    with tempfile.TemporaryDirectory() as tmp, _stub_file(part, part.get("defaults", {}), out_dir) as stub:
+        shots = []
+        for i, (scheme, _) in enumerate(PREVIEW_SCHEMES):
+            shot = Path(tmp) / f"{i}.png"
+            run_openscad(stub, shot, {}, extra_args=(*PREVIEW_ARGS, f"--colorscheme={scheme}"))
+            shots.append(shot)
+        _write_cutout(shots, out_png)
     return out_png
+
+
+def _write_cutout(shots: list[Path], out_png: Path) -> None:
+    """Combine render_preview()'s renders into one RGBA PNG at PREVIEW_SIZE."""
+    # Imported here so the commands that never draw a picture do not pay
+    # for numpy and Pillow at startup.
+    import numpy as np
+    from PIL import Image
+
+    k = PREVIEW_SUPERSAMPLE
+    w, h = PREVIEW_SIZE
+    pixels = [np.asarray(Image.open(shot).convert("RGB")) for shot in shots]
+    if any(p.shape != (h * k, w * k, 3) for p in pixels):
+        raise OpenSCADError(f"openscad drew {out_png.name} at another size than --imgsize asked for")
+    empty = np.ones(pixels[0].shape[:2], dtype=bool)
+    for p, (_, background) in zip(pixels, PREVIEW_SCHEMES, strict=True):
+        empty &= (p == background).all(axis=-1)
+    coverage = (~empty).astype(np.float64)
+    # Averaged premultiplied, so an edge pixel takes only the part's
+    # colour and none of the background's.
+    colour = pixels[0].astype(np.float64) * coverage[..., None]
+    colour = colour.reshape(h, k, w, k, 3).mean(axis=(1, 3))
+    alpha = coverage.reshape(h, k, w, k).mean(axis=(1, 3))
+    colour = np.divide(colour, alpha[..., None], out=np.zeros_like(colour), where=alpha[..., None] > 0)
+    rgba = np.dstack([colour, alpha[..., None] * 255]).round().astype(np.uint8)
+    Image.fromarray(rgba, "RGBA").save(out_png, optimize=True)
 
 
 # =================================================================== CLI

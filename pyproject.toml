@@ -9,6 +9,8 @@ dependencies = [
     "trimesh>=4.0",
     "numpy>=1.26",
     "networkx>=3.0",
+    # `foundry preview` reads openscad's PNGs and writes the cut-out ones.
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]

@@ -216,6 +216,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   David D's openGrid one, under its own thumbnail. It loads from YouTube only when you press
   play.
 
+### Website
+
+- **Part pictures without the white box.** Every part's picture — on the landing page's part
+  cards and hero, in the command palette, and in the README — is cut out on a transparent
+  background with smoothed edges, so the part stands on the dark card instead of in a near-white
+  rectangle. `foundry preview --all` renders them that way (it now needs Pillow, which
+  `pip install -e .` brings).
+
 ## 0.5.0 — 2026-10-28
 
 ### Parts
