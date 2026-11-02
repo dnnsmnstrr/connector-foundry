@@ -23,7 +23,9 @@ lines" toggles it too. Both start out set for the model. On Gridfinity parts the
 face's own, so the corner points sit on the magnet holes whichever face you pick: 7.75 mm on a
 bin's top, 4.8 mm on a foot's bottom, 8 mm on a baseplate's underside (and with a cell pitch set
 in Settings, wherever the holes then are); the circle starts at 14.5 mm, through the quadrant
-centers of a cell's top. The bar shows the inset of the face the guides are on. A round
+centers of a cell's top. The bar shows the inset of the face the guides are on. openGrid snaps
+and SOLDR module bases start with no corner points and their circle through the quadrant centers
+(8.75 mm on a snap, 10.2 mm on a SOLDR unit). A round
 part (a MagSafe mount, a post, a MultiConnect head) starts with its circle half way out to its
 rim. Anything else starts with its circle 6 mm inside its broadest face's narrower side, room for
 most holes (no circle on a face too small for that), and an inset of at most 5 mm. A value you type holds until you pick another model. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press

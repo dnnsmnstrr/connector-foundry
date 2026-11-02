@@ -373,6 +373,7 @@ parts:
       Print in PETG or another filament with some flex so the wings can
       compress; no supports. The lite snap is half height (3.4mm), which
       is not the same as a lite board.
+    holes_guides: { inset: 0, radius: 8.75 }
     defaults:
       variant: full
       directional: false
@@ -422,6 +423,7 @@ parts:
       printing (and glue it, for a screw); it wants a 0.2mm first
       layer. split is the same as two pieces, to glue. On the Bench,
       Fold for printing does this to a whole assembly.
+    holes_guides: { inset: 0, radius: 8.75 }
     attached_defaults:
       body: none
     # The head's +Y is the way it slides to seat: up, on a wall.
@@ -1155,6 +1157,7 @@ parts:
       the next both ways. The holes are open at the top:
       press the magnets in before anything covers them (fused onto a part,
       pause the print at 3mm).
+    holes_guides: { inset: 0, radius: 10.2 }
     slots:
       pitch: 30.5  # SOLDR_PITCH — one slot per unit
       count_params: [gx, gy]
