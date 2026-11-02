@@ -132,6 +132,16 @@
 #   or bottom slot, where every spin keeps the axis level; the user's
 #   own rotation still applies afterwards.
 #
+# holes_guides: where the web Holes tab's guides start when the part is
+#   picked there — `inset` (mm: how far in from each corner the corner
+#   snap points sit) and `radius` (mm: the circle round the face center),
+#   or `round: true` for a part whose face is round, whose circle then
+#   goes half way out to its rim. Anything left out comes from the part's
+#   size (web/src/lib/guideDefaults.js); the user's own edit wins until
+#   another model is picked. Read only by the web app: the CLI has no
+#   Holes tab. Gridfinity sets its inset so the corner points land on its
+#   magnet holes.
+#
 # fold: for a part carrying an openConnect head, where the web Bench's
 #   Fold for printing cuts the body the part is in (just in front of the
 #   head's flat front edge) and which way the rest of the body runs from
@@ -192,6 +202,7 @@ parts:
     print_note: >-
       Feet down, no supports. The 42mm cell pitch can be tuned globally in Settings for a nonstandard
       Gridfinity grid.
+    holes_guides: { inset: 4.8 }
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
     defaults:
@@ -227,6 +238,7 @@ parts:
       lip on top. filled makes it solid up to the lip, with a flat top to
       cut your own cavities into in the Holes tab; divx/divy, scoop and
       tabs apply to a bin with compartments. The 42mm cell pitch can be tuned globally in Settings.
+    holes_guides: { inset: 4.8 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     # parts/gridfinity/bin.scad asserts gz * 7 >= BASE_HEIGHT (7mm).
@@ -272,6 +284,7 @@ parts:
       in the slicer to print back-down. Magnets and screw holes only
       apply to the weighted, skeletonized and screw-together styles. The
       42mm cell pitch can be tuned globally in Settings.
+    holes_guides: { inset: 8 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     anchors: [bot]
@@ -467,6 +480,7 @@ parts:
       openConnect snap, body none being the head alone for fusing onto
       another part, body screw the head on openGrid's snap thread (a
       coin slot across the disc instead of the dimple).
+    holes_guides: { radius: 5 }
     attached_defaults:
       body: none
     defaults:
@@ -531,6 +545,7 @@ parts:
       Thread down, head up; no supports. Screws into one of a tile's small
       holes, at the corners between cells, until the head seats. A head up
       to 9mm across clears a big-thread snap in each hole round it.
+    holes_guides: { round: true }
     minimums:
       head_d: 8.025
       clearance: 0
@@ -1383,6 +1398,7 @@ parts:
       thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket
       for a real hex nut, pressed in from the mouth, for weight a printed
       thread will not hold.
+    holes_guides: { round: true }
     anchors: [bot]
     defaults:
       size: "1/4"
@@ -1418,6 +1434,7 @@ parts:
       pocket is FIT_CLEARANCE bigger) and diameter to leave a rim round it.
       hole opens the middle right through, for a donut. Print it pocket up
       (flip it in the slicer); a plain plate prints either way up.
+    holes_guides: { round: true }
     anchors: [bot]
     # parts/magsafe/mount.scad asserts these; the pocket's floor and rim
     # also depend on the insert, which only the module can check.
@@ -1645,6 +1662,7 @@ parts:
     confidence: exact
     source: Generic geometry, not tied to an external spec
     print_note: Stands on its flat end ("bot"), no supports.
+    holes_guides: { round: true }
     anchors: [bot]
     defaults:
       dia: 10

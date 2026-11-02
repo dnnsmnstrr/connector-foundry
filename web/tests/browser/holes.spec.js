@@ -1227,8 +1227,10 @@ test("the snapping bar over the viewer sets the guides, its fields off with Snap
   const inset = bar.getByRole("spinbutton", { name: "Corner inset (mm)" });
   const radius = bar.getByRole("spinbutton", { name: "Center radius (mm)" });
   await expect(snap).toHaveAttribute("aria-pressed", "true");
+  // Set for the model (guideDefaults()): the 40 mm slab's circle 6 mm
+  // inside its edge, its corners 5 mm in.
   await expect(inset).toHaveValue("5");
-  await expect(radius).toHaveValue("10");
+  await expect(radius).toHaveValue("14");
 
   // Sizes typed here are the guides' (0 draws no circle).
   await inset.fill("8");

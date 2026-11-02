@@ -106,8 +106,6 @@ import {
   specMatchesPreset,
 } from "./lib/screwPresets.js";
 import {
-  DEFAULT_CENTER_RADIUS_MM,
-  DEFAULT_CORNER_INSET_MM,
   analyzeFace,
   gridPoint,
   faceNear,
@@ -118,6 +116,7 @@ import {
   snapDrag,
 } from "./lib/snapCandidates.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
+import { guideDefaults } from "./lib/guideDefaults.js";
 import { resolveParams } from "./lib/userOverrides.js";
 
 // Debounce between the last hole edit and the re-render it triggers, so
@@ -199,8 +198,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [repeatOptions, setRepeatOptions] = useState(REPEAT_DEFAULTS);
   const [snapOn, setSnapOn] = useState(true);
-  const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
-  const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
+  // The guides' inset or radius as typed in the snapping bar, for the
+  // model it was typed for: { model, inset?, radius? }. Each model starts
+  // from its own (guideDefaults(), below); an edit holds until another
+  // model is picked.
+  const [guideEdit, setGuideEdit] = useState(
+    /** @type {{ model: string, inset?: number, radius?: number } | null} */ (null),
+  );
   // The face under the pointer and the snap that would be used: the
   // snap point's id, or — near a guide line but no point — the spot on
   // the line, as { faceKey, snapId, linePoint, lineLabel }. Compared by
@@ -315,6 +319,23 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   );
   const stlBuffer = preview.result?.stl ?? null;
   const baseExtents = preview.result?.baseExtents ?? null;
+  // Which model the guides' settings belong to: the catalogue part (its
+  // parameters may change; the edit holds), or the mesh by name.
+  const guideModel = !doc
+    ? null
+    : doc.source.kind === "catalogue"
+      ? `catalogue:${doc.source.partId}`
+      : `mesh:${doc.source.name}`;
+  const guidePart = doc?.source.kind === "catalogue" ? (catalogueById.get(doc.source.partId) ?? null) : null;
+  const ownGuides = useMemo(() => guideDefaults(guidePart, baseExtents), [guidePart, baseExtents]);
+  const typedGuides = guideEdit && guideEdit.model === guideModel ? guideEdit : null;
+  const inset = typedGuides?.inset ?? ownGuides.inset;
+  const radius = typedGuides?.radius ?? ownGuides.radius;
+  /** @param {{ inset?: number, radius?: number }} patch */
+  const editGuides = (patch) => {
+    if (!guideModel) return;
+    setGuideEdit((prev) => ({ ...(prev?.model === guideModel ? prev : {}), model: guideModel, ...patch }));
+  };
   // The base without holes, for "is this spot on the model?" when a hole
   // moves (stlProbe(), built the first time it is asked): the mesh on
   // screen has the hole's own bore at its old spot, so a step shorter
@@ -1997,9 +2018,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               snapOn={snapOn}
               onSnapChange={setSnapOn}
               inset={inset}
-              onInsetChange={setInset}
+              onInsetChange={(mm) => editGuides({ inset: mm })}
               radius={radius}
-              onRadiusChange={setRadius}
+              onRadiusChange={(mm) => editGuides({ radius: mm })}
             />
           )}
           {(renderError || handleFailed) && (

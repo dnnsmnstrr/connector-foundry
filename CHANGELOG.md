@@ -85,6 +85,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   points and guide lines, as a click does, and on the face's center from further off. The label by
   the hole names what it snapped to beside the distance moved ("12 mm right · face center"), and the
   point lights up.
+- **Guides set for the model.** The snapping bar's Inset and Radius start out right for the
+  model picked instead of 5 and 10 mm for everything: a Gridfinity bin's corner points sit on its
+  magnet holes, a round part's circle goes half way out, and any other part's circle stays 6 mm
+  inside its face (a face too small for that starts with none). A value you type holds until you pick another model.
 - **The guides stay put over a selected hole.** Hovering inside the selected hole (its bore, its
   floor, a counterbore) no longer moves the guide lines and snap points to that inner face, so
   they are still there when you grab the hole to drag it.

@@ -96,6 +96,19 @@ def test_option_lists_agree_with_defaults_and_variants():
                         problems.append(f"{part['id']}: fold {key} must have one entry per {param}: {values}")
                     elif not all(check(v) for v in table.values()):
                         problems.append(f"{part['id']}: fold {key} has a bad value: {table}")
+        # `holes_guides` starts the Holes tab's guides: an inset and a
+        # radius in mm, or `round` (web/src/lib/guideDefaults.js).
+        guides = part.get("holes_guides")
+        if guides is not None and not (
+            isinstance(guides, dict)
+            and guides
+            and set(guides) <= {"inset", "radius", "round"}
+            and all(_is_mm(guides[k]) and guides[k] >= 0 for k in ("inset", "radius") if k in guides)
+            and guides.get("round", False) in (True, False)
+        ):
+            problems.append(
+                f"{part['id']}: holes_guides takes inset and radius (mm) and round (a bool), got {guides!r}"
+            )
         # `attached_defaults` is the same kind of promise as `defaults`:
         # the Bench hands these values to the module unchecked.
         for key, value in part.get("attached_defaults", {}).items():

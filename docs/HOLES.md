@@ -19,7 +19,11 @@ points (a bolt circle of up to eight), and a click near a line or the circle lan
 can go anywhere along the center line and still be exactly centered. The **snapping bar** in the
 viewer's bottom right corner turns snapping on and off (**Snap**) and sets the corner points'
 **Inset** and the circle's **Radius** (0 draws none); the palette's "Snap to the face's points and
-lines" toggles it too. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press
+lines" toggles it too. Both start out set for the model. A Gridfinity bin or base starts with an
+inset of 4.8 mm and a baseplate with 8 mm, so the corner points sit on the magnet holes. A round
+part (a MagSafe mount, a post, a MultiConnect head) starts with its circle half way out to its
+rim. Anything else starts with its circle 6 mm inside its broadest face's narrower side, room for
+most holes (no circle on a face too small for that), and an inset of at most 5 mm. A value you type holds until you pick another model. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press
 `M`) to see the pointed-at spot's distances to the face's edges and center, and the face's size;
 Shift-click places exactly where you click.
 
