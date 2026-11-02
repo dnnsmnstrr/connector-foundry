@@ -67,6 +67,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Multiboard threads.** Two new presets cut a Multiboard tile's big and small threaded holes into
   any part, so Multiboard's own bolts screw into it, and Measure steps them on Multiboard's 25 mm
   grid.
+- **Pegboard and VESA.** Hole presets for a US pegboard's 1/4" and 3/16" holes and for VESA
+  monitor-mount screws (M4, M6), and their spacings for Measure and Repeat: a US pegboard's inch,
+  and the VESA 75, 100, 200 × 100 and 200 patterns, whose 2 × 2 Repeat is a mount's four screws.
 
 ### Library
 

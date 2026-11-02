@@ -111,7 +111,7 @@ export default function RepeatFields({
           <label
             className="field"
             htmlFor={`${id}-standard`}
-            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), MOD-GRID, BitBeam and MOLLE panels."
+            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts."
           >
             <span className="field-label">Standard spacing</span>
             <select

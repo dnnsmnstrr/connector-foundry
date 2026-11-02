@@ -745,12 +745,15 @@ export const SKADIS_SPACING = Object.freeze({ across: 40, up: 20 });
 // - Skådis: SKADIS_SPACING, every other row shifted half a step.
 // - Multiboard: a big hole every 25 mm both ways (lib/multiboard.scad's
 //   MB_PITCH), the small ones on the same grid between them.
+// - US pegboard: a hole every inch both ways.
 // - MOD-GRID: a hole every 8 mm both ways (lib/modgrid.scad's
 //   MODGRID_PITCH), which an accessory's 2x1 pin spans.
 // - BitBeam: a pin hole every 8 mm, a beam's unit (PINHOLE.unit).
 // - MOLLE: rigid panels put an opening every 2" both ways (PALS row pitch
 //   up, a 12.7 mm bar across: lib/molle.scad's RIGID_PITCH_*); laser-cut
 //   panels a slit every 1.5" across and 1" up.
+// - VESA (monitor mounts): the four screws of each common pattern, square
+//   but for 200 × 100, whose wider side runs across.
 // `short` is the name where room is tight (the viewer's toolbar).
 // MOD-GRID and BitBeam share their numbers, so a grid's options carry the
 // one picked (`standard`) for matchSpacing() to tell them apart.
@@ -780,6 +783,7 @@ export const STANDARD_SPACINGS = Object.freeze([
     stagger: true,
   },
   { id: "multiboard", label: "Multiboard", short: "Multiboard", across: 25, up: 25, stagger: false },
+  { id: "pegboard", label: "US pegboard", short: "Pegboard", across: 25.4, up: 25.4, stagger: false },
   { id: "modgrid", label: "MOD-GRID", short: "MOD-GRID", across: 8, up: 8, stagger: false },
   {
     id: "bitbeam",
@@ -805,6 +809,17 @@ export const STANDARD_SPACINGS = Object.freeze([
     up: 25.4,
     stagger: false,
   },
+  { id: "vesa-75", label: "VESA monitor mount", short: "VESA 75", across: 75, up: 75, stagger: false },
+  { id: "vesa-100", label: "VESA monitor mount", short: "VESA 100", across: 100, up: 100, stagger: false },
+  {
+    id: "vesa-200x100",
+    label: "VESA monitor mount",
+    short: "VESA 200×100",
+    across: 200,
+    up: 100,
+    stagger: false,
+  },
+  { id: "vesa-200", label: "VESA monitor mount", short: "VESA 200", across: 200, up: 200, stagger: false },
 ]);
 
 /**

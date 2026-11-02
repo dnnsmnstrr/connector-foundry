@@ -1104,16 +1104,29 @@ test("one list of system spacings, each with its numbers, for Repeat and Measure
       ["opengrid", 28, 28, false],
       ["skadis", 40, 20, true],
       ["multiboard", 25, 25, false],
+      ["pegboard", 25.4, 25.4, false],
       ["modgrid", 8, 8, false],
       ["bitbeam", 8, 8, false],
       ["molle-rigid", 50.8, 50.8, false],
       ["molle-slit", 38.1, 25.4, false],
+      ["vesa-75", 75, 75, false],
+      ["vesa-100", 100, 100, false],
+      ["vesa-200x100", 200, 100, false],
+      ["vesa-200", 200, 200, false],
     ],
   );
   assert.ok(STANDARD_SPACINGS.every((s) => s.label && s.short && getSpacing(s.id) === s));
   assert.equal(getSpacing("nope"), null);
   assert.equal(spacingLabel(getSpacing("skadis")), "Skådis (40 × 20 mm, staggered)");
   assert.equal(spacingLabel(getSpacing("modgrid")), "MOD-GRID (8 mm)");
+});
+
+test('a pegboard hole is 1/4" or 3/16" a fit over, and a VESA screw its socket cap\'s hole', () => {
+  assert.equal(getPreset("pegboard-1-4").spec.diameter, 6.6);
+  assert.equal(getPreset("pegboard-3-16").spec.diameter, 5);
+  assert.equal(getPreset("pegboard-1-4").spec.depth, 0);
+  assert.deepEqual(getPreset("vesa-m4").spec, getPreset("m4-cap").spec);
+  assert.deepEqual(getPreset("vesa-m6").spec, getPreset("m6-cap").spec);
 });
 
 test("a preset names the system spacing its holes are laid out on", () => {
@@ -1126,6 +1139,10 @@ test("a preset names the system spacing its holes are laid out on", () => {
     ["molle-slit", "molle-slit"],
     ["oc-slot", "opengrid"],
     ["mc-slot", "opengrid"],
+    ["pegboard-1-4", "pegboard"],
+    ["vesa-m4", "vesa-100"],
+    ["vesa-m6", "vesa-200"],
+    ["m4-cap", null],
     ["m3-cap", null],
     ["magnet-8x3", null],
     [null, null],
