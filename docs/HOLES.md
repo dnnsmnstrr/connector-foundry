@@ -19,7 +19,11 @@ points (a bolt circle of up to eight), and a click near a line or the circle lan
 can go anywhere along the center line and still be exactly centered. The **snapping bar** in the
 viewer's bottom right corner turns snapping on and off (**Snap**) and sets the corner points'
 **Inset** and the circle's **Radius** (0 draws none); the palette's "Snap to the face's points and
-lines" toggles it too. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press
+lines" toggles it too. Both start out set for the model. A Gridfinity bin or base starts with an
+inset of 4.8 mm and a baseplate with 8 mm, so the corner points sit on the magnet holes. A round
+part (a MagSafe mount, a post, a MultiConnect head) starts with its circle half way out to its
+rim. Anything else starts with its circle 6 mm inside its broadest face's narrower side, room for
+most holes (no circle on a face too small for that), and an inset of at most 5 mm. A value you type holds until you pick another model. Hold Option (or turn on **Measure** in the 3D view's toolbar, or press
 `M`) to see the pointed-at spot's distances to the face's edges and center, and the face's size;
 Shift-click places exactly where you click.
 
@@ -80,7 +84,12 @@ only drags); with a handle focused, the arrow keys grow or shrink it a Grid step
 (0.1 mm with the Grid off; Shift: ten steps). `Esc` cancels a drag. A resized hole is also what
 the next click drills, as an edit in the sidebar is. Screws and connector slots keep their
 hardware's size; every hole, those too, has a round handle in its middle: drag it to move the
-hole across its face, in whole Grid steps from where it was (Shift: freely). A spot off the face says "Off the face", and the hole
+hole across its face. With Snap on it catches on the face's snap points and guide lines as a click
+does, and on the face's center from further off (three times as far, up to a fifth of the face's
+narrower side), so a hole dragged near the middle lands exactly on it. Holes already on the face are
+not snapped to. The label by the hole says how far it has moved and, after a `·`, what it snapped
+to: "12 mm right, 4 mm up · face center". Away from them it moves in whole Grid steps from where it
+was; Shift, or Snap off, takes it freely. A spot off the face says "Off the face", and the hole
 stays. A cutout may still hang over the face's edge to notch it — only its centre has to stay on
 the face. The arrow keys nudge the selected holes along their face by one Grid step (Shift: ten),
 and refuse, with a note, a step that would take one off it.

@@ -47,6 +47,7 @@ import {
   holeResizeText,
   moveHole,
   movedOnFace,
+  pointInHole,
   nudgeHoles,
   oppositeSide,
   stepHoleSize,
@@ -105,8 +106,6 @@ import {
   specMatchesPreset,
 } from "./lib/screwPresets.js";
 import {
-  DEFAULT_CENTER_RADIUS_MM,
-  DEFAULT_CORNER_INSET_MM,
   analyzeFace,
   gridPoint,
   faceNear,
@@ -114,8 +113,10 @@ import {
   nearestGuide,
   pitchCandidates,
   planePoint,
+  snapDrag,
 } from "./lib/snapCandidates.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
+import { guideDefaults } from "./lib/guideDefaults.js";
 import { resolveParams } from "./lib/userOverrides.js";
 
 // Debounce between the last hole edit and the re-render it triggers, so
@@ -197,8 +198,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [repeatOptions, setRepeatOptions] = useState(REPEAT_DEFAULTS);
   const [snapOn, setSnapOn] = useState(true);
-  const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
-  const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
+  // The guides' inset or radius as typed in the snapping bar, for the
+  // model it was typed for: { model, inset?, radius? }. Each model starts
+  // from its own (guideDefaults(), below); an edit holds until another
+  // model is picked.
+  const [guideEdit, setGuideEdit] = useState(
+    /** @type {{ model: string, inset?: number, radius?: number } | null} */ (null),
+  );
   // The face under the pointer and the snap that would be used: the
   // snap point's id, or — near a guide line but no point — the spot on
   // the line, as { faceKey, snapId, linePoint, lineLabel }. Compared by
@@ -313,6 +319,23 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   );
   const stlBuffer = preview.result?.stl ?? null;
   const baseExtents = preview.result?.baseExtents ?? null;
+  // Which model the guides' settings belong to: the catalogue part (its
+  // parameters may change; the edit holds), or the mesh by name.
+  const guideModel = !doc
+    ? null
+    : doc.source.kind === "catalogue"
+      ? `catalogue:${doc.source.partId}`
+      : `mesh:${doc.source.name}`;
+  const guidePart = doc?.source.kind === "catalogue" ? (catalogueById.get(doc.source.partId) ?? null) : null;
+  const ownGuides = useMemo(() => guideDefaults(guidePart, baseExtents), [guidePart, baseExtents]);
+  const typedGuides = guideEdit && guideEdit.model === guideModel ? guideEdit : null;
+  const inset = typedGuides?.inset ?? ownGuides.inset;
+  const radius = typedGuides?.radius ?? ownGuides.radius;
+  /** @param {{ inset?: number, radius?: number }} patch */
+  const editGuides = (patch) => {
+    if (!guideModel) return;
+    setGuideEdit((prev) => ({ ...(prev?.model === guideModel ? prev : {}), model: guideModel, ...patch }));
+  };
   // The base without holes, for "is this spot on the model?" when a hole
   // moves (stlProbe(), built the first time it is asked): the mesh on
   // screen has the hole's own bore at its old spot, so a step shorter
@@ -634,7 +657,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       setMeasurePoint((prev) =>
         prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
       );
-    proposeGuideFace(resolved);
+    // Over a selected hole (its bore, its floor, a counterbore) the guide
+    // face stays where it is: the pointer is most likely there to drag the
+    // hole by its handle, aiming by those guides.
+    if (selectedHoles.some((h) => pointInHole(h, hit.point))) cancelPendingGuide();
+    else proposeGuideFace(resolved);
     const next = {
       faceKey: resolved.face.key,
       snapId: resolved.snap?.id ?? null,
@@ -930,7 +957,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       const result = dragHoleResize({ hole, handle, point, symmetric, gridMm, limitMm: reachMm });
       return result && resizeGesture(hole, handle, result, symmetric);
     }
-    const moved = moveHole({ hole, point, gridMm, free: modifiers.shiftKey, limitMm: reachMm });
+    // The face's snap points and guide lines catch the hole as they catch
+    // a click (snapDrag(): the center from further off), unless snapping
+    // is off or Shift is held; past them, the drag's own grid.
+    const snap = snapOn && !modifiers.shiftKey ? snapDrag(start.face, point, snapRadius, gridMm) : null;
+    const moved = moveHole({
+      hole,
+      point: snap ? snap.point : point,
+      gridMm,
+      free: modifiers.shiftKey || Boolean(snap),
+      limitMm: reachMm,
+    });
     if (!moved) return null;
     const at = { ...hole, point: moved.point };
     const changed = moved.offset.some((c) => c !== 0);
@@ -951,9 +988,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       onFace,
       label: "move hole",
       segments: [...holeOutline(at), ...holeCross(at, crossSize(hole))],
-      text: onFace ? holeMoveText(moved.offset) : "Off the face",
+      text: onFace
+        ? snap
+          ? `${holeMoveText(moved.offset)} · ${snap.label}`
+          : holeMoveText(moved.offset)
+        : "Off the face",
       textPoint: moved.point,
       handlePoints: { [id]: moved.point },
+      snap: snap && start.face ? { faceKey: start.face.key, id: snap.id, point: snap.point } : null,
     };
   }
 
@@ -980,12 +1022,27 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   const onHandleStart = (id) => {
     const handle = findHandle(id);
-    dragStart.current = handle && selected ? { handle, hole: selected } : null;
+    dragStart.current = handle && selected ? { handle, hole: selected, face: dragFace(selected) } : null;
     if (selected) guideToHole(selected);
     setHandleDrag(true);
   };
   const onHandlePreview = (id, point, modifiers) => {
     const g = dragGesture(id, point, modifiers);
+    // The point a dragged hole snapped to lights up as a hovered one does
+    // (its label is the drag's own, not the hover hint's).
+    if (dragStart.current?.handle.side === "move") {
+      const next = g?.snap
+        ? {
+            faceKey: g.snap.faceKey,
+            snapId: g.snap.id,
+            snapLabel: null,
+            linePoint: g.snap.id ? null : g.snap.point,
+            lineLabel: null,
+            drag: true,
+          }
+        : null;
+      setHover((prev) => (sameHover(prev, next) ? prev : next));
+    }
     return g && { segments: g.segments, text: g.text, textPoint: g.textPoint, handlePoints: g.handlePoints };
   };
   const onHandleCommit = (id, point, modifiers) => {
@@ -995,9 +1052,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     else setNotice({ text: "Off the face — the hole stays where it was." });
   };
   const onHandleEnd = () => {
+    if (dragStart.current?.handle.side === "move") setHover(null);
     dragStart.current = null;
     setHandleDrag(false);
   };
+
+  // The face a hole is dragged across, with its snap points (and the
+  // measured system's next holes, when Measure has them on that face):
+  // the face of the mesh on screen around the hole's spot. Found once, at
+  // the start of the drag.
+  function dragFace(hole) {
+    if (!geometries || !meshIsCurrent) return null;
+    const t = faceNear(geometries.topo, hole.point, hole.normal);
+    const face = t === null ? null : analyzeFace(geometries.topo, t, { inset, radius });
+    return face && pitch && face.key === pitch.faceKey ? withPitch(face, pitch) : face;
+  }
   // An arrow key on a focused handle: a grid step of that side (Shift:
   // ten), from the opposite edge; a held key's run is one undo step.
   const onHandleStep = (id, steps, modifiers) => {
@@ -1162,11 +1231,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     [guideFace, snapOn, doc?.holes, selectedIds],
   );
 
-  const hoveredSnap = hover?.snapId
-    ? { label: hover.snapLabel }
-    : hover?.linePoint
-      ? { label: hover.lineLabel, point: hover.linePoint }
-      : null;
+  const hoveredSnap = hover?.drag
+    ? null
+    : hover?.snapId
+      ? { label: hover.snapLabel }
+      : hover?.linePoint
+        ? { label: hover.lineLabel, point: hover.linePoint }
+        : null;
 
   // With Option held: the hovered point's (else the selected hole's, if
   // it lies on the guide face) distances to the guide face's edges and
@@ -1947,9 +2018,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               snapOn={snapOn}
               onSnapChange={setSnapOn}
               inset={inset}
-              onInsetChange={setInset}
+              onInsetChange={(mm) => editGuides({ inset: mm })}
               radius={radius}
-              onRadiusChange={setRadius}
+              onRadiusChange={(mm) => editGuides({ radius: mm })}
             />
           )}
           {(renderError || handleFailed) && (

@@ -81,6 +81,17 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Pegboard and VESA.** Hole presets for a US pegboard's 1/4" and 3/16" holes and for VESA
   monitor-mount screws (M4, M6), and their spacings for Measure and Repeat: a US pegboard's inch,
   and the VESA 75, 100, 200 × 100 and 200 patterns, whose 2 × 2 Repeat is a mount's four screws.
+- **A dragged hole snaps.** Dragging a hole by its middle handle catches it on the face's snap
+  points and guide lines, as a click does, and on the face's center from further off. The label by
+  the hole names what it snapped to beside the distance moved ("12 mm right · face center"), and the
+  point lights up.
+- **Guides set for the model.** The snapping bar's Inset and Radius start out right for the
+  model picked instead of 5 and 10 mm for everything: a Gridfinity bin's corner points sit on its
+  magnet holes, a round part's circle goes half way out, and any other part's circle stays 6 mm
+  inside its face (a face too small for that starts with none). A value you type holds until you pick another model.
+- **The guides stay put over a selected hole.** Hovering inside the selected hole (its bore, its
+  floor, a counterbore) no longer moves the guide lines and snap points to that inner face, so
+  they are still there when you grab the hole to drag it.
 - **Repeat round a hole.** A Repeat row or grid can be centred on the selected hole instead of
   starting from it: **Centre on this hole** lays the pattern out round the hole's spot, keeping the
   hole in the middle when the pattern has one there.

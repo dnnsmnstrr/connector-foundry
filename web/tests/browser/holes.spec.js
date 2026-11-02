@@ -630,18 +630,19 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
-  await drillAtFaceCenter(page);
+  const faceCenter = await drillAtFaceCenter(page);
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
   // A screw is its hardware's size: it only moves.
   await expect(page.locator(".viewer-handle")).toHaveCount(1);
   const move = handle(page, "h1:move");
   await expect(move).toBeVisible();
 
-  // A short drag: the hole follows in whole grid steps on its face.
+  // A short drag, out of the face center's pull: the hole follows in
+  // whole grid steps on its face (or onto a guide line, also on the grid).
   let at = center(await move.boundingBox());
   await page.mouse.move(...at);
   await page.mouse.down();
-  await page.mouse.move(at[0] + 40, at[1] + 10, { steps: 8 });
+  await page.mouse.move(at[0] + 80, at[1] + 20, { steps: 8 });
   await expect(page.locator(".viewer-drag-label")).toHaveText(/mm (right|left|up|down)/);
   await page.mouse.up();
   const moved = await holePoint(page);
@@ -677,6 +678,26 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   await page.keyboard.press("Shift+ArrowRight");
   await expect(page.locator(".holes-notice")).toContainText("Not moved");
   expect(await holePoint(page)).toEqual([0.5, 5, 2]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
+
+  // Dragged to near the face center, it lands on it exactly, and the
+  // label says what it snapped to.
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect.poll(() => holePoint(page)).toEqual([0, 5, 2]);
+  at = center(await move.boundingBox());
+  // Most of the way back to the face center on screen: short of it, but
+  // inside its pull.
+  await page.mouse.move(...at);
+  await page.mouse.down();
+  await page.mouse.move(at[0] + (faceCenter.x - at[0]) * 0.8, at[1] + (faceCenter.y - at[1]) * 0.8, {
+    steps: 8,
+  });
+  await expect(page.locator(".viewer-drag-label")).toHaveText(/· face center$/);
+  await page.mouse.up();
+  await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => holePoint(page)).toEqual([0, 5, 2]);
   await page.keyboard.press("ControlOrMeta+z");
   await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
 
@@ -892,11 +913,11 @@ test("after a handle commit, typing a base parameter still waits for the typing 
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
   await drillAtFaceCenter(page);
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
-  // A move: committed and rendered at once.
+  // A move (out of the face center's pull): committed and rendered at once.
   const at = center(await handle(page, "h1:move").boundingBox());
   await page.mouse.move(...at);
   await page.mouse.down();
-  await page.mouse.move(at[0] + 40, at[1] + 10, { steps: 8 });
+  await page.mouse.move(at[0] + 80, at[1] + 20, { steps: 8 });
   await page.mouse.up();
   await expect.poll(async () => (await jobs(page)).length).toBe(3);
 
@@ -1169,10 +1190,16 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
     "Gridfinity Holes (26 mm)",
     "openGrid (28 mm)",
     "Skådis (40 × 20 mm, staggered)",
+    "Multiboard (25 mm)",
+    "US pegboard (25.4 mm)",
     "MOD-GRID (8 mm)",
     "BitBeam (8 mm)",
     "MOLLE rigid panel (50.8 mm)",
     "MOLLE slit panel (38.1 × 25.4 mm)",
+    "VESA monitor mount (75 mm)",
+    "VESA monitor mount (100 mm)",
+    "VESA monitor mount (200 × 100 mm)",
+    "VESA monitor mount (200 mm)",
   ]);
   await standard.selectOption("bitbeam");
   await expect(standard).toHaveValue("bitbeam");
@@ -1200,8 +1227,10 @@ test("the snapping bar over the viewer sets the guides, its fields off with Snap
   const inset = bar.getByRole("spinbutton", { name: "Corner inset (mm)" });
   const radius = bar.getByRole("spinbutton", { name: "Center radius (mm)" });
   await expect(snap).toHaveAttribute("aria-pressed", "true");
+  // Set for the model (guideDefaults()): the 40 mm slab's circle 6 mm
+  // inside its edge, its corners 5 mm in.
   await expect(inset).toHaveValue("5");
-  await expect(radius).toHaveValue("10");
+  await expect(radius).toHaveValue("14");
 
   // Sizes typed here are the guides' (0 draws no circle).
   await inset.fill("8");

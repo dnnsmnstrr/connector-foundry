@@ -32,6 +32,7 @@ KNOWN_KEYS = REQUIRED_KEYS | {
     "defaults",
     "fold",
     "hidden",
+    "holes_guides",
     "license",
     "maximums",
     "minimums",

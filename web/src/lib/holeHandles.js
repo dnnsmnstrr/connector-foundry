@@ -53,6 +53,9 @@ export const HOLE_MIN_MM = 0.1;
 export const NUDGE_OFF_MM = 0.5;
 // A move that lands within this of where the hole was is no move.
 const NOISE_MM = 1e-6;
+// A hit on a rendered mesh's face is on the plane to about a thousandth
+// of a mm, not to float noise: pointInHole()'s slack.
+const IN_HOLE_SLACK_MM = 0.01;
 // How far past a hole's own outline movedOnFace() looks for the face it
 // sits on: clear of the bore's rim on the mesh on screen.
 const BORE_CLEAR_MM = 0.1;
@@ -409,6 +412,26 @@ export function holeReach(hole) {
     for (const [a, b] of holeOutline(hole))
       reach = Math.max(reach, Math.hypot(...sub(a, hole.point)), Math.hypot(...sub(b, hole.point)));
   return reach;
+}
+
+/**
+ * Whether a surface hit at `point` is in `hole`: within its reach
+ * (holeReach()) across its face, and not above the face — on its bore's
+ * wall, its floor or a counterbore's, or on the face round its rim. Those
+ * are faces of their own, so the Holes tab's guide face would leave the
+ * hole's face for them just as the pointer arrives to drag it; over a
+ * selected hole it stays put.
+ * @param {{ point: Vec3, normal: Vec3, spec: any }} hole
+ * @param {Vec3} point
+ */
+export function pointInHole(hole, point) {
+  if (!hole || !isFiniteVec(point) || !isFiniteVec(hole.point) || !isFiniteVec(hole.normal)) return false;
+  const length = Math.hypot(...hole.normal.slice(0, 3));
+  if (!(length > 0)) return false;
+  const d = sub(point, hole.point);
+  const height = dot(d, hole.normal) / length;
+  const across = Math.sqrt(Math.max(0, dot(d, d) - height * height));
+  return height <= IN_HOLE_SLACK_MM && across <= holeReach(hole) + IN_HOLE_SLACK_MM;
 }
 
 /**
