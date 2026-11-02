@@ -109,11 +109,34 @@ CC BY 4.0. It meets [Gridfinity every 84 mm](#opengrid-and-gridfinity-84-mm).
 - **Related:** Underware, cable management for under a desk by Hands on Katie and BlackjackDuck
   ([for openGrid](https://www.printables.com/model/1214427),
   [2.0](https://handsonkatie.com/underware-2-0-the-made-to-measure-collection/)).
-  [Multiboard](https://multibuild.io/), now MultiBuild, by Keep Making: the 25 mm system openGrid
-  grew up beside ([r/Multiboard](https://www.reddit.com/r/Multiboard/),
-  [multiboard-parametric](https://github.com/shaggyone/multiboard-parametric) in OpenSCAD).
+  [Multiboard](#multiboard), the 25 mm system openGrid grew up beside.
 - **Compared:** [HSW vs. Multiboard vs. OpenGrid vs. GOEWS](https://www.youtube.com/watch?v=_eeB1wMST88),
   The Newbie Maker's side-by-side of four wall systems.
+
+### Multiboard
+
+A wall system of tiles on a 25 mm grid, by Keep Making (Jonathan K), now called MultiBuild: a
+threaded big hole in every cell and a threaded small hole at every corner between four, that bolts,
+snaps and pegs screw into. Its designs are under the MultiBuild Licence, which allows personal use
+only, no redistribution, and can be withdrawn, so no tile and no Multiboard part is in the
+catalogue. What is here only carries the tile's two threads, made from the community's
+measurements, so a part of ours screws into a tile and a hole of ours takes Multiboard's bolts.
+
+- **In the catalogue:** `multiboard/snap` (the big thread, under a head to fuse a part onto),
+  `multiboard/peg` (the small thread); the Holes tab cuts both threads as the tile does.
+  `opengrid/multiconnect` and the Holes tab's MultiConnect slot hang Multiboard's MultiConnect
+  accessories. Both are `parametric`: the thread numbers are not yet checked against a printed
+  tile.
+- **Home:** [multibuild.io](https://multibuild.io/), and its
+  [licence](https://multibuild.io/license).
+- **Original files:** on Thangs, under Keep Making and MultiBuild; the
+  [8x8 core tile](https://thangs.com/designer/Keep%20Making/3d-model/8x8%20Multiboard%20Core%20Tile-974214).
+- **Community:** [r/Multiboard](https://www.reddit.com/r/Multiboard/).
+- **OpenSCAD:** [multiboard-parametric](https://github.com/shaggyone/multiboard-parametric), whose
+  measurements our threads use;
+  [multiboard-openscad](https://github.com/haliphax/multiboard-openscad),
+  [mb-tile-generator](https://github.com/slynn1324/mb-tile-generator).
+- **In the browser:** Perplexing Labs' Multiboard hexgrid.
 
 ### Honeycomb Storage Wall
 
@@ -298,6 +321,7 @@ adapter. Their grids, in millimetres:
 | [MOD-GRID](#mod-grid) | 8 mm pitch, 5 mm square holes | 8 mm |
 | [Skådis](#skådis) | slots 40 apart along a row, rows 20 apart | 20 mm |
 | [2020 extrusion](#2020-extrusion) | 20 × 20 profile, one slot a face | 20 mm |
+| [Multiboard](#multiboard) | 25 × 25 cells | 25 mm |
 | [MOLLE](#molle) | 25.4 rows, 38.1 across | inches (1", 1.5") |
 | [SOLDR](#soldr) | 30.5 × 30.5 units | — |
 | [Honeycomb Storage Wall](#honeycomb-storage-wall) | hex cells, 20 openings, 20.44 across × 23.6 up | — |

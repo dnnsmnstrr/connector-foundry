@@ -32,7 +32,7 @@ with "Measure spacing…" in the command palette. A hole placed from a system's 
 when Measure is turned
 on with it selected, or when it is selected while Measure is on: a MOD-GRID hole MOD-GRID, a Skådis
 slot Skådis, a BitBeam pin hole BitBeam, the openConnect, MultiConnect and openGrid thread slots
-openGrid, the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
+openGrid, the Multiboard threads Multiboard (25 mm), the MOLLE presets their panel, and the 6 × 2 mm disc magnet (the one Gridfinity bins take)
 Gridfinity. A spacing picked by hand stays until the selection or Measure changes. The spacings are
 the same as Repeat's standard spacings (below), from the same numbers: **Gridfinity Holes** (26 mm:
 a 42 mm cell's four magnet and screw holes, 8 mm in from its edges — the next cell's are 16 mm on), **openGrid** (28 mm), **Skådis** (40 mm along a row, rows 20 mm apart and staggered),
@@ -158,6 +158,12 @@ It has a direction too: the thread starts where it has to for a screwed-home hea
 way, so an openConnect head ends up with its slide direction up. "Full" is 8 mm deep for a
 full-size screw (6.8 mm of thread), "Lite" 4.5 mm for a lite one; depth, through and the
 clearance (upstream's 0.5 mm) are editable.
+
+The **Multiboard thread** presets cut a Multiboard tile's two holes as the tile cuts them, so
+Multiboard's own bolts screw into the part: "Big" (Ø22.5 mm, 2.5 mm pitch) for a big-thread bolt,
+"Small" (Ø7.03 mm, 3 mm pitch) for a small-thread one. Both go through, since a bolt's thread runs
+on past a tile's 6.4 mm; depth and clearance are editable. The numbers are the community's
+measurements, not yet checked against a printed tile ([Systems](SYSTEMS.md#multiboard)).
 
 The **Generic shapes** cut a plain cutout of any size instead of a fastener's hole: a **round** one
 (a diameter and a depth, or through) and a **rectangle** (width, height, depth, and a corner radius

@@ -24,6 +24,8 @@ import {
   matchSpacing,
   spacingLabel,
   STANDARD_SPACINGS,
+  THREADS,
+  threadOf,
   rotateHoles,
   slotFrame,
   slotOutline,
@@ -573,6 +575,61 @@ test("an openGrid thread is cut by lib/ogthread.scad in the slots' frame, blind 
   assert.equal(holeMeta(doc.holes[1]), "through, turned 0°");
 });
 
+test("a Multiboard thread is cut by lib/multiboard.scad as the tile cuts it, for its bolts", () => {
+  let { doc } = addHole(
+    createHolesDoc({ kind: "mesh", name: "box", stlBytes: new ArrayBuffer(84), extents: [40, 40, 20] }),
+    {
+      point: [20, 20, 20],
+      normal: [0, 0, 1],
+      spec: getPreset("mb-thread-big").spec,
+      presetId: "mb-thread-big",
+    },
+  );
+  ({ doc } = addHole(doc, {
+    point: [5, 5, 20],
+    normal: [0, 0, 1],
+    spec: { ...getPreset("mb-thread-small").spec, depth: 6.4 },
+  }));
+  ({ doc } = addHole(doc, { point: [20, 0, 10], normal: [0, -1, 0], spec: getPreset("og-thread").spec }));
+  const scad = holesToScad(doc, partsById, {
+    throughLength: 70,
+    extents: [40, 40, 20],
+    importedFiles: new Map(),
+  });
+  // Each library once, for the threads that need it.
+  assert.match(
+    scad,
+    /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/ogthread\.scad>\nuse <\.\.\/lib\/multiboard\.scad>$/m,
+  );
+  // The big one through (the box's 20 mm plus the overshoot), the small one blind.
+  assert.match(scad, /mb_thread_hole\(size = "big", depth = 21, clearance = 0, overshoot = 1\);/);
+  assert.match(scad, /mb_thread_hole\(size = "small", depth = 6\.4, clearance = 0, overshoot = 1\);/);
+  assert.match(scad, /og_thread_hole\(depth = 8, clearance = 0\.5, overshoot = 1\);/);
+  assert.equal(holeLabel(doc.holes[0]), "Multiboard big thread through");
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 11.25);
+  assert.equal(holeFootprintRadius(doc.holes[1].spec), 7.025 / 2);
+  // A profile is one of the known three; anything else — or none, as in
+  // a hole saved before there were three — is openGrid's.
+  assert.equal(normalizeSpec({ kind: "thread", profile: "mb-small" }).clearance, 0);
+  assert.equal(normalizeSpec({ kind: "thread" }).profile, "opengrid");
+  assert.equal(normalizeSpec({ kind: "thread", profile: "__proto__" }).profile, "opengrid");
+  assert.equal(threadOf({ profile: "toString" }), THREADS.opengrid);
+  // Switching presets swaps the thread and keeps the direction; the
+  // Multiboard ones are laid out on its 25 mm grid.
+  assert.deepEqual(
+    presetSpecFor({ ...getPreset("og-thread").spec, spin: 90 }, getPreset("mb-thread-small").spec),
+    {
+      kind: "thread",
+      profile: "mb-small",
+      depth: 0,
+      clearance: 0,
+      spin: 90,
+    },
+  );
+  assert.ok(!specMatchesPreset(getPreset("mb-thread-big").spec, "mb-thread-small"));
+  assert.equal(presetSpacingId("mb-thread-big"), "multiboard");
+});
+
 test("an openGrid thread turns, flips and keeps its direction like a slot", () => {
   let { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }),
@@ -590,6 +647,7 @@ test("an openGrid thread turns, flips and keeps its direction like a slot", () =
   assert.equal(normalizeSpec({ kind: "thread", depth: 0 }).depth, 0);
   assert.deepEqual(normalizeSpec({ kind: "thread", depth: -1, clearance: "x", spin: 450 }), {
     kind: "thread",
+    profile: "opengrid",
     depth: 8,
     clearance: 0.5,
     spin: 90,
@@ -606,6 +664,7 @@ test("an openGrid thread turns, flips and keeps its direction like a slot", () =
   assert.ok(!specMatchesPreset({ ...getPreset("og-thread").spec, depth: 12 }, "og-thread"));
   assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("og-thread-lite").spec), {
     kind: "thread",
+    profile: "opengrid",
     depth: 4.5,
     clearance: 0.5,
     spin: 90,
@@ -1044,6 +1103,7 @@ test("one list of system spacings, each with its numbers, for Repeat and Measure
       ["gridfinity", 26, 26, false],
       ["opengrid", 28, 28, false],
       ["skadis", 40, 20, true],
+      ["multiboard", 25, 25, false],
       ["modgrid", 8, 8, false],
       ["bitbeam", 8, 8, false],
       ["molle-rigid", 50.8, 50.8, false],

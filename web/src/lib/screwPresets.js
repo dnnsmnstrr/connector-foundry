@@ -374,7 +374,20 @@ function thread(id, name, short, depth) {
     name,
     short,
     group: "openGrid thread (screw connectors)",
-    spec: { kind: "thread", depth, clearance: 0.5, spin: 0 },
+    spec: { kind: "thread", profile: "opengrid", depth, clearance: 0.5, spin: 0 },
+    screw: { style: "thread" },
+  };
+}
+
+// A Multiboard tile's hole, for Multiboard's own bolts: through, since a
+// bolt's thread runs on past a tile's 6.4 mm, cut as the tile cuts it.
+function multiboardThread(id, name, short, profile) {
+  return {
+    id,
+    name,
+    short,
+    group: "Multiboard thread (bolts)",
+    spec: { kind: "thread", profile, depth: 0, clearance: 0, spin: 0 },
     screw: { style: "thread" },
   };
 }
@@ -592,6 +605,13 @@ export const SCREW_PRESETS = [
   }),
   thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
   thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
+  multiboardThread("mb-thread-big", "Multiboard big thread, for a big-thread bolt", "Big", "mb-big"),
+  multiboardThread(
+    "mb-thread-small",
+    "Multiboard small thread, for a small-thread bolt",
+    "Small",
+    "mb-small",
+  ),
   shape("shape-cylinder", "Round cutout", "Round", round({ diameter: 10, depth: 0 })),
   shape("shape-rect", "Rectangular cutout", "Rectangle", {
     kind: "rectangle",
@@ -694,6 +714,7 @@ const SPACING_BY_GROUP = {
   "openConnect (openGrid)": "opengrid",
   MultiConnect: "opengrid",
   "openGrid thread (screw connectors)": "opengrid",
+  "Multiboard thread (bolts)": "multiboard",
   Skådis: "skadis",
   "MOD-GRID": "modgrid",
 };
@@ -762,7 +783,7 @@ function isConnectorKind(kind) {
 
 // The fields that tell the presets of one kind apart — the ones they
 // don't all agree on (MultiConnect: on-ramp and detent; openConnect:
-// the lock side; the thread: its depth). Read off the preset list itself, so adding a preset
+// the lock side; the thread: which one, its depth and clearance). Read off the preset list itself, so adding a preset
 // that differs in something new makes that field one of these.
 const keysByKind = new Map();
 export function presetKeys(kind) {

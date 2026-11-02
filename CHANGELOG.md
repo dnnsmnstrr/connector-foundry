@@ -40,7 +40,6 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   solid mounting end, and a flexible fork only at its projecting tip. Enter any length from half
   a unit through 16 units. Part searches also match catalogue keywords, so
   BitBeam parts appear when searching for Technic or LEGO.
-
 - **Multiboard threads.** Two parts that screw into a Multiboard tile: a big-thread snap with an
   octagonal head to fuse a hook or holder onto, and a small-thread peg for the holes between
   cells. They carry only the tile's threads, from the community's measurements, and no Multiboard
@@ -63,6 +62,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   **Folded** (or **Split**) in the viewer's toolbar shows the body as it will export. The export says
   when a part can't fold (Split still can).
   
+### Holes tab
+
+- **Multiboard threads.** Two new presets cut a Multiboard tile's big and small threaded holes into
+  any part, so Multiboard's own bolts screw into it, and Measure steps them on Multiboard's 25 mm
+  grid.
+
 ### Library
 
 - **No Render button.** The preview already renders on its own whenever the part, its parameters
@@ -148,7 +153,6 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   projects. It ends with the systems that share a unit: three openGrid cells are two Gridfinity
   cells (84 mm), BitBeam, LEGO Technic and MOD-GRID are all on 8 mm, Skådis lines up with them
   every 40 mm, and Gridfinity and SOLDR take the same magnets.
-
 - **Videos.** The guides can show a video, such as Zack Freedman's Gridfinity introduction or
   David D's openGrid one, under its own thumbnail. It loads from YouTube only when you press
   play.

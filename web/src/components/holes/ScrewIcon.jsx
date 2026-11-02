@@ -1,3 +1,5 @@
+import { THREAD, threadOf } from "../../lib/screwHoles.js";
+
 // A screw preset as a cross-section: the material (grey) with the hole
 // the preset cuts into it (dark), and the fastener itself seated in
 // that hole (light) — so a counterbore, a countersink, a heat-set
@@ -367,27 +369,30 @@ function SlotIcon({ spec, title, className }) {
   );
 }
 
-// The openGrid thread in cross-section: the Ø16.5 bore with the thread's
-// ridges standing into it from both walls, and a screw connector in it —
-// the threaded shank, and the head (an openConnect head's width) on the
-// surface, a coin slot in its face. To scale across, its depth as cut
-// (6.8 mm of screw, whatever the hole's own depth).
+// A thread in cross-section (screwHoles.js's THREADS): the bore with the
+// thread's ridges standing into it from both walls, and a screw in it —
+// the threaded shank, and a head 1 mm wider on the surface; an openGrid
+// screw's (an openConnect head's width) has a coin slot in its face. To
+// scale across, its depth as cut (a screw's thread, whatever the hole's
+// own depth).
 /** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ThreadIcon({ spec, title, className }) {
-  const s = 30 / 17;
+  const thread = threadOf(spec);
+  const headW = thread.diameter + 1;
+  const s = 30 / headW;
   const px = (mm) => mm * s;
-  const boreW = px(16 + spec.clearance);
+  const boreW = px(thread.diameter + spec.clearance);
   const through = !(spec.depth > 0);
   const floorY = through ? BOTTOM_Y + 1 : SURFACE_Y + Math.min(px(spec.depth), MAX_SHOWN_DEPTH);
-  const shankW = px(16);
-  const shankEnd = Math.min(floorY - 1, SURFACE_Y + px(6.8));
-  const pitch = px(3);
+  const shankW = px(thread.diameter);
+  const shankEnd = Math.min(floorY - 1, SURFACE_Y + px(thread.fullLength));
+  const pitch = px(thread.pitch);
   // Ridges of material into the bore: one per pitch down each wall, the
   // right wall half a pitch below the left (it is a helix).
   const ridges = [];
   for (const side of [-1, 1]) {
     const wall = CX + (side * boreW) / 2;
-    const tip = wall - side * px(1);
+    const tip = wall - side * px(thread.depth);
     for (let y = SURFACE_Y + (side > 0 ? pitch / 2 : 0) + 0.6; y + pitch * 0.6 < floorY; y += pitch) {
       ridges.push(
         polygon([
@@ -417,10 +422,22 @@ function ThreadIcon({ spec, title, className }) {
       <g className="screw-icon-cut">{rect(CX - boreW / 2, SURFACE_Y - 1, boreW, floorY - SURFACE_Y + 1)}</g>
       <g className="screw-icon-material">{ridges}</g>
       <g className="screw-icon-fastener">
-        {rect(CX - shankW / 2 + px(1), SURFACE_Y, shankW - px(2), shankEnd - SURFACE_Y)}
-        {threads(CX - shankW / 2 + px(1), SURFACE_Y, shankEnd, shankW - px(2), pitch)}
-        {rect(CX - px(17) / 2, SURFACE_Y - headH, px(17), headH, { rx: 0.8 })}
-        {rect(CX - px(13) / 2, SURFACE_Y - headH, px(13), headH * 0.45, { className: "screw-icon-socket" })}
+        {rect(
+          CX - shankW / 2 + px(thread.depth),
+          SURFACE_Y,
+          shankW - px(2 * thread.depth),
+          shankEnd - SURFACE_Y,
+        )}
+        {threads(
+          CX - shankW / 2 + px(thread.depth),
+          SURFACE_Y,
+          shankEnd,
+          shankW - px(2 * thread.depth),
+          pitch,
+        )}
+        {rect(CX - px(headW) / 2, SURFACE_Y - headH, px(headW), headH, { rx: 0.8 })}
+        {thread === THREAD &&
+          rect(CX - px(13) / 2, SURFACE_Y - headH, px(13), headH * 0.45, { className: "screw-icon-socket" })}
       </g>
     </svg>
   );
