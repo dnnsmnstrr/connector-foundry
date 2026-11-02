@@ -106,8 +106,8 @@ CC BY 4.0. It meets [Gridfinity every 84 mm](#opengrid-and-gridfinity-84-mm).
   by mitufy; MultiConnect ([v1](https://www.printables.com/model/716558),
   [v2](https://www.printables.com/model/1074671)), David D's earlier connector for Multiboard,
   which openConnect stays compatible with.
-- **Related:** Underware, cable management for under a desk by Hands on Katie and BlackjackDuck
-  ([for openGrid](https://www.printables.com/model/1214427),
+- **Related:** [Underware](#underware), cable management for under a desk by Hands on Katie and
+  BlackjackDuck ([for openGrid](https://www.printables.com/model/1214427),
   [2.0](https://handsonkatie.com/underware-2-0-the-made-to-measure-collection/)).
   [Multiboard](#multiboard), the 25 mm system openGrid grew up beside.
 - **Compared:** [HSW vs. Multiboard vs. OpenGrid vs. GOEWS](https://www.youtube.com/watch?v=_eeB1wMST88),
@@ -197,6 +197,31 @@ publishes no specification, so its numbers are the boards' and the community's.
   [models-skadis](https://github.com/dredzik/models-skadis).
 - **Related:** Mechanism makes a [Skådis mount](https://www.printables.com/model/1337460-mechanismdeckmate-wallskadis-mount-innie)
   for [DeckMate](#deckmate).
+
+### Underware
+
+Hands on Katie and BlackjackDuck's under-desk cable management: channels made of a base that
+mounts to openGrid, Multiboard or any flat surface (snap connectors, screws, magnets or tape) and a
+top that snaps onto it with no glue, sized in 25 mm units. Upstream's OpenSCAD generates straight,
+L, T, X, Y, S, C, mitre, diagonal and height-change channels, plus connectors, hooks and item
+holders. Here the straight and L channels are catalogue parts, base and top each, built from
+upstream's own channel profiles (`lib/underware.scad`), so the Holes tab can cut cable exits or
+screw holes into them and the Bench can fuse a hook or a connector onto a top's roof or a base's
+underside. CC BY-NC-SA 4.0, prints included.
+
+- **In the catalogue:** `underware/i_channel_base`, `underware/i_channel_top`,
+  `underware/l_channel_base`, `underware/l_channel_top`. Left out: the junctions (T, X, Y), which
+  need upstream's "channel clear" cuts; the snap connector, which is under
+  [Multiboard](#multiboard)'s licence rather than CC BY-NC-SA.
+- **Home:** [handsonkatie.com/underware](https://www.handsonkatie.com/underware).
+- **Original files:** [Underware 2.0 on MakerWorld](https://makerworld.com/en/models/783010),
+  [Underware for openGrid](https://www.printables.com/model/1214427).
+- **Community:** [Hands on Katie on YouTube](https://www.youtube.com/channel/UCLqQ5m7AXj_oyUvLZPsts0Q),
+  [Patreon](https://www.patreon.com/HandsonKatie).
+- **OpenSCAD:** [QuackWorks/Underware](https://github.com/AndyLevesque/QuackWorks/tree/main/Underware)
+  (BlackjackDuck's; vendored here, and every part checked against its script).
+- **In the browser:** Perplexing Labs' Underware for openGrid.
+- **Related:** [openGrid](#opengrid), whose boards the bases snap to.
 
 ## Mounts and clips
 
