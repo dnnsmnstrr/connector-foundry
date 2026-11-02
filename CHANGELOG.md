@@ -92,7 +92,7 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **Guides set for the model.** The snapping bar's Inset and Radius start out right for the
   model picked instead of 5 and 10 mm for everything: a Gridfinity part's corner points sit on its
   magnet holes on whichever face is picked (its top, a foot's bottom, a baseplate's underside) and
-  its circle runs through the quadrant centers, a round part's circle goes half way out, and any other part's circle stays 6 mm
+  its circle runs through the quadrant centers, as an openGrid snap's and a SOLDR base's do, a round part's circle goes half way out, and any other part's circle stays 6 mm
   inside its face (a face too small for that starts with none). A value you type holds until you pick another model.
 - **The guides stay put over a selected hole.** Hovering inside the selected hole (its bore, its
   floor, a counterbore) no longer moves the guide lines and snap points to that inner face, so

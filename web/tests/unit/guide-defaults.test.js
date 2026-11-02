@@ -67,6 +67,25 @@ test("a round part's circle goes half way out; MultiConnect's to half its 20 mm 
   assert.equal(guideDefaults(part("opengrid/multiconnect"), [25.58, 25.58, 10]).radius, 5);
 });
 
+test("openGrid snaps and SOLDR bases: no corner points, the circle through the quadrant centers", () => {
+  // A snap's body is 24.8 mm across: quadrant centers 6.2 mm out each
+  // way, 8.77 mm from the middle. A 1 x 1 SOLDR base is 28.8: 10.18 mm.
+  for (const id of ["opengrid/snap", "opengrid/openconnect"]) {
+    assert.deepEqual(guideDefaults(part(id), [25.58, 25.58, 6.8]), {
+      inset: 0,
+      radius: 8.75,
+      insetFor: null,
+    });
+  }
+  assert.ok(Math.abs(Math.hypot(24.8 / 4, 24.8 / 4) - 8.75) < 0.05);
+  assert.deepEqual(guideDefaults(part("soldr/base"), [28.8, 28.8, 3]), {
+    inset: 0,
+    radius: 10.2,
+    insetFor: null,
+  });
+  assert.ok(Math.abs(Math.hypot(28.8 / 4, 28.8 / 4) - 10.2) < 0.05);
+});
+
 test("a malformed holes_guides falls back to the size rule", () => {
   const bad = { holes_guides: { inset: -1, radius: "x", round: "yes" } };
   assert.deepEqual(guideDefaults(bad, [42, 42, 4]), { inset: 5, radius: 15, insetFor: null });
