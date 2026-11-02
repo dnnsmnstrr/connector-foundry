@@ -19,8 +19,7 @@ module bitbeam_joint_pin(top_length = 1, bottom_length = 1, friction = true,
     assert(top_length >= 1 && bottom_length >= 1,
         "bitbeam_joint_pin: each end is at least one BitBeam unit");
     len = bitbeam_pin_len(top_length, bottom_length);
-    dia = friction ? BITBEAM_PIN_WIDE_DIA : BITBEAM_PIN_NARROW_DIA;
-    size = [dia, dia, len];
+    size = bitbeam_pin_size(len, friction);
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(len / 2)]) {
         translate([0, 0, -len / 2]) bitbeam_pin_geometry(len, friction, friction);

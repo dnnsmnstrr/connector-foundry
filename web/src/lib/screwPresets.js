@@ -374,8 +374,52 @@ function thread(id, name, short, depth) {
     name,
     short,
     group: "openGrid thread (screw connectors)",
-    spec: { kind: "thread", depth, clearance: 0.5, spin: 0 },
+    spec: { kind: "thread", profile: "opengrid", depth, clearance: 0.5, spin: 0 },
     screw: { style: "thread" },
+  };
+}
+
+// A Multiboard tile's hole, for Multiboard's own bolts: through, since a
+// bolt's thread runs on past a tile's 6.4 mm, cut as the tile cuts it.
+function multiboardThread(id, name, short, profile) {
+  return {
+    id,
+    name,
+    short,
+    group: "Multiboard thread (bolts)",
+    spec: { kind: "thread", profile, depth: 0, clearance: 0, spin: 0 },
+    screw: { style: "thread" },
+  };
+}
+
+// A US pegboard's hole, `inches` across on 1" centres (1/4" in a 1/4"
+// board, 3/16" in a 1/8" one), for printing a pegboard of your own or a
+// part its hooks go into. Cut 0.2 mm over, as the Skådis slot is
+// (lib/skadis.scad's SKADIS_SLOT_FIT): a printed hole comes out narrow
+// and a hook's wire binds in it.
+function pegboardHole(id, name, short, inches) {
+  return {
+    id,
+    name,
+    short,
+    group: "Pegboard (US)",
+    spec: round({ diameter: round1(inches * 25.4 + 0.2), depth: 0 }),
+    screw: { style: "shape" },
+  };
+}
+
+// A VESA monitor mount's screw, as the socket cap preset of its size cuts
+// it (counterbored, so the head sits below the plate's face): M4 for the
+// 75 and 100 mm patterns, M6 for 200 mm and up. Its own group so that
+// searching "vesa" finds it; Measure and Repeat lay it out on the
+// pattern (SPACING_BY_PRESET below).
+function vesaScrew(nominal, patterns) {
+  return {
+    ...cap(nominal),
+    id: `vesa-m${nominal}`,
+    name: `VESA M${nominal} screw, counterbored (${patterns} mm patterns)`,
+    short: `M${nominal}`,
+    group: "VESA (monitor mounts)",
   };
 }
 
@@ -554,6 +598,10 @@ export const SCREW_PRESETS = [
   nutTrap(6),
   tripodNut("tripod-1-4-nut", '1/4"-20 tripod nut trap', '1/4"', 6.35, 11.1125, 5.55625),
   tripodNut("tripod-3-8-nut", '3/8"-16 tripod nut trap', '3/8"', 9.525, 14.2875, 8.334375),
+  pegboardHole("pegboard-1-4", 'Pegboard hole, 1/4" (6.35 mm) on 1" centres', '1/4"', 1 / 4),
+  pegboardHole("pegboard-3-16", 'Pegboard hole, 3/16" (4.76 mm) on 1" centres', '3/16"', 3 / 16),
+  vesaScrew(4, "75 / 100"),
+  vesaScrew(6, "200"),
   wood(3.5, 7.0),
   wood(4.0, 8.0),
   wood(5.0, 10.0),
@@ -592,6 +640,13 @@ export const SCREW_PRESETS = [
   }),
   thread("og-thread", "openGrid thread, full-size screw", "Full", 8),
   thread("og-thread-lite", "openGrid thread, lite screw", "Lite", 4.5),
+  multiboardThread("mb-thread-big", "Multiboard big thread, for a big-thread bolt", "Big", "mb-big"),
+  multiboardThread(
+    "mb-thread-small",
+    "Multiboard small thread, for a small-thread bolt",
+    "Small",
+    "mb-small",
+  ),
   shape("shape-cylinder", "Round cutout", "Round", round({ diameter: 10, depth: 0 })),
   shape("shape-rect", "Rectangular cutout", "Rectangle", {
     kind: "rectangle",
@@ -694,6 +749,8 @@ const SPACING_BY_GROUP = {
   "openConnect (openGrid)": "opengrid",
   MultiConnect: "opengrid",
   "openGrid thread (screw connectors)": "opengrid",
+  "Multiboard thread (bolts)": "multiboard",
+  "Pegboard (US)": "pegboard",
   Skådis: "skadis",
   "MOD-GRID": "modgrid",
 };
@@ -703,6 +760,8 @@ const SPACING_BY_PRESET = {
   "bitbeam-pin": "bitbeam",
   "molle-opening": "molle-rigid",
   "molle-slit": "molle-slit",
+  "vesa-m4": "vesa-100",
+  "vesa-m6": "vesa-200",
 };
 /** @param {string | null | undefined} presetId */
 export function presetSpacingId(presetId) {
@@ -762,7 +821,7 @@ function isConnectorKind(kind) {
 
 // The fields that tell the presets of one kind apart — the ones they
 // don't all agree on (MultiConnect: on-ramp and detent; openConnect:
-// the lock side; the thread: its depth). Read off the preset list itself, so adding a preset
+// the lock side; the thread: which one, its depth and clearance). Read off the preset list itself, so adding a preset
 // that differs in something new makes that field one of these.
 const keysByKind = new Map();
 export function presetKeys(kind) {

@@ -19,6 +19,7 @@ import {
   nearestCandidate,
   nearestGuide,
   pitchCandidates,
+  snapDrag,
 } from "../../src/lib/snapCandidates.js";
 import { getSpacing } from "../../src/lib/screwHoles.js";
 
@@ -269,6 +270,74 @@ test("the center circle: drawn at the chosen radius, snap points where it meets 
   const wide = analyzeFace(geometry, topTriangle(geometry, 1.99), { inset: 2, radius: 30 });
   assert.equal(wide.guides.filter((g) => g.kind === "circle").length, 0);
   assert.equal(byKind(wide, "circle").length, 0);
+});
+
+test("an inset can be a function of the face's size: each face gets its own", () => {
+  const geometry = welded(new BoxGeometry(20, 10, 4));
+  const seen = [];
+  const face = analyzeFace(geometry, topTriangle(geometry, 1.99), {
+    radius: 0,
+    inset: (extent) => {
+      seen.push(extent.map((n) => Math.round(n)));
+      return 2;
+    },
+  });
+  // The face's own two sizes, in its own frame's order.
+  assert.deepEqual(
+    [...seen.at(-1)].sort((a, b) => a - b),
+    [10, 20],
+  );
+  assert.equal(face.inset, 2);
+  assert.deepEqual(
+    byKind(face, "corner").map((p) => p.map(Math.abs)),
+    [
+      [8, 3, 2],
+      [8, 3, 2],
+      [8, 3, 2],
+      [8, 3, 2],
+    ],
+  );
+});
+
+test("a dragged hole: the center catches it from three times as far, then the other points, then the lines", () => {
+  // A 30 x 20 plate with a hole through it at (5, 0): the hole being dragged.
+  const outline = new Shape();
+  outline.moveTo(-15, -10);
+  outline.lineTo(15, -10);
+  outline.lineTo(15, 10);
+  outline.lineTo(-15, 10);
+  outline.closePath();
+  const bore = new Path();
+  bore.absarc(5, 0, 2, 0, Math.PI * 2, true);
+  outline.holes.push(bore);
+  const geometry = welded(new ExtrudeGeometry(outline, { depth: 4, bevelEnabled: false, curveSegments: 16 }));
+  const face = analyzeFace(geometry, topTriangle(geometry, 3.99), { inset: 3, radius: 0 });
+
+  // 2.4 mm from the center with a 1 mm reach: still the center, and its
+  // marker's id.
+  const center = snapDrag(face, [1.8, 1.6, 4], 1);
+  assert.deepEqual(round(center.point), [0, 0, 4]);
+  assert.equal(center.label, "face center");
+  assert.equal(center.id, face.candidates.find((c) => c.kind === "center").id);
+  assert.equal(snapDrag(face, [2.5, 1.8, 4], 1)?.label === "face center", false);
+  // With a wider reach the pull stops at a fifth of the face's narrower
+  // side (20 mm here): 4 mm, not 3 x 1.5.
+  assert.equal(snapDrag(face, [0, 3.9, 4], 1.5).label, "face center");
+  assert.notEqual(snapDrag(face, [0, 4.2, 4], 1.5)?.label, "face center");
+  // A quadrant center, a corner inset: only within the plain reach.
+  assert.deepEqual(round(snapDrag(face, [-7.9, 5.4, 4], 1).point), [-7.5, 5, 4]);
+  assert.equal(snapDrag(face, [-7.9, 5.4, 4], 1).label, "quadrant center");
+  assert.equal(snapDrag(face, [-11.6, 6.6, 4], 1).label, "3 mm in from the corner");
+  // Never onto a hole, the dragged one's own bore included: at (5, 0.3)
+  // the hole's own point is 0.3 mm away, and the center line is what
+  // takes it.
+  const nearBore = snapDrag(face, [5, 0.3, 4], 1, 0);
+  assert.equal(nearBore.label, "on the center line");
+  assert.deepEqual(round(nearBore.point), [5, 0, 4]);
+  assert.equal(nearBore.id, null);
+  // Nothing within reach: no snap, for the drag's grid to take.
+  assert.equal(snapDrag(face, [11, 7.9, 4], 0.3), null);
+  assert.equal(snapDrag(null, [0, 0, 4], 1), null);
 });
 
 test("edge distances: from a point on the face to the outline each way, and to the center", () => {

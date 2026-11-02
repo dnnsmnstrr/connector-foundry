@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { optionLabel } from "../lib/labels.js";
 import DecimalInput from "./DecimalInput.jsx";
 
 // catalogueDefault + onReset: an "obvious way to see that a value
@@ -12,9 +13,15 @@ import DecimalInput from "./DecimalInput.jsx";
 // a value typed past one is brought back to it when the field loses
 // focus — not on every keystroke, which would turn the "1" of a "10"
 // being typed into the minimum. Decimals take a comma or a period.
+//
+// `label` is what the field is called on screen (lib/labels.js's
+// paramLabel(): "Width (cells)"); `name` is the parameter's own name
+// ("gx"), shown when the pointer rests on the label, for anyone moving
+// between the app and the CLI. Without a label the name is the label.
 /**
  * @param {{
  *   name: string,
+ *   label?: string,
  *   value: any,
  *   options?: any[],
  *   min?: number | string,
@@ -24,13 +31,23 @@ import DecimalInput from "./DecimalInput.jsx";
  *   onReset?: () => void,
  * }} props
  */
-export default function ParamField({ name, value, options, min, max, catalogueDefault, onChange, onReset }) {
+export default function ParamField({
+  name,
+  label: text = name,
+  value,
+  options,
+  min,
+  max,
+  catalogueDefault,
+  onChange,
+  onReset,
+}) {
   // The reset button is labelable too. Explicit association keeps the
   // field's accessible name when that button appears after an edit.
   const inputId = useId();
   const differs = catalogueDefault !== undefined && value !== catalogueDefault;
   const label = (
-    <span className="field-label">
+    <span className="field-label" title={text === name ? undefined : `Parameter: ${name}`}>
       {differs && (
         <span
           className="field-differs"
@@ -39,12 +56,12 @@ export default function ParamField({ name, value, options, min, max, catalogueDe
           title={`Catalogue default: ${catalogueDefault}`}
         />
       )}
-      {name}
+      {text}
       {differs && onReset && (
         <button
           type="button"
           className="field-reset"
-          aria-label={`Reset ${name} to catalogue default`}
+          aria-label={`Reset ${text} to catalogue default`}
           title="Reset to catalogue default"
           onClick={onReset}
         >
@@ -69,7 +86,7 @@ export default function ParamField({ name, value, options, min, max, catalogueDe
         >
           {options.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {optionLabel(option)}
             </option>
           ))}
         </select>

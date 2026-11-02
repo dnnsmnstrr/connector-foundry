@@ -96,6 +96,8 @@ import {
   subscribeSidebarWidth,
 } from "./lib/uiPrefs.js";
 import { CIRCLE_DETAILS, getGlobalOverrides, resolveParams, setCircleDetail } from "./lib/userOverrides.js";
+import { askConfirm } from "./lib/confirm.js";
+import ConfirmDialog from "./components/ConfirmDialog.jsx";
 
 // Between the last bench edit and the URL catching up with it — typing a
 // parameter value shouldn't rewrite the address bar once per keystroke.
@@ -607,10 +609,17 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen, shortcutsOpen, mode, assembly, sidebarCollapsed]);
 
-  // Each of these says whether it opened the part: false when the user
-  // chose to keep what was there (an agent's tool reports it, webmcp.js).
-  function openInBench(part, params) {
-    if (assembly && !window.confirm(`Replace the current bench with a new one on ${part.name}?`))
+  // Each of these resolves to whether it opened the part: false when the
+  // user chose to keep what was there (an agent's tool reports it,
+  // webmcp.js).
+  async function openInBench(part, params) {
+    if (
+      assembly &&
+      !(await askConfirm(`Replace the current bench with a new one on ${part.name}?`, {
+        detail: "Undo brings the bench back.",
+        confirmLabel: "Replace",
+      }))
+    )
       return false;
     seedBench(part, params);
     setMode("bench");
@@ -621,11 +630,14 @@ export default function App() {
   // as the Holes tab's base. Asks first only when there are holes to lose;
   // a base with none drilled yet is just replaced. An undo step, named
   // like the Holes tab's own ("Undo add holes").
-  function openInHoles(part, params) {
+  async function openInHoles(part, params) {
     const current = getHolesSession().doc;
     if (
       current?.holes.length &&
-      !window.confirm(`Replace the holes you've placed with a new start on ${part.name}?`)
+      !(await askConfirm(`Replace the holes you've placed with a new start on ${part.name}?`, {
+        detail: "Undo brings them back.",
+        confirmLabel: "Replace",
+      }))
     )
       return false;
     setHolesDoc(createHolesDoc({ kind: "catalogue", partId: part.id, params }), { label: "add holes" });
@@ -657,9 +669,9 @@ export default function App() {
   }
 
   // A part, with parameters over its defaults, in a tab — a user's command
-  // or an agent's (webmcp.js's open_part). False when the user chose to
-  // keep the bench or holes it would replace.
-  function openPart(part, params, target = "library") {
+  // or an agent's (webmcp.js's open_part). Resolves to false when the user
+  // chose to keep the bench or holes it would replace.
+  async function openPart(part, params, target = "library") {
     const full = { ...resolveParams(part, {}), ...params };
     if (target === "bench") return openInBench(part, full);
     if (target === "holes") return openInHoles(part, full);
@@ -669,10 +681,17 @@ export default function App() {
 
   // A user's command for a bench preset: the Bench's own presets list does
   // the same, asking before it replaces a bench.
-  function loadBenchPreset(name) {
+  async function loadBenchPreset(name) {
     const preset = getBenchPreset(name);
     if (!preset) return report(`There is no bench preset called "${name}".`);
-    if (assembly && !window.confirm(`Replace the current bench with the preset "${name}"?`)) return;
+    if (
+      assembly &&
+      !(await askConfirm(`Replace the current bench with the preset "${name}"?`, {
+        detail: "Undo brings the bench back.",
+        confirmLabel: "Replace",
+      }))
+    )
+      return;
     try {
       loadBenchConfig(preset.config, catalogueById, "load preset");
     } catch (err) {
@@ -735,11 +754,12 @@ export default function App() {
       }),
       builtin("app.mcpNewToken", {
         when: ready,
-        run: () => {
+        run: async () => {
           if (
-            window.confirm(
-              "Make a new token? Coding agents set up with the old one can't connect until they have the new one.",
-            )
+            await askConfirm("Make a new token?", {
+              detail: "Coding agents set up with the old one can't connect until they have the new one.",
+              confirmLabel: "Make a new token",
+            })
           )
             desktopMcp.newToken();
         },
@@ -1024,6 +1044,8 @@ export default function App() {
       )}
       {installSheet && <InstallSheet method={installSheet} onClose={() => setInstallSheet(null)} />}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      {/* The app's yes-or-no questions (lib/confirm.js), over whatever asked. */}
+      <ConfirmDialog />
       <CommandHud />
       {palette && (
         <CommandPaletteBoundary onError={() => setPalette(null)}>

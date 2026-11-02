@@ -67,6 +67,18 @@ export default [
       // A <button> inside a <form> submits it by default (NameBenchModal,
       // PresetsPanel), so every button says which kind it is.
       "react/button-has-type": "error",
+      // Some browsers answer a native confirm() "no" without showing it (an
+      // editor's preview pane, Chrome after "Prevent this page from creating
+      // additional dialogs"), which left Add Holes a dead button. A yes or
+      // no goes through lib/confirm.js's askConfirm(), the app's own dialog.
+      "no-restricted-properties": [
+        "error",
+        { object: "window", property: "confirm", message: "Ask with askConfirm() (src/lib/confirm.js)." },
+      ],
+      "no-restricted-globals": [
+        "error",
+        { name: "confirm", message: "Ask with askConfirm() (src/lib/confirm.js)." },
+      ],
     },
   },
   // `__PUBLIC_VERSIONS__` is a build-time constant (scripts/vite-plugin-sw.mjs)

@@ -11,7 +11,7 @@ import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
-import DrawerTabs from "./components/DrawerTabs.jsx";
+import { DrawerTabPanel } from "./components/DrawerTabs.jsx";
 import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
@@ -25,7 +25,7 @@ import { useUndoShortcuts } from "./hooks/useUndoShortcuts.js";
 import { useCommandDrop, useCommandHome, useCommands } from "./hooks/useCommands.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
-import { useDrawerTabsLayout } from "./hooks/useDrawerLayout.js";
+import { useDrawerLayout } from "./hooks/useDrawerLayout.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { partSections } from "./lib/catalogueUtils.js";
@@ -47,6 +47,7 @@ import {
   holeResizeText,
   moveHole,
   movedOnFace,
+  pointInHole,
   nudgeHoles,
   oppositeSide,
   stepHoleSize,
@@ -105,8 +106,6 @@ import {
   specMatchesPreset,
 } from "./lib/screwPresets.js";
 import {
-  DEFAULT_CENTER_RADIUS_MM,
-  DEFAULT_CORNER_INSET_MM,
   analyzeFace,
   gridPoint,
   faceNear,
@@ -114,9 +113,12 @@ import {
   nearestGuide,
   pitchCandidates,
   planePoint,
+  snapDrag,
 } from "./lib/snapCandidates.js";
 import { getGridSnap } from "./lib/uiPrefs.js";
+import { guideDefaults } from "./lib/guideDefaults.js";
 import { resolveParams } from "./lib/userOverrides.js";
+import { askConfirm } from "./lib/confirm.js";
 
 // Debounce between the last hole edit and the re-render it triggers, so
 // typing a diameter (or holding an arrow key) doesn't compile once per
@@ -197,8 +199,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [repeatOptions, setRepeatOptions] = useState(REPEAT_DEFAULTS);
   const [snapOn, setSnapOn] = useState(true);
-  const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
-  const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
+  // The guides' inset or radius as typed in the snapping bar, for the
+  // model it was typed for: { model, inset?, radius? }. Each model starts
+  // from its own (guideDefaults(), below); an edit holds until another
+  // model is picked.
+  const [guideEdit, setGuideEdit] = useState(
+    /** @type {{ model: string, inset?: number, radius?: number } | null} */ (null),
+  );
   // The face under the pointer and the snap that would be used: the
   // snap point's id, or — near a guide line but no point — the spot on
   // the line, as { faceKey, snapId, linePoint, lineLabel }. Compared by
@@ -239,11 +246,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const [measureOn, setMeasureOn] = useState(false);
   const measuring = altHeld || measureOn;
   const coarse = hasCoarsePointer();
-  // On a phone (lib/drawer.js's DRAWER_TABS_QUERY) the drawer has two tabs
+  // In the narrow layout (lib/drawer.js) the drawer has two tabs
   // as the Library's does: the hole being edited, the list and the export
   // on one, the hole types on the other, which on one long page pushed
   // everything after them a screen down.
-  const tabbed = useDrawerTabsLayout();
+  const tabbed = useDrawerLayout();
   const [drawerTab, setDrawerTab] = useState(/** @type {"holes" | "types"} */ ("holes"));
   const [measurePoint, setMeasurePoint] = useState(null);
   // The system spacing Measure shows round the selected hole (from the
@@ -313,6 +320,30 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   );
   const stlBuffer = preview.result?.stl ?? null;
   const baseExtents = preview.result?.baseExtents ?? null;
+  // Which model the guides' settings belong to: the catalogue part (its
+  // parameters may change; the edit holds), or the mesh by name.
+  const guideModel = !doc
+    ? null
+    : doc.source.kind === "catalogue"
+      ? `catalogue:${doc.source.partId}`
+      : `mesh:${doc.source.name}`;
+  const guidePart = doc?.source.kind === "catalogue" ? (catalogueById.get(doc.source.partId) ?? null) : null;
+  const ownGuides = useMemo(
+    () => guideDefaults(guidePart, baseExtents, globalOverrides),
+    [guidePart, baseExtents, globalOverrides],
+  );
+  const typedGuides = guideEdit && guideEdit.model === guideModel ? guideEdit : null;
+  // A number, or the part's own per-face rule (a Gridfinity bin's top and
+  // its feet put their magnet holes different distances in), which
+  // analyzeFace() calls with each face's size; a typed inset is every
+  // face's.
+  const inset = typedGuides?.inset ?? ownGuides.insetFor ?? ownGuides.inset;
+  const radius = typedGuides?.radius ?? ownGuides.radius;
+  /** @param {{ inset?: number, radius?: number }} patch */
+  const editGuides = (patch) => {
+    if (!guideModel) return;
+    setGuideEdit((prev) => ({ ...(prev?.model === guideModel ? prev : {}), model: guideModel, ...patch }));
+  };
   // The base without holes, for "is this spot on the model?" when a hole
   // moves (stlProbe(), built the first time it is asked): the mesh on
   // screen has the hole's own bore at its old spot, so a step shorter
@@ -562,12 +593,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     return { key: one && `base:${one}`, label: one ? `edit ${one}` : "edit parameters" };
   }
 
-  function changeBase() {
+  async function changeBase() {
     if (
       doc.holes.length &&
-      !window.confirm(
-        `Pick another model? The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped.`,
-      )
+      !(await askConfirm("Pick another model?", {
+        detail: `The ${doc.holes.length} hole${doc.holes.length === 1 ? "" : "s"} on this one will be dropped. Undo brings them back.`,
+        confirmLabel: "Pick another",
+      }))
     )
       return;
     ++baseRequest.current;
@@ -634,7 +666,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       setMeasurePoint((prev) =>
         prev && prev.every((n, i) => n === resolved.point[i]) ? prev : resolved.point,
       );
-    proposeGuideFace(resolved);
+    // Over a selected hole (its bore, its floor, a counterbore) the guide
+    // face stays where it is: the pointer is most likely there to drag the
+    // hole by its handle, aiming by those guides.
+    if (selectedHoles.some((h) => pointInHole(h, hit.point))) cancelPendingGuide();
+    else proposeGuideFace(resolved);
     const next = {
       faceKey: resolved.face.key,
       snapId: resolved.snap?.id ?? null,
@@ -930,7 +966,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       const result = dragHoleResize({ hole, handle, point, symmetric, gridMm, limitMm: reachMm });
       return result && resizeGesture(hole, handle, result, symmetric);
     }
-    const moved = moveHole({ hole, point, gridMm, free: modifiers.shiftKey, limitMm: reachMm });
+    // The face's snap points and guide lines catch the hole as they catch
+    // a click (snapDrag(): the center from further off), unless snapping
+    // is off or Shift is held; past them, the drag's own grid.
+    const snap = snapOn && !modifiers.shiftKey ? snapDrag(start.face, point, snapRadius, gridMm) : null;
+    const moved = moveHole({
+      hole,
+      point: snap ? snap.point : point,
+      gridMm,
+      free: modifiers.shiftKey || Boolean(snap),
+      limitMm: reachMm,
+    });
     if (!moved) return null;
     const at = { ...hole, point: moved.point };
     const changed = moved.offset.some((c) => c !== 0);
@@ -951,9 +997,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       onFace,
       label: "move hole",
       segments: [...holeOutline(at), ...holeCross(at, crossSize(hole))],
-      text: onFace ? holeMoveText(moved.offset) : "Off the face",
+      text: onFace
+        ? snap
+          ? `${holeMoveText(moved.offset)} · ${snap.label}`
+          : holeMoveText(moved.offset)
+        : "Off the face",
       textPoint: moved.point,
       handlePoints: { [id]: moved.point },
+      snap: snap && start.face ? { faceKey: start.face.key, id: snap.id, point: snap.point } : null,
     };
   }
 
@@ -980,12 +1031,27 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
   const onHandleStart = (id) => {
     const handle = findHandle(id);
-    dragStart.current = handle && selected ? { handle, hole: selected } : null;
+    dragStart.current = handle && selected ? { handle, hole: selected, face: dragFace(selected) } : null;
     if (selected) guideToHole(selected);
     setHandleDrag(true);
   };
   const onHandlePreview = (id, point, modifiers) => {
     const g = dragGesture(id, point, modifiers);
+    // The point a dragged hole snapped to lights up as a hovered one does
+    // (its label is the drag's own, not the hover hint's).
+    if (dragStart.current?.handle.side === "move") {
+      const next = g?.snap
+        ? {
+            faceKey: g.snap.faceKey,
+            snapId: g.snap.id,
+            snapLabel: null,
+            linePoint: g.snap.id ? null : g.snap.point,
+            lineLabel: null,
+            drag: true,
+          }
+        : null;
+      setHover((prev) => (sameHover(prev, next) ? prev : next));
+    }
     return g && { segments: g.segments, text: g.text, textPoint: g.textPoint, handlePoints: g.handlePoints };
   };
   const onHandleCommit = (id, point, modifiers) => {
@@ -995,9 +1061,21 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     else setNotice({ text: "Off the face — the hole stays where it was." });
   };
   const onHandleEnd = () => {
+    if (dragStart.current?.handle.side === "move") setHover(null);
     dragStart.current = null;
     setHandleDrag(false);
   };
+
+  // The face a hole is dragged across, with its snap points (and the
+  // measured system's next holes, when Measure has them on that face):
+  // the face of the mesh on screen around the hole's spot. Found once, at
+  // the start of the drag.
+  function dragFace(hole) {
+    if (!geometries || !meshIsCurrent) return null;
+    const t = faceNear(geometries.topo, hole.point, hole.normal);
+    const face = t === null ? null : analyzeFace(geometries.topo, t, { inset, radius });
+    return face && pitch && face.key === pitch.faceKey ? withPitch(face, pitch) : face;
+  }
   // An arrow key on a focused handle: a grid step of that side (Shift:
   // ten), from the opposite edge; a held key's run is one undo step.
   const onHandleStep = (id, steps, modifiers) => {
@@ -1162,11 +1240,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     [guideFace, snapOn, doc?.holes, selectedIds],
   );
 
-  const hoveredSnap = hover?.snapId
-    ? { label: hover.snapLabel }
-    : hover?.linePoint
-      ? { label: hover.lineLabel, point: hover.linePoint }
-      : null;
+  const hoveredSnap = hover?.drag
+    ? null
+    : hover?.snapId
+      ? { label: hover.snapLabel }
+      : hover?.linePoint
+        ? { label: hover.lineLabel, point: hover.linePoint }
+        : null;
 
   // With Option held: the hovered point's (else the selected hole's, if
   // it lies on the guide face) distances to the guide face's edges and
@@ -1229,13 +1309,14 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const emptyDrop = useFileDrop(!doc && !importOpen ? startImport : null);
   useCommandDrop({
     label: doc ? "Drop to drill holes in this model instead" : "Drop to drill holes in it",
-    onFile: (file) => {
+    onFile: async (file) => {
       const count = doc?.holes.length ?? 0;
       if (
         count &&
-        !window.confirm(
-          `Drill into "${file.name}" instead? The ${count} hole${count === 1 ? "" : "s"} on this model will be dropped.`,
-        )
+        !(await askConfirm(`Drill into "${file.name}" instead?`, {
+          detail: `The ${count} hole${count === 1 ? "" : "s"} on this model will be dropped. Undo brings them back.`,
+          confirmLabel: "Drill into it",
+        }))
       )
         return;
       startImport(file);
@@ -1340,7 +1421,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       title: "Drill screw holes",
       searchLabel: "Search parts",
       placeholder: "Search parts and commands…",
-      note: 'Pick a model to put screw holes into — a catalogue part, the bench as it stands, or type "import" for a mesh of your own.',
+      note: 'Pick a model to add screw holes to: a catalogue part or your bench. Type "import" to use your own mesh.',
       error: renderError,
       searchCommands: true,
       drop: () => ({ label: "Drop to drill holes in it", onFile: startImport }),
@@ -1403,10 +1484,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <div className="bench-empty-card">
           <p className="bench-empty-lead">No model yet.</p>
           <p className="muted">
-            Pick a model to put screw holes into — a catalogue part, a mesh of your own, or the bench as it
-            stands. Then click its faces: a hole snaps to the face's center, the center of each quadrant,
-            holes already in it, a set-in point at each corner, and the guide lines drawn across it — center
-            and quarter lines, a radial to each corner, and a circle of the radius you choose.
+            Pick a model to add screw holes to: a catalogue part, your own mesh, or your bench. Then click its
+            faces to drill. Holes snap to the face's center, its corners and the guide lines drawn across it.
           </p>
           <div className="bench-empty-actions">
             <button type="button" className="render-button" onClick={reopenStartPicker}>
@@ -1490,7 +1569,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       <p className="muted">
         {doc.source.kind === "catalogue" ? "Catalogue part." : "Imported mesh."}{" "}
         {coarse
-          ? "Tap a face in the scene for its guides, again to drill a hole."
+          ? "Tap a face to see its guides, then again to drill a hole."
           : "Click a face in the scene to drill a hole."}
       </p>
       <label
@@ -1524,8 +1603,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             />
             {doc.holes.length > 0 && (
               <p className="muted holes-params-note">
-                Holes stay where they are in the part's coordinates; a change that moves a face moves it out
-                from under them.
+                Holes don't move with the part. If a change moves a face, check the holes on it.
               </p>
             )}
           </>
@@ -1533,7 +1611,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           <>
             <label
               className="field field-checkbox bench-crop-field"
-              title="Turn the mesh over (a half turn about X) so the other side faces up — for a file saved the way it prints rather than the way it is used. Holes already placed go with it."
+              title="Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it."
             >
               <input
                 type="checkbox"
@@ -1543,8 +1621,8 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
               <span className="field-label">Flip upside down</span>
             </label>
             <p className="muted holes-params-note">
-              A mesh has no other parameters — change it in the file it came from, or in the Bench if it is
-              the bench.
+              An imported mesh has no other parameters. To change it, edit the original file, or the bench it
+              came from.
             </p>
           </>
         )}
@@ -1560,19 +1638,18 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
       {multi ? (
         <p className="muted holes-editor-note">
           {shared.kind
-            ? "Changes apply to all of them; fields they don't share say mixed. Shift-click to add or remove a hole."
-            : "Holes of different kinds share no fields: pick a preset to make them one kind, or select one kind."}
+            ? "Changes apply to all of them. Fields that differ show “mixed”. Shift-click to add or remove a hole."
+            : "These holes are different kinds, so they share no fields. Pick a type to make them all one kind."}
         </p>
       ) : selected ? (
         <p className="muted holes-editor-note">
           {selectedPreset ? selectedPreset.name : "Custom"}
           {selectedPreset && !specMatchesPreset(selected.spec, selected.presetId) ? " (edited)" : ""} at [
-          {formatPoint(selected.point)}]. Changes apply to this hole, and to the holes you place next.
+          {formatPoint(selected.point)}]. Changes apply to this hole and the next ones you place.
         </p>
       ) : (
         <p className="muted holes-editor-note">
-          The screw — or connector slot — every new hole is made for: the one picked or edited last. Select a
-          hole to change it.
+          New holes are made for this screw or connector. Select a hole to change it instead.
         </p>
       )}
       {!tabbed && <PresetPicker value={editingPresetId} onPick={pickPreset} />}
@@ -1602,7 +1679,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           onClick={() => setRepeatOpen((open) => !open)}
           disabled={!selected}
           aria-expanded={Boolean(selected) && repeatOpen}
-          title="Copies of this hole in a row, a grid or round a circle on its face"
+          title="Copy this hole in a row, a grid or a circle"
         >
           Repeat…
         </button>
@@ -1639,7 +1716,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           Select all
         </button>
       </div>
-      {doc.holes.length === 0 && <p className="muted">None yet — click a face in the scene.</p>}
+      {doc.holes.length === 0 && <p className="muted">None yet. Click a face in the scene to add one.</p>}
       <ul className="holes-list">
         {doc.holes.map((h, i) => (
           <HoleRow
@@ -1677,7 +1754,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           className="download-button bench-export-button layerling-button print-button"
           onClick={openPrintSheet}
           disabled={status === "error"}
-          title="Share or save the file and open Prusa's EasyPrint, which slices and prints it from a phone"
+          title="Send the file to Prusa's EasyPrint, which slices and prints from a phone"
         >
           Print with EasyPrint…
         </button>
@@ -1700,24 +1777,30 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           collapsed={sidebarCollapsed}
           onToggle={onToggleSidebar}
           title={tabbed ? "Holes and hole types" : "Hole list"}
+          tabs={
+            tabbed
+              ? {
+                  id: "holes-drawer",
+                  label: "Holes",
+                  tabs: [
+                    { id: "holes", label: "Holes" },
+                    { id: "types", label: "Hole types" },
+                  ],
+                  selected: drawerTab,
+                  onSelect: (id) => setDrawerTab(id === "types" ? "types" : "holes"),
+                }
+              : undefined
+          }
         />
         {!sidebarCollapsed &&
           (tabbed ? (
-            <DrawerTabs
-              label="Holes"
-              tabs={[
-                { id: "holes", label: "Holes" },
-                { id: "types", label: "Hole types" },
-              ]}
-              selected={drawerTab}
-              onSelect={(id) => setDrawerTab(id === "types" ? "types" : "holes")}
-            >
+            <DrawerTabPanel id="holes-drawer" selected={drawerTab}>
               {drawerTab === "types" ? (
                 <PresetPicker value={editingPresetId} onPick={pickPresetInDrawer} />
               ) : (
                 holesPanel
               )}
-            </DrawerTabs>
+            </DrawerTabPanel>
           ) : (
             holesPanel
           ))}
@@ -1764,36 +1847,35 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <p className="print-note holes-note" aria-live="polite">
               {multi ? (
                 <>
-                  {selectedHoles.length} holes selected — edit them together in the sidebar; arrows nudge
-                  them, Delete removes them, Esc deselects.
+                  {selectedHoles.length} holes selected. Edit them together in the sidebar. Arrows nudge,
+                  Delete removes, Esc deselects.
                 </>
               ) : selected ? (
                 <>
-                  Hole {doc.holes.indexOf(selected) + 1} selected — drag its handles to resize or move it, or
-                  edit it in the sidebar; arrows nudge it, Delete removes it, Esc deselects.
+                  Hole {doc.holes.indexOf(selected) + 1} selected. Drag its handles or edit it in the sidebar.
+                  Arrows nudge, Delete removes, Esc deselects.
                 </>
               ) : doc.holes.length === 0 ? (
                 coarse ? (
                   <>
-                    Tap a face for its guides, then tap again to drill a hole; a tap near a snap point lands
-                    on it. Measure shows distances; Snapping off places freely.
+                    Tap a face to see its guides, then tap again to drill a hole. Taps near a snap point land
+                    on it. Measure shows distances.
                   </>
                 ) : (
                   <>
-                    Click a face to drill a hole. Hover for snap points and guides, hold Option for distances;
-                    Shift-click places freely.
+                    Click a face to drill a hole. Hover for snap points, hold Option for distances,
+                    Shift-click to place freely.
                   </>
                 )
               ) : coarse ? (
                 <>
-                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another (a
-                  new face shows its guides first), a hole to select it; press and hold one in the list to
-                  select several.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Tap a face to drill another, or
+                  a hole to select it. Press and hold one in the list to select several.
                 </>
               ) : (
                 <>
-                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Hover for snap points and
-                  guides, hold Option for distances; Shift-click places freely, or on a hole selects several.
+                  {doc.holes.length} hole{doc.holes.length === 1 ? "" : "s"}. Hover for snap points, hold
+                  Option for distances. Shift-click places freely, or selects several holes.
                 </>
               )}
               {status === "rendering" && " Rendering…"}
@@ -1946,10 +2028,10 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <SnapBar
               snapOn={snapOn}
               onSnapChange={setSnapOn}
-              inset={inset}
-              onInsetChange={setInset}
+              inset={typeof inset === "number" ? inset : (guideFace?.inset ?? ownGuides.inset)}
+              onInsetChange={(mm) => editGuides({ inset: mm })}
               radius={radius}
-              onRadiusChange={setRadius}
+              onRadiusChange={(mm) => editGuides({ radius: mm })}
             />
           )}
           {(renderError || handleFailed) && (

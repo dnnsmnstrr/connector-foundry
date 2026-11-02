@@ -171,7 +171,9 @@ test(
         await exportFile(page.getByRole("button", { name: "Download config", exact: true })),
       );
       assert.equal(config.root.params.w, 43);
-      const body = await exportFile(page.getByRole("button", { name: "STL: root", exact: true }));
+      const body = await exportFile(
+        page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }),
+      );
       const benchGeometry = new STLLoader().parse(
         body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
       );

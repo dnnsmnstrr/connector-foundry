@@ -108,7 +108,7 @@ export const SHORTCUT_SECTIONS = [
       { keys: [["Mod", "Z"]], action: "Undo — a removed part, Start over and a loaded config too" },
     ],
     note:
-      "Handles resize the selected part, the base or an attached one (click it, or Select root); a " +
+      "Handles resize the selected part, the base or an attached one (click it, or Select base); a " +
       "size that would take a slot from a part attached to it steps past it.",
   },
   {

@@ -93,11 +93,14 @@ module modgrid_dowel_peg(depth, screw_diameter, plate) {
 
 module modgrid_bitbeam_square_peg() {
     difference() {
+        // prismoid() and cuboid() put every corner at an exact coordinate,
+        // so the tip and the shaft share their 4.6mm face exactly. A
+        // scaled linear_extrude() lands the tip's narrow end a hair off the
+        // shaft's walls, and the union exports as separate shells.
         union() {
             translate([0, 0, -BITBEAM_SQUARE_LENGTH])
-                linear_extrude(height = BITBEAM_SQUARE_TAPER,
-                               scale = BITBEAM_SQUARE_W / BITBEAM_SQUARE_TIP)
-                    square([BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP], center = true);
+                prismoid(size1 = [BITBEAM_SQUARE_TIP, BITBEAM_SQUARE_TIP],
+                         size2 = [BITBEAM_SQUARE_W, BITBEAM_SQUARE_W], h = BITBEAM_SQUARE_TAPER);
             // Overlap the carrier slightly so the fork cannot become a
             // separate shell when the browser converts the preview mesh.
             translate([-BITBEAM_SQUARE_W / 2, -BITBEAM_SQUARE_W / 2,

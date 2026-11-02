@@ -16,6 +16,7 @@ import {
   movedOnFace,
   nudgeHoles,
   oppositeSide,
+  pointInHole,
   resizableHole,
   stepHoleSize,
   typedHoleSize,
@@ -429,4 +430,33 @@ test("a moved hole stays on a face: the base's, or one only the holes made, its 
   assert.equal(movedOnFace(top, [22, 15, 4], probes), false);
   // Nothing rendered yet to ask: yes.
   assert.equal(movedOnFace(hole, [99, 0, 2], {}), true);
+});
+
+test("a hit in a hole: on its bore, floor or counterbore, or the face round its rim — not past it, not above it", () => {
+  // An M3 cap screw on top of a 4 mm plate: 3.4 bore, 6.1 counterbore.
+  const hole = {
+    point: [10, 5, 4],
+    normal: [0, 0, 1],
+    spec: normalizeSpec({
+      kind: "screw",
+      diameter: 3.4,
+      depth: 0,
+      head: "counterbore",
+      headDiameter: 6.1,
+      headDepth: 3,
+    }),
+  };
+  const r = holeReach(hole);
+  assert.ok(pointInHole(hole, [10, 5, 2]), "the bore, on its axis");
+  assert.ok(pointInHole(hole, [10 + 1.7, 5, 3]), "the bore's wall");
+  assert.ok(pointInHole(hole, [10 + 2.5, 5, 1]), "the counterbore's floor");
+  assert.ok(pointInHole(hole, [10, 5 + r, 4]), "the face at its rim");
+  assert.ok(!pointInHole(hole, [10, 5 + r + 0.5, 4]), "the face past it");
+  assert.ok(!pointInHole(hole, [10, 5, 4.5]), "above the face");
+  // On a wall: the face's normal is +X.
+  const side = { ...hole, point: [0, 5, 2], normal: [-1, 0, 0] };
+  assert.ok(pointInHole(side, [0.5, 5.5, 2]));
+  assert.ok(!pointInHole(side, [-0.5, 5, 2]));
+  assert.ok(!pointInHole(null, [0, 0, 0]));
+  assert.ok(!pointInHole({ ...hole, normal: [0, 0, 0] }, [10, 5, 4]));
 });

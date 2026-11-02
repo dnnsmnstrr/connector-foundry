@@ -172,7 +172,7 @@ async function openBench(page, config) {
 // a "differs from the default" note once it changes.
 const firstRootField = (page) =>
   page.locator('details[data-node-params="root"]').getByRole("spinbutton").first();
-const selectRoot = (page) => page.getByRole("button", { name: "Select root", exact: true });
+const selectRoot = (page) => page.getByRole("button", { name: "Select base", exact: true });
 const widthHandle = (page, param = "w") => page.getByRole("slider", { name: `Width (${param})` });
 
 test("the root is selected from the sidebar or the scene, and shows its handles", async ({ page }) => {
@@ -184,7 +184,7 @@ test("the root is selected from the sidebar or the scene, and shows its handles"
   // The root's pill is in the viewer's toolbar, not floating over its top
   // face, where the slot markers and the far edge's handle are.
   const overlay = page.locator(".viewer-toolbar .bench-rotate-panel");
-  await expect(overlay).toContainText("Board · root");
+  await expect(overlay).toContainText("Board · base");
   await expect(page.locator(".viewer-overlay")).toHaveCount(0);
   await expect(overlay.getByRole("button", { name: /^Crop everything else/ })).toBeVisible();
   // Nothing in it that would move, turn or remove the root.
@@ -206,7 +206,7 @@ test("the root is selected from the sidebar or the scene, and shows its handles"
   await page.locator(".viewer-canvas canvas").click({ position: await canvasMiddle(page) });
   await expect(selectRoot(page)).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('details[data-node-params="root"]')).toHaveAttribute("open", "");
-  await expect(page.getByRole("spinbutton", { name: "cells_x", exact: true })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Cells X", exact: true })).toBeVisible();
 
   // An attached part with `resize` has handles of its own, and its pill
   // docks at the foot of the viewer rather than floating over its top
@@ -306,7 +306,7 @@ test("dragging a root handle commits one parameter change, rendered at once", as
   expect(await jobCount(page)).toBe(4);
 
   // The sidebar has it too, and one undo takes it back.
-  await page.getByText("Root parameters", { exact: true }).click();
+  await page.getByText("Base parameters", { exact: true }).click();
   await expect(firstRootField(page)).toHaveValue(String(committed));
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(firstRootField(page)).toHaveValue("40");
@@ -353,7 +353,7 @@ test("the guard keeps an attached part's slot: a 2-cell board steps to 4", async
   await expect(handle).toHaveAttribute("aria-valuetext", /— 1 would move attached parts$/);
   await expect(handle).toHaveAttribute("aria-valuenow", "2");
   await expect(handle).toBeFocused();
-  await page.getByText("Root parameters", { exact: true }).click();
+  await page.getByText("Base parameters", { exact: true }).click();
   await expect(firstRootField(page)).toHaveValue("2");
   // The note explained that press: with the handle's focus gone, so is it.
   await expect(handle).not.toHaveAttribute("aria-valuetext", /would move/);
@@ -433,7 +433,7 @@ test("Open in Bench is a named undo step", async ({ page }) => {
   await mockWorker(page, true);
   await page.goto("/app/");
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Select root", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Select base", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toHaveAttribute(
     "title",
     /^Undo open in bench /,
@@ -524,7 +524,7 @@ test("an undo or redo that takes the selected part away takes the selection too"
 
 test("typing a parameter or the bench's name is one undo step each", async ({ page }) => {
   await openBench(page, plateConfig);
-  await page.getByText("Root parameters", { exact: true }).click();
+  await page.getByText("Base parameters", { exact: true }).click();
   const field = firstRootField(page);
   await field.click();
   await field.press("ControlOrMeta+a");
@@ -654,10 +654,10 @@ test("dragging an attached part's handle commits one change to that part, undone
   await expect(page.locator(".viewer-drag-label")).toBeHidden();
 
   // The sidebar has it, the selection stayed, and one undo takes it back.
-  await expect(await childField(page, "w")).toHaveValue(String(committed));
+  await expect(await childField(page, "Width")).toHaveValue(String(committed));
   await expect(page.locator(".viewer-overlay-docked .bench-rotate-panel")).toContainText("Flat plate");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(await childField(page, "w")).toHaveValue("20");
+  await expect(await childField(page, "Width")).toHaveValue("20");
   await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "20");
   expect(await jobCount(page)).toBe(5);
   expect(errors).toEqual([]);
@@ -683,7 +683,7 @@ test("an attached part's handles step with the arrows and take a typed size", as
   await size.fill("25");
   await page.keyboard.press("Enter");
   await expect(widthHandle(page)).toHaveAttribute("aria-valuenow", "35");
-  await expect(await childField(page, "w")).toHaveValue("35");
+  await expect(await childField(page, "Width")).toHaveValue("35");
 });
 
 test("a part on the root's side has its height handle on its far face, pointing out", async ({ page }) => {

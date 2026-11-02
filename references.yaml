@@ -43,14 +43,56 @@ sources:
     license: CC-BY-NC-SA-4.0
     url: https://github.com/AndyLevesque/QuackWorks
     note: >
-      Vendored as a submodule, and parts/opengrid/*.scad call it
-      directly — so those two parts are CC-BY-NC-SA, not MIT. See the
+      Vendored as a submodule, and parts/opengrid/board.scad and
+      snap.scad and lib/underware.scad (parts/underware/*.scad) call it
+      directly — so those parts are CC-BY-NC-SA, not MIT. See the
       per-part `license` field in catalogue.yaml and the README
       "Licensing" section. openGrid design by David D; OpenSCAD
-      implementation by Andy (BlackjackDuck), snap by metasyntactic.
+      implementation by Andy (BlackjackDuck), snap by metasyntactic;
+      Underware by Hands on Katie and BlackjackDuck.
       Because our parts are wrappers, the shape checks below are
-      guarding the wrapper (envelope, anchors, restated constants)
-      rather than re-deriving upstream's geometry.
+      guarding the wrapper (envelope, anchors, restated constants, the
+      sweeps and mounting holes lib/underware.scad re-expresses) rather
+      than re-deriving upstream's geometry.
+
+  monokini:
+    kind: submodule
+    path: vendor/Monokini
+    license: CC-BY-NC-SA-4.0
+    url: https://github.com/pleite/Monokini
+    note: >
+      Vendored as a submodule, and lib/underware_opengrid.scad
+      (parts/underware/opengrid_*.scad) calls its channel and corner
+      modules directly — so those parts are CC-BY-NC-SA, as its files'
+      headers say (the repository's LICENSE file is AGPL-3.0; README
+      "Licensing"). Pedro Leite's OpenSCAD version of David D's
+      Underware for openGrid. As with QuackWorks, the checks against it
+      guard the wrapper (the turn over, the envelope, the L assembled
+      from upstream's pieces, its corner re-expressed so the wall comes
+      out solid); the checks against David D's files below hold
+      Monokini, and that corner, to the original.
+
+  # David D's own Underware for openGrid files (Printables model
+  # 1214427, CC-BY-NC-SA 4.0): what Monokini re-creates. Printables hands
+  # them out without a login, but not at a fixed URL, so nothing fetches
+  # them: download the model's files and copy these three into
+  # refs/manual/underware-opengrid/ under the names below (the
+  # designer's own name after each). Without them, their checks are
+  # skipped.
+  underware-opengrid-1x:
+    kind: file
+    path: refs/manual/underware-opengrid/i-1x.step   # "openGrid Underware 1x Channel.step" (Channels)
+    license: CC-BY-NC-SA-4.0 (Underware for openGrid by David D)
+
+  underware-opengrid-4x:
+    kind: file
+    path: refs/manual/underware-opengrid/i-4x.step   # "openGrid Underware 4x Channel.step" (Channels)
+    license: CC-BY-NC-SA-4.0 (Underware for openGrid by David D)
+
+  underware-opengrid-l:
+    kind: file
+    path: refs/manual/underware-opengrid/l-1.step    # "openGrid Underware 1L Channel.step" (Channel variations)
+    license: CC-BY-NC-SA-4.0 (Underware for openGrid by David D)
 
   opengrid-projects:
     kind: submodule
@@ -169,6 +211,32 @@ sources:
     kind: file
     path: refs/manual/soldr/box-1x2.stl   # "soldr-1x2-box-full-space.stl"
     license: CC-BY-NC-SA-4.0 (SOLDR by soldr.pro)
+
+  # GOEWS's own files (MrExo3D, Printables model 1090032, CC-BY 4.0):
+  # what parts/goews/ is rebuilt from. Printables hands them out without
+  # a login, but not at a fixed URL, so nothing fetches them: download
+  # the model's files and copy these four into refs/manual/goews/ under
+  # the names below (the designer's own name after each). Without them,
+  # their checks are skipped.
+  goews-hex:
+    kind: file
+    path: refs/manual/goews/hex-single.stl   # "Goews Single Hex.stl" (Tiles)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-grid-3x3:
+    kind: file
+    path: refs/manual/goews/grid-3x3.stl     # "Goews Grid 36H Tile 3x3.stl" (GOEWS GRID Tiles)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-plate-2x:
+    kind: file
+    path: refs/manual/goews/plate-2x.stl     # "Goews 2x Hanging Plate Blank.stl" (Hanging Plates)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
+
+  goews-plate-3x:
+    kind: file
+    path: refs/manual/goews/plate-3x.stl     # "Goews 3x Hanging Plate Blank.stl" (Hanging Plates)
+    license: CC-BY-4.0 (GOEWS by MrExo3D)
 
   nopscadlib:
     kind: git
@@ -1120,6 +1188,464 @@ shape_checks:
       max_surface_max_mm: 0.15
       min_section_iou: 0.99
 
+  # GOEWS. The designer models a tile with its front on x = 0 and its back
+  # at x = -6, across along y and up along z, a hex cell's centre on the
+  # origin; a plate with its hangers' backs on x = 91. The matrices turn
+  # those into the parts' frames (tile: front down; plate: hangers down).
+  - id: goews/tile-hex
+    part: goews/tile
+    reference_source: goews-hex
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-hex}");
+    align: none
+    sections_z: [0.25, 1.5, 3.5, 5.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/tile-grid-3x3
+    part: goews/tile
+    params: {style: grid, cols: 3, rows: 3}
+    reference_source: goews-grid-3x3
+    ours: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(style = "grid", cols = 3, rows = 3, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, -1, 0, 42], [0, 0, 1, -39.4355], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-grid-3x3}");
+    align: none
+    sections_z: [0.25, 1.5, 3.5, 5.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/hanger-2x
+    part: goews/hanger
+    params: {units: 2}
+    reference_source: goews-plate-2x
+    ours: |
+      include <{repo}/parts/goews/hanger.scad>
+      goews_hanger(units = 2, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, 1, 0, -21], [0, 0, 1, 159.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-2x}");
+    align: none
+    sections_z: [1, 2.5, 4, 5.1, 6.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  - id: goews/hanger-3x
+    part: goews/hanger
+    params: {units: 3}
+    reference_source: goews-plate-3x
+    ours: |
+      include <{repo}/parts/goews/hanger.scad>
+      goews_hanger(units = 3, anchor = BOTTOM);
+    reference: |
+      multmatrix([[0, 1, 0, -42], [0, 0, 1, 129.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-3x}");
+    align: none
+    sections_z: [1, 2.5, 4, 5.1, 6.5]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.05
+      max_surface_max_mm: 0.3
+      min_section_iou: 0.995
+
+  # Underware: each body against upstream's own script, run with its
+  # customizer variables set as a user would set them. Show_Attached
+  # places the base as ours (centred, underside on z = 0) and the top
+  # fitted on it, 6.533mm up (interlockFromFloor), so ours is raised to
+  # match. lib/underware.scad sweeps upstream's profiles itself and
+  # re-expresses the mounting holes (its header says why), so these
+  # checks are what hold that to upstream: the width-dependent hole
+  # grid, every mounting method, a top's inside height and its flex
+  # compensation. An L is centred on its own bounding box, which puts
+  # it 0.0085mm off upstream's placement on each axis (the profile's
+  # 0.017mm overhang, split): ours is moved back by that.
+  - id: underware/i-base-snap
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 4, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 4;
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-multiboard-2-wide
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 3, width_units = 2, mounting = "Direct Multiboard Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 3;
+      Channel_Width_in_Units = 2;
+      Mounting_Method = "Direct Multiboard Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-multipoint
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Direct Multipoint Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Direct Multipoint Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-magnet
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Magnet", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Magnet";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-base-wood-screw
+    part: underware/i_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Wood Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      Channel_Length_Units = 2;
+      Mounting_Method = "Wood Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-top
+    part: underware/i_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 4, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      Channel_Length_Units = 4;
+    align: none
+    sections_z: [7, 8.5, 10, 12.5, 15.5, 17.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/i-top-2-wide-24-tall
+    part: underware/i_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 3, width_units = 2, height = 24, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_I_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      Channel_Length_Units = 3;
+      Channel_Width_in_Units = 2;
+      Channel_Internal_Height = 24;
+    align: none
+    sections_z: [7, 8.5, 10, 18, 27.5, 29.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-base-snap
+    part: underware/l_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      translate([0.0085, -0.0085, 0]) uw_l_channel_base(anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-base-multiboard-2-wide
+    part: underware/l_channel_base
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      translate([0.0085, -0.0085, 0]) uw_l_channel_base(x_units = 2, y_units = 3, width_units = 2, mounting = "Direct Multiboard Screw", anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Base";
+      Show_Attached = true;
+      L_Channel_Length_in_Units_X_Axis = 2;
+      L_Channel_Length_in_Units_Y_Axis = 3;
+      Channel_Width_in_Units = 2;
+      Mounting_Method = "Direct Multiboard Screw";
+    align: none
+    sections_z: [0.5, 1.2, 2.5, 3.4, 5, 7, 9.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/l-top-18-tall
+    part: underware/l_channel_top
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/underware/l_channel_top.scad>
+      translate([0.0085, -0.0085, 6.533]) uw_l_channel_top(x_units = 3, y_units = 2, height = 18, anchor = BOTTOM);
+    reference: |
+      include <{quackworks}/Underware/Underware_L_Channel.scad>
+      Base_Top_or_Both = "Top";
+      Show_Attached = true;
+      L_Channel_Length_in_Units_X_Axis = 3;
+      L_Channel_Length_in_Units_Y_Axis = 2;
+      Channel_Internal_Height = 18;
+    align: none
+    sections_z: [7, 8.5, 10, 15, 21.5, 23.3]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.05
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # Underware for openGrid: each channel against Monokini's own script,
+  # run with its customizer variables set to match, and against David
+  # D's original files. Monokini builds a channel roof down, the roof on
+  # z = 0 and the grips' tips up: ours, anchored on "mount" (the roof's
+  # centre, or the L's corner square), is turned over into that frame,
+  # and a straight channel moved forward by the 0.01mm Nudge Monokini's
+  # run sits off-centre by (lib/underware_opengrid.scad). David D's
+  # straight channels sit on the grid without the Nudge, so they differ
+  # from ours by that 0.005mm at each end.
+  - id: underware/og-i-monokini
+    part: underware/opengrid_i_channel
+    reference_source: monokini
+    ours: |
+      include <{repo}/parts/underware/opengrid_i_channel.scad>
+      fwd(0.01) xrot(180) uw_og_i_channel(length_units = 4, anchor = "mount");
+    reference: |
+      include <{monokini}/monokini_I_channel.scad>
+      Channel_Length_Units = 4;
+    align: none
+    sections_z: [0.5, 2, 4.5, 10, 18, 19.5, 21]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.9999
+
+  - id: underware/og-i-monokini-wide-tall
+    part: underware/opengrid_i_channel
+    reference_source: monokini
+    ours: |
+      include <{repo}/parts/underware/opengrid_i_channel.scad>
+      fwd(0.01) xrot(180) uw_og_i_channel(length_units = 3, width_units = 2, height = 28, anchor = "mount");
+    reference: |
+      include <{monokini}/monokini_I_channel.scad>
+      Channel_Length_Units = 3;
+      Channel_Width_in_Units = 2;
+      Channel_Total_Height = 28;
+    align: none
+    sections_z: [0.5, 2, 4.5, 10, 24, 25.5, 27]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.9999
+
+  # The L's corner is re-expressed (lib/underware_opengrid.scad's
+  # uwog_corner_curve()) so its wall is solid all the way up, where
+  # Monokini's turns into a comb of slots 9.9mm from the roof of a
+  # one-unit channel: these two are the sizes where upstream's is still
+  # solid, a channel 10mm tall and one two units wide, so the rest of the
+  # L is held to upstream exactly. The default height is held to David
+  # D's file instead, below.
+  - id: underware/og-l-monokini
+    part: underware/opengrid_l_channel
+    reference_source: monokini
+    ours: |
+      include <{repo}/parts/underware/opengrid_l_channel.scad>
+      xrot(180) uw_og_l_channel(x_units = 2, height = 10, anchor = "mount");
+    reference: |
+      include <{monokini}/monokini_L_channel.scad>
+      L_Channel_Length_in_Units_X_Axis = 2;
+      Channel_Total_Height = 10;
+    align: none
+    sections_z: [0.5, 2, 4.5, 5.5, 6.9, 8.5]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.01
+      min_section_iou: 0.9999
+
+  - id: underware/og-l-monokini-long-wide
+    part: underware/opengrid_l_channel
+    reference_source: monokini
+    ours: |
+      include <{repo}/parts/underware/opengrid_l_channel.scad>
+      xrot(180) uw_og_l_channel(x_units = 2, y_units = 3, width_units = 2, height = 16, anchor = "mount");
+    reference: |
+      include <{monokini}/monokini_L_channel.scad>
+      L_Channel_Length_in_Units_X_Axis = 2;
+      L_Channel_Length_in_Units_Y_Axis = 3;
+      Channel_Width_in_Units = 2;
+      Channel_Total_Height = 16;
+    align: none
+    sections_z: [0.5, 2, 4.5, 8, 12, 13.5, 15]
+    # Ours is the rotate_extrude() upstream's sweep approximates, on the
+    # same 89 segments; upstream extrudes each chord and mitres the
+    # joints, and the two surfaces are up to 0.014mm apart (the thin
+    # walls' sections then 0.9998 alike).
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.01
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.02
+      min_section_iou: 0.9995
+
+  # David D's 1x file spans y = -28..0 and his 4x one y = -28..84, each
+  # centred on x = 0 and x = 90: moved onto ours. The bounding boxes
+  # differ by the Nudge (0.01mm on the length).
+  - id: underware/og-i-david-d-1x
+    part: underware/opengrid_i_channel
+    reference_source: underware-opengrid-1x
+    ours: |
+      include <{repo}/parts/underware/opengrid_i_channel.scad>
+      xrot(180) uw_og_i_channel(length_units = 1, anchor = "mount");
+    reference: |
+      translate([0, 14, 0]) import("{underware-opengrid-1x}");
+    align: none
+    sections_z: [0.5, 2, 4.5, 10, 18, 19.5, 21]
+    tolerances:
+      max_bbox_mm: 0.015
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: underware/og-i-david-d-4x
+    part: underware/opengrid_i_channel
+    reference_source: underware-opengrid-4x
+    ours: |
+      include <{repo}/parts/underware/opengrid_i_channel.scad>
+      xrot(180) uw_og_i_channel(length_units = 4, anchor = "mount");
+    reference: |
+      translate([-90, -28, 0]) import("{underware-opengrid-4x}");
+    align: none
+    sections_z: [0.5, 2, 4.5, 10, 18, 19.5, 21]
+    tolerances:
+      max_bbox_mm: 0.015
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  # David D's 1L file has its corner square's centre on (112, 14). His
+  # corner's outside wall is a quarter circle of 27.2mm round the grid
+  # point inside the L; Monokini sweeps the profile round half its width
+  # (13.2mm), which puts the outside wall on a 26.4mm arc round a point
+  # 0.8mm further in. Both meet the legs' walls flush, so the ends,
+  # legs and grips are the same and the curve stands up to 0.333mm
+  # further out at 45° (0.44% more volume, the wall sections' IoU 0.94):
+  # the limits below are that, measured, so a change anywhere else still
+  # fails.
+  - id: underware/og-l-david-d
+    part: underware/opengrid_l_channel
+    reference_source: underware-opengrid-l
+    ours: |
+      include <{repo}/parts/underware/opengrid_l_channel.scad>
+      xrot(180) uw_og_l_channel(anchor = "mount");
+    reference: |
+      translate([-112, -14, 0]) import("{underware-opengrid-l}");
+    align: none
+    sections_z: [0.5, 2, 4.5, 10, 18, 19.5, 21]
+    tolerances:
+      max_bbox_mm: 0.02
+      max_volume_pct: 0.5
+      max_surface_rms_mm: 0.1
+      max_surface_max_mm: 0.34
+      min_section_iou: 0.94
+
 fit_checks:
   - id: gopro/male-into-our-female
     part: gopro/male
@@ -1820,3 +2346,92 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.1]
+
+  # GOEWS: a plate hung in a cell, its hangers' backs on the window's back
+  # ledge (5mm in: the plate stands 0.15mm off the tile's front) and their
+  # chamfered bottom on the floor's ramp, face to face, 0.4mm round the
+  # flanks. The window's bottom is GOEWS_WIN_Y0 from the hex cell's centre.
+  - id: goews/hanger-in-tile
+    part: goews/hanger
+    why: >
+      Our hanger plate has to hang in our tile: in the window, on the
+      cleats, its bolt notch over the thread.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.05
+      clearance_mm: [0.0, 0.05]
+
+  - id: goews/hanger-in-designer-tile
+    part: goews/hanger
+    reference_source: goews-hex
+    why: >
+      Our hanger plate has to hang in tiles people have printed from the
+      designer's file, not only in ours.
+    a: |
+      include <{repo}/parts/goews/hanger.scad>
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    b: |
+      multmatrix([[0, -1, 0, 0], [0, 0, 1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) import("{goews-hex}");
+    expect:
+      max_interference_mm3: 0.05
+      clearance_mm: [0.0, 0.05]
+
+  # And the designer's 2x plate in our GOEWS GRID tile, over the first two
+  # cells of its bottom row (their hex-frame origins 39.4355 below and 42
+  # apart either side of the tile's centre). Its hangers' chamfers lie on
+  # our ramps face to face, as ours do, which the meshes' rounding turns
+  # into 0.04mm3 a hanger.
+  - id: goews/designer-hanger-in-grid
+    part: goews/tile
+    params: {style: grid, cols: 3, rows: 3}
+    reference_source: goews-plate-2x
+    why: >
+      Our tile has to take the plates people have printed from the
+      designer's files, not only ours.
+    a: |
+      include <{repo}/lib/goews.scad>
+      translate([-21, -39.4355 + GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0])
+          multmatrix([[0, 1, 0, -21], [0, 0, 1, 159.955], [1, 0, 0, -91], [0, 0, 0, 1]]) import("{goews-plate-2x}");
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      goews_tile(style = "grid", cols = 3, rows = 3, anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.1
+      clearance_mm: [0.0, 0.05]
+
+  # Underware: a top fitted on its base, where upstream's Show_Attached
+  # draws it (interlockFromFloor up), straight and L. The snap is a press
+  # fit drawn line on line: the parts touch and do not overlap.
+  - id: underware/i-top-on-base
+    part: underware/i_channel_top
+    why: >
+      The top has to snap onto the base: the two profiles are drawn to
+      meet, and a top drawn too wide or too low would bind or fall off.
+    a: |
+      include <{repo}/parts/underware/i_channel_top.scad>
+      up(6.533) uw_i_channel_top(length_units = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/underware/i_channel_base.scad>
+      uw_i_channel_base(length_units = 2, mounting = "Flat", anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]
+
+  - id: underware/l-top-on-base
+    part: underware/l_channel_top
+    why: >
+      The same for the L, whose corner is a mitre of the two legs.
+    a: |
+      include <{repo}/parts/underware/l_channel_top.scad>
+      up(6.533) uw_l_channel_top(x_units = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/underware/l_channel_base.scad>
+      uw_l_channel_base(x_units = 2, mounting = "Flat", anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]

@@ -38,11 +38,11 @@ export const ROOT_ID = "root";
 export const JOINTS = ["fused", "bolted", "snap", "pin", "screwed"];
 
 export const JOINT_LABELS = {
-  fused: "fused",
-  bolted: "bolted",
-  snap: "snap",
-  pin: "pin",
-  screwed: "screwed (DeckMate)",
+  fused: "Fused (one piece)",
+  bolted: "Bolted",
+  snap: "Snap-fit",
+  pin: "Pinned",
+  screwed: "Screwed (DeckMate)",
 };
 
 // The generated flange for each screw pattern a catalogue part can

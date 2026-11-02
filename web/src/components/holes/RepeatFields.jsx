@@ -52,6 +52,22 @@ export default function RepeatFields({
       />
     </label>
   );
+  // Row and grid alike: the pattern round this hole, or from it.
+  const centered = (
+    <label
+      className="field field-checkbox holes-through-field"
+      htmlFor={`${id}-centered`}
+      title="Lay the pattern out round this hole's spot instead of from it as a corner. This hole stays put if a hole of the pattern lands on its spot (the middle of an odd row or an odd × odd grid); otherwise it moves to the pattern's first corner."
+    >
+      <input
+        id={`${id}-centered`}
+        type="checkbox"
+        checked={Boolean(options.centered)}
+        onChange={(e) => onChange({ centered: e.target.checked })}
+      />
+      <span className="field-label">Centre on this hole</span>
+    </label>
+  );
   return (
     <div className="holes-spec holes-repeat">
       <label className="field" htmlFor={`${id}-pattern`}>
@@ -92,6 +108,7 @@ export default function RepeatFields({
           </label>
         </div>
       )}
+      {options.pattern === "row" && centered}
       {options.pattern === "grid" && (
         <div className="holes-spec-grid">
           {number("columns", "Across", { min: 1, title: "Holes across the face, this one included." })}
@@ -111,7 +128,7 @@ export default function RepeatFields({
           <label
             className="field"
             htmlFor={`${id}-standard`}
-            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), MOD-GRID, BitBeam and MOLLE panels."
+            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts."
           >
             <span className="field-label">Standard spacing</span>
             <select
@@ -149,6 +166,7 @@ export default function RepeatFields({
             />
             <span className="field-label">Stagger rows</span>
           </label>
+          {centered}
         </>
       )}
       {options.pattern === "circle" && (

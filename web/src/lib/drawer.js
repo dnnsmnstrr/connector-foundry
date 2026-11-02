@@ -24,12 +24,6 @@ export const DRAWER_FULL_SHARE = 0.88;
 export const DRAWER_FLING_MS = 160;
 export const DRAWER_DRAG_SLOP_PX = 6;
 
-// A phone's width, under the tablet layout's 600 px (styles.css): the
-// Library's drawer holds its parameter form too, behind a tab beside the
-// part list, and its view runs to the foot of the screen as the Bench's
-// does. A tablet keeps the form beside its view.
-export const DRAWER_TABS_QUERY = "(max-width: 599.98px)";
-
 /** @typedef {"closed" | "half" | "full"} DrawerRest */
 /** @typedef {"params" | "parts"} DrawerTab */
 
@@ -44,26 +38,15 @@ export function isDrawerLayout() {
 }
 
 /**
- * Whether the Library's drawer has its tabs (a phone: DRAWER_TABS_QUERY).
- * @returns {boolean}
- */
-export function isDrawerTabsLayout() {
-  return isDrawerLayout() && window.matchMedia?.(DRAWER_TABS_QUERY).matches === true;
-}
-
-/**
- * Calls `onChange` when the page goes into or out of the narrow layout, or
- * across the phone width inside it.
+ * Calls `onChange` when the page goes into or out of the narrow layout.
  * @param {() => void} onChange
  * @returns {() => void} unsubscribes
  */
 export function subscribeDrawerLayout(onChange) {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const queries = [DRAWER_QUERY, DRAWER_TABS_QUERY].map((q) => window.matchMedia(q));
-  for (const query of queries) query.addEventListener("change", onChange);
-  return () => {
-    for (const query of queries) query.removeEventListener("change", onChange);
-  };
+  const query = window.matchMedia(DRAWER_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
 }
 
 // Which of the Library drawer's tabs shows: module state, for the session,

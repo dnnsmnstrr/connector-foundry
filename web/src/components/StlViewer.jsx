@@ -1478,6 +1478,48 @@ export default function StlViewer({
       },
     };
 
+    // On a phone the sidebar is a drawer over the view's foot
+    // (SidebarToggle.jsx sets --drawer-inset, how much it covers), and the
+    // toolbar's buttons sit over its top. The picture moves so the middle
+    // of what is left between them is the camera's centre, where a fit
+    // puts the model; and a fit sizes the model to that space
+    // (fitFrame()). Moving the drawer afterwards only moves the picture: it
+    // never zooms. A sheet pulled nearly all the way up counts as three
+    // quarters, or the model would be fitted to a strip. Without a drawer
+    // (a wide screen) nothing moves: the toolbar sits over empty sky.
+    const covers = () => {
+      const h = mount.clientHeight;
+      const inset = parseFloat(getComputedStyle(mount).getPropertyValue("--drawer-inset")) || 0;
+      const bottom = Math.min(Math.max(inset, 0), h * 0.75);
+      if (!(bottom > 0)) return { top: 0, bottom: 0 };
+      const bar = rootRef.current?.querySelector(".viewer-toolbar")?.getBoundingClientRect();
+      const top = bar ? Math.min(Math.max(bar.bottom - mount.getBoundingClientRect().top, 0), h * 0.2) : 0;
+      return { top, bottom };
+    };
+    const applyViewOffset = () => {
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      const { top, bottom } = covers();
+      if (w && h && (top || bottom)) camera.setViewOffset(w, h, 0, (bottom - top) / 2, w, h);
+      else camera.clearViewOffset();
+    };
+    // The field of view and aspect a fit works with: the camera's own,
+    // narrowed to the part of the view the drawer and the toolbar leave.
+    const fitFrame = () => {
+      const h = mount.clientHeight;
+      const { top, bottom } = covers();
+      const shown = h - top - bottom;
+      if (!h || shown >= h) return { fovDeg: camera.fov, aspect: camera.aspect };
+      const half = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (shown / h));
+      return { fovDeg: THREE.MathUtils.radToDeg(2 * half), aspect: (camera.aspect * h) / shown };
+    };
+    const onDrawerMove = () => {
+      applyViewOffset();
+      camera.updateProjectionMatrix();
+      requestRender();
+    };
+    window.addEventListener("sidebar-drawer", onDrawerMove);
+
     // Sized to the mount, and re-sized whenever the mount changes — a
     // window resize, but also the sidebar collapsing, which widens the
     // viewer without any window event.
@@ -1486,6 +1528,7 @@ export default function StlViewer({
       const h = mount.clientHeight;
       if (!w || !h) return;
       camera.aspect = w / h;
+      applyViewOffset();
       camera.updateProjectionMatrix();
       applyPixelRatio();
       renderer.setSize(w, h);
@@ -1550,23 +1593,21 @@ export default function StlViewer({
           box,
           position: camera.position.toArray(),
           target: controls.target.toArray(),
-          fovDeg: camera.fov,
-          aspect: camera.aspect,
+          ...fitFrame(),
         });
         applyPose(pose, modelBoxRef.current ?? box);
       },
       /** @param {import("../lib/viewerCamera.js").ViewName} name */
       preset(name) {
         const box = modelBoxRef.current;
-        if (box) applyPose(presetViewFitting(name, box, { fovDeg: camera.fov, aspect: camera.aspect }), box);
+        if (box) applyPose(presetViewFitting(name, box, fitFrame()), box);
       },
       /** @param {Box} box */
       showModel(box) {
         const center = boxCenter(box);
         const radius = modelRadius(box);
         const mode = refitMode(fitRef.current, fitKeyRef.current, center, radius);
-        if (mode === "fit")
-          applyPose(presetViewFitting("home", box, { fovDeg: camera.fov, aspect: camera.aspect }), box);
+        if (mode === "fit") applyPose(presetViewFitting("home", box, fitFrame()), box);
         else if (mode === "contain") {
           // Same subject, new size: the view stays where the user put it
           // (TinkerCAD never moves the camera for a resize), backing out
@@ -1575,8 +1616,7 @@ export default function StlViewer({
             box,
             position: camera.position.toArray(),
             target: controls.target.toArray(),
-            fovDeg: camera.fov,
-            aspect: camera.aspect,
+            ...fitFrame(),
           });
           if (position) {
             dropLeftoverMotion();
@@ -1758,6 +1798,7 @@ export default function StlViewer({
       controls.removeEventListener("change", requestRender);
       renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
       window.removeEventListener("sidebar-drawer", requestRender);
+      window.removeEventListener("sidebar-drawer", onDrawerMove);
       document.removeEventListener("visibilitychange", onVisible);
       controls.dispose();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);

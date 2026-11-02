@@ -23,6 +23,7 @@ import {
 const bin = {
   id: "gridfinity/bin",
   defaults: { gx: 2, gy: 1, gz: 3, lip: true },
+  labels: { gx: "Width (cells)", gy: "Depth (cells)", gz: "Height (7 mm units)" },
   resize: {
     x: { param: "gx", per: 42, step: 1, max: 8 },
     y: { param: "gy", per: 42, step: 1, max: 8 },
@@ -57,14 +58,22 @@ const close = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
 
 test("resize axes resolve the slope, the step and the handle's bounds", () => {
   assert.deepEqual(resizeAxes(bin), [
-    { axis: "x", param: "gx", per: 42, step: 1, min: 1, max: 8 },
-    { axis: "y", param: "gy", per: 42, step: 1, min: 1, max: 8 },
-    { axis: "z", param: "gz", per: 7, step: 1, min: 1, max: 20 },
+    { axis: "x", param: "gx", per: 42, step: 1, min: 1, max: 8, label: "Width (cells)" },
+    { axis: "y", param: "gy", per: 42, step: 1, min: 1, max: 8, label: "Depth (cells)" },
+    { axis: "z", param: "gz", per: 7, step: 1, min: 1, max: 20, label: "Height (7 mm units)" },
   ]);
   // A free length: per defaults to 1, the floor is 0.1 mm, the catalogue's
   // minimum wins where there is one, and there is no ceiling.
   const [w, , t] = resizeAxes(plate);
-  assert.deepEqual(w, { axis: "x", param: "w", per: 1, step: null, min: 0.1, max: Infinity });
+  assert.deepEqual(w, {
+    axis: "x",
+    param: "w",
+    per: 1,
+    step: null,
+    min: 0.1,
+    max: Infinity,
+    label: "Width",
+  });
   assert.equal(t.min, 1);
 });
 
@@ -355,15 +364,18 @@ test("the drag label says the size, the count and how far each side moved", () =
   const x = handles.find((h) => h.id === "x+");
   const grow = (point, handle = x, startParams = bin.defaults) =>
     dragResize({ handle, axes, box: binBox, startParams, point, gridMm: 0.5 });
-  assert.equal(resizeText(x, axes, binBox, grow([62.75, 0, 0])), "W 125.5 mm · gx 3 (+21 each side)");
-  assert.equal(resizeText(x, axes, binBox, grow([41.75, 0, 0])), "W 83.5 mm · gx 2");
-  assert.equal(resizeText(x, axes, binBox, grow([1000, 0, 0])), "W 335.5 mm · gx 8 (+126 each side) · max");
+  assert.equal(resizeText(x, axes, binBox, grow([62.75, 0, 0])), "W 125.5 mm · 3 cells (+21 each side)");
+  assert.equal(resizeText(x, axes, binBox, grow([41.75, 0, 0])), "W 83.5 mm · 2 cells");
+  assert.equal(
+    resizeText(x, axes, binBox, grow([1000, 0, 0])),
+    "W 335.5 mm · 8 cells (+126 each side) · max",
+  );
   const z = handles.find((h) => h.id === "z+");
-  assert.equal(resizeText(z, axes, binBox, grow([0, 0, 24.548 + 7], z)), "H 31.548 mm · gz 4 (+7)");
+  assert.equal(resizeText(z, axes, binBox, grow([0, 0, 24.548 + 7], z)), "H 31.548 mm · 4 × 7 mm (+7)");
   const corner = handles.find((h) => h.id === "x+y+");
   assert.equal(
     resizeText(corner, axes, binBox, grow([62.75, 20.75, 0], corner)),
-    "W 125.5 mm · gx 3 (+21 each side), D 41.5 mm · gy 1",
+    "W 125.5 mm · 3 cells (+21 each side), D 41.5 mm · 1 cell",
   );
 
   const plateAxes = resizeAxes(plate);
@@ -385,7 +397,7 @@ test("viewer handles carry the slider semantics and the editor's prefill", () =>
   const x = handles.find((h) => h.id === "x+");
   assert.equal(x.label, "Width (gx)");
   assert.equal(x.value, 2);
-  assert.equal(x.valueText, "83.5 mm · gx 2");
+  assert.equal(x.valueText, "83.5 mm · 2 cells");
   assert.equal(x.min, 1);
   assert.equal(x.max, 8);
   assert.equal(x.editable, true);

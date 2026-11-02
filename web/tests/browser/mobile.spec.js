@@ -114,12 +114,16 @@ test.describe("on a phone", () => {
     expect(viewer.y).toBeLessThan(844 * 0.4);
     expect(viewer.y + viewer.height).toBeCloseTo(844, 0);
     expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth)).toBe(true);
+    // Closed, the sheet shows its grip and the tab row under it, which
+    // drags it too: the tabs are full-size targets, the grip no less than
+    // WCAG's 24 px.
     const handle = page.getByRole("button", { name: "Show the parameters and parts" });
     await expect(handle).toHaveAttribute("aria-expanded", "false");
     const sheet = await box(page.locator(".sidebar"));
     expect(sheet.y + sheet.height).toBeCloseTo(844, 0);
-    expect(sheet.height).toBeLessThan(60);
-    expect((await box(handle)).height).toBeGreaterThanOrEqual(44);
+    expect(sheet.height).toBeLessThan(100);
+    expect((await box(handle)).height).toBeGreaterThanOrEqual(24);
+    expect((await box(page.getByRole("tab", { name: "Parameters" }))).height).toBeGreaterThanOrEqual(44);
     await expect(page.locator(".params-panel")).toHaveCount(0);
     await expect(page.locator(".sidebar .search-input")).toHaveCount(0);
     // Print… in Download STL's place: in the header, beside the title.
@@ -169,7 +173,7 @@ test.describe("on a phone", () => {
     // Pushed down: closed, and the form goes once it is out of sight.
     await touchDrag(page, centre(await box(handle)), 700);
     await expect(handle).toHaveAttribute("aria-expanded", "false");
-    expect(await settledHeight(page)).toBeLessThan(60);
+    expect(await settledHeight(page)).toBeLessThan(100);
     await expect(page.locator(".params-panel")).toHaveCount(0);
 
     // Pulled up from closed: the form rides up with it.
@@ -372,9 +376,19 @@ test.describe("on a phone", () => {
 
     // The drawer: the hole being edited and the list on one tab, the hole
     // types on the other; a type picked there turns back to its fields.
-    await page.locator(".sidebar-toggle").tap();
+    // The tabs are on the handle, in sight while the drawer is closed: a
+    // tap on one opens the drawer on it.
+    const handle = page.locator(".sidebar-toggle");
     const holesTab = page.getByRole("tab", { name: "Holes", exact: true });
     const typesTab = page.getByRole("tab", { name: "Hole types", exact: true });
+    await expect(handle).toHaveAttribute("aria-expanded", "false");
+    await expect(handle.locator(".sidebar-toggle-text")).toBeHidden();
+    await expect(typesTab).toBeVisible();
+    await typesTab.tap();
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
+    await expect(typesTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("searchbox", { name: "Search hole types" })).toBeVisible();
+    await holesTab.tap();
     await expect(holesTab).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("searchbox", { name: "Search hole types" })).toHaveCount(0);
     await typesTab.tap();
@@ -472,20 +486,23 @@ test.describe("on a phone", () => {
 test.describe("on a tablet in portrait", () => {
   test.use({ viewport: { width: 820, height: 1180 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 
-  test("the form sits beside a viewer wide enough to use", async ({ page }) => {
+  test("the drawer has the phone's tabs, and the view runs the full width", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
     await rendered(page);
     const viewer = await box(page.locator(".viewer-panel"));
-    const params = await box(page.locator(".params-panel"));
-    expect(Math.abs(viewer.y - params.y)).toBeLessThan(2);
-    expect(params.x).toBeLessThan(viewer.x);
-    expect(viewer.width).toBeGreaterThanOrEqual(400);
+    expect(viewer.width).toBeGreaterThanOrEqual(800);
     expect(viewer.y + viewer.height).toBeLessThanOrEqual(1180);
-    // The drawer holds the part list alone here: no tabs.
-    await page.getByRole("button", { name: "Show the part list" }).tap();
+    // The form is in the drawer, as on a phone: its tabs are on the
+    // closed drawer's handle, and either opens it.
+    await expect(page.locator(".workspace .params-panel")).toHaveCount(0);
+    const handle = page.locator(".sidebar-toggle");
+    await expect(handle).toHaveAttribute("aria-expanded", "false");
+    await page.getByRole("tab", { name: "Parts" }).tap();
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
     await expect(page.locator(".sidebar .search-input")).toBeVisible();
-    await expect(page.getByRole("tab")).toHaveCount(0);
+    await page.getByRole("tab", { name: "Parameters" }).tap();
+    await expect(page.locator(".sidebar .params-panel")).toBeVisible();
     expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth)).toBe(true);
   });
 });
@@ -511,6 +528,20 @@ test.describe("in a narrow browser window", () => {
     // A drag ends without the click that follows it toggling it back.
     await page.waitForTimeout(400);
     await expect(handle).toHaveAttribute("aria-expanded", "true");
+
+    // The tab row under the grip drags it too, a quick mouse included,
+    // and a drag that starts on a tab doesn't pick it.
+    await handle.click();
+    await expect(handle).toHaveAttribute("aria-expanded", "false");
+    const partsTab = page.getByRole("tab", { name: "Parts" });
+    const on = centre(await box(partsTab));
+    await page.mouse.move(on.x, on.y);
+    await page.mouse.down();
+    await page.mouse.move(on.x, on.y - 200, { steps: 2 });
+    await page.waitForTimeout(150);
+    await page.mouse.up();
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("tab", { name: "Parameters" })).toHaveAttribute("aria-selected", "true");
   });
 });
 

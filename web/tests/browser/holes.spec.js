@@ -144,7 +144,7 @@ test("the Holes tab opens on 3, takes a catalogue part, and exports the base as 
 
   // The part's parameters are under a toggle; a change re-renders the base.
   await page.getByText("Part parameters", { exact: true }).click();
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("50");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("50");
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
   expect((await jobs(page))[1].params.w).toBe(50);
 
@@ -181,7 +181,7 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
   await mockWorker(page);
   await page.goto("/app/");
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
-  await page.getByRole("spinbutton", { name: "w", exact: true }).fill("55");
+  await page.getByRole("spinbutton", { name: "Width", exact: true }).fill("55");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
   await expect(page).toHaveURL(/mode=holes/);
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
@@ -192,15 +192,40 @@ test("the Library's Add Holes opens the part, with its parameters, in the Holes 
     /^Undo add holes /,
   );
   // Nothing drilled yet, so a second hand-over replaces the base without asking.
-  let asked = false;
-  page.on("dialog", (dialog) => {
-    asked = true;
-    dialog.dismiss();
-  });
   await page.keyboard.press("1");
   await page.getByRole("button", { name: "Add Holes", exact: true }).click();
   await expect(page).toHaveURL(/mode=holes/);
-  expect(asked).toBe(false);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// With holes drilled, Add Holes asks first, in the app's own dialog (a
+// browser that refuses window.confirm() would have made it a dead button):
+// Cancel keeps them, Replace starts over on the Library's part.
+test("Add Holes over drilled holes asks in the app's own dialog, and Cancel keeps them", async ({ page }) => {
+  await catalogue(page);
+  await mockWorker(page);
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect.poll(async () => (await jobs(page)).length).toBe(1);
+  test.skip(!(await hasWebgl(page)), "drilling clicks the WebGL preview");
+  await drillAtFaceCenter(page);
+  await expect(page.locator(".holes-sidebar")).toContainText("Holes (1)");
+
+  await page.keyboard.press("1");
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  const question = page.getByRole("dialog", { name: /^Replace the holes you've placed/ });
+  await expect(question).toBeVisible();
+  await expect(question).toContainText("Undo brings them back.");
+  // The yes button has the focus, as a native confirm()'s had.
+  await expect(question.getByRole("button", { name: "Replace" })).toBeFocused();
+  await question.getByRole("button", { name: "Cancel" }).click();
+  await expect(question).toHaveCount(0);
+  await expect(page).not.toHaveURL(/mode=holes/);
+
+  await page.getByRole("button", { name: "Add Holes", exact: true }).click();
+  await question.getByRole("button", { name: "Replace" }).click();
+  await expect(page).toHaveURL(/mode=holes/);
+  await expect(page.locator(".holes-sidebar")).not.toContainText("Holes (1)");
 });
 
 test("a click on a face drills a snapped hole and the render carries it", async ({ page }) => {
@@ -348,7 +373,7 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await page.evaluate(() => document.activeElement.blur());
   await page.keyboard.press("Delete");
   await expect(page.locator(".holes-row")).toHaveCount(0);
-  await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
+  await expect(page.getByText("None yet. Click a face in the scene to add one.")).toBeVisible();
 });
 
 test("a MagSafe pocket takes a charger puck with its cable channel, or a ring", async ({ page }) => {
@@ -453,7 +478,7 @@ test("deleting a hole while the guide lines are on the holed mesh doesn't crash 
   await page.evaluate(() => document.activeElement.blur());
   await page.keyboard.press("Delete");
   await expect(page.locator(".holes-row")).toHaveCount(0);
-  await expect(page.getByText("None yet — click a face in the scene.")).toBeVisible();
+  await expect(page.getByText("None yet. Click a face in the scene to add one.")).toBeVisible();
   await page.waitForTimeout(300);
   expect(errors).toEqual([]);
   await expect(page.getByRole("heading", { name: "Holes", exact: true })).toBeVisible();
@@ -630,18 +655,19 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
   await expect.poll(async () => (await jobs(page)).length).toBe(1);
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
-  await drillAtFaceCenter(page);
+  const faceCenter = await drillAtFaceCenter(page);
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
   // A screw is its hardware's size: it only moves.
   await expect(page.locator(".viewer-handle")).toHaveCount(1);
   const move = handle(page, "h1:move");
   await expect(move).toBeVisible();
 
-  // A short drag: the hole follows in whole grid steps on its face.
+  // A short drag, out of the face center's pull: the hole follows in
+  // whole grid steps on its face (or onto a guide line, also on the grid).
   let at = center(await move.boundingBox());
   await page.mouse.move(...at);
   await page.mouse.down();
-  await page.mouse.move(at[0] + 40, at[1] + 10, { steps: 8 });
+  await page.mouse.move(at[0] + 80, at[1] + 20, { steps: 8 });
   await expect(page.locator(".viewer-drag-label")).toHaveText(/mm (right|left|up|down)/);
   await page.mouse.up();
   const moved = await holePoint(page);
@@ -680,9 +706,32 @@ test("the center handle drags a hole across its face, never off it; the arrow ke
   await page.keyboard.press("ControlOrMeta+z");
   await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
 
+  // Dragged to near the face center, it lands on it exactly, and the
+  // label says what it snapped to.
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect.poll(() => holePoint(page)).toEqual([0, 5, 2]);
+  at = center(await move.boundingBox());
+  // Most of the way back to the face center on screen: short of it, but
+  // inside its pull.
+  await page.mouse.move(...at);
+  await page.mouse.down();
+  await page.mouse.move(at[0] + (faceCenter.x - at[0]) * 0.8, at[1] + (faceCenter.y - at[1]) * 0.8, {
+    steps: 8,
+  });
+  await expect(page.locator(".viewer-drag-label")).toHaveText(/· face center$/);
+  await page.mouse.up();
+  await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => holePoint(page)).toEqual([0, 5, 2]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => holePoint(page)).toEqual([0, 0, 2]);
+
   // "Pick another model" is a step too: the start picker offers it back.
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Pick another model", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Pick another model?" })
+    .getByRole("button", { name: "Pick another" })
+    .click();
   await expect(page.getByRole("heading", { name: "Drill screw holes" })).toBeVisible();
   await page.getByRole("option", { name: "Undo pick another model", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
@@ -892,18 +941,18 @@ test("after a handle commit, typing a base parameter still waits for the typing 
   test.skip(!(await hasWebgl(page)), "the handles are drawn over a WebGL preview");
   await drillAtFaceCenter(page);
   await expect.poll(async () => (await jobs(page)).length).toBe(2);
-  // A move: committed and rendered at once.
+  // A move (out of the face center's pull): committed and rendered at once.
   const at = center(await handle(page, "h1:move").boundingBox());
   await page.mouse.move(...at);
   await page.mouse.down();
-  await page.mouse.move(at[0] + 40, at[1] + 10, { steps: 8 });
+  await page.mouse.move(at[0] + 80, at[1] + 20, { steps: 8 });
   await page.mouse.up();
   await expect.poll(async () => (await jobs(page)).length).toBe(3);
 
   // The holes stay as they are while the base changes: that render is
   // not the move's, and waits out the typing as any base edit does.
   await page.getByText("Part parameters", { exact: true }).click();
-  const w = page.getByRole("spinbutton", { name: "w", exact: true });
+  const w = page.getByRole("spinbutton", { name: "Width", exact: true });
   await w.fill("");
   // Keys a little apart, as typed: well inside the 250 ms debounce, but
   // each long enough for a render with no delay to start.
@@ -1169,10 +1218,16 @@ test("Measure picks the selected hole's own system spacing, which Repeat offers 
     "Gridfinity Holes (26 mm)",
     "openGrid (28 mm)",
     "Skådis (40 × 20 mm, staggered)",
+    "Multiboard (25 mm)",
+    "US pegboard (25.4 mm)",
     "MOD-GRID (8 mm)",
     "BitBeam (8 mm)",
     "MOLLE rigid panel (50.8 mm)",
     "MOLLE slit panel (38.1 × 25.4 mm)",
+    "VESA monitor mount (75 mm)",
+    "VESA monitor mount (100 mm)",
+    "VESA monitor mount (200 × 100 mm)",
+    "VESA monitor mount (200 mm)",
   ]);
   await standard.selectOption("bitbeam");
   await expect(standard).toHaveValue("bitbeam");
@@ -1200,8 +1255,10 @@ test("the snapping bar over the viewer sets the guides, its fields off with Snap
   const inset = bar.getByRole("spinbutton", { name: "Corner inset (mm)" });
   const radius = bar.getByRole("spinbutton", { name: "Center radius (mm)" });
   await expect(snap).toHaveAttribute("aria-pressed", "true");
+  // Set for the model (guideDefaults()): the 40 mm slab's circle 6 mm
+  // inside its edge, its corners 5 mm in.
   await expect(inset).toHaveValue("5");
-  await expect(radius).toHaveValue("10");
+  await expect(radius).toHaveValue("14");
 
   // Sizes typed here are the guides' (0 draws no circle).
   await inset.fill("8");

@@ -630,6 +630,11 @@ export const GUIDES = Object.freeze([
   { slug: "holes", name: "Holes", keywords: ["drill", "screw holes", "magnets"] },
   { slug: "joints", name: "joints", keywords: ["flange", "fused", "bolted", "connection"] },
   { slug: "overrides", name: "user overrides", keywords: ["saved defaults", "parameters"] },
+  {
+    slug: "systems",
+    name: "systems",
+    keywords: ["gridfinity", "opengrid", "skadis", "bitbeam", "lego", "community", "links", "pitch"],
+  },
   { slug: "accuracy", name: "accuracy", keywords: ["references", "verify", "exact", "fit"] },
 ]);
 
@@ -643,7 +648,7 @@ export function guideUrl(slug) {
 
 /**
  * A row per guide, found by typing, as the parts are: on an empty query
- * Help lists the guides' index (app.guides) and not eight rows more.
+ * Help lists the guides' index (app.guides) and not nine rows more.
  * @returns {Command[]}
  */
 export function guideCommands() {

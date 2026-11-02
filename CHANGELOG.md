@@ -9,6 +9,30 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Parameters, slots and joints in plain words.** A part's fields say what they set and in what
+  unit (**Width (cells)** rather than `gx`, **Corner radius (mm)** rather than `r`); the parameter's
+  own name shows when the pointer rests on its label, and is still what the CLI, bench files and
+  links use. A Bench slot is named by where it is (**Centre**, **1 right, 2 front of centre**) rather than
+  `mount_1_-2`, joints read **Fused (one piece)**, **Bolted**, **Snap-fit**, and a resize label
+  counts "3 cells" rather than "gx 3".
+- **One main button per view.** In the Bench's Export, Download config is outlined beside the
+  filled Download STL; Start over and Holes' Pick another model are quiet text buttons; on a phone,
+  Find a part is outlined beside Print….
+- **Drawer tabs on the handle.** On a phone or a tablet, the Library's Parameters and Parts tabs and
+  Holes' Holes and Hole types tabs sit on the drawer's handle instead of a title that repeated them.
+  They show while the drawer is closed, and a tap on one opens the drawer on that tab. Tablets get
+  the tabs too: the Library's form moves from beside the view into the drawer, as on a phone.
+- **The model stays in sight on a phone.** With the drawer open, the 3D view centres and fits the
+  model in the part of the screen the drawer leaves, instead of behind it.
+- **Plainer wording across the app and Settings.** Shorter hints in the Bench and Holes headers and
+  sidebars, and shorter explanations in Settings. The Bench calls its first part the base everywhere
+  (**Select base**, **Base parameters**), and its export buttons name each body's part instead of
+  an id (**Download STL** when there is only one). In Settings, System units is now **Grid sizes**
+  (Gridfinity cell size, MOD-GRID hole spacing), and the Bench option moved under Editing.
+- **Questions in the app's own dialog.** Replacing a bench or your holes, deleting a preset,
+  importing settings and making a new MCP token now ask in the app's own dialog instead of the
+  browser's. Some browsers answer the browser's "no" without showing it, which made **Add Holes**
+  (and Pick another model, Open in Bench over a bench) look like it did nothing.
 - **System pitches are adjustable.** Settings can tune Gridfinity's cell pitch and MOD-GRID's hole spacing; the Library, Bench and Holes tab use the same saved values.
 - **Part search shows its `/` shortcut.** A small key hint beside the search field makes the quick
   search key easier to discover.
@@ -33,6 +57,23 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts
 
+- **GOEWS.** A new system: `goews/tile`, the Greatly Over Engineered Wall System's wall tile, as
+  hex cells (42 mm across, every other row half a cell over) or GOEWS GRID's 42 × 36.373 mm
+  rectangles, any number each way; and `goews/hanger`, the hanger plate every GOEWS accessory
+  hangs by, any number of units wide, to fuse onto any part so it hangs on a GOEWS wall. Rebuilt from
+  MrExo3D's files and checked against them; CC-BY 4.0, like GOEWS itself.
+- **Underware cable channels.** Hands on Katie and BlackjackDuck's under-desk cable channels:
+  a straight channel and an L corner, each as its base and its snap-on top, sized in 25 mm units,
+  with the top's inside height and the base's mounting (threaded snap, Multiboard or Multipoint
+  screw, magnet, wood screw or flat) as upstream offers them. Their profiles are upstream's own
+  (QuackWorks, CC-BY-NC-SA). Cut cable exits into them on the Holes tab, or fuse a hook or a
+  connector onto a top's roof slots or a base's underside on the Bench.
+- **Underware for openGrid.** David D's one-piece channels, whose walls end in grips that snap
+  straight into an openGrid board, with no base: `underware/opengrid_i_channel` and
+  `underware/opengrid_l_channel`, sized in openGrid's 28 mm cells, any length, width and height.
+  They come first in the Underware list. The geometry is Pedro Leite's Monokini (CC-BY-NC-SA),
+  checked against Monokini's scripts and David D's own files. The L's curved wall is solid all the
+  way up, where Monokini's turns into thin slots above about 10 mm.
 - **MOD-GRID pin styles.** The Library and Bench's MOD-GRID pin now offer the existing compliant
   snap, a screw-expanded dowel with an adjustable screw diameter, and a 4 mm BitBeam-inspired
   square fork pin. The two new styles are fit prototypes; the compliant style remains the default.
@@ -40,6 +81,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   solid mounting end, and a flexible fork only at its projecting tip. Enter any length from half
   a unit through 16 units. Part searches also match catalogue keywords, so
   BitBeam parts appear when searching for Technic or LEGO.
+- **Multiboard threads.** Two parts that screw into a Multiboard tile: a big-thread snap with an
+  octagonal head to fuse a hook or holder onto, and a small-thread peg for the holes between
+  cells. They carry only the tile's threads, from the community's measurements, and no Multiboard
+  design, whose licence allows personal use only; `parametric` until checked against a printed
+  tile.
 
 - **Folded openConnect snaps and screws.** The openConnect snap has a new `layout`: `folded` lays
   it out to print on its side, the head's half on its cut face and the rest of the snap (or the
@@ -57,6 +103,30 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   **Folded** (or **Split**) in the viewer's toolbar shows the body as it will export. The export says
   when a part can't fold (Split still can).
   
+### Holes tab
+
+- **Multiboard threads.** Two new presets cut a Multiboard tile's big and small threaded holes into
+  any part, so Multiboard's own bolts screw into it, and Measure steps them on Multiboard's 25 mm
+  grid.
+- **Pegboard and VESA.** Hole presets for a US pegboard's 1/4" and 3/16" holes and for VESA
+  monitor-mount screws (M4, M6), and their spacings for Measure and Repeat: a US pegboard's inch,
+  and the VESA 75, 100, 200 × 100 and 200 patterns, whose 2 × 2 Repeat is a mount's four screws.
+- **A dragged hole snaps.** Dragging a hole by its middle handle catches it on the face's snap
+  points and guide lines, as a click does, and on the face's center from further off. The label by
+  the hole names what it snapped to beside the distance moved ("12 mm right · face center"), and the
+  point lights up.
+- **Guides set for the model.** The snapping bar's Inset and Radius start out right for the
+  model picked instead of 5 and 10 mm for everything: a Gridfinity part's corner points sit on its
+  magnet holes on whichever face is picked (its top, a foot's bottom, a baseplate's underside) and
+  its circle runs through the quadrant centers, as an openGrid snap's and a SOLDR base's do, a round part's circle goes half way out, and any other part's circle stays 6 mm
+  inside its face (a face too small for that starts with none). A value you type holds until you pick another model.
+- **The guides stay put over a selected hole.** Hovering inside the selected hole (its bore, its
+  floor, a counterbore) no longer moves the guide lines and snap points to that inner face, so
+  they are still there when you grab the hole to drag it.
+- **Repeat round a hole.** A Repeat row or grid can be centred on the selected hole instead of
+  starting from it: **Centre on this hole** lays the pattern out round the hole's spot, keeping the
+  hole in the middle when the pattern has one there.
+
 ### Library
 
 - **No Render button.** The preview already renders on its own whenever the part, its parameters
@@ -133,6 +203,26 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   longer selects its text or offers to save the image; and the installed app no longer zooms when
   a pinch misses the 3D view. Every dialog has a × at the top on a touch screen, and Android's back
   gesture puts the drawer away instead of leaving the app.
+
+### Guides
+
+- **Systems.** A new guide with an entry for every system in the catalogue: who made it, its
+  website, the designer's own files on Printables, MakerWorld or Thangs, its subreddit, the other
+  OpenSCAD libraries and web generators that model it (Perplexing Labs among them), and related
+  projects. It ends with the systems that share a unit: three openGrid cells are two Gridfinity
+  cells (84 mm), BitBeam, LEGO Technic and MOD-GRID are all on 8 mm, Skådis lines up with them
+  every 40 mm, and Gridfinity and SOLDR take the same magnets.
+- **Videos.** The guides can show a video, such as Zack Freedman's Gridfinity introduction or
+  David D's openGrid one, under its own thumbnail. It loads from YouTube only when you press
+  play.
+
+### Website
+
+- **Part pictures without the white box.** Every part's picture — on the landing page's part
+  cards and hero, in the command palette, and in the README — is cut out on a transparent
+  background with smoothed edges, so the part stands on the dark card instead of in a near-white
+  rectangle. `foundry preview --all` renders them that way (it now needs Pillow, which
+  `pip install -e .` brings).
 
 ## 0.5.0 — 2026-10-28
 

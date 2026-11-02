@@ -1,5 +1,6 @@
 import { childrenOf, getNode, jointsFor, normalizeShift } from "../../lib/assembly.js";
 import { slotsForNode, stackSlotFor } from "../../lib/benchLayout.js";
+import { slotLabel } from "../../lib/labels.js";
 import ParamsEditor from "../ParamsEditor.jsx";
 import JointSelect from "./JointSelect.jsx";
 import FoldSelect from "./FoldSelect.jsx";
@@ -80,7 +81,9 @@ export default function NodeTree({
         </button>
       </div>
       <div className="bench-child-meta">
-        <span className="muted">{node.slotName}</span>
+        <span className="muted" title={`Slot: ${node.slotName}`}>
+          {slotLabel(node.slotName)}
+        </span>
         <JointSelect
           aria-label={`Joint for ${part.name}`}
           value={node.joint}
@@ -178,7 +181,7 @@ export default function NodeTree({
               className="bench-attach-here"
               onClick={() => actions.attachAt(nodeId, slot.name)}
             >
-              + Attach: {slot.name}
+              + Attach: {slotLabel(slot.name)}
             </button>
           ))}
         </div>

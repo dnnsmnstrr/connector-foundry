@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { BoxGeometry, Mesh } from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
+import { slotLabel } from "../../src/lib/labels.js";
 
 // The app's WebMCP tools (lib/webmcp.js), registered with a stand-in for
 // the browser's document.modelContext and called as an agent would. The
@@ -117,7 +118,8 @@ test("an agent finds a part, opens it on the Bench, attaches to a slot and goes 
   const { openSlots, preview } = await call(page, "get_app_state");
   expect(preview).toEqual({ status: "done", error: null });
   const { commands: slots } = await call(page, "list_commands", { within: ["bench.attach"] });
-  expect(slots.map((c) => c.title).sort()).toEqual(openSlots.map((s) => s.slotName).sort());
+  // Listed by where they are ("1 left of centre"), as the picker shows them.
+  expect(slots.map((c) => c.title).sort()).toEqual(openSlots.map((s) => slotLabel(s.slotName)).sort());
   const [{ parentId, slotName }] = openSlots;
   expect(parentId).toBe("root");
 
@@ -160,8 +162,10 @@ test("an agent finds a part, opens it on the Bench, attaches to a slot and goes 
 
   // Replacing the bench asks the user, as Open in Bench does; a "no" is
   // the agent's answer too.
-  page.once("dialog", (dialog) => dialog.dismiss());
-  expect(await call(page, "open_part", { partId: "basics/plate", target: "bench" })).toEqual({
+  const asked = call(page, "open_part", { partId: "basics/plate", target: "bench" });
+  const question = page.getByRole("dialog", { name: /^Replace the current bench/ });
+  await question.getByRole("button", { name: "Cancel" }).click();
+  expect(await asked).toEqual({
     opened: false,
     reason: "The user chose to keep what they had.",
   });

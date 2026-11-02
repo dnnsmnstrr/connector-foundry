@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { clearOverrides, getOverrides, setOverrides } from "../lib/userOverrides.js";
+import { optionLabel, paramLabel } from "../lib/labels.js";
 import ParamField from "./ParamField.jsx";
 
 // One part's parameter editor: a field per parameter, each showing
@@ -74,6 +75,7 @@ export default function ParamsEditor({
         <ParamField
           key={key}
           name={key}
+          label={paramLabel(part, key)}
           value={value}
           options={part.options?.[key]}
           min={part.minimums?.[key]}
@@ -89,8 +91,9 @@ export default function ParamsEditor({
             type="button"
             className="bench-modal-cancel params-defaults-button"
             onClick={resetAllToCatalogue}
+            title="Set every parameter back to the catalogue default"
           >
-            Reset all to catalogue
+            Reset all
           </button>
           <button type="button" className="bench-modal-cancel params-defaults-button" onClick={saveAsDefault}>
             Save as my default
@@ -108,7 +111,13 @@ export default function ParamsEditor({
       )}
       {showSavedNote && hasSavedOverride && (
         <p className="muted params-saved-note">
-          Your saved default for this part: {JSON.stringify(savedOverride)}
+          Your default for this part:{" "}
+          {Object.entries(savedOverride)
+            .map(
+              ([key, value]) =>
+                `${paramLabel(part, key)} ${value === true ? "on" : value === false ? "off" : optionLabel(value)}`,
+            )
+            .join(", ")}
         </p>
       )}
     </div>

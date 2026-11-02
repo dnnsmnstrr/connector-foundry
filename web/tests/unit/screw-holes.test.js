@@ -24,6 +24,8 @@ import {
   matchSpacing,
   spacingLabel,
   STANDARD_SPACINGS,
+  THREADS,
+  threadOf,
   rotateHoles,
   slotFrame,
   slotOutline,
@@ -573,6 +575,61 @@ test("an openGrid thread is cut by lib/ogthread.scad in the slots' frame, blind 
   assert.equal(holeMeta(doc.holes[1]), "through, turned 0°");
 });
 
+test("a Multiboard thread is cut by lib/multiboard.scad as the tile cuts it, for its bolts", () => {
+  let { doc } = addHole(
+    createHolesDoc({ kind: "mesh", name: "box", stlBytes: new ArrayBuffer(84), extents: [40, 40, 20] }),
+    {
+      point: [20, 20, 20],
+      normal: [0, 0, 1],
+      spec: getPreset("mb-thread-big").spec,
+      presetId: "mb-thread-big",
+    },
+  );
+  ({ doc } = addHole(doc, {
+    point: [5, 5, 20],
+    normal: [0, 0, 1],
+    spec: { ...getPreset("mb-thread-small").spec, depth: 6.4 },
+  }));
+  ({ doc } = addHole(doc, { point: [20, 0, 10], normal: [0, -1, 0], spec: getPreset("og-thread").spec }));
+  const scad = holesToScad(doc, partsById, {
+    throughLength: 70,
+    extents: [40, 40, 20],
+    importedFiles: new Map(),
+  });
+  // Each library once, for the threads that need it.
+  assert.match(
+    scad,
+    /^include <\.\.\/vendor\/BOSL2\/std\.scad>\nuse <\.\.\/lib\/ogthread\.scad>\nuse <\.\.\/lib\/multiboard\.scad>$/m,
+  );
+  // The big one through (the box's 20 mm plus the overshoot), the small one blind.
+  assert.match(scad, /mb_thread_hole\(size = "big", depth = 21, clearance = 0, overshoot = 1\);/);
+  assert.match(scad, /mb_thread_hole\(size = "small", depth = 6\.4, clearance = 0, overshoot = 1\);/);
+  assert.match(scad, /og_thread_hole\(depth = 8, clearance = 0\.5, overshoot = 1\);/);
+  assert.equal(holeLabel(doc.holes[0]), "Multiboard big thread through");
+  assert.equal(holeFootprintRadius(doc.holes[0].spec), 11.25);
+  assert.equal(holeFootprintRadius(doc.holes[1].spec), 7.025 / 2);
+  // A profile is one of the known three; anything else — or none, as in
+  // a hole saved before there were three — is openGrid's.
+  assert.equal(normalizeSpec({ kind: "thread", profile: "mb-small" }).clearance, 0);
+  assert.equal(normalizeSpec({ kind: "thread" }).profile, "opengrid");
+  assert.equal(normalizeSpec({ kind: "thread", profile: "__proto__" }).profile, "opengrid");
+  assert.equal(threadOf({ profile: "toString" }), THREADS.opengrid);
+  // Switching presets swaps the thread and keeps the direction; the
+  // Multiboard ones are laid out on its 25 mm grid.
+  assert.deepEqual(
+    presetSpecFor({ ...getPreset("og-thread").spec, spin: 90 }, getPreset("mb-thread-small").spec),
+    {
+      kind: "thread",
+      profile: "mb-small",
+      depth: 0,
+      clearance: 0,
+      spin: 90,
+    },
+  );
+  assert.ok(!specMatchesPreset(getPreset("mb-thread-big").spec, "mb-thread-small"));
+  assert.equal(presetSpacingId("mb-thread-big"), "multiboard");
+});
+
 test("an openGrid thread turns, flips and keeps its direction like a slot", () => {
   let { doc } = addHole(
     createHolesDoc({ kind: "mesh", name: "lid", stlBytes: new ArrayBuffer(84), extents: [40, 40, 10] }),
@@ -590,6 +647,7 @@ test("an openGrid thread turns, flips and keeps its direction like a slot", () =
   assert.equal(normalizeSpec({ kind: "thread", depth: 0 }).depth, 0);
   assert.deepEqual(normalizeSpec({ kind: "thread", depth: -1, clearance: "x", spin: 450 }), {
     kind: "thread",
+    profile: "opengrid",
     depth: 8,
     clearance: 0.5,
     spin: 90,
@@ -606,6 +664,7 @@ test("an openGrid thread turns, flips and keeps its direction like a slot", () =
   assert.ok(!specMatchesPreset({ ...getPreset("og-thread").spec, depth: 12 }, "og-thread"));
   assert.deepEqual(presetSpecFor(doc.holes[0].spec, getPreset("og-thread-lite").spec), {
     kind: "thread",
+    profile: "opengrid",
     depth: 4.5,
     clearance: 0.5,
     spin: 90,
@@ -1044,16 +1103,30 @@ test("one list of system spacings, each with its numbers, for Repeat and Measure
       ["gridfinity", 26, 26, false],
       ["opengrid", 28, 28, false],
       ["skadis", 40, 20, true],
+      ["multiboard", 25, 25, false],
+      ["pegboard", 25.4, 25.4, false],
       ["modgrid", 8, 8, false],
       ["bitbeam", 8, 8, false],
       ["molle-rigid", 50.8, 50.8, false],
       ["molle-slit", 38.1, 25.4, false],
+      ["vesa-75", 75, 75, false],
+      ["vesa-100", 100, 100, false],
+      ["vesa-200x100", 200, 100, false],
+      ["vesa-200", 200, 200, false],
     ],
   );
   assert.ok(STANDARD_SPACINGS.every((s) => s.label && s.short && getSpacing(s.id) === s));
   assert.equal(getSpacing("nope"), null);
   assert.equal(spacingLabel(getSpacing("skadis")), "Skådis (40 × 20 mm, staggered)");
   assert.equal(spacingLabel(getSpacing("modgrid")), "MOD-GRID (8 mm)");
+});
+
+test('a pegboard hole is 1/4" or 3/16" a fit over, and a VESA screw its socket cap\'s hole', () => {
+  assert.equal(getPreset("pegboard-1-4").spec.diameter, 6.6);
+  assert.equal(getPreset("pegboard-3-16").spec.diameter, 5);
+  assert.equal(getPreset("pegboard-1-4").spec.depth, 0);
+  assert.deepEqual(getPreset("vesa-m4").spec, getPreset("m4-cap").spec);
+  assert.deepEqual(getPreset("vesa-m6").spec, getPreset("m6-cap").spec);
 });
 
 test("a preset names the system spacing its holes are laid out on", () => {
@@ -1066,6 +1139,10 @@ test("a preset names the system spacing its holes are laid out on", () => {
     ["molle-slit", "molle-slit"],
     ["oc-slot", "opengrid"],
     ["mc-slot", "opengrid"],
+    ["pegboard-1-4", "pegboard"],
+    ["vesa-m4", "vesa-100"],
+    ["vesa-m6", "vesa-200"],
+    ["m4-cap", null],
     ["m3-cap", null],
     ["magnet-8x3", null],
     [null, null],
@@ -1180,6 +1257,53 @@ test("repeat: a row, a grid and a circle on the hole's face, in the face's own a
   assert.deepEqual(
     repeatHole(doc, hole.id, { pattern: "row", count: 2, spacing: 3, along: "up" }).doc.holes[1].point,
     [0, -20, 5],
+  );
+});
+
+test("repeat: a centred row or grid lies round the hole's spot, keeping the hole where one lands on it", () => {
+  // On the top face: across is +X, up is +Y.
+  const { doc, hole } = addHole(plateDoc(), {
+    point: [0, 0, 4],
+    normal: [0, 0, 1],
+    spec: getPreset("m3-cap").spec,
+  });
+  const points = (options) =>
+    repeatHole(doc, hole.id, { ...options, centered: true }).doc.holes.map((h) => h.point);
+  // An odd row has its middle on the spot: the hole stays there.
+  assert.deepEqual(points({ pattern: "row", count: 3, spacing: 10 }), [
+    [0, 0, 4],
+    [-10, 0, 4],
+    [10, 0, 4],
+  ]);
+  // An even one has none: the hole moves to its first point.
+  assert.deepEqual(points({ pattern: "row", count: 2, spacing: 10, along: "up" }), [
+    [0, -5, 4],
+    [0, 5, 4],
+  ]);
+  // A 3 x 3 grid keeps the hole in its middle; a 2 x 2 one, a VESA mount's
+  // four screws round the spot, moves it to a corner.
+  const nine = points({ pattern: "grid", columns: 3, rows: 3, spacingAcross: 10, spacingUp: 5 });
+  assert.equal(nine.length, 9);
+  assert.deepEqual(nine[0], [0, 0, 4]);
+  assert.deepEqual(nine.slice(1, 3), [
+    [-10, -5, 4],
+    [0, -5, 4],
+  ]);
+  assert.deepEqual(points({ pattern: "grid", columns: 2, rows: 2, spacingAcross: 100, spacingUp: 100 }), [
+    [-50, -50, 4],
+    [50, -50, 4],
+    [-50, 50, 4],
+    [50, 50, 4],
+  ]);
+  // A staggered grid is centred on its extent, the shifted rows included.
+  assert.deepEqual(
+    points({ pattern: "grid", columns: 2, rows: 2, spacingAcross: 40, spacingUp: 20, stagger: true }),
+    [
+      [-30, -10, 4],
+      [10, -10, 4],
+      [-10, 10, 4],
+      [30, 10, 4],
+    ],
   );
 });
 

@@ -26,6 +26,14 @@
 #   remember that a board variant is spelled "lite" and its chamfers are
 #   spelled "Corners". A test holds `options` and `defaults` together.
 #
+# labels: what the web app calls a parameter beside its field, e.g.
+#   `gx: Width (cells)`, with the unit in brackets. A parameter without
+#   one is shown as its name in words (side_holes is "Side holes"; see
+#   web/src/lib/labels.js). The parameter's own name is what the
+#   CLI, saved defaults, bench files and links use, so a label can change
+#   freely. Read only by the web app; keys must be parameters with a
+#   default.
+#
 # keywords: extra words that should find a part in searches, without
 #   changing its displayed name. Useful for standards and ecosystems that
 #   use a different name for the same fit.
@@ -132,6 +140,21 @@
 #   or bottom slot, where every spin keeps the axis level; the user's
 #   own rotation still applies afterwards.
 #
+# holes_guides: where the web Holes tab's guides start when the part is
+#   picked there — `inset` (mm: how far in from each corner the corner
+#   snap points sit) and `radius` (mm: the circle round the face center),
+#   or `round: true` for a part whose face is round, whose circle then
+#   goes half way out to its rim. For a part on a cell grid whose holes
+#   sit a set way into each cell, `cell` (mm), `cell_hole` (mm in from
+#   each cell's edge) and optionally `cell_setting` (the global setting
+#   that overrides `cell`, GRIDFINITY_PITCH) give each face its own inset:
+#   Gridfinity's magnet holes are 7.75mm in on a bin's top, 4.8mm on a
+#   foot's bottom, 8mm on a baseplate's underside, and the corner points
+#   land on them on whichever face is picked. Anything left out comes from
+#   the part's size (web/src/lib/guideDefaults.js); the user's own edit
+#   wins until another model is picked. Read only by the web app: the CLI
+#   has no Holes tab.
+#
 # fold: for a part carrying an openConnect head, where the web Bench's
 #   Fold for printing cuts the body the part is in (just in front of the
 #   head's flat front edge) and which way the rest of the body runs from
@@ -190,10 +213,16 @@ parts:
     source: gridfinity-rebuilt-openscad (kennetek, MIT), vendored
     source_url: https://github.com/kennetek/gridfinity-rebuilt-openscad
     print_note: >-
-      Feet down, no supports. The 42mm cell pitch can be tuned globally in Settings for a nonstandard
-      Gridfinity grid.
+      Feet down, no supports. For a nonstandard Gridfinity grid, change the 42mm cell size in
+      Settings → Grid sizes.
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # GRID_DIMENSIONS_MM.x / 3 — a free subdivision, not tied to a specific feature
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screws: Screw holes
     defaults:
       gx: 1
       gy: 1
@@ -226,12 +255,25 @@ parts:
       Feet down, no supports. gz is the height in 7mm units, the stacking
       lip on top. filled makes it solid up to the lip, with a flat top to
       cut your own cavities into in the Holes tab; divx/divy, scoop and
-      tabs apply to a bin with compartments. The 42mm cell pitch can be tuned globally in Settings.
+      tabs apply to a bin with compartments. The 42mm cell size can be changed in Settings → Grid sizes.
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     # parts/gridfinity/bin.scad asserts gz * 7 >= BASE_HEIGHT (7mm).
     minimums:
       gz: 1
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screws: Screw holes
+      gz: Height (7 mm units)
+      filled: Solid to the lip
+      divx: Compartments across
+      divy: Compartments deep
+      scoop: Finger scoop
+      tabs: Label tabs
+      lip: Stacking lip
     defaults:
       gx: 1
       gy: 1
@@ -271,10 +313,16 @@ parts:
       Modelled pockets down so the flat back is the "mount" face; flip it
       in the slicer to print back-down. Magnets and screw holes only
       apply to the weighted, skeletonized and screw-together styles. The
-      42mm cell pitch can be tuned globally in Settings.
+      42mm cell size can be changed in Settings → Grid sizes.
+    holes_guides: { cell: 42, cell_setting: GRIDFINITY_PITCH, cell_hole: 8, radius: 14.5 }
     slots:
       pitch: 14  # same free subdivision as the bin base
     anchors: [bot]
+    labels:
+      gx: Width (cells)
+      gy: Depth (cells)
+      magnets: Magnet holes
+      screw_holes: Screw holes
     defaults:
       gx: 1
       gy: 1
@@ -313,6 +361,9 @@ parts:
     slots:
       pitch: 28  # OG_PITCH — one slot per cell
       count_params: [cells_x, cells_y]
+    labels:
+      cells_x: Width (cells)
+      cells_y: Height (cells)
     defaults:
       cells_x: 2
       cells_y: 2
@@ -355,6 +406,7 @@ parts:
       Print in PETG or another filament with some flex so the wings can
       compress; no supports. The lite snap is half height (3.4mm), which
       is not the same as a lite board.
+    holes_guides: { inset: 0, radius: 8.75 }
     defaults:
       variant: full
       directional: false
@@ -404,6 +456,7 @@ parts:
       printing (and glue it, for a screw); it wants a 0.2mm first
       layer. split is the same as two pieces, to glue. On the Bench,
       Fold for printing does this to a whole assembly.
+    holes_guides: { inset: 0, radius: 8.75 }
     attached_defaults:
       body: none
     # The head's +Y is the way it slides to seat: up, on a wall.
@@ -467,6 +520,7 @@ parts:
       openConnect snap, body none being the head alone for fusing onto
       another part, body screw the head on openGrid's snap thread (a
       coin slot across the disc instead of the dimple).
+    holes_guides: { radius: 5 }
     attached_defaults:
       body: none
     defaults:
@@ -485,6 +539,71 @@ parts:
       - name: screw
         params: { body: screw }
 
+  # Multiboard (Keep Making, now MultiBuild) is under the MultiBuild
+  # Licence — personal use, no redistribution — so no tile or Multiboard
+  # part is here. These only carry the tile's two threads, from the
+  # community's measurements (lib/multiboard.scad), MIT; parametric until
+  # checked against a printed tile.
+  - id: multiboard/snap
+    system: Multiboard
+    name: Big-thread snap
+    file: parts/multiboard/snap.scad
+    module: multiboard_snap
+    confidence: parametric
+    source: >-
+      lib/multiboard.scad: a Multiboard tile's big thread (Ø22.5mm,
+      2.5mm pitch) from the community's measurements as
+      shaggyone's multiboard-parametric cuts it. Multiboard compatible:
+      no Multiboard file is used. Not yet checked against a printed tile.
+    source_url: https://github.com/shaggyone/multiboard-parametric
+    print_note: >-
+      Thread down, head up; no supports (the head's 1mm ledge bridges).
+      Screws into a Multiboard tile's big hole until the head seats; the
+      octagonal head is 24mm across, so snaps fit in neighbouring holes.
+      Fuse a hook or holder onto "mount". clearance is how much narrower
+      the thread is than the tile's: more if it binds, less if it wobbles.
+    minimums:
+      clearance: 0
+    labels:
+      length: Thread length (mm)
+      head: Head height (mm)
+      clearance: Thread clearance (mm)
+    defaults:
+      length: 6.4
+      head: 3
+      clearance: 0.25
+
+  - id: multiboard/peg
+    system: Multiboard
+    name: Small-thread peg
+    file: parts/multiboard/peg.scad
+    module: multiboard_peg
+    confidence: parametric
+    source: >-
+      lib/multiboard.scad: a Multiboard tile's small thread (Ø7.03mm,
+      3mm pitch) from the community's measurements as
+      shaggyone's multiboard-parametric cuts it. Multiboard compatible:
+      no Multiboard file is used. Not yet checked against a printed tile.
+    source_url: https://github.com/shaggyone/multiboard-parametric
+    print_note: >-
+      Thread down, head up; no supports. Screws into one of a tile's small
+      holes, at the corners between cells, until the head seats. A head up
+      to 9mm across clears a big-thread snap in each hole round it.
+    holes_guides: { round: true }
+    minimums:
+      head_d: 8.025
+      clearance: 0
+    labels:
+      length: Thread length (mm)
+      head_d: Head diameter (mm)
+      head: Head height (mm)
+      clearance: Thread clearance (mm)
+    defaults:
+      length: 6.4
+      head_d: 9
+      head: 2
+      clearance: 0.25
+
   - id: gopro/male
     system: GoPro
     name: Two-prong male buckle
@@ -502,6 +621,11 @@ parts:
       leg_dia: 14
     maximums:
       leg_dia: 20
+    labels:
+      base_h: Base height (mm)
+      base_w: Base width (mm)
+      leg_h: Prong height (mm)
+      leg_dia: Prong end diameter (mm)
     defaults:
       base_h: 3
       base_w: 20
@@ -543,6 +667,14 @@ parts:
       leg_dia: 14
     maximums:
       leg_dia: 20
+    labels:
+      base_h: Base height (mm)
+      base_w: Base width (mm)
+      leg_h: Prong height (mm)
+      leg_dia: Prong end diameter (mm)
+      outer_w: Outer prong width (mm)
+      nut_sides: Nut sides
+      nut_dia: Nut size across corners (mm)
     defaults:
       base_h: 3
       base_w: 20
@@ -656,6 +788,8 @@ parts:
       screw use the countersunk hole (head on the flange side, under the
       clip).
     anchors: [bot]
+    labels:
+      screw: Screw hole
     defaults:
       screw: false
     variants:
@@ -683,6 +817,8 @@ parts:
       the floor's arch then needs no bridge.
     anchors: [bot]
     mount_offset: [1.42, 0]
+    labels:
+      plate: Plate thickness (mm)
     defaults:
       plate: 1
     variants:
@@ -712,6 +848,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 4
       rows: 3
@@ -743,6 +881,9 @@ parts:
       holder onto. base hex covers the cell, a millimetre short of its
       neighbours; rect is a bar across it.
     anchors: [bot]
+    labels:
+      base: Base shape
+      base_h: Base height (mm)
     defaults:
       base: hex
       base_h: 3
@@ -751,6 +892,98 @@ parts:
     variants:
       - name: rect
         params: { base: rect }
+
+  # GOEWS (MrExo3D, CC-BY 4.0 — see README "Licensing"): rebuilt from the
+  # designer's STLs, not imported (lib/goews.scad). references.yaml checks
+  # each part against those files, which Printables hands out without a
+  # login but nothing here fetches: download them and drop them in
+  # refs/manual/goews/ for those checks to run.
+  - id: goews/tile
+    system: GOEWS
+    name: Tile
+    file: parts/goews/tile.scad
+    module: goews_tile
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D, Printables model 1090032 — rebuilt from the
+      designer's single hex tile and 3x3 GOEWS GRID tile STLs, measured,
+      and checked against them. CC-BY 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system
+    keywords: [wall, hex, goews grid, gridfinity, cleat]
+    print_note: >-
+      Print it back down (turned over from how it renders), no supports.
+      hex is the designer's hex tile, 42mm across each cell's flats, every
+      other row half a cell over; grid is GOEWS GRID, 42 x 36.373mm cells.
+      Every cell has a window a hanger plate hangs in, an M14 x 2 thread
+      above it for the bolt that locks the plate, and a countersunk hole
+      for a 4mm wall screw below it (two on grid). "mount" is the back,
+      against the wall.
+    anchors: [bot]
+    # parts/goews/tile.scad asserts both at least 1.
+    minimums:
+      cols: 1
+      rows: 1
+    labels:
+      cols: Columns
+    defaults:
+      style: hex
+      cols: 2
+      rows: 2
+    options:
+      style: [hex, grid]
+    # A cell per 42mm across and a row per 42 x sqrt(3) / 2 up. A hex
+    # tile's second row is half a cell over and adds 21mm to X, so the
+    # handle keeps two rows (on either style, one entry per axis): below
+    # that, Y would move X. The threads are most of the work: a hex 4 x 4
+    # renders in 6.9s in openscad-wasm, 6 x 6 in 12.8s (4.2s natively).
+    resize:
+      x: { param: cols, per: 42, step: 1, max: 4 }
+      y: { param: rows, per: 36.3731, step: 1, min: 2, max: 4 }
+    variants:
+      - name: grid
+        params: { style: grid }
+      - name: hex-3x3
+        params: { cols: 3, rows: 3 }
+
+  - id: goews/hanger
+    system: GOEWS
+    name: Hanger plate
+    file: parts/goews/hanger.scad
+    module: goews_hanger
+    confidence: exact
+    license: CC-BY-4.0
+    source: >-
+      GOEWS by MrExo3D, Printables model 1090032 — rebuilt from the
+      designer's 2x and 3x hanging plate blank STLs, measured, and checked
+      against them and in the tile. CC-BY 4.0 — see README "Licensing".
+    source_url: https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system
+    keywords: [hanging plate, hook, cleat, wall]
+    print_note: >-
+      The plate every GOEWS accessory hangs by, for fusing onto any part so
+      it hangs on a GOEWS tile; "mount" is the plate's front, the hangers'
+      flat bottom edge down. units puts that many hangers side by side, one
+      per cell of a row; plate is the plate's thickness (3). Push a hanger
+      into the top of a cell's window and drop it onto the cleats; a GOEWS
+      bolt through the notch above it locks it there. Print it on its side,
+      a long edge on the bed, so the layers run along the hangers.
+    attached_up: [0, 1]
+    # parts/goews/hanger.scad asserts both.
+    minimums:
+      units: 1
+      plate: 1
+    labels:
+      units: Hangers
+      plate: Plate thickness (mm)
+    defaults:
+      units: 1
+      plate: 3
+    # A hanger per 42mm. 6 units render in 0.4s in openscad-wasm.
+    resize:
+      x: { param: units, per: 42, step: 1, max: 6 }
+    variants:
+      - name: three-units
+        params: { units: 3 }
 
   - id: skadis/board
     system: Skådis
@@ -778,6 +1011,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 2
       rows: 4
@@ -809,6 +1044,8 @@ parts:
       apart, for two slots in a row, so the part cannot turn. The plate's
       front is "mount", for fusing a holder or shelf onto.
     anchors: [bot]
+    labels:
+      plate: Plate thickness (mm)
     defaults:
       pegs: 1
       plate: 2
@@ -838,8 +1075,8 @@ parts:
     source_url: https://makerworld.com/en/models/2811701-mod-grid
     print_note: >-
       Flat on the bed, no supports. 5mm square holes on an 8mm default pitch
-      through a 3mm plate, cols across and rows up. Settings can tune the
-      pitch for a nonstandard grid; the hole size remains 5mm. By default,
+      through a 3mm plate, cols across and rows up. For a nonstandard grid,
+      change the hole spacing in Settings → Grid sizes; the holes stay 5mm. By default,
       the panel is cols x 8 + 3 by rows x 8 + 3mm, so 12 x 4 is 99 x 35.
       Accessories plug into two neighbouring holes of a row. "mount" is
       the back, for fusing the grid onto a case or a lid.
@@ -848,6 +1085,8 @@ parts:
     minimums:
       cols: 1
       rows: 1
+    labels:
+      cols: Columns
     defaults:
       cols: 12
       rows: 4
@@ -899,6 +1138,10 @@ parts:
     maximums:
       depth: 5
       screw_diameter: 2.6
+    labels:
+      depth: Peg depth (mm)
+      plate: Plate thickness (mm)
+      screw_diameter: Screw diameter (mm)
     defaults:
       pegs: 2
       rows: 1
@@ -956,6 +1199,8 @@ parts:
     # parts/modgrid/bit_holder.scad asserts it.
     minimums:
       rows: 1
+    labels:
+      bit: Bit size
     defaults:
       bit: "4mm"
       rows: 1
@@ -993,6 +1238,7 @@ parts:
       the next both ways. The holes are open at the top:
       press the magnets in before anything covers them (fused onto a part,
       pause the print at 3mm).
+    holes_guides: { inset: 0, radius: 10.2 }
     slots:
       pitch: 30.5  # SOLDR_PITCH — one slot per unit
       count_params: [gx, gy]
@@ -1003,6 +1249,9 @@ parts:
       gy: 1
     # 2 x 1 by default: test_slots.py walks from one slot to its X
     # neighbour, and a 1 x 1 base has one slot.
+    labels:
+      gx: Width (units)
+      gy: Depth (units)
     defaults:
       gx: 2
       gy: 1
@@ -1048,6 +1297,10 @@ parts:
       cols: 1
       webbing: 1
       plate: 1.5
+    labels:
+      cols: Columns
+      webbing: Webbing gap (mm)
+      plate: Plate thickness (mm)
     defaults:
       rows: 2
       cols: 1
@@ -1088,6 +1341,9 @@ parts:
       cols: 1
       rows: 1
       channel: 0
+    labels:
+      cols: Columns
+      channel: Strap channel depth (mm)
     defaults:
       cols: 3
       rows: 4
@@ -1129,6 +1385,14 @@ parts:
       rows: 1
       open_r: 0
       thickness: 1
+    labels:
+      cols: Columns
+      open_w: Opening width (mm)
+      open_h: Opening height (mm)
+      open_r: Opening corner radius (mm)
+      pitch_x: Cell width (mm)
+      pitch_y: Cell height (mm)
+      thickness: Thickness (mm)
     defaults:
       cols: 4
       rows: 3
@@ -1175,6 +1439,14 @@ parts:
       margin: 1
       base: 1
       hole: 0
+    labels:
+      boss_w: Boss width (mm)
+      boss_h: Boss height (mm)
+      boss_r: Boss corner radius (mm)
+      panel_t: Panel thickness (mm)
+      margin: Base margin (mm)
+      base: Base thickness (mm)
+      hole: Centre hole diameter (mm)
     defaults:
       boss_w: 38
       boss_h: 25.3
@@ -1212,6 +1484,10 @@ parts:
     # parts/camera/arca_plate.scad asserts length >= 20.
     minimums:
       length: 20
+    labels:
+      length: Length (mm)
+      thickness: Thickness (mm)
+      screw: Screw hole
     defaults:
       length: 50
       thickness: 10
@@ -1241,7 +1517,13 @@ parts:
       thread prints the thread, opened up by FIT_CLEARANCE; nut is a pocket
       for a real hex nut, pressed in from the mouth, for weight a printed
       thread will not hold.
+    holes_guides: { round: true }
     anchors: [bot]
+    labels:
+      size: Thread size
+      diameter: Diameter (mm)
+      depth: Thread depth (mm)
+      top: Top thickness (mm)
     defaults:
       size: "1/4"
       style: thread
@@ -1276,6 +1558,7 @@ parts:
       pocket is FIT_CLEARANCE bigger) and diameter to leave a rim round it.
       hole opens the middle right through, for a donut. Print it pocket up
       (flip it in the slicer); a plain plate prints either way up.
+    holes_guides: { round: true }
     anchors: [bot]
     # parts/magsafe/mount.scad asserts these; the pocket's floor and rim
     # also depend on the insert, which only the module can check.
@@ -1283,6 +1566,13 @@ parts:
       thickness: 1
       recess_depth: 0.2
       hole: 0
+    labels:
+      diameter: Diameter (mm)
+      thickness: Thickness (mm)
+      recess_depth: Recess depth (mm)
+      insert_od: Insert outside diameter (mm)
+      insert_id: Insert inside diameter (mm)
+      hole: Centre hole diameter (mm)
     defaults:
       diameter: 60
       thickness: 4
@@ -1324,6 +1614,8 @@ parts:
       Print flat, no supports. 4.8mm holes on an 8mm pitch through top and
       bottom, and through the sides with side_holes on. LEGO
       Technic-compatible.
+    labels:
+      len: Length (holes)
     defaults:
       len: 5
       side_holes: true
@@ -1348,6 +1640,9 @@ parts:
       solid mounting end. Broad slits are easier to print than fine ridges.
       Length is in 8mm BitBeam units; 0.5 is a trial half-unit and the
       available lengths extend to 16 units. Print in PET or PETG for flex.
+    labels:
+      length: Length (8 mm units)
+      friction: Friction fit
     defaults:
       length: 1
       friction: true
@@ -1453,6 +1748,10 @@ parts:
         - { name: ypos, enabled_param: side_holes, count_param: grid_x }
         - { name: yneg, enabled_param: side_holes, count_param: grid_x }
     anchors: [bot, xpos, xneg, ypos, yneg]
+    labels:
+      grid_x: Width (cells)
+      grid_y: Depth (cells)
+      height: Thickness (units)
     defaults:
       grid_x: 3
       grid_y: 3
@@ -1480,6 +1779,11 @@ parts:
       with 4mm corners by default — one Gridfinity unit, so it lines up
       with a Gridfinity base or baseplate.
     anchors: [bot, xpos, xneg, ypos, yneg]
+    labels:
+      w: Width (mm)
+      d: Depth (mm)
+      t: Thickness (mm)
+      r: Corner radius (mm)
     defaults:
       w: 42
       d: 42
@@ -1503,7 +1807,11 @@ parts:
     confidence: exact
     source: Generic geometry, not tied to an external spec
     print_note: Stands on its flat end ("bot"), no supports.
+    holes_guides: { round: true }
     anchors: [bot]
+    labels:
+      dia: Diameter (mm)
+      h: Height (mm)
     defaults:
       dia: 10
       h: 20
@@ -1527,6 +1835,8 @@ parts:
     print_note: >-
       Tip down, no supports. A generic dovetail, not DeckMate-compatible —
       import Mechanism's own model for that.
+    labels:
+      rail_len: Length (mm)
     defaults:
       rail_len: 36
       end_stop: false
@@ -1545,6 +1855,10 @@ parts:
     confidence: exact
     source: Generic geometry, not tied to an external spec
     print_note: Mouth down, no supports. Mates with the dovetail rail.
+    labels:
+      rail_len: Length (mm)
+      wall: Wall thickness (mm)
+      clearance: Clearance (mm)
     defaults:
       rail_len: 36
       wall: 2.4
@@ -1564,6 +1878,10 @@ parts:
       Check EX_* in lib/constants.scad against your rail. tab_len up to
       6mm drops into the slot face-first and twists to lock; a longer head
       feeds in from an open end.
+    labels:
+      tab_len: Head length (mm)
+      head_t: Head thickness (mm)
+      shaft_len: Shaft length (mm)
     defaults:
       tab_len: 6
       head_t: 2.0
@@ -1583,6 +1901,9 @@ parts:
     print_note: >-
       Check EX_* in lib/constants.scad against your rail. Pushes straight
       into the slot mid-rail. Print in PETG or nylon so the legs can flex.
+    labels:
+      leg_len: Leg length (mm)
+      post_h: Post height (mm)
     defaults:
       leg_len: 7
       post_h: 8
@@ -1598,6 +1919,9 @@ parts:
     print_note: >-
       Check EX_* in lib/constants.scad against your rail. Keys print
       face-down; the plate corners overhang them, so add a brim.
+    labels:
+      plate_t: Plate thickness (mm)
+      boss_h: Boss height (mm)
     defaults:
       plate_t: 3
       boss_h: 2
@@ -1648,6 +1972,8 @@ parts:
     slots:
       pitch: 20  # EX_PROFILE — one profile width along the top slot; a free subdivision
     anchors: [bot, xpos, xneg]
+    labels:
+      len: Length (mm)
     defaults:
       len: 100
       slot: "t"
@@ -1665,3 +1991,343 @@ parts:
         params: { len: 40 }
       - name: vertical-60
         params: { orientation: vertical, len: 60 }
+
+  # Underware (Hands on Katie and BlackjackDuck): under-desk cable
+  # channels. First the openGrid style, David D's one-piece channels that
+  # grip straight into an openGrid board, from Pedro Leite's Monokini
+  # through lib/underware_opengrid.scad; they come first because they are
+  # the ones to reach for on an openGrid board. Then the original two-
+  # piece system, a base that mounts to the surface and a top that snaps
+  # onto it. One part per printable body, as upstream exports them. The
+  # original's cross-sections are upstream's own; lib/underware.scad
+  # sweeps them and cuts the mounting holes (its header says why not
+  # upstream's modules). references.yaml holds each body to upstream's
+  # own script, and the openGrid channels to David D's files too.
+  - id: underware/opengrid_i_channel
+    system: Underware
+    name: openGrid straight channel
+    file: parts/underware/opengrid_i_channel.scad
+    module: uw_og_i_channel
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Underware for openGrid (David D, after Underware by Hands on Katie
+      and BlackjackDuck), from Pedro Leite's Monokini, vendored — called
+      by lib/underware_opengrid.scad. CC-BY-NC-SA — see README
+      "Licensing".
+    source_url: https://github.com/pleite/Monokini
+    keywords:
+      [cable management, cable channel, under desk, raceway, openGrid, Monokini, David D, Hands on Katie]
+    print_note: >-
+      Roof down on the bed (flip it in the slicer), no supports. One piece:
+      no base, the walls end in grips that snap straight into an openGrid
+      board's cells. length_units x 28mm long and
+      width_units cells wide, each wall 0.8mm in from the grid line so
+      channels side by side clear each other; two grips per 28mm square,
+      one on each outside wall. height is the whole channel, the 3.4mm
+      grips included: 22 as standard, upstream offers steps of 6 from 10
+      to 70. The roof carries a slot per 28mm square, for a hook or clip
+      along the channel.
+    slots:
+      pitch: 28  # UWOG_GRID — one slot per grid square, over the grips' cells
+      count_params: [width_units, length_units]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
+      height: Height (mm)
+    defaults:
+      length_units: 4
+      width_units: 1
+      height: 22
+    minimums:
+      length_units: 1
+      width_units: 1
+      height: 10
+    # A channel renders in about 0.7s in the browser at any size, 12 x 3
+    # and 70mm tall too (the grips are extrusions, not threads); 12 units
+    # is 336mm, near a large print bed.
+    resize:
+      x: { param: width_units, per: 28, step: 1, max: 3 }
+      y: { param: length_units, per: 28, step: 1, max: 12 }
+      z: { param: height, step: 1, max: 70 }
+    variants:
+      - name: single
+        params: { length_units: 1 }
+      - name: tall-34
+        params: { height: 34 }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/opengrid_l_channel
+    system: Underware
+    name: openGrid L channel
+    file: parts/underware/opengrid_l_channel.scad
+    module: uw_og_l_channel
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      Underware for openGrid (David D, after Underware by Hands on Katie
+      and BlackjackDuck), from Pedro Leite's Monokini, vendored — its
+      channel and corner, assembled by lib/underware_opengrid.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/pleite/Monokini
+    keywords: [cable management, cable channel, under desk, corner, openGrid, Monokini, David D, Hands on Katie]
+    print_note: >-
+      Roof down on the bed (flip it in the slicer), no supports. A 90°
+      corner that grips into an openGrid board like the straight channel:
+      a rounded corner square with legs x_units and y_units x 28mm long
+      beyond it, width_units cells wide, grips on the outside walls of the
+      legs; height as for the straight channel. "mount" sits over the
+      corner square, not the empty inside of the L.
+    # The corner square's centre, off the bounding box's: half a leg, plus
+    # 0.3975mm on X and 0.4075mm on Y (the walls' 0.8mm separation and
+    # upstream's Nudge at the legs' ends, lib/underware_opengrid.scad).
+    mount_offset:
+      x: { param: x_units, offset: 0.02839, scale: -14 }
+      y: { param: y_units, offset: 0.02911, scale: -14 }
+    labels:
+      width_units: Width (units)
+      height: Height (mm)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 22
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 10
+    # About 0.7s in the browser at any size, 6 x 6 two units wide and 70mm
+    # tall too; 6 units is a 196mm leg beyond the corner square.
+    resize:
+      x: { param: x_units, per: 28, step: 1, max: 6 }
+      y: { param: y_units, per: 28, step: 1, max: 6 }
+      z: { param: height, step: 1, max: 70 }
+    variants:
+      - name: long-2x3
+        params: { x_units: 2, y_units: 3 }
+      - name: wide-2
+        params: { width_units: 2, height: 16 }
+
+  - id: underware/i_channel_base
+    system: Underware
+    name: Straight channel base
+    file: parts/underware/i_channel_base.scad
+    module: uw_i_channel_base
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile, swept by lib/underware.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, raceway, Multiboard, Hands on Katie]
+    print_note: >-
+      Flat on the bed, no supports. The half that mounts under the desk:
+      a straight channel length_units x 25mm long and width_units x 25mm
+      wide, with one mounting hole per 25mm square. mounting Threaded Snap
+      Connector is threaded for Underware's snap connector, a Multiboard
+      snap that screws in (upstream's Underware_Connectors.scad, under
+      Multiboard's licence, so not in this catalogue); the direct screw
+      options seat a Multiboard or Multipoint screw head in the floor;
+      Magnet pockets a 4 x 1.5mm magnet from underneath; Wood Screw
+      countersinks a 3.5mm screw; Flat has no holes, for tape. The top
+      snaps on. "bot" is the underside.
+    anchors: [bot]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
+    defaults:
+      length_units: 4
+      width_units: 1
+      mounting: Threaded Snap Connector
+    options:
+      # Spelling and capitalisation are upstream's customizer's.
+      mounting:
+        - Threaded Snap Connector
+        - Direct Multiboard Screw
+        - Direct Multipoint Screw
+        - Magnet
+        - Wood Screw
+        - Flat
+    minimums:
+      length_units: 1
+      width_units: 1
+    # Render time follows the hole count, the threaded snap holes being
+    # the slow kind: about 0.45s each in the browser on top of 1.3s
+    # (8 x 1: 4.4s; 6 x 2: 8.1s; 12 x 3: 21s), a tenth of that natively.
+    resize:
+      x: { param: width_units, per: 25, step: 1, max: 2 }
+      y: { param: length_units, per: 25, step: 1, max: 8 }
+    variants:
+      - name: multiboard-screw
+        params: { mounting: Direct Multiboard Screw }
+      - name: multipoint-screw
+        params: { mounting: Direct Multipoint Screw }
+      - name: magnet
+        params: { mounting: Magnet }
+      - name: wood-screw
+        params: { mounting: Wood Screw }
+      - name: flat
+        params: { mounting: Flat }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/i_channel_top
+    system: Underware
+    name: Straight channel top
+    file: parts/underware/i_channel_top.scad
+    module: uw_i_channel_top
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile, swept by lib/underware.scad.
+      CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, raceway, cover, Hands on Katie]
+    print_note: >-
+      Modelled as fitted, roof up; print it roof down (flip it in the
+      slicer), no supports. Snaps onto a straight channel base of the same
+      length_units and width_units. height is the room inside the channel,
+      in mm: 12 as standard, upstream offers steps of 6 up to 72. A top
+      wider than one unit or taller than 18mm is drawn 1% narrower, as
+      upstream's is, so it grips harder. The roof carries a slot per 25mm
+      square, for a hook or clip along the channel.
+    slots:
+      pitch: 25  # UW_GRID — one slot per grid square, over the base's mounting holes
+      count_params: [width_units, length_units]
+    labels:
+      length_units: Length (units)
+      width_units: Width (units)
+      height: Inside height (mm)
+    defaults:
+      length_units: 4
+      width_units: 1
+      height: 12
+    minimums:
+      length_units: 1
+      width_units: 1
+      height: 12
+    # Only the length: width and height change the 1% flex compensation
+    # (past one unit wide or 18mm tall), so their slope is not constant.
+    # A top has no holes and renders in about 1.4s in the browser at any
+    # size; 12 units is 300mm, near a large print bed.
+    resize:
+      y: { param: length_units, per: 25, step: 1, max: 12 }
+    variants:
+      - name: tall-24
+        params: { height: 24 }
+      - name: wide-2x3
+        params: { width_units: 2, length_units: 3 }
+
+  - id: underware/l_channel_base
+    system: Underware
+    name: L channel base
+    file: parts/underware/l_channel_base.scad
+    module: uw_l_channel_base
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile and L path, swept by
+      lib/underware.scad. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, corner, Multiboard, Hands on Katie]
+    print_note: >-
+      Flat on the bed, no supports. A 90° corner: a corner square with
+      legs x_units and y_units x 25mm long beyond it, width_units x 25mm
+      wide, one mounting hole per 25mm square along the channel; mounting
+      as for the straight base. "mount" and "bot" sit over the corner
+      square, not the empty inside of the L. The L top snaps on.
+    anchors: [bot]
+    mount_offset:
+      x: { param: x_units, scale: 12.5 }
+      y: { param: y_units, scale: -12.5 }
+    labels:
+      width_units: Width (units)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      mounting: Threaded Snap Connector
+    options:
+      mounting:
+        - Threaded Snap Connector
+        - Direct Multiboard Screw
+        - Direct Multipoint Screw
+        - Magnet
+        - Wood Screw
+        - Flat
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+    # As for the straight base, render time follows the hole count:
+    # 4 x 4 (nine holes) takes 5.6s in the browser, 3 x 3 two units wide
+    # (sixteen) 7.7s, 8 x 8 (seventeen) 14s.
+    resize:
+      x: { param: x_units, per: 25, step: 1, max: 4 }
+      y: { param: y_units, per: 25, step: 1, max: 4 }
+    variants:
+      - name: multiboard-screw
+        params: { mounting: Direct Multiboard Screw }
+      - name: long-2x3
+        params: { x_units: 2, y_units: 3 }
+      - name: wide-2
+        params: { width_units: 2, mounting: Wood Screw }
+
+  - id: underware/l_channel_top
+    system: Underware
+    name: L channel top
+    file: parts/underware/l_channel_top.scad
+    module: uw_l_channel_top
+    confidence: exact
+    license: CC-BY-NC-SA-4.0
+    source: >-
+      QuackWorks Underware (Underware by Hands on Katie and BlackjackDuck),
+      vendored — upstream's channel profile and L path, swept by
+      lib/underware.scad. CC-BY-NC-SA — see README "Licensing".
+    source_url: https://github.com/AndyLevesque/QuackWorks/tree/main/Underware
+    keywords: [cable management, cable channel, under desk, corner, cover, Hands on Katie]
+    print_note: >-
+      Modelled as fitted, roof up; print it roof down (flip it in the
+      slicer), no supports. Snaps onto an L channel base of the same
+      x_units, y_units and width_units; height as for the straight top
+      (upstream's L top has no 1% flex compensation). "mount" sits over
+      the corner square.
+    mount_offset:
+      x: { param: x_units, scale: 12.5 }
+      y: { param: y_units, scale: -12.5 }
+    labels:
+      width_units: Width (units)
+      height: Inside height (mm)
+      x_units: X leg length (units)
+      y_units: Y leg length (units)
+    defaults:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 12
+    minimums:
+      x_units: 1
+      y_units: 1
+      width_units: 1
+      height: 12
+    # About 1.4s in the browser at any size, 8 x 8 and 72mm tall too.
+    # The 1% flex compensation that keeps the straight top's width and
+    # height off its handles is not applied to an L.
+    resize:
+      x: { param: x_units, per: 25, step: 1, max: 8 }
+      y: { param: y_units, per: 25, step: 1, max: 8 }
+      z: { param: height, step: 6, max: 72 }
+    variants:
+      - name: tall-18
+        params: { height: 18 }
+      - name: long-3x2
+        params: { x_units: 3, y_units: 2 }

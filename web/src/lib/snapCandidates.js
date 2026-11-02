@@ -79,8 +79,10 @@ function cacheFor(geometry) {
 // circle, { kind: "circle", radius, points: [[x,y,z], ...] } (a closed
 // polyline, in order). A line that leaves and re-enters an L-shaped
 // face is several pieces.
-// `options.inset` is the corner inset in mm, `options.radius` the
-// center circle's; candidates and guides are redone when either
+// `options.inset` is the corner inset in mm — or a function of the face's
+// extent ([w, h]) giving it, for a part whose inset depends on which face
+// (guideDefaults.js: a Gridfinity bin's top and its feet) — `options.radius`
+// the center circle's; candidates and guides are redone when either
 // changes — as a fresh record replacing the cached one, so a caller
 // comparing records by identity (a React memo) sees the change.
 // null for a triangle index this geometry doesn't have — a face kept
@@ -89,7 +91,6 @@ function cacheFor(geometry) {
 export function analyzeFace(geometry, faceIndex, options = {}) {
   const triangles = (geometry.index ? geometry.index.count : geometry.getAttribute("position").count) / 3;
   if (!Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex >= triangles) return null;
-  const inset = options.inset ?? DEFAULT_CORNER_INSET_MM;
   const radius = options.radius ?? DEFAULT_CENTER_RADIUS_MM;
   const cache = cacheFor(geometry);
   const key = cache.faceOf.get(faceIndex);
@@ -100,6 +101,8 @@ export function analyzeFace(geometry, faceIndex, options = {}) {
     for (const t of face.triangles) cache.faceOf.set(t, face.key);
     cache.faces.set(face.key, face);
   }
+  const option = options.inset ?? DEFAULT_CORNER_INSET_MM;
+  const inset = typeof option === "function" ? option(face.extent) : option;
   if (face.inset !== inset || face.radius !== radius) {
     face = { ...face, inset, radius };
     const corners = cornerInsets(face, inset);
@@ -624,6 +627,54 @@ export function nearestGuide(face, point, maxDistance, grid = FREE_GRID_MM) {
     consider(guide, d, [a[0] + dir[0] * snapped, a[1] + dir[1] * snapped], label);
   }
   return best;
+}
+
+// How much further than the other snap points the face center reaches
+// while a hole is dragged: a hole being moved is most often being
+// centred, and the center should catch it from well off rather than
+// need the pointer right over it. At most a fifth of the face's narrower
+// side, though: the reach has a floor (1.5 mm, Holes.jsx's snapRadius),
+// and three times that would cover most of a 10 mm face, leaving a hole
+// nowhere off-centre to go.
+export const DRAG_CENTER_PULL = 3;
+const DRAG_CENTER_MAX_FRACTION = 0.2;
+
+// Where a hole dragged to `point` on `face` snaps, and what it snapped
+// to: the face center within DRAG_CENTER_PULL × `reach` (capped as above,
+// but never less than `reach`), else the nearest
+// of the face's other snap points within `reach`, else the nearest guide
+// line (the point slid onto it, rounded to `grid` along it) — or null,
+// for the drag's own grid to take over. Returns { point, label, id } —
+// `id` the candidate's (null for a point on a line), so the marker can
+// light up.
+//
+// Holes on the face are not snapped to: a hole dropped on another's
+// centre would cut into it, and the dragged hole's own bore is one of
+// them. The center is the face's own, not its candidate, which a hole
+// sitting on it (the dragged one, most likely) has taken the place of.
+export function snapDrag(face, point, reach, grid = FREE_GRID_MM) {
+  if (!face || !(reach > 0)) return null;
+  const pull = Math.max(
+    reach,
+    Math.min(reach * DRAG_CENTER_PULL, DRAG_CENTER_MAX_FRACTION * Math.min(...face.extent)),
+  );
+  if (distance(face.center, point) < pull) {
+    const own = face.candidates.find((/** @type {any} */ c) => c.kind === "center");
+    return { point: face.center, label: "face center", id: own?.id ?? null };
+  }
+  let best = null;
+  let bestDistance = reach;
+  for (const candidate of face.candidates) {
+    if (candidate.kind === "hole" || candidate.kind === "center") continue;
+    const d = distance(candidate.point, point);
+    if (d < bestDistance) {
+      best = candidate;
+      bestDistance = d;
+    }
+  }
+  if (best) return { point: best.point, label: best.label, id: best.id };
+  const line = nearestGuide(face, point, reach, grid);
+  return line ? { point: line.point, label: line.label, id: null } : null;
 }
 
 // How far `point` (on the face) is from the outline in each direction of
