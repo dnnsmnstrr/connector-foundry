@@ -125,6 +125,9 @@ new one. While you are typing in a field, Cmd/Ctrl+Z undoes the typing.
 
 **STL, STEP and 3MF import** bring in any part — a Mechanism or Printables download, a supplier's
 CAD file, a slicer project's model — as a Bench part: click a flat face to put a slot at its centre.
+Hover a flat face to see its guides and snap points before placing a slot. The first slot can land at any
+guided position; later clicks add more on that face. Snap, inset and radius can be adjusted beside the
+viewer. Turn on Measure, or hold Option, to see distances from the pointer to the face edges and centre.
 A STEP file is converted to a mesh in the browser (OpenCASCADE compiled to WebAssembly, in
 millimetres whatever unit the file declares); a 3MF is unpacked and scaled by its declared unit;
 one that holds several bodies asks which to use. Meshes are validated and repaired on

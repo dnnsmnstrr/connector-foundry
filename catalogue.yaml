@@ -604,6 +604,33 @@ parts:
       head: 2
       clearance: 0.25
 
+  - id: multiboard/octagon-peg
+    system: Multiboard
+    name: Peg
+    file: parts/multiboard/octagon_peg.scad
+    module: multiboard_octagon_peg
+    confidence: parametric
+    source: >-
+      A plain extruded octagon based on the supplied 25 mm push-fit peg
+      example. The across-flats size is adjustable for a tile's fit.
+    source_url: https://www.multiboard.io/generator/
+    print_note: >-
+      Print the peg upright. This is a plain octagonal push fit; adjust
+      clearance to suit the printer and tile. Fuse the supported part to
+      the top face, or cut an octagonal socket with the Holes tab preset.
+    minimums:
+      length: 0.1
+      across_flats: 0.1
+      clearance: 0
+    labels:
+      length: Length (mm)
+      across_flats: Across flats (mm)
+      clearance: Clearance (mm)
+    defaults:
+      length: 25
+      across_flats: 14.5
+      clearance: 0.25
+
   - id: gopro/male
     system: GoPro
     name: Two-prong male buckle

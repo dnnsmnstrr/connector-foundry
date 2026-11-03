@@ -170,6 +170,7 @@ export const HOLE_KINDS = [
   "thread",
   "cylinder",
   "rectangle",
+  "octagon",
   "extrusion",
   "pinhole",
   "klippt",
@@ -350,7 +351,7 @@ export function isConnector(spec) {
 export function hasDirection(spec) {
   return (
     isConnector(spec) ||
-    ["rectangle", "extrusion", "klippt", "deckmate"].includes(spec?.kind) ||
+    ["rectangle", "octagon", "extrusion", "klippt", "deckmate"].includes(spec?.kind) ||
     isMagSafePuck(spec)
   );
 }
@@ -482,6 +483,15 @@ export function normalizeSpec(spec) {
       cornerRadius: n(spec?.cornerRadius, 0),
       depth: n(spec?.depth, 0),
       chamfer: n(spec?.chamfer, 0),
+      spin: normalizeSpin(spec?.spin),
+    };
+  }
+  if (kind === "octagon") {
+    return {
+      kind,
+      acrossFlats: Math.max(0.1, n(spec?.acrossFlats, 14.5)),
+      clearance: n(spec?.clearance, 0.25),
+      depth: n(spec?.depth, 25),
       spin: normalizeSpin(spec?.spin),
     };
   }
@@ -1013,6 +1023,7 @@ export function holeFootprintRadius(spec) {
   if (spec.kind === "multiconnect") return MULTICONNECT_FOOTPRINT.radius + spec.clearance;
   if (spec.kind === "thread") return (threadOf(spec).diameter + spec.clearance) / 2;
   if (spec.kind === "cylinder") return spec.diameter / 2;
+  if (spec.kind === "octagon") return (spec.acrossFlats + spec.clearance) / (2 * Math.cos(Math.PI / 8));
   // A rectangle and a 2020 socket draw their own outline (slotOutline());
   // their ring — and the "a click here picks this hole" area — is the
   // circle inside it, so a hole can still be drilled close beside a big
@@ -1170,6 +1181,7 @@ export function holeLabel(hole, presetName = null) {
   }
   const depth = s.depth > 0 ? `${fmt(s.depth)} deep` : "through";
   if (s.kind === "cylinder") return `Round Ø${fmt(s.diameter)} ${depth}`;
+  if (s.kind === "octagon") return `Octagonal socket ${fmt(s.acrossFlats)} mm across flats, ${depth}`;
   if (s.kind === "pinhole") return `BitBeam pin hole ${depth}`;
   if (s.kind === "klippt")
     return `KLIPPT channel, ${s.pocket ? "drop-in pocket" : `${fmt(s.runout)} mm run-out`}${s.spin ? `, ${fmt(s.spin)}°` : ""}`;
@@ -1225,7 +1237,7 @@ export function formatPoint(point) {
 // screw hole goes, which way a slot points (a thread, a rectangle: both).
 export function holeMeta(hole) {
   const s = hole.spec;
-  if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "extrusion")
+  if (s.kind === "thread" || s.kind === "rectangle" || s.kind === "octagon" || s.kind === "extrusion")
     return `${s.depth > 0 ? `${fmt(s.depth)} mm deep` : "through"}, turned ${fmt(s.spin)}°`;
   if (isSlot(s) || s.kind === "klippt" || s.kind === "deckmate") return `turned ${fmt(s.spin)}°`;
   if (isMagSafePuck(s)) return `${fmt(s.depth)} mm deep, turned ${fmt(s.spin)}°`;
@@ -1331,6 +1343,11 @@ export function cutterLines(hole, throughLength, extents = null) {
       );
     // A teardrop's point is the frame's +Y: the face's up (slotFrame()).
     m = teardrop ? uprightFrameMatrix(hole) : frameMatrix(hole.point, hole.normal);
+  } else if (s.kind === "octagon") {
+    const depth = s.depth > 0 ? s.depth : throughLength;
+    const d = (s.acrossFlats + s.clearance) / Math.cos(Math.PI / 8);
+    body.push(...prism(`rotate(-22.5) circle(d = ${fmt(d)}, $fn = 8);`, depth, 0));
+    m = slotFrameMatrix(hole);
   } else if (s.kind === "rectangle") {
     // Extruded from its outline: sharp corners a square, rounded ones the
     // hull of a circle in each corner — which a pill's radius (half the
@@ -1542,6 +1559,14 @@ export function slotOutline(hole) {
         [a, b],
         [-a, b],
       ]);
+    return segments;
+  }
+  if (s.kind === "octagon") {
+    const r = (s.acrossFlats / 2) / Math.cos(Math.PI / 8);
+    loop(Array.from({ length: 8 }, (_, i) => {
+      const a = (i * Math.PI) / 4 - Math.PI / 8;
+      return [r * Math.cos(a), r * Math.sin(a)];
+    }));
     return segments;
   }
   if (s.kind === "klippt") {

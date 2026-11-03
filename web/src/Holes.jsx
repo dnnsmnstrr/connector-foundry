@@ -1900,6 +1900,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
             <StlViewer
               geometry={geometries.display}
               fitKey={fitKey}
+              preserveCameraOnUpdate
               markers={markers}
               guides={viewerGuides}
               labels={measurements.labels}

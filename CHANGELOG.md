@@ -7,8 +7,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+### Parts and Holes
+
+- Added a Multiboard **Peg** and a matching adjustable octagonal socket preset in Holes.
+
 ### App
 
+- **Holes keeps the view while editing.** Moving a hole no longer changes the camera position to fit the updated mesh.
+- **Precise slot placement on imported models.** Face guides and snap points appear before the first slot; add multiple slots on a face, and use Measure or hold Option to see distances to its edges and center.
 - **Parameters, slots and joints in plain words.** A part's fields say what they set and in what
   unit (**Width (cells)** rather than `gx`, **Corner radius (mm)** rather than `r`); the parameter's
   own name shows when the pointer rests on its label, and is still what the CLI, bench files and

@@ -105,7 +105,11 @@ export function resizableHole(spec) {
  * @returns {{ ex: Vec3, ey: Vec3, n: Vec3 }}
  */
 export function holeFrame(hole) {
-  return slotFrame(hole.point, hole.normal, hole.spec.kind === "rectangle" ? hole.spec.spin : 0);
+  return slotFrame(
+    hole.point,
+    hole.normal,
+    hole.spec.kind === "rectangle" || hole.spec.kind === "octagon" ? hole.spec.spin : 0,
+  );
 }
 
 // A cutout's [width, height]: a round one's diameter both ways.

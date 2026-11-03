@@ -268,6 +268,8 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
 //   only if it no longer fits; a new key, or the first model, gets the
 //   Home framing. Without a fitKey the camera re-fits whenever the
 //   model's size or place moves by more than 2%, as it always did.
+// - preserveCameraOnUpdate: with the same fitKey, keep the exact camera
+//   position and target across mesh updates, even if their bounds change.
 // - Handles that grow (new `handles` sharing an id with the last ones,
 //   reaching past them: a resize's predicted box, before its render
 //   lands) back the camera out, never in, just far enough that each
@@ -364,6 +366,7 @@ const MODIFIER_KEYS = new Set(["Shift", "Alt", "Control", "Meta"]);
  * @param {boolean} [props.gridControl]
  * @param {Box | null} [props.fitBox]
  * @param {string} [props.fitKey]
+ * @param {boolean} [props.preserveCameraOnUpdate]
  */
 export default function StlViewer({
   stlBuffer,
@@ -396,6 +399,7 @@ export default function StlViewer({
   gridControl = false,
   fitBox,
   fitKey,
+  preserveCameraOnUpdate = false,
 }) {
   const rootRef = useRef(null);
   const mountRef = useRef(null);
@@ -460,6 +464,8 @@ export default function StlViewer({
   ghostRef.current = ghost ?? null;
   const fitKeyRef = useRef(fitKey);
   fitKeyRef.current = fitKey;
+  const preserveCameraOnUpdateRef = useRef(preserveCameraOnUpdate);
+  preserveCameraOnUpdateRef.current = preserveCameraOnUpdate;
   const fitBoxRef = useRef(fitBox ?? null);
   fitBoxRef.current = fitBox ?? null;
   const handleElements = useRef(new Map());
@@ -1608,7 +1614,7 @@ export default function StlViewer({
         const radius = modelRadius(box);
         const mode = refitMode(fitRef.current, fitKeyRef.current, center, radius);
         if (mode === "fit") applyPose(presetViewFitting("home", box, fitFrame()), box);
-        else if (mode === "contain") {
+        else if (mode === "contain" && !preserveCameraOnUpdateRef.current) {
           // Same subject, new size: the view stays where the user put it
           // (TinkerCAD never moves the camera for a resize), backing out
           // only when the new box would leave it.

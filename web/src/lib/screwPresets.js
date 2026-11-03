@@ -386,7 +386,7 @@ function multiboardThread(id, name, short, profile) {
     id,
     name,
     short,
-    group: "Multiboard thread (bolts)",
+    group: "Multiboard",
     spec: { kind: "thread", profile, depth: 0, clearance: 0, spin: 0 },
     screw: { style: "thread" },
   };
@@ -647,6 +647,14 @@ export const SCREW_PRESETS = [
     "Small",
     "mb-small",
   ),
+  {
+    id: "mb-octagon-peg",
+    name: "Multiboard peg socket",
+    short: "Peg",
+    group: "Multiboard",
+    spec: { kind: "octagon", acrossFlats: 14.5, clearance: 0.25, depth: 25, spin: 0 },
+    screw: { style: "multiboard-octagon" },
+  },
   shape("shape-cylinder", "Round cutout", "Round", round({ diameter: 10, depth: 0 })),
   shape("shape-rect", "Rectangular cutout", "Rectangle", {
     kind: "rectangle",
@@ -749,7 +757,7 @@ const SPACING_BY_GROUP = {
   "openConnect (openGrid)": "opengrid",
   MultiConnect: "opengrid",
   "openGrid thread (screw connectors)": "opengrid",
-  "Multiboard thread (bolts)": "multiboard",
+  Multiboard: "multiboard",
   "Pegboard (US)": "pegboard",
   Skådis: "skadis",
   "MOD-GRID": "modgrid",

@@ -108,7 +108,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         onRotate={onRotate}
         name={directionName(spec.kind, count)}
         viewedFrom="outside the face"
-        step={spec.kind === "rectangle" || spec.kind === "extrusion" ? 45 : 90}
+        step={spec.kind === "rectangle" || spec.kind === "octagon" || spec.kind === "extrusion" ? 45 : 90}
       />
     </label>
   );
@@ -590,6 +590,26 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           M5 bolt from the far side into the rail's centre bore holds it down — choose its length for the
           floor's thickness plus about 10 mm.
         </p>
+      </div>
+    );
+  }
+
+  if (spec.kind === "octagon") {
+    return (
+      <div className="holes-spec">
+        <div className="holes-spec-grid">
+          <label className="field" htmlFor={`${id}-af`} title="Distance between opposite flat sides of the octagon.">
+            <span className="field-label">Across flats (mm)</span>
+            <DecimalInput id={`${id}-af`} min="0.1" step="0.1" {...numberProps("acrossFlats")} />
+          </label>
+          <label className="field" htmlFor={`${id}-clearance`} title="Extra width added across the flats for a looser fit.">
+            <span className="field-label">Clearance (mm)</span>
+            <DecimalInput id={`${id}-clearance`} min="0" step="0.1" {...numberProps("clearance")} />
+          </label>
+          {depthField}
+        </div>
+        {throughField}
+        {spinField}
       </div>
     );
   }

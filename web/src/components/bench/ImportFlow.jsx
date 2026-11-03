@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
   addAnchor,
@@ -21,6 +21,18 @@ import { is3mfFilename, looksLikeZip, read3mf } from "../../lib/threeMfMesh.js";
 import FileDropzone from "../FileDropzone.jsx";
 import Modal from "../Modal.jsx";
 import StlViewer from "../StlViewer.jsx";
+import SnapBar from "../holes/SnapBar.jsx";
+import {
+  analyzeFace,
+  DEFAULT_CENTER_RADIUS_MM,
+  DEFAULT_CORNER_INSET_MM,
+  gridPoint,
+  nearestCandidate,
+  nearestGuide,
+  planePoint,
+} from "../../lib/snapCandidates.js";
+import { getGridSnap } from "../../lib/uiPrefs.js";
+import { faceMeasurements } from "../../lib/holesOverlay.js";
 
 // How close a newly-clicked slot center has to be to an already-placed
 // one to count as "the same face, clicked again" rather than a genuine
@@ -74,6 +86,37 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
   const [validation, setValidation] = useState(null);
   const [part, setPart] = useState(null);
   const [selectedAnchor, setSelectedAnchor] = useState(null);
+  const [snapOn, setSnapOn] = useState(true);
+  const [inset, setInset] = useState(DEFAULT_CORNER_INSET_MM);
+  const [radius, setRadius] = useState(DEFAULT_CENTER_RADIUS_MM);
+  const [guideFace, setGuideFace] = useState(null);
+  const [hover, setHover] = useState(null);
+  const [measureOn, setMeasureOn] = useState(false);
+  const [altHeld, setAltHeld] = useState(false);
+  const measuring = measureOn || altHeld;
+  const [measurePoint, setMeasurePoint] = useState(null);
+  const hoverPoint = useRef(null);
+
+  useEffect(() => {
+    const down = (event) => {
+      if (event.key === "Alt" && !event.repeat) {
+        setAltHeld(true);
+        setMeasurePoint(hoverPoint.current);
+      }
+    };
+    const up = (event) => {
+      if (event.key === "Alt") setAltHeld(false);
+    };
+    const blur = () => setAltHeld(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
   const fileSeq = useRef(0);
 
   function reject(report) {
@@ -156,18 +199,73 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
     }
   }
 
-  function placeSlot(point, normal) {
-    setPart((p) => {
-      // Same flat face clicked again: select its existing slot rather
-      // than stacking a second marker on it (see findAnchorNear()).
-      const existing = findAnchorNear(p, point, DUPLICATE_SLOT_TOLERANCE_MM);
-      if (existing) {
-        setSelectedAnchor(existing.name);
-        return p;
-      }
-      const name = nextAnchorName(p);
-      setSelectedAnchor(name);
-      return addAnchor(p, name, point, normal);
+  function placeSlot(point, normal, hit = null) {
+    if (!part) return;
+    let slotPoint = point;
+    let slotNormal = normal;
+    const face = hit ? analyzeFace(part.geometry, hit.faceIndex, { inset, radius }) : null;
+    if (face) {
+      const snapRadius = Math.max(1.5, 0.04 * Math.max(...part.extents));
+      const reach = hit.touch && hit.mmPerPx ? Math.max(snapRadius, 22 * hit.mmPerPx) : snapRadius;
+      const candidate = snapOn && !hit.shiftKey ? nearestCandidate(face, hit.point, reach) : null;
+      const line =
+        snapOn && !hit.shiftKey && !candidate ? nearestGuide(face, hit.point, reach, getGridSnap()) : null;
+      const snapped =
+        candidate?.point ??
+        line?.point ??
+        (snapOn && !hit.shiftKey ? gridPoint(face, hit.point, getGridSnap()) : planePoint(face, hit.point));
+      slotPoint = snapped;
+      slotNormal = face.normal;
+    }
+    // Same flat face clicked again: select its existing slot rather
+    // than stacking a second marker on it (see findAnchorNear()).
+    const existing = findAnchorNear(part, slotPoint, DUPLICATE_SLOT_TOLERANCE_MM);
+    if (existing) {
+      setSelectedAnchor(existing.name);
+      return;
+    }
+    const name = nextAnchorName(part);
+    setSelectedAnchor(name);
+    setPart(addAnchor(part, name, slotPoint, slotNormal));
+  }
+
+  function hoverSurface(hit) {
+    if (!hit || !part) {
+      setHover(null);
+      hoverPoint.current = null;
+      return;
+    }
+    const face = analyzeFace(part.geometry, hit.faceIndex, { inset, radius });
+    if (!face) {
+      setHover(null);
+      hoverPoint.current = null;
+      return;
+    }
+    hoverPoint.current = hit.point;
+    if (measuring)
+      setMeasurePoint((previous) =>
+        previous && previous.every((n, i) => n === hit.point[i]) ? previous : hit.point,
+      );
+    setGuideFace(face);
+    const reach = Math.max(1.5, 0.04 * Math.max(...part.extents));
+    const candidate = snapOn && !hit.shiftKey ? nearestCandidate(face, hit.point, reach) : null;
+    const line =
+      snapOn && !hit.shiftKey && !candidate ? nearestGuide(face, hit.point, reach, getGridSnap()) : null;
+    const next = {
+      faceKey: face.key,
+      snapId: candidate?.id ?? null,
+      linePoint: line?.point ?? null,
+      face,
+    };
+    setHover((previous) => {
+      const sameLine =
+        previous?.linePoint === next.linePoint ||
+        (previous?.linePoint &&
+          next.linePoint &&
+          previous.linePoint.every((n, i) => n === next.linePoint[i]));
+      return previous?.faceKey === next.faceKey && previous.snapId === next.snapId && sameLine
+        ? previous
+        : next;
     });
   }
 
@@ -182,6 +280,42 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
         return { id: a.name, x, y, z, radius: 1.5 };
       })
     : [];
+
+  const slotGuides = [];
+  if (snapOn && guideFace) {
+    for (const guide of guideFace.guides) {
+      if (guide.kind === "circle") {
+        for (let i = 0; i + 1 < guide.points.length; i++)
+          slotGuides.push({ a: guide.points[i], b: guide.points[i + 1], color: 0x54a8ff });
+      } else slotGuides.push({ a: guide.a, b: guide.b, color: 0x54a8ff, dashed: guide.kind !== "center" });
+    }
+    for (const candidate of guideFace.candidates)
+      markers.push({
+        id: `snap:${candidate.id}`,
+        x: candidate.point[0],
+        y: candidate.point[1],
+        z: candidate.point[2],
+        radius: 0.6,
+        color: hover?.snapId === candidate.id ? 0xffbf47 : 0x54a8ff,
+        hitTest: false,
+      });
+    if (hover?.linePoint)
+      markers.push({
+        id: "snap:line",
+        x: hover.linePoint[0],
+        y: hover.linePoint[1],
+        z: hover.linePoint[2],
+        radius: 0.9,
+        color: 0xffbf47,
+        hitTest: false,
+      });
+  }
+
+  const measurements = useMemo(
+    () => (measuring && guideFace ? faceMeasurements(guideFace, measurePoint) : { guides: [], labels: [] }),
+    [measuring, guideFace, measurePoint],
+  );
+  const guides = [...slotGuides, ...measurements.guides];
 
   const labels = bodies ? bodyLabels(bodies) : [];
 
@@ -316,12 +450,50 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
             ))}
           </ul>
           <p className="muted">
-            Click anywhere on a flat face to place a slot there — it centers on that whole surface
-            automatically (not just the exact pixel you clicked), using the face's own normal as the mating
-            direction.
+            Hover a flat face to see its snap guides before placing slots. The first click can use any guided
+            position; later clicks add slots on that face. Turn on Measure, or hold Option, to see distances
+            from the pointer to the face edges and center.
           </p>
           <div className="bench-import-viewer">
-            <StlViewer geometry={part.geometry} markers={markers} placingMode onSurfacePick={placeSlot} />
+            <StlViewer
+              geometry={part.geometry}
+              markers={markers}
+              guides={guides}
+              labels={measurements.labels.map((label) => ({
+                id: label.id,
+                point: label.point,
+                text: label.text,
+              }))}
+              placingMode
+              onSurfaceHit={(hit) => {
+                hoverSurface(hit);
+                placeSlot(hit.point, hit.normal, hit);
+              }}
+              onSurfaceHover={hoverSurface}
+              toolbar={
+                <button
+                  type="button"
+                  className="viewer-tool viewer-measure"
+                  aria-pressed={measureOn}
+                  aria-label="Measure distances"
+                  title="Show distances from the pointed-at spot to the face's edges and center; hold Option"
+                  onClick={() => {
+                    if (!measureOn) setMeasurePoint(hoverPoint.current);
+                    setMeasureOn((on) => !on);
+                  }}
+                >
+                  <span className="viewer-tool-label">Measure</span>
+                </button>
+              }
+            />
+            <SnapBar
+              snapOn={snapOn}
+              onSnapChange={setSnapOn}
+              inset={inset}
+              onInsetChange={setInset}
+              radius={radius}
+              onRadiusChange={setRadius}
+            />
           </div>
           {part.anchors.length > 0 && (
             <ul className="bench-slot-list">

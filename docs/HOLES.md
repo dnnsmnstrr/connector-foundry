@@ -186,7 +186,9 @@ way, so an openConnect head ends up with its slide direction up. "Full" is 8 mm 
 full-size screw (6.8 mm of thread), "Lite" 4.5 mm for a lite one; depth, through and the
 clearance (upstream's 0.5 mm) are editable.
 
-The **Multiboard thread** presets cut a Multiboard tile's two holes as the tile cuts them, so
+The **Multiboard peg socket** cuts an extruded octagon for the push-fit peg (14.5 mm
+across flats, 25 mm deep by default); clearance is adjustable for the printer. The Multiboard thread
+presets cut a Multiboard tile's two holes as the tile cuts them, so
 Multiboard's own bolts screw into the part: "Big" (Ø22.5 mm, 2.5 mm pitch) for a big-thread bolt,
 "Small" (Ø7.03 mm, 3 mm pitch) for a small-thread one. Both go through, since a bolt's thread runs
 on past a tile's 6.4 mm; depth and clearance are editable. The numbers are the community's

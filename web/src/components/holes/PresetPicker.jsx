@@ -150,6 +150,8 @@ function describe(spec) {
     return `BitBeam pin hole: Ø4.8 with the groove a Technic pin clicks into, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
   if (spec.kind === "cylinder")
     return `Round Ø${spec.diameter} mm, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
+  if (spec.kind === "octagon")
+    return `Multiboard octagonal peg socket: ${spec.acrossFlats} mm across flats, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}, ${spec.clearance} mm clearance`;
   if (spec.kind === "rectangle")
     return `${spec.width} × ${spec.height} mm cutout${spec.cornerRadius > 0 ? `, ${spec.cornerRadius} mm corner radius` : ""}, ${spec.depth > 0 ? `${spec.depth} mm deep` : "through"}`;
   if (spec.kind === "multiconnect")

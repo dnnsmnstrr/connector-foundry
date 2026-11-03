@@ -23,7 +23,7 @@ export default function ScrewIcon({ spec, screw, title, className }) {
     return <SlotIcon spec={spec} title={title} className={className} />;
   }
   if (spec.kind === "thread") return <ThreadIcon spec={spec} title={title} className={className} />;
-  if (spec.kind === "cylinder" || spec.kind === "rectangle")
+  if (spec.kind === "cylinder" || spec.kind === "rectangle" || spec.kind === "octagon")
     return <ShapeIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "extrusion") return <ExtrusionIcon spec={spec} title={title} className={className} />;
   if (spec.kind === "pinhole") return <PinholeIcon spec={spec} title={title} className={className} />;
@@ -449,7 +449,9 @@ function ThreadIcon({ spec, title, className }) {
 // turned, so a 10 × 20 stands up), the widest side ~30px.
 /** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ShapeIcon({ spec, title, className }) {
-  const plan =
+  const plan = spec.kind === "octagon"
+    ? { w: spec.acrossFlats / Math.cos(Math.PI / 8), h: spec.acrossFlats / Math.cos(Math.PI / 8), r: 0, spin: spec.spin, sides: 8 }
+    :
     spec.kind === "cylinder"
       ? { w: spec.diameter, h: spec.diameter, r: spec.diameter / 2, spin: 0 }
       : {
@@ -475,7 +477,15 @@ function ShapeIcon({ spec, title, className }) {
         <rect x="4" y="4" width={SIZE - 8} height={SIZE - 8} rx="1.5" />
       </g>
       <g className="screw-icon-cut">
-        <rect
+        {plan.sides ? (
+          <polygon
+            points={Array.from({ length: plan.sides }, (_, i) => {
+              const a = (i * 2 * Math.PI) / plan.sides - Math.PI / 2 - Math.PI / 8;
+              return `${CX + Math.cos(a) * (plan.w * s) / 2},${cy + Math.sin(a) * (plan.h * s) / 2}`;
+            }).join(" ")}
+            transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
+          />
+        ) : <rect
           x={CX - (plan.w * s) / 2}
           y={cy - (plan.h * s) / 2}
           width={plan.w * s}
@@ -483,7 +493,7 @@ function ShapeIcon({ spec, title, className }) {
           rx={plan.r * s}
           // Counter-clockwise as seen from outside the face, as the spin is.
           transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
-        />
+        />}
       </g>
     </svg>
   );
