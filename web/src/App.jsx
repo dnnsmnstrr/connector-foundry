@@ -730,7 +730,7 @@ export default function App() {
     },
   });
 
-  // Settings > Coding agents' switch, copy buttons and New token…, in the
+  // Settings > Coding agents' switch, copy buttons, New token… and Change…, in the
   // desktop app (components/McpSettings.jsx does the same in Settings).
   function mcpCommands() {
     const status = desktopMcp?.status;
@@ -763,6 +763,11 @@ export default function App() {
           )
             desktopMcp.newToken();
         },
+      }),
+      builtin("app.mcpExportFolder", {
+        when: ready,
+        subtitle: status.exportFolder,
+        run: () => desktopMcp.chooseExportFolder(),
       }),
     ];
   }

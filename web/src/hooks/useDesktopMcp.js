@@ -4,11 +4,13 @@ import { desktopBridge } from "../lib/desktopBridge.js";
 /**
  * The desktop app's MCP server for coding agents (desktop/mcp.cjs), live:
  * its status as the main process last reported it (null until the first
- * answer), and its two switches. Null in a browser, where there is none.
+ * answer), its two switches and the folder agents' exports go to. Null in
+ * a browser, where there is none.
  * @returns {{
  *   status: import("../lib/desktopBridge.js").DesktopMcpStatus | null,
  *   setEnabled: (on: boolean) => Promise<void>,
  *   newToken: () => Promise<void>,
+ *   chooseExportFolder: () => Promise<void>,
  * } | null}
  */
 export function useDesktopMcp() {
@@ -48,6 +50,10 @@ export function useDesktopMcp() {
     },
     newToken: async () => {
       const next = await mcp.newToken();
+      if (next) setStatus(next);
+    },
+    chooseExportFolder: async () => {
+      const next = await mcp.chooseExportFolder();
       if (next) setStatus(next);
     },
   };

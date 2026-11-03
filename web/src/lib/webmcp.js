@@ -37,6 +37,14 @@
 // (desktop/preload.cjs), through which the same tools reach coding agents
 // over MCP (desktop/mcp.cjs). getModelContexts() finds each there is, and
 // registerTools() speaks to each in its own terms.
+//
+// Only the desktop app's agents can export without a person: a browser's
+// download asks the user, and an agent there has nowhere to save but the
+// page. Through the desktop bridge, run_command on a Download command
+// takes the file downloadBlob() would have saved (captureDownload()) and
+// hands it to the main process, which saves it to the folder or file the
+// agent named in `saveTo`, or to the export folder Settings shows — no
+// Save dialog — and the result says where it went.
 
 import { JOINTS, MAX_ATTACHED } from "./assembly.js";
 import { checkBenchConfig, isParamSet, serializeBenchConfig } from "./benchConfig.js";
@@ -44,6 +52,7 @@ import { matchesSearch } from "./catalogueUtils.js";
 import { SECTION_ORDER } from "./commandCatalog.js";
 import { browseSections, rankCommands } from "./commands.js";
 import { desktopBridge } from "./desktopBridge.js";
+import { captureDownload } from "./download.js";
 
 /** @typedef {import("./commands.js").Command} Command */
 /** @typedef {import("./commands.js").CommandPage} CommandPage */
@@ -59,6 +68,13 @@ import { desktopBridge } from "./desktopBridge.js";
  * @property {ModelContextLike} context
  * @property {boolean} mcp the preview's terms (navigator.modelContext, the desktop bridge): MCP-shaped
  *   results, no signal — a handle or unregisterTool() to unregister with
+ * @property {boolean} [desktop] the desktop app's bridge, whose calls can save files (ToolHost)
+ */
+/**
+ * What the desktop bridge hands a tool call beside its input.
+ * @typedef {object} ToolHost
+ * @property {(bytes: ArrayBuffer, filename: string) => Promise<string>} [saveFile] saves an export
+ *   where the agent's call asked, with no dialog; resolves with the path, throws a message
  */
 /**
  * @typedef {object} AppTool
@@ -67,7 +83,10 @@ import { desktopBridge } from "./desktopBridge.js";
  * @property {string} description
  * @property {object} inputSchema
  * @property {{ readOnlyHint?: boolean, untrustedContentHint?: boolean, consequentialHint?: boolean }} annotations
- * @property {(input: Record<string, unknown>) => any} execute returns the result, throws a message for the agent
+ * @property {Record<string, object>} [desktopInput] input properties only the desktop app's agents get
+ *   (the main process reads them, desktop/mcp.cjs)
+ * @property {(input: Record<string, unknown>, host: ToolHost) => any} execute returns the result, throws a
+ *   message for the agent
  */
 /**
  * What the tools read and do, from App (hooks/useWebMcp.js reads the
@@ -122,6 +141,12 @@ const PART_LIMIT = 50;
 const TABS = ["library", "bench", "holes"];
 // How many open slots an error message names before "…".
 const SLOTS_SHOWN = 12;
+// How long run_command waits for a Download command's file: most render
+// first, a big bench for a minute or more. Under desktop/mcp.cjs's two
+// minutes for the whole call, so the agent hears why rather than a timeout.
+const DOWNLOAD_WAIT_MS = 100_000;
+// The palette actions that save a file: Download STL/.scad/config, Export settings….
+const DOWNLOAD_ACTIONS = new Set(["Download", "Export"]);
 
 /**
  * Where the mounted tab hands over what only it knows. The latest set
@@ -173,7 +198,7 @@ export function getModelContexts(
   else if (typeof nav?.modelContext?.registerTool === "function")
     found.push({ context: nav.modelContext, mcp: true });
   if (typeof desktop?.modelContext?.registerTool === "function")
-    found.push({ context: desktop.modelContext, mcp: true });
+    found.push({ context: desktop.modelContext, mcp: true, desktop: true });
   return found;
 }
 
@@ -206,18 +231,18 @@ export function toolError(message, mcp) {
  * @param {AppTool[]} tools
  * @param {AbortSignal} signal
  */
-export function registerTools({ context, mcp }, tools, signal) {
+export function registerTools({ context, mcp, desktop = false }, tools, signal) {
   for (const tool of tools) {
     if (signal.aborted) return;
     const definition = {
       name: tool.name,
       title: tool.title,
       description: tool.description,
-      inputSchema: tool.inputSchema,
+      inputSchema: desktop ? withDesktopInput(tool) : tool.inputSchema,
       annotations: tool.annotations,
-      execute: async (/** @type {unknown} */ input) => {
+      execute: async (/** @type {unknown} */ input, /** @type {unknown} */ client) => {
         try {
-          return toolResult(await tool.execute(inputObject(input)), mcp);
+          return toolResult(await tool.execute(inputObject(input), desktop ? hostOf(client) : {}), mcp);
         } catch (err) {
           return toolError(messageOf(err), mcp);
         }
@@ -251,6 +276,26 @@ export function registerTools({ context, mcp }, tools, signal) {
       { once: true },
     );
   }
+}
+
+/**
+ * A tool's input schema with the properties only the desktop app's agents get.
+ * @param {AppTool} tool
+ */
+function withDesktopInput(tool) {
+  if (!tool.desktopInput) return tool.inputSchema;
+  const schema = /** @type {{ properties?: object }} */ (tool.inputSchema);
+  return { ...schema, properties: { ...schema.properties, ...tool.desktopInput } };
+}
+
+/**
+ * What the desktop bridge's preload handed over beside the input.
+ * @param {unknown} client
+ * @returns {ToolHost}
+ */
+function hostOf(client) {
+  const saveFile = /** @type {any} */ (client)?.saveFile;
+  return typeof saveFile === "function" ? { saveFile } : {};
 }
 
 /** @param {unknown} err */
@@ -612,8 +657,19 @@ export function createAppTools(get) {
         },
         required: ["id"],
       },
+      desktopInput: {
+        saveTo: {
+          type: "string",
+          description:
+            "For a Download or Export command: where the file goes, with no Save dialog. An absolute path " +
+            'to a folder (ending in "/", or one that exists), where the file keeps the name the app gives ' +
+            "it, or to the file itself, which is replaced if it exists. Left out, the file goes to the " +
+            "export folder in the app's Settings (Downloads unless the user changed it). The result says " +
+            "where it went.",
+        },
+      },
       annotations: {},
-      execute(input) {
+      execute(input, host) {
         const { registry } = get();
         const id = requiredText(input, "id");
         const within = withinOf(input);
@@ -647,6 +703,14 @@ export function createAppTools(get) {
         }
         if (typeof action.run !== "function") {
           throw new Error(`"${command.title}" needs a file the user chooses; ask them to run it themselves.`);
+        }
+        // The desktop app's agent gets the file saved for it, and hears where.
+        if (host?.saveFile && DOWNLOAD_ACTIONS.has(action.title)) {
+          return saveDownload(action.run, host.saveFile).then((saved) => ({
+            ran: command.title,
+            action: action.title,
+            saved,
+          }));
         }
         action.run();
         return { ran: command.title, action: action.title };
@@ -870,6 +934,18 @@ export function createAppTools(get) {
       },
     },
   ];
+}
+
+/**
+ * Runs a Download command and saves the file it makes through the desktop
+ * app, rather than letting downloadBlob() open a Save dialog.
+ * @param {() => void} run
+ * @param {NonNullable<ToolHost["saveFile"]>} saveFile
+ * @returns {Promise<string>} where it went
+ */
+async function saveDownload(run, saveFile) {
+  const file = await captureDownload(run, DOWNLOAD_WAIT_MS);
+  return saveFile(await file.blob.arrayBuffer(), file.filename);
 }
 
 /**

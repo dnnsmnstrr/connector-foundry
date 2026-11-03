@@ -44,6 +44,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   icon instead of a system emoji, so its appearance stays consistent across platforms.
 - **Mobile releases build on EAS.** A version tag now starts cloud builds for iOS and Android, with
   the current web app synced into each Capacitor package.
+- **Coding agents export without a Save dialog.** In the desktop app, a Download or Export command an
+  agent runs over MCP saves its file straight away and tells the agent where: to the folder or file
+  the agent names (`saveTo`), or else to the folder shown in **Settings → Coding agents**, Downloads
+  unless you change it there. A second file of the same name is numbered rather than replacing the
+  first.
 
 ### Workspace
 

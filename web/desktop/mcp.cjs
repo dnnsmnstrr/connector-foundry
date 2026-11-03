@@ -10,9 +10,17 @@
 // command a user pastes into their agent's setup keeps working across
 // restarts; the token is made the first time and kept until the user asks
 // for a new one.
+//
+// An agent's export skips the Save dialog a person gets (main.cjs's
+// will-download): run_command hands the file to the page's saveFile()
+// (preload.cjs), and it is saved here to the path the agent passed as
+// `saveTo`, or to mcp.json's "exportFolder" (Settings' Change…), or to
+// Downloads. The path comes from the agent's call, never from the page,
+// and a file is saved only for a call still waiting on its answer.
 
-const { app, ipcMain } = require("electron");
+const { app, dialog, ipcMain } = require("electron");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { ENDPOINT, createMcpServer, isToken, newToken } = require("./mcp-server.cjs");
 
@@ -24,13 +32,18 @@ const READY_TIMEOUT_MS = 30_000;
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
 const TOOLS_MAX = 50;
 const TEXT_MAX = 8000;
+// Longer than any real path; Windows' own limit is 32,767 characters.
+const PATH_MAX = 4096;
+// Downloads' "plate (1).stl", up to this many, before giving up.
+const NAME_TRIES = 1000;
 
 const INSTRUCTIONS =
   "These tools work the Connector Foundry window open on this computer, a designer for 3D-printable " +
   "connector parts (Gridfinity, openGrid, Multiboard and more): the commands its command palette offers, " +
   "the parts catalogue, opening a part, attaching parts on the Bench, loading a bench, and each tab's state " +
-  "with how its render went. What they do shows in the window, and the user can undo it there. Start with " +
-  "get_app_state or list_commands.";
+  "with how its render went. What they do shows in the window, and the user can undo it there. A Download " +
+  "command run with run_command saves its file without asking: to the path given as saveTo, or else to the " +
+  "export folder in the app's Settings, and the result says where. Start with get_app_state or list_commands.";
 
 /**
  * @param {{
@@ -50,7 +63,14 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
   let tools = [];
   /** @type {Set<() => void>} */
   const toolWaiters = new Set();
-  /** @type {Map<number, { resolve: (result: any) => void, reject: (err: Error) => void }>} */
+  /**
+   * @type {Map<number, {
+   *   resolve: (result: any) => void,
+   *   reject: (err: Error) => void,
+   *   saveTo: SaveTo | null,
+   *   saved: boolean,
+   * }>}
+   */
   const pending = new Map();
   let nextCall = 1;
   // Turning it on and off in quick succession: one change at a time.
@@ -71,8 +91,14 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
       listening: Boolean(server),
       url: `http://127.0.0.1:${settings.port}${ENDPOINT}`,
       token: settings.token,
+      exportFolder: exportFolder(),
       error,
     };
+  }
+
+  /** Where an agent's export goes when its call names no place. */
+  function exportFolder() {
+    return settings.exportFolder ?? app.getPath("downloads");
   }
 
   function broadcast() {
@@ -142,6 +168,10 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
 
   /** @param {string} name @param {Record<string, unknown>} args */
   async function callTool(name, args) {
+    // Read here and kept from the page: the place to save is the agent's
+    // to name, and the page only hands over the file.
+    const { saveTo: rawSaveTo, ...input } = args;
+    const saveTo = rawSaveTo === undefined ? null : checkSaveTo(rawSaveTo);
     const window = await ready();
     if (!window) throw new Error("The Connector Foundry window was closed.");
     const id = nextCall++;
@@ -163,8 +193,10 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
           clearTimeout(timer);
           reject(err);
         },
+        saveTo,
+        saved: false,
       });
-      window.webContents.send("mcp:call", { id, name, input: args });
+      window.webContents.send("mcp:call", { id, name, input });
     });
   }
 
@@ -197,7 +229,45 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
     pending.delete(message.id);
     call.resolve(message.result);
   });
+  // An export a call made: one file per call, while the call waits.
+  ipcMain.handle("mcp:save", async (event, message) => {
+    if (!fromApp(event)) return null;
+    const call = pending.get(message?.id);
+    if (!call || call.saved) return { error: "That call is over, so the file wasn't saved." };
+    const filename = checkFilename(message?.filename);
+    const bytes = message?.bytes;
+    if (!filename || !(bytes instanceof ArrayBuffer || ArrayBuffer.isView(bytes)))
+      return { error: "The app handed over no file to save." };
+    call.saved = true;
+    try {
+      return {
+        path: await saveExport(Buffer.from(/** @type {ArrayBuffer} */ (bytes)), filename, call.saveTo),
+      };
+    } catch (err) {
+      return { error: `The file couldn't be saved: ${err.message}` };
+    }
+  });
   ipcMain.handle("mcp:status", (event) => (fromApp(event) ? status() : null));
+  ipcMain.handle("mcp:choose-export-folder", async (event) => {
+    if (!fromApp(event)) return null;
+    const window = getWindow();
+    const options = {
+      title: "Folder for coding agents' exports",
+      buttonLabel: "Choose",
+      defaultPath: exportFolder(),
+      /** @type {("openDirectory" | "createDirectory")[]} */
+      properties: ["openDirectory", "createDirectory"],
+    };
+    const chosen = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options);
+    if (!chosen.canceled && chosen.filePaths[0]) {
+      settings.exportFolder = chosen.filePaths[0];
+      save();
+      broadcast();
+    }
+    return status();
+  });
   ipcMain.handle("mcp:set-enabled", async (event, on) => {
     if (!fromApp(event)) return null;
     settings.enabled = on === true;
@@ -217,6 +287,45 @@ function setupMcp({ getWindow, openWindow, isAppURL }) {
   app.on("will-quit", () => {
     server?.close();
   });
+
+  /**
+   * Writes an agent's export: to the file it named, replacing one there,
+   * or into a folder under the app's name for it, numbered as Downloads
+   * numbers a second "plate.stl" rather than replacing the first.
+   * @param {Buffer} data
+   * @param {string} filename
+   * @param {SaveTo | null} saveTo
+   * @returns {Promise<string>} the path written
+   */
+  async function saveExport(data, filename, saveTo) {
+    let folder = saveTo?.path ?? exportFolder();
+    if (saveTo && !saveTo.folder) {
+      const isFolder = await fs.promises.stat(saveTo.path).then(
+        (stat) => stat.isDirectory(),
+        () => false,
+      );
+      if (!isFolder) {
+        await fs.promises.mkdir(path.dirname(saveTo.path), { recursive: true });
+        await fs.promises.writeFile(saveTo.path, data);
+        return saveTo.path;
+      }
+      folder = saveTo.path;
+    }
+    await fs.promises.mkdir(folder, { recursive: true });
+    const ext = path.extname(filename);
+    const stem = filename.slice(0, filename.length - ext.length);
+    for (let n = 0; n < NAME_TRIES; n++) {
+      const target = path.join(folder, n ? `${stem} (${n})${ext}` : filename);
+      try {
+        // "wx": never over a file that appeared since the last try.
+        await fs.promises.writeFile(target, data, { flag: "wx" });
+        return target;
+      } catch (err) {
+        if (err.code !== "EEXIST") throw err;
+      }
+    }
+    throw new Error(`${folder} has ${NAME_TRIES} files called ${filename} already.`);
+  }
 
   return {
     /** Starts the server if the user left it on. */
@@ -251,11 +360,61 @@ function readSettings(file) {
     // Not there yet, or unreadable: the defaults.
   }
   const port = raw?.port;
+  const folder = raw?.exportFolder;
   return {
     enabled: raw?.enabled === true,
     port: Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : DEFAULT_PORT,
     token: isToken(raw?.token) ? raw.token : null,
+    // Left out of the file until the user picks one: Downloads, wherever
+    // the system keeps it now.
+    /** @type {string | undefined} */
+    exportFolder: isAbsolutePath(folder) ? path.resolve(folder) : undefined,
   };
+}
+
+/**
+ * Where an agent asked for an export to go.
+ * @typedef {object} SaveTo
+ * @property {string} path absolute
+ * @property {boolean} folder written as a folder (a trailing separator), so the file keeps the app's name
+ */
+
+/**
+ * The agent's `saveTo`: an absolute path, or one under the home folder
+ * ("~/Desktop"). Throws a message for the agent, before the call reaches
+ * the window.
+ * @param {unknown} value
+ * @returns {SaveTo}
+ */
+function checkSaveTo(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  const expanded = /^~(?=$|[\\/])/.test(text) ? os.homedir() + text.slice(1) : text;
+  if (!isAbsolutePath(expanded)) {
+    throw new Error(
+      `"saveTo" has to be an absolute path to a folder or a file (at most ${PATH_MAX} characters), ` +
+        'such as "~/Downloads/" or "/Users/me/prints/plate.stl".',
+    );
+  }
+  return { path: path.resolve(expanded), folder: /[\\/]$/.test(expanded) };
+}
+
+/** @param {unknown} value */
+function isAbsolutePath(value) {
+  return (
+    typeof value === "string" && value.length <= PATH_MAX && !value.includes("\0") && path.isAbsolute(value)
+  );
+}
+
+/**
+ * The page's name for an export, as a name alone: nothing that leads to
+ * another folder.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function checkFilename(value) {
+  if (typeof value !== "string" || value.includes("\0")) return null;
+  const name = path.basename(value.replaceAll("\\", "/"));
+  return name && name !== "." && name !== ".." && name.length <= 255 ? name : null;
 }
 
 /**

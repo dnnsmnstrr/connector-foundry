@@ -9,8 +9,9 @@ import { askConfirm } from "../lib/confirm.js";
 // Claude Code and the like — use the same tools an AI agent in a browser
 // gets (lib/webmcp.js). Turned on, it shows where agents connect and the
 // token they need, with the setup to copy: Claude Code's command, or the
-// JSON most other agents' config files take. The palette has the same
-// three (App.jsx's app.mcp* commands). Nothing in a browser.
+// JSON most other agents' config files take, and the folder an agent's
+// exports go to when it names none (they skip the Save dialog). The
+// palette has the same (App.jsx's app.mcp* commands). Nothing in a browser.
 
 const COPIED_MS = 2000;
 
@@ -94,6 +95,23 @@ export default function McpSettings() {
             <button type="button" className="bench-modal-cancel" onClick={replaceToken}>
               New token…
             </button>
+          </div>
+          <div className="field">
+            <span className="field-label" id="mcp-export-folder">
+              Agents' exports go to
+            </span>
+            <div className="settings-backup settings-mcp-folder">
+              <input
+                type="text"
+                readOnly
+                aria-labelledby="mcp-export-folder"
+                value={status.exportFolder}
+                onFocus={(e) => e.target.select()}
+              />
+              <button type="button" className="bench-modal-cancel" onClick={() => mcp.chooseExportFolder()}>
+                Change…
+              </button>
+            </div>
           </div>
           {copied === "failed" && (
             <p className="error-text settings-backup-error" role="alert">

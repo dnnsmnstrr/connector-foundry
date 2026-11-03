@@ -126,7 +126,7 @@ says what each release changed.
 - **Native file dialogs.** **Import STL / STEP / 3MF…** and **Import config…** open your system's file
   picker, and every export (**Download STL**, **Download .scad**, **Download config**) opens a Save
   dialog where you choose the name and the folder. The folder of the last export is offered again
-  until you quit.
+  until you quit. A coding agent's exports skip the dialog (see below).
 - **Its own storage.** Preferences, saved defaults and presets are kept by the app, not by your
   browser, so the two start out separate. To bring your web settings over, use **Export settings…**
   in the web app's Settings and **Import settings…** in the desktop app's; a bench moves the same way,
@@ -150,6 +150,12 @@ happens in the window in front of you, and **Cmd/Ctrl+Z** takes it back.
    file.
 3. Ask the agent for a part or a bench while the app is open. If the window is closed, the agent's
    first request opens it.
+
+When the agent downloads something (an STL, a `.scad` file, a bench config), no Save dialog opens:
+the file goes where the agent says, a folder or a full file path, or else to the folder under
+**Agents' exports go to** in Settings, which is Downloads until you pick another with **Change…**.
+A file already there under the same name is kept, and the new one is numbered, as `part (1).stl`;
+a full file path the agent gives replaces what is there. The agent is told where each file went.
 
 It is off until you turn it on. Only programs on this computer can connect, and only with the token
 shown in Settings; web pages are refused. **New token…** locks out every agent set up with the old
