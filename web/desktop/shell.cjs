@@ -11,7 +11,7 @@
 // moves the version on and records the new fingerprint. Not in the hash
 // itself, so recording it doesn't change it.
 
-const SHELL_VERSION = 1;
-const SHELL_HASH = "43a39210d53de6061f2928dec38bbc9ab3c6070f38ed777ebe95df0621d7eeff";
+const SHELL_VERSION = 2;
+const SHELL_HASH = "b66a8baf8bd8e65e85c0c543ed772526273b5203185b9c35c21593379f8888f9";
 
 module.exports = { SHELL_HASH, SHELL_VERSION };

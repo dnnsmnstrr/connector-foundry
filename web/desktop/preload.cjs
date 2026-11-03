@@ -8,10 +8,12 @@
 // navigator.modelContext: registerTool() returns a handle to unregister
 // with, and a tool's result is MCP's ({ content, isError }). The tools'
 // descriptions go to the main process, which lists them to agents; a call
-// comes back here by id and runs the page's own execute().
+// comes back here by id and runs the page's own execute(), with a
+// saveFile() beside the input: an export the call made, saved where the
+// agent asked (mcp.cjs decides where; the page only names the file).
 //
 // `mcp` is the Settings switch: whether the server is on, its address and
-// token, a new token.
+// token, a new token, and the folder agents' exports go to.
 //
 // `updates` is the updater (updates.cjs): its status, a check, the
 // switches for automatic checks and interface updates, the restart (or
@@ -40,8 +42,13 @@ ipcRenderer.on("mcp:call", async (_event, { id, name, input }) => {
   const tool = tools.get(name);
   let result;
   try {
+    const saveFile = async (bytes, filename) => {
+      const saved = await ipcRenderer.invoke("mcp:save", { id, bytes, filename });
+      if (typeof saved?.path !== "string") throw new Error(saved?.error ?? "The file couldn't be saved.");
+      return saved.path;
+    };
     result = tool
-      ? await tool.execute(input ?? {})
+      ? await tool.execute(input ?? {}, { saveFile })
       : { content: [{ type: "text", text: `There is no tool "${name}" now.` }], isError: true };
   } catch (err) {
     result = { content: [{ type: "text", text: String(err?.message ?? err) }], isError: true };
@@ -80,6 +87,7 @@ contextBridge.exposeInMainWorld("foundryDesktop", {
     status: () => ipcRenderer.invoke("mcp:status"),
     setEnabled: (on) => ipcRenderer.invoke("mcp:set-enabled", on === true),
     newToken: () => ipcRenderer.invoke("mcp:new-token"),
+    chooseExportFolder: () => ipcRenderer.invoke("mcp:choose-export-folder"),
     /** Calls `listener` with the new status whenever it changes; returns the unsubscribe. */
     onStatus(listener) {
       const handler = (_event, status) => listener(status);

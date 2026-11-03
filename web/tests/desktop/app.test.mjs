@@ -316,7 +316,13 @@ test(
     // default one may be taken by the user's own copy of the app.
     const port = await freePort();
     const token = "c".repeat(64);
-    await writeFile(path.join(profile, "mcp.json"), JSON.stringify({ enabled: true, port, token }));
+    // Agents' exports land here unless a call says otherwise, not in the
+    // user's Downloads.
+    const exportFolder = path.join(directory, "exports");
+    await writeFile(
+      path.join(profile, "mcp.json"),
+      JSON.stringify({ enabled: true, port, token, exportFolder }),
+    );
     let app;
     try {
       app = await electron.launch({
@@ -367,6 +373,32 @@ test(
         ],
       );
       assert.equal(tools.find((t) => t.name === "get_app_state").annotations.readOnlyHint, true);
+      assert.equal(tools.find((t) => t.name === "run_command").inputSchema.properties.saveTo.type, "string");
+
+      // An export saves with no Save dialog: to the export folder, numbered
+      // rather than replacing a file of the same name, or where the call says.
+      const first = await tool("run_command", { id: "app.exportSettings" });
+      assert.equal(path.dirname(first.saved), exportFolder);
+      assert.match(path.basename(first.saved), /^connector-foundry-.*\.json$/);
+      const second = await tool("run_command", { id: "app.exportSettings" });
+      assert.equal(second.saved, first.saved.replace(/\.json$/, " (1).json"));
+      assert.ok(JSON.parse(await readFile(second.saved, "utf8")));
+      await expect(page.getByRole("button", { name: "Download STL", exact: true })).toBeEnabled({
+        timeout: 90_000,
+      });
+      const stl = path.join(directory, "prints", "part.stl");
+      assert.deepEqual(await tool("run_command", { id: "library.downloadStl", saveTo: stl }), {
+        ran: "Download STL",
+        action: "Download",
+        saved: stl,
+      });
+      assert.ok((await readFile(stl)).length > 84);
+      const relative = await rpc("tools/call", {
+        name: "run_command",
+        arguments: { id: "library.downloadStl", saveTo: "prints/part.stl" },
+      });
+      assert.equal(relative.isError, true);
+      assert.match(relative.content[0].text, /absolute path/);
 
       // The window's own tools, answering from its state.
       const { parts } = await tool("search_parts", { query: "flat plate" });
@@ -394,11 +426,14 @@ test(
       await expect(settings.getByRole("textbox", { name: "Address" })).toHaveValue(
         `http://127.0.0.1:${port}/mcp`,
       );
+      await expect(settings.getByRole("textbox", { name: "Agents' exports go to" })).toHaveValue(
+        exportFolder,
+      );
       await toggle.uncheck();
       await expect(settings.getByRole("textbox", { name: "Address" })).toHaveCount(0);
       await assert.rejects(post("ping"));
       const saved = JSON.parse(await readFile(path.join(profile, "mcp.json"), "utf8"));
-      assert.deepEqual(saved, { enabled: false, port, token });
+      assert.deepEqual(saved, { enabled: false, port, token, exportFolder });
     } finally {
       await app?.close();
       await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { hydrateBenchConfig } from "../../src/lib/benchConfig.js";
 import { createCommandRegistry } from "../../src/lib/commands.js";
+import { downloadBlob } from "../../src/lib/download.js";
 import {
   createAppTools,
   createTabBridge,
@@ -144,9 +145,11 @@ test("the draft's document.modelContext before the preview's navigator.modelCont
   assert.deepEqual(getModelContexts({}, { modelContext: preview }, null), [{ context: preview, mcp: true }]);
   assert.deepEqual(getModelContexts({ modelContext: draft }, {}, desktop), [
     { context: draft, mcp: false },
-    { context: desktop.modelContext, mcp: true },
+    { context: desktop.modelContext, mcp: true, desktop: true },
   ]);
-  assert.deepEqual(getModelContexts({}, {}, desktop), [{ context: desktop.modelContext, mcp: true }]);
+  assert.deepEqual(getModelContexts({}, {}, desktop), [
+    { context: desktop.modelContext, mcp: true, desktop: true },
+  ]);
   assert.deepEqual(getModelContexts({}, {}, null), []);
   assert.deepEqual(getModelContexts(undefined, undefined, undefined), []);
   // Something there that isn't the API is no API.
@@ -243,6 +246,61 @@ test("the preview gets MCP-shaped results and is told to unregister", async () =
   assert.match(failed.content[0].text, /There is no command "nope"/);
   controller.abort();
   assert.equal(unregistered.length, 7);
+});
+
+test("the desktop app's agents save a Download command's file, with no dialog, and hear where", async () => {
+  // An export that renders first: the file comes after run() returns.
+  const registry = createCommandRegistry();
+  registry.register("test", () => [
+    {
+      id: "library.downloadStl",
+      title: "Download STL",
+      section: "Library",
+      actions: [{ title: "Download", run: () => setTimeout(() => downloadBlob("solid x", "bin.stl"), 5) }],
+    },
+  ]);
+  const { deps } = sampleDeps({ registry });
+  const register = (desktop) => {
+    const registered = new Map();
+    const context = { registerTool: (tool) => (registered.set(tool.name, tool), { unregister() {} }) };
+    registerTools(
+      { context, mcp: true, desktop },
+      createAppTools(() => deps),
+      new AbortController().signal,
+    );
+    return registered.get("run_command");
+  };
+
+  const run = register(true);
+  assert.equal(run.inputSchema.properties.saveTo.type, "string");
+  assert.deepEqual(run.inputSchema.required, ["id"]);
+  const saved = [];
+  const saveFile = async (bytes, filename) => {
+    saved.push({ text: new TextDecoder().decode(bytes), filename });
+    return `/exports/${filename}`;
+  };
+  const result = await run.execute({ id: "library.downloadStl" }, { saveFile });
+  assert.deepEqual(JSON.parse(result.content[0].text), {
+    ran: "Download STL",
+    action: "Download",
+    saved: "/exports/bin.stl",
+  });
+  assert.deepEqual(saved, [{ text: "solid x", filename: "bin.stl" }]);
+
+  // Where it couldn't be saved, the agent reads why.
+  const failed = await run.execute(
+    { id: "library.downloadStl" },
+    {
+      saveFile: async () => {
+        throw new Error("The file couldn't be saved: EACCES");
+      },
+    },
+  );
+  assert.equal(failed.isError, true);
+  assert.match(failed.content[0].text, /EACCES/);
+
+  // A browser's agent has no saveTo, and its call hands over nothing to save with.
+  assert.equal(register(false).inputSchema.properties.saveTo, undefined);
 });
 
 test("a handle with unregister() is used instead of unregisterTool", () => {

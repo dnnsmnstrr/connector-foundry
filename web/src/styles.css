@@ -2237,6 +2237,16 @@ a.bench-modal-header-button {
   flex-wrap: wrap;
 }
 
+/* The export folder's path takes the row, Change… keeps its width. */
+.settings-mcp .settings-mcp-folder {
+  flex-wrap: nowrap;
+}
+
+.settings-mcp-folder input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Settings > Part list: one row per system heading — a "shown" box, the
    name, a collapsed list of its parts (each with its own box) — with
    ▲/▼ to move the heading. */

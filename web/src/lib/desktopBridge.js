@@ -11,6 +11,7 @@
  * @property {boolean} listening whether agents can connect now
  * @property {string} url the endpoint, http://127.0.0.1:<port>/mcp
  * @property {string | null} token the bearer token, made the first time it is turned on
+ * @property {string} exportFolder where an agent's export goes when it names no place (Downloads by default)
  * @property {string | null} error why it isn't listening although it is on (the port taken)
  */
 /**
@@ -18,6 +19,7 @@
  * @property {() => Promise<DesktopMcpStatus | null>} status
  * @property {(on: boolean) => Promise<DesktopMcpStatus | null>} setEnabled
  * @property {() => Promise<DesktopMcpStatus | null>} newToken
+ * @property {() => Promise<DesktopMcpStatus | null>} chooseExportFolder asks the user for a folder
  * @property {(listener: (status: DesktopMcpStatus) => void) => () => void} onStatus
  */
 /**

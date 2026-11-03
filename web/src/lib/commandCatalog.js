@@ -143,6 +143,12 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["mcp", "token", "revoke", "reset"],
     action: "Replace",
   },
+  "app.mcpExportFolder": {
+    title: "Choose the folder for coding agents' exports",
+    section: "Settings",
+    keywords: ["mcp", "agent", "export", "download", "save", "folder", "directory"],
+    action: "Choose",
+  },
   // The desktop app's updater (desktop/updates.cjs).
   "app.autoUpdate": {
     title: "Check for updates automatically",
