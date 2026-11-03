@@ -1562,11 +1562,13 @@ export function slotOutline(hole) {
     return segments;
   }
   if (s.kind === "octagon") {
-    const r = (s.acrossFlats / 2) / Math.cos(Math.PI / 8);
-    loop(Array.from({ length: 8 }, (_, i) => {
-      const a = (i * Math.PI) / 4 - Math.PI / 8;
-      return [r * Math.cos(a), r * Math.sin(a)];
-    }));
+    const r = s.acrossFlats / 2 / Math.cos(Math.PI / 8);
+    loop(
+      Array.from({ length: 8 }, (_, i) => {
+        const a = (i * Math.PI) / 4 - Math.PI / 8;
+        return [r * Math.cos(a), r * Math.sin(a)];
+      }),
+    );
     return segments;
   }
   if (s.kind === "klippt") {

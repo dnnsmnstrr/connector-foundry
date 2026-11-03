@@ -598,11 +598,19 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
-          <label className="field" htmlFor={`${id}-af`} title="Distance between opposite flat sides of the octagon.">
+          <label
+            className="field"
+            htmlFor={`${id}-af`}
+            title="Distance between opposite flat sides of the octagon."
+          >
             <span className="field-label">Across flats (mm)</span>
             <DecimalInput id={`${id}-af`} min="0.1" step="0.1" {...numberProps("acrossFlats")} />
           </label>
-          <label className="field" htmlFor={`${id}-clearance`} title="Extra width added across the flats for a looser fit.">
+          <label
+            className="field"
+            htmlFor={`${id}-clearance`}
+            title="Extra width added across the flats for a looser fit."
+          >
             <span className="field-label">Clearance (mm)</span>
             <DecimalInput id={`${id}-clearance`} min="0" step="0.1" {...numberProps("clearance")} />
           </label>

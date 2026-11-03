@@ -449,17 +449,23 @@ function ThreadIcon({ spec, title, className }) {
 // turned, so a 10 × 20 stands up), the widest side ~30px.
 /** @param {{ spec: Record<string, any>, title?: string, className?: string }} props */
 function ShapeIcon({ spec, title, className }) {
-  const plan = spec.kind === "octagon"
-    ? { w: spec.acrossFlats / Math.cos(Math.PI / 8), h: spec.acrossFlats / Math.cos(Math.PI / 8), r: 0, spin: spec.spin, sides: 8 }
-    :
-    spec.kind === "cylinder"
-      ? { w: spec.diameter, h: spec.diameter, r: spec.diameter / 2, spin: 0 }
-      : {
-          w: spec.width,
-          h: spec.height,
-          r: Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2),
+  const plan =
+    spec.kind === "octagon"
+      ? {
+          w: spec.acrossFlats / Math.cos(Math.PI / 8),
+          h: spec.acrossFlats / Math.cos(Math.PI / 8),
+          r: 0,
           spin: spec.spin,
-        };
+          sides: 8,
+        }
+      : spec.kind === "cylinder"
+        ? { w: spec.diameter, h: spec.diameter, r: spec.diameter / 2, spin: 0 }
+        : {
+            w: spec.width,
+            h: spec.height,
+            r: Math.min(spec.cornerRadius, spec.width / 2, spec.height / 2),
+            spin: spec.spin,
+          };
   const s = 30 / Math.max(plan.w, plan.h, 1);
   const cy = SIZE / 2;
   return (
@@ -481,19 +487,21 @@ function ShapeIcon({ spec, title, className }) {
           <polygon
             points={Array.from({ length: plan.sides }, (_, i) => {
               const a = (i * 2 * Math.PI) / plan.sides - Math.PI / 2 - Math.PI / 8;
-              return `${CX + Math.cos(a) * (plan.w * s) / 2},${cy + Math.sin(a) * (plan.h * s) / 2}`;
+              return `${CX + (Math.cos(a) * (plan.w * s)) / 2},${cy + (Math.sin(a) * (plan.h * s)) / 2}`;
             }).join(" ")}
             transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
           />
-        ) : <rect
-          x={CX - (plan.w * s) / 2}
-          y={cy - (plan.h * s) / 2}
-          width={plan.w * s}
-          height={plan.h * s}
-          rx={plan.r * s}
-          // Counter-clockwise as seen from outside the face, as the spin is.
-          transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
-        />}
+        ) : (
+          <rect
+            x={CX - (plan.w * s) / 2}
+            y={cy - (plan.h * s) / 2}
+            width={plan.w * s}
+            height={plan.h * s}
+            rx={plan.r * s}
+            // Counter-clockwise as seen from outside the face, as the spin is.
+            transform={plan.spin ? `rotate(${-plan.spin} ${CX} ${cy})` : undefined}
+          />
+        )}
       </g>
     </svg>
   );

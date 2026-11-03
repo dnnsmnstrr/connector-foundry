@@ -221,6 +221,7 @@ test("every preset has a usable spec and a drawable screw", () => {
           "thread",
           "cylinder",
           "rectangle",
+          "octagon",
           "extrusion",
           "pinhole",
           "klippt",
