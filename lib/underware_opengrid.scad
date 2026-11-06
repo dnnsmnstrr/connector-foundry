@@ -83,7 +83,8 @@ module uwog_grip(w, h) {
     b = UWOG_GRIP_BARB;
     g = UWOG_GRIP_H;
     t = UWOG_GRIP_WALL;
-    profile = [[b, 0], [b, g - t], [0, g - t / 2], [0, g - UWOG_GRIP_TIP_CHAMFER], [b, g], [t, g], [t, 0]];
+    overlap = 0.05;
+    profile = [[b, -overlap], [b, g - t], [0, g - t / 2], [0, g - UWOG_GRIP_TIP_CHAMFER], [b, g], [t, g], [t, -overlap]];
     // right_triangle([g, g]), anchored on its corner as BOSL2 draws it.
     prism = [[g, 0], [0, 0], [0, g]];
     translate([0, 0, h - g]) difference() {

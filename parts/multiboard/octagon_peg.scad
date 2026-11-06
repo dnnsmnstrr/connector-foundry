@@ -10,10 +10,11 @@ module multiboard_octagon_peg(length = 25, across_flats = 14.5, clearance = 0.25
     assert(across_flats > 0, "across_flats must be positive");
     assert(clearance >= 0, "clearance must not be negative");
 
-    d = (across_flats - clearance) / cos(22.5);
-    attachable(anchor, spin, orient, size = [d, d, length],
+    w = across_flats - clearance;
+    d = w / cos(22.5);
+    attachable(anchor, spin, orient, size = [w, w, length],
                anchors = [mount_anchor(length / 2)]) {
-        linear_extrude(height = length)
+        linear_extrude(height = length, center = true)
             rotate(-22.5) circle(d = d, $fn = 8);
         children();
     }
