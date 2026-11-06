@@ -56,32 +56,44 @@ intersection() {
     if (part == "all" || part == "root")
         basic_plate(w=40, label="a\\"b") {
             attach("mount", "mount", overlap=0.5, spin=90) basic_plate(w=20) {
-                attach("bot", "mount") bolted_flange_a() {
-                    if (part == "all" || part == "c2")
-                        attach(BOTTOM, "mount") bolted_flange_b() attach(BOTTOM, "mount") gopro_male();
-                    else
-                        attach(BOTTOM, "mount") hide_this() bolted_flange_b() attach(BOTTOM, "mount") hide_this() gopro_male();
-                }
+                attach("bot", "mount") bolted_flange_a();
+                if (part == "all" || part == "c2")
+                    {
+                        attach("bot", "mount", overlap=-4) bolted_flange_b();
+                        attach("bot", "mount", overlap=-8) gopro_male();
+                    }
+                else
+                    {
+                        attach("bot", "mount", overlap=-4) hide_this() bolted_flange_b();
+                        attach("bot", "mount", overlap=-8) hide_this() gopro_male();
+                    }
             }
         }
     else
         hide_this() basic_plate(w=40, label="a\\"b") {
             attach("mount", "mount", overlap=0.5, spin=90) hide_this() basic_plate(w=20) {
-                attach("bot", "mount") hide_this() bolted_flange_a() {
-                    if (part == "all" || part == "c2")
-                        attach(BOTTOM, "mount") bolted_flange_b() attach(BOTTOM, "mount") gopro_male();
-                    else
-                        attach(BOTTOM, "mount") hide_this() bolted_flange_b() attach(BOTTOM, "mount") hide_this() gopro_male();
-                }
+                attach("bot", "mount") hide_this() bolted_flange_a();
+                if (part == "all" || part == "c2")
+                    {
+                        attach("bot", "mount", overlap=-4) bolted_flange_b();
+                        attach("bot", "mount", overlap=-8) gopro_male();
+                    }
+                else
+                    {
+                        attach("bot", "mount", overlap=-4) hide_this() bolted_flange_b();
+                        attach("bot", "mount", overlap=-8) hide_this() gopro_male();
+                    }
             }
         }
     linear_extrude(height = 1000, center = true) fill() projection()
         show_only("crop")
             tag_this("crop") basic_plate(w=40, label="a\\"b") {
                     attach("mount", "mount", overlap=0.5, spin=90) basic_plate(w=20) {
-                        attach("bot", "mount") bolted_flange_a() {
-                            attach(BOTTOM, "mount") bolted_flange_b() attach(BOTTOM, "mount") gopro_male();
-                        }
+                        attach("bot", "mount") bolted_flange_a();
+                        {
+                                attach("bot", "mount", overlap=-4) bolted_flange_b();
+                                attach("bot", "mount", overlap=-8) gopro_male();
+                            }
                     }
                 }
 }
@@ -116,7 +128,7 @@ test("a quote in a slot or anchor name stays inside its string literal", () => {
   tree.nodes[1].childAnchor = 'a"b';
   const scad = compileToScad(tree, parts);
   assert.match(scad, /attach\("mount\\"\); evil\(\); \/\/", "mount", overlap=0\.5, spin=90\)/);
-  assert.match(scad, /attach\(BOTTOM, "a\\"b"\)/);
+  assert.match(scad, /attach\("bot", "a\\"b", overlap=-8\)/);
   // Every attach( line has balanced, properly closed string literals: no
   // unescaped quote is left over once the escaped ones are removed.
   for (const line of scad.split("\n").filter((l) => l.includes("attach("))) {

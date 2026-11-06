@@ -425,19 +425,12 @@ function partCallArgs(part, params) {
 // against the parent, which is never what you want for a part whose
 // whole purpose is exposing that face to the outside world.
 //
-// KNOWN LIMITATION (browser preview only, not a bug in this codegen):
-// a bolted/snap joint nests two flanges' attach() calls around the
-// child (see below). Each flange is a rounded cuboid
-// (`cuboid(..., rounding=...)`), and openscad-wasm@0.0.4 hits a hard
-// WASM "memory access out of bounds" crash once a THIRD
-// rounded-cuboid part is nested inside that same attach() chain — e.g.
-// bolting a Basics plate (also `cuboid(..., rounding=...)`) onto
-// anything, or two levels of bolted stacking. Confirmed this is a
-// WASM-build resource limit, not a logic error: the identical generated
-// .scad renders correctly with a native `openscad --backend=Manifold`
-// install (see the CLI). A child hitting this shows a render error in
-// the Bench UI rather than silently producing a wrong mesh — annoying,
-// not unsafe — and switching that connection to "fused" always works.
+// To avoid exceeding openscad-wasm@0.0.4's thread stack limit (~70 levels),
+// bolted, snap, and pin joints do not nest flangeB and the child inside
+// flangeA's attach() scope. Instead, flangeA, flangeB, and child are emitted
+// as sibling attachments directly off the parent slot with calibrated overlaps
+// along the slot normal. This avoids nesting rounded cuboids and allows deep
+// assemblies, bolted Basics plates, and stacked joints to render reliably.
 // BOSL2's own attach()/align() `overlap=` sinks the child INTO whatever
 // it's attached to for a POSITIVE value (see vendor/BOSL2/attachments.scad's
 // docs: "Amount to sink the child into the parent"). The Bench's own
@@ -631,18 +624,16 @@ function emitFusedChild(ctx, child, hide, indent) {
   return `${indent}${attachCall(child.slotName, child.childAnchor, mate)} ${hide ? "hide_this() " : ""}${call}${body}`;
 }
 
-// A bolted/snap/pin child: flangeA inherits `hide` directly (it's fused
-// to the parent, same body — no new boundary), but flangeB onward is a
-// NEW body, so it gets its own dispatchBlock, called once shown and
-// once hidden right here, each branch recursing into the child's own
-// further children with THAT branch's hide state. A pin joint's pin
-// gets a second, independent dispatchBlock alongside it — its own
-// separate body, not part of either flange (see lib/joints.scad's
-// pin_flange()).
+// A bolted/snap/pin child: un-nested into sibling attachments off the parent
+// slot so that openscad-wasm's thread stack limit (~70 levels) is not exceeded.
+// FlangeA belongs to the parent's body (inherits `hide` directly).
+// FlangeB and child are placed as sibling attachments with explicit overlap
+// along the slot normal, sharing the child's body tag boundary.
+// A pin joint's pin helper is placed centered at the seam between the flanges
+// as its own separate body tag.
 function emitJointChild(ctx, child, hide, indent) {
   const childPart = ctx.partsById.get(child.partId);
   const call = `${shiftArg(child)}${partCall(ctx, child.id, childPart, child.params)}`;
-  const mate = mateArgs(child);
   const [flangeA, flangeB] =
     child.joint === "bolted"
       ? ["bolted_flange_a", "bolted_flange_b"]
@@ -650,30 +641,34 @@ function emitJointChild(ctx, child, hide, indent) {
         ? ["snap_flange_a", "snap_flange_b"]
         : ["pin_flange", "pin_flange"]; // pin: identical flange either side — see joints.scad
 
+  const t = child.joint === "pin" ? 8 : 4;
+  const rise = 2 * t;
+  const totalOverlap = -(rise + (child.overlap ?? 0));
+  const spin = normalizeSpin(child.spin ?? 0);
+  const spinStr = spin ? `, spin=${scadLiteral(spin)}` : "";
+  const childMate = `, overlap=${scadLiteral(totalOverlap)}${spinStr}`;
+
   const childUnit = (unitHide) => {
-    const grandkids = emitChildren(ctx, child.id, unitHide, indent + "            ");
-    const body = grandkids ? ` {\n${grandkids}\n${indent}        }` : ";";
+    const hidden = unitHide ? "hide_this() " : "";
+    const grandkids = emitChildren(ctx, child.id, unitHide, indent + "        ");
+    const body = grandkids ? ` {\n${grandkids}\n${indent}    }` : ";";
     return (
-      `attach(BOTTOM, "mount") ${unitHide ? "hide_this() " : ""}${flangeB}() ` +
-      `attach(BOTTOM, ${scadLiteral(child.childAnchor)}${mate}) ${unitHide ? "hide_this() " : ""}${call}${body}`
+      `{\n` +
+      `${indent}        ${attachCall(child.slotName, "mount", `, overlap=${scadLiteral(-t)}`)} ${hidden}${flangeB}();\n` +
+      `${indent}        ${attachCall(child.slotName, child.childAnchor, childMate)} ${hidden}${call}${body}\n` +
+      `${indent}    }`
     );
   };
 
   const lines = [
-    `${indent}${attachCall(child.slotName, "mount")} ${hide ? "hide_this() " : ""}${flangeA}() {`,
+    `${indent}${attachCall(child.slotName, "mount")} ${hide ? "hide_this() " : ""}${flangeA}();`,
   ];
-  lines.push(dispatchBlock(ctx, child.id, childUnit, indent + "    "));
+  lines.push(dispatchBlock(ctx, child.id, childUnit, indent));
   if (child.joint === "pin") {
-    // Centered on the seam between the two flanges — BOSL2's own
-    // overlap= sinks the child INTO the parent for a positive value
-    // (see overlapArg()'s comment), so +half the pin's own length sinks
-    // it exactly half into each flange's bore, spanning the join the
-    // same way a pin spans two adjacent beams' aligned holes.
     const pinUnit = (unitHide) =>
-      `${unitHide ? "hide_this() " : ""}attach(BOTTOM, "mount", overlap = BITBEAM_PIN_LEN / 2) bitbeam_joint_pin();`;
-    lines.push(dispatchBlock(ctx, `${child.id}_pin`, pinUnit, indent + "    "));
+      `${attachCall(child.slotName, "mount")} ${unitHide ? "hide_this() " : ""}bitbeam_joint_pin();`;
+    lines.push(dispatchBlock(ctx, `${child.id}_pin`, pinUnit, indent));
   }
-  lines.push(`${indent}}`);
   return lines.join("\n");
 }
 
