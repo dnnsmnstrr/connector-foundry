@@ -144,6 +144,13 @@
     color 0.2s;
 }
 
+@media (pointer: coarse) {
+  .hero-release {
+    min-height: 44px;
+    padding-inline: 1rem 0.85rem;
+  }
+}
+
 .hero-release::after {
   content: "→";
   transition: transform 0.2s var(--ease-out);
@@ -1788,11 +1795,15 @@
 @media (pointer: coarse) {
   [data-keyboard-only],
   .palette-esc,
-  .palette-footer {
+  .palette-footer,
+  .feature-tab kbd {
     display: none;
   }
   [data-touch-only] {
     display: inline;
+  }
+  .palette-search input {
+    min-height: 44px;
   }
 }
 
@@ -2346,6 +2357,15 @@ html:has(.palette-dialog[open]) {
   gap: 0.5rem 0.9rem;
   margin-top: 2rem;
   color: var(--text-3);
+}
+
+@media (pointer: coarse) {
+  .download-more a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0.35rem;
+  }
 }
 
 @media (max-width: 980px) {

@@ -530,13 +530,13 @@ modgrid/connector:
     - 14.6
     - 4.8
     - 6.3
-    volume_mm3: 236.77
+    volume_mm3: 227.78
   dowel-2mm:
     bbox:
     - 14.6
     - 4.8
     - 6.3
-    volume_mm3: 245.84
+    volume_mm3: 240.5
   single:
     bbox:
     - 6.6
@@ -638,6 +638,13 @@ molle/spine:
     - 89.7
     - 7.5
     volume_mm3: 29014.38
+multiboard/octagon-peg:
+  default:
+    bbox:
+    - 14.25
+    - 14.25
+    - 25.0
+    volume_mm3: 4205.56
 multiboard/peg:
   default:
     bbox:

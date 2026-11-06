@@ -13,6 +13,7 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Mobile touch target accessibility and UI improvements.** All landing page and website links (`.text-link`, `.download-more a`, `.hero-release`) and interactive inputs now meet the 44 px minimum touch target sizing on coarse pointer devices; desktop-only keyboard cues are hidden on touch screens.
 - **Holes keeps the view while editing.** Moving a hole no longer changes the camera position to fit the updated mesh.
 - **Precise slot placement on imported models.** Face guides and snap points appear before the first slot; add multiple slots on a face, and use Measure or hold Option to see distances to its edges and center.
 - **Parameters, slots and joints in plain words.** A part's fields say what they set and in what
