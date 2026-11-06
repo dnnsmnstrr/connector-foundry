@@ -12,6 +12,7 @@ import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import UndoRedoButtons from "./components/UndoRedoButtons.jsx";
+import FieldLabel from "./components/FieldLabel.jsx";
 import {
   FOLD_MODES,
   MAX_ATTACHED,
@@ -1922,11 +1923,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               </button>
             </div>
             <p className="muted">Base part. Click a marker in the scene to attach a part to it.</p>
-            <label
-              className="field bench-name-field"
-              title="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export."
-            >
-              <span className="field-label">Name</span>
+            <label className="field bench-name-field has-info-tip">
+              <FieldLabel hint="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export.">
+                Name
+              </FieldLabel>
               <input
                 type="text"
                 placeholder={defaultBenchName(assembly, partsById)}
@@ -1943,16 +1943,15 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               Start over
             </button>
 
-            <label
-              className="field field-checkbox bench-crop-field"
-              title="Cut away anything attached that sticks out past this part's outline"
-            >
+            <label className="field field-checkbox bench-crop-field has-info-tip">
               <input
                 type="checkbox"
                 checked={assembly.cropTo === ROOT_ID}
                 onChange={(e) => nodeActions.setCrop(ROOT_ID, e.target.checked)}
               />
-              <span className="field-label">Crop attached parts to this outline</span>
+              <FieldLabel hint="Cut away anything attached that sticks out past this part's outline">
+                Crop attached parts to this outline
+              </FieldLabel>
             </label>
             {foldSpec(rootPart, assembly.root.params) && (
               <FoldSelect

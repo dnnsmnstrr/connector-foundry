@@ -49,11 +49,6 @@ finished, not on each keystroke as the field does now.
 The app works on a phone (web/README.md, "Phones, tablets and offline"); these were measured or
 found on the way and left for later:
 
-- **Help text on touch.** About fifty field explanations exist only as `title=` tooltips, which a
-  touch screen never shows: the Holes spec fields (`HoleSpecFields.jsx`, 23; `RepeatFields.jsx`, 6),
-  the Bench's node tree (7), the Holes and Bench sidebars (11 and 9). `InfoTip` now opens on a tap;
-  a small `FieldLabel({ children, hint })` that renders the label with an `InfoTip` would route them
-  all through it.
 - **The first tap in Holes is blind.** A finger never hovers, so the face's snap points and guides
   only show after the first hole is drilled. A first tap that only picks the face (snap points
   appear, "Tap again to drill") would change the drill gesture on touch and wants its own decision.
@@ -67,8 +62,6 @@ found on the way and left for later:
   would skip them.
 - **A share target.** Installed on Android, the app could register as a Web Share Target for STL
   and 3MF files, so a model shared from another app opens on the Bench or in Holes.
-- **Landing page leftovers** at phone widths: `.text-link` and `.download-more a` (26 px tall),
-  `.hero-release` (35 px), the palette demo's field (27 px), the feature tabs' `1`/`2`/`3` key caps.
 - **Not verified on a real device:** downloads from an iOS home-screen app (one 2019 WebKit report
   says they open a preview page), the Prusa app's file picker taking a shared 3MF, Apple Pencil
   hover over the viewer, GPU frame times on an older iPad.
