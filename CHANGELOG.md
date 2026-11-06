@@ -13,7 +13,6 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
-- **Accessible field guidance and tap-to-open help on mobile.** Replaced desktop-only `title=` hover tooltips on Holes specifications, pattern repeats, Bench node offset/shift/rotation/crop parameters, and document names with accessible `FieldLabel` components and tap-to-toggle `InfoTip` buttons, making field explanations and recommended tolerances readable on touch screens.
 - **Mobile touch target accessibility and UI improvements.** All landing page and website links (`.text-link`, `.download-more a`, `.hero-release`) and interactive inputs now meet the 44 px minimum touch target sizing on coarse pointer devices; desktop-only keyboard cues are hidden on touch screens.
 - **Holes keeps the view while editing.** Moving a hole no longer changes the camera position to fit the updated mesh.
 - **Precise slot placement on imported models.** Face guides and snap points appear before the first slot; add multiple slots on a face, and use Measure or hold Option to see distances to its edges and center.

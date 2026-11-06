@@ -49,6 +49,11 @@ finished, not on each keystroke as the field does now.
 The app works on a phone (web/README.md, "Phones, tablets and offline"); these were measured or
 found on the way and left for later:
 
+- **Help text on touch.** About fifty field explanations exist only as `title=` tooltips, which a
+  touch screen never shows: the Holes spec fields (`HoleSpecFields.jsx`, 23; `RepeatFields.jsx`, 6),
+  the Bench's node tree (7), the Holes and Bench sidebars (11 and 9). `InfoTip` now opens on a tap;
+  a small `FieldLabel({ children, hint })` that renders the label with an `InfoTip` would route them
+  all through it.
 - **The first tap in Holes is blind.** A finger never hovers, so the face's snap points and guides
   only show after the first hole is drilled. A first tap that only picks the face (snap points
   appear, "Tap again to drill") would change the drill gesture on touch and wants its own decision.

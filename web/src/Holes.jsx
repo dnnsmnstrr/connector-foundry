@@ -16,7 +16,6 @@ import SidebarResizer from "./components/SidebarResizer.jsx";
 import SidebarToggle from "./components/SidebarToggle.jsx";
 import StlViewer from "./components/StlViewer.jsx";
 import UndoRedoButtons from "./components/UndoRedoButtons.jsx";
-import FieldLabel from "./components/FieldLabel.jsx";
 import { useBenchSession } from "./hooks/useBenchSession.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useHolesHistory } from "./hooks/useHolesHistory.js";
@@ -1573,10 +1572,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           ? "Tap a face to see its guides, then again to drill a hole."
           : "Click a face in the scene to drill a hole."}
       </p>
-      <label className="field bench-name-field has-info-tip">
-        <FieldLabel hint="What the exports are called — <name>_holes.stl and <name>_holes.scad">
-          Name
-        </FieldLabel>
+      <label
+        className="field bench-name-field"
+        title="What the exports are called — <name>_holes.stl and <name>_holes.scad"
+      >
+        <span className="field-label">Name</span>
         <input
           type="text"
           placeholder={sourceStem(doc.source, catalogueById)}
@@ -1609,15 +1609,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           </>
         ) : (
           <>
-            <label className="field field-checkbox bench-crop-field has-info-tip">
+            <label
+              className="field field-checkbox bench-crop-field"
+              title="Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it."
+            >
               <input
                 type="checkbox"
                 checked={Boolean(doc.source.flip)}
                 onChange={(e) => setFlip(e.target.checked)}
               />
-              <FieldLabel hint="Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it.">
-                Flip upside down
-              </FieldLabel>
+              <span className="field-label">Flip upside down</span>
             </label>
             <p className="muted holes-params-note">
               An imported mesh has no other parameters. To change it, edit the original file, or the bench it

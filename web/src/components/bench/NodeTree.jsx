@@ -7,7 +7,6 @@ import FoldSelect from "./FoldSelect.jsx";
 import { foldSpec } from "../../lib/benchFold.js";
 import DecimalInput from "../DecimalInput.jsx";
 import RotationInput from "../RotationInput.jsx";
-import FieldLabel from "../FieldLabel.jsx";
 
 // One node in the "Attached" tree (always a non-root node — root gets
 // its own params panel above this list in Bench's sidebar). Renders
@@ -92,16 +91,18 @@ export default function NodeTree({
           onChange={(joint) => actions.setJoint(nodeId, joint)}
         />
       </div>
-      <label className="field bench-offset-field has-info-tip">
-        <FieldLabel hint="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap.">
-          Offset (mm)
-        </FieldLabel>
+      <label
+        className="field bench-offset-field"
+        title="Negative sinks it into whatever it's attached to; positive pulls it away, leaving a gap."
+      >
+        Offset (mm)
         <DecimalInput value={node.overlap ?? 0} onChange={(value) => actions.setOverlap(nodeId, value)} />
       </label>
-      <label className="field bench-offset-field bench-shift-field has-info-tip">
-        <FieldLabel hint="Slide it sideways on its slot, in mm — across the mating face, along the slot's own x and y (they turn with the rotation). Lines a part up when its slot isn't quite centred on the feature that should sit over the parent's, e.g. an imported buckle whose chosen face is off its middle prong.">
-          Shift X / Y (mm)
-        </FieldLabel>
+      <label
+        className="field bench-offset-field bench-shift-field"
+        title="Slide it sideways on its slot, in mm — across the mating face, along the slot's own x and y (they turn with the rotation). Lines a part up when its slot isn't quite centred on the feature that should sit over the parent's, e.g. an imported buckle whose chosen face is off its middle prong."
+      >
+        Shift X / Y (mm)
         <span className="bench-shift-inputs">
           {[0, 1].map((axis) => (
             <DecimalInput
@@ -117,10 +118,11 @@ export default function NodeTree({
           ))}
         </span>
       </label>
-      <label className="field bench-offset-field bench-rotation-field has-info-tip">
-        <FieldLabel hint="Turn about the slot it sits on. Positive is counter-clockwise viewed from above the slot; the arrows step by 90°.">
-          Rotation (°)
-        </FieldLabel>
+      <label
+        className="field bench-offset-field bench-rotation-field"
+        title="Turn about the slot it sits on. Positive is counter-clockwise viewed from above the slot; the arrows step by 90°."
+      >
+        Rotation (°)
         <RotationInput
           value={node.spin ?? 0}
           onChange={(degrees) => actions.setSpin(nodeId, degrees)}
@@ -128,15 +130,16 @@ export default function NodeTree({
           name={part.name}
         />
       </label>
-      <label className="field field-checkbox bench-crop-field has-info-tip">
+      <label
+        className="field field-checkbox bench-crop-field"
+        title="Everything else is trimmed to this part's vertical outline — edges that stick out past it are cut away. One part at a time; the scene's Crop button is the same switch."
+      >
         <input
           type="checkbox"
           checked={assembly.cropTo === nodeId}
           onChange={(e) => actions.setCrop(nodeId, e.target.checked)}
         />
-        <FieldLabel hint="Everything else is trimmed to this part's vertical outline — edges that stick out past it are cut away. One part at a time; the scene's Crop button is the same switch.">
-          Crop others to this outline
-        </FieldLabel>
+        <span className="field-label">Crop others to this outline</span>
       </label>
       {foldSpec(part, node.params) && (
         <FoldSelect

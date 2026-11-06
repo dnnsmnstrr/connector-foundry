@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { SKADIS_SPACING, STANDARD_SPACINGS, matchSpacing, spacingLabel } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
-import FieldLabel from "../FieldLabel.jsx";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
 // copies (screwHoles.js's repeatHole(), whose option names these fields
@@ -42,8 +41,8 @@ export default function RepeatFields({
    * @param {{ min?: number | string, step?: number | string, title?: string }} [field]
    */
   const number = (key, label, { min, step = 1, title } = {}) => (
-    <label className={title ? "field has-info-tip" : "field"} htmlFor={`${id}-${key}`}>
-      <FieldLabel hint={title}>{label}</FieldLabel>
+    <label className="field" htmlFor={`${id}-${key}`} title={title}>
+      <span className="field-label">{label}</span>
       <DecimalInput
         id={`${id}-${key}`}
         min={min}
@@ -55,16 +54,18 @@ export default function RepeatFields({
   );
   // Row and grid alike: the pattern round this hole, or from it.
   const centered = (
-    <label className="field field-checkbox holes-through-field has-info-tip" htmlFor={`${id}-centered`}>
+    <label
+      className="field field-checkbox holes-through-field"
+      htmlFor={`${id}-centered`}
+      title="Lay the pattern out round this hole's spot instead of from it as a corner. This hole stays put if a hole of the pattern lands on its spot (the middle of an odd row or an odd × odd grid); otherwise it moves to the pattern's first corner."
+    >
       <input
         id={`${id}-centered`}
         type="checkbox"
         checked={Boolean(options.centered)}
         onChange={(e) => onChange({ centered: e.target.checked })}
       />
-      <FieldLabel hint="Lay the pattern out round this hole's spot instead of from it as a corner. This hole stays put if a hole of the pattern lands on its spot (the middle of an odd row or an odd × odd grid); otherwise it moves to the pattern's first corner.">
-        Centre on this hole
-      </FieldLabel>
+      <span className="field-label">Centre on this hole</span>
     </label>
   );
   return (
@@ -90,10 +91,12 @@ export default function RepeatFields({
             step: 0.5,
             title: "Centre to centre. Negative runs the row the other way.",
           })}
-          <label className="field has-info-tip" htmlFor={`${id}-along`}>
-            <FieldLabel hint="Across the face, or up it: straight up on a wall, the part's Y on a face lying flat.">
-              Direction
-            </FieldLabel>
+          <label
+            className="field"
+            htmlFor={`${id}-along`}
+            title="Across the face, or up it: straight up on a wall, the part's Y on a face lying flat."
+          >
+            <span className="field-label">Direction</span>
             <select
               id={`${id}-along`}
               value={options.along}
@@ -122,10 +125,12 @@ export default function RepeatFields({
       )}
       {options.pattern === "grid" && (
         <>
-          <label className="field has-info-tip" htmlFor={`${id}-standard`}>
-            <FieldLabel hint="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts.">
-              Standard spacing
-            </FieldLabel>
+          <label
+            className="field"
+            htmlFor={`${id}-standard`}
+            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts."
+          >
+            <span className="field-label">Standard spacing</span>
             <select
               id={`${id}-standard`}
               value={matchSpacing(options, spacings)?.id ?? ""}
@@ -148,16 +153,18 @@ export default function RepeatFields({
               ))}
             </select>
           </label>
-          <label className="field field-checkbox holes-through-field has-info-tip" htmlFor={`${id}-stagger`}>
+          <label
+            className="field field-checkbox holes-through-field"
+            htmlFor={`${id}-stagger`}
+            title="Every other row shifted half a spacing across, the way a Skådis board has its slots."
+          >
             <input
               id={`${id}-stagger`}
               type="checkbox"
               checked={options.stagger}
               onChange={(e) => onChange({ stagger: e.target.checked })}
             />
-            <FieldLabel hint="Every other row shifted half a spacing across, the way a Skådis board has its slots.">
-              Stagger rows
-            </FieldLabel>
+            <span className="field-label">Stagger rows</span>
           </label>
           {centered}
         </>
@@ -175,30 +182,32 @@ export default function RepeatFields({
                 : "Round this hole's spot; the first hole goes straight up from it.",
             })}
           </div>
-          <label className="field field-checkbox holes-through-field has-info-tip" htmlFor={`${id}-skadis`}>
+          <label
+            className="field field-checkbox holes-through-field"
+            htmlFor={`${id}-skadis`}
+            title={`Fill the circle with a Skådis board's pattern instead of a ring: ${SKADIS_SPACING.across} mm across, ${SKADIS_SPACING.up} mm up, every other row shifted ${SKADIS_SPACING.across / 2} mm, centred on this hole.`}
+          >
             <input
               id={`${id}-skadis`}
               type="checkbox"
               checked={options.skadisFill}
               onChange={(e) => onChange({ skadisFill: e.target.checked })}
             />
-            <FieldLabel
-              hint={`Fill the circle with a Skådis board's pattern instead of a ring: ${SKADIS_SPACING.across} mm across, ${SKADIS_SPACING.up} mm up, every other row shifted ${SKADIS_SPACING.across / 2} mm, centred on this hole.`}
-            >
-              Skådis spacing, filling the circle
-            </FieldLabel>
+            <span className="field-label">Skådis spacing, filling the circle</span>
           </label>
           {!options.skadisFill && (
-            <label className="field field-checkbox holes-through-field has-info-tip" htmlFor={`${id}-center`}>
+            <label
+              className="field field-checkbox holes-through-field"
+              htmlFor={`${id}-center`}
+              title="Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole."
+            >
               <input
                 id={`${id}-center`}
                 type="checkbox"
                 checked={options.keepCenter}
                 onChange={(e) => onChange({ keepCenter: e.target.checked })}
               />
-              <FieldLabel hint="Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole.">
-                Keep this hole in the centre
-              </FieldLabel>
+              <span className="field-label">Keep this hole in the centre</span>
             </label>
           )}
         </>
