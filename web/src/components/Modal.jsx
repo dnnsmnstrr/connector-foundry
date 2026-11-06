@@ -69,7 +69,13 @@ export default function Modal({ onClose, className, title, actions, children }) 
         <div className="bench-modal-header">
           <h3 id={titleId}>{title}</h3>
           {actions && <div className="bench-modal-actions">{actions}</div>}
-          <button type="button" className="bench-modal-close" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="bench-modal-close"
+            onClick={onClose}
+            aria-label="Close"
+            title="Close"
+          >
             <span aria-hidden="true">×</span>
           </button>
         </div>
