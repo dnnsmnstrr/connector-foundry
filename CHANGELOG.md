@@ -13,6 +13,7 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Bench joints no longer hit OpenSCAD stack limits.** Bolted, snap-fit, and pin joints un-nest intermediate flanges into sibling attachments off the parent slot, eliminating WebAssembly recursion crashes (`original is not a function`, `memory access out of bounds`) when bolting rounded parts like the Basics plate or stacking multiple joints.
 - **Holes keeps the view while editing.** Moving a hole no longer changes the camera position to fit the updated mesh.
 - **Precise slot placement on imported models.** Face guides and snap points appear before the first slot; add multiple slots on a face, and use Measure or hold Option to see distances to its edges and center.
 - **Parameters, slots and joints in plain words.** A part's fields say what they set and in what
