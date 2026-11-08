@@ -51,12 +51,31 @@ export default function PartBrowser({ parts, activeId, onPick, toolbar, autoFocu
           aria-label="Search parts"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && search) {
+              e.preventDefault();
+              e.stopPropagation();
+              setSearch("");
+            }
+          }}
           autoFocus={focusOnOpen}
           data-autofocus={focusOnOpen ? "" : undefined}
         />
-        <kbd className="shortcut-hint part-search-hint" aria-hidden="true" title="Press / to search parts">
-          /
-        </kbd>
+        {search ? (
+          <button
+            type="button"
+            className="part-search-clear"
+            aria-label="Clear search"
+            title="Clear search (Esc)"
+            onClick={() => setSearch("")}
+          >
+            ✕
+          </button>
+        ) : (
+          <kbd className="shortcut-hint part-search-hint" aria-hidden="true" title="Press / to search parts">
+            /
+          </kbd>
+        )}
       </div>
       {toolbar}
       {filtered.length === 0 && (
