@@ -349,6 +349,10 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
+.search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
 .part-search {
   position: relative;
   margin-bottom: 0.5rem;
@@ -366,6 +370,29 @@ textarea {
   margin: 0;
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+.part-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #8b8c91;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.part-search-clear:hover {
+  color: #e6e6e6;
+  background: #202126;
 }
 
 .search-input::placeholder {
@@ -3649,6 +3676,7 @@ a.bench-modal-header-button {
   }
 
   .bench-remove,
+  .part-search-clear,
   .holes-preset-button,
   .spin-button,
   .bench-rotate-pill,

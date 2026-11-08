@@ -1,0 +1,3 @@
+## 2026-03-06 - Search clearing pattern across views and modals
+**Learning:** Search fields across modal and sidebar contexts (such as `PresetPicker`, `ShortcutsModal`, and `PartBrowser`) should consistently support `Escape` to clear active queries before dismissing dialogs/views, accompanied by an explicit accessible clear button (`aria-label="Clear search"`, `title="Clear search (Esc)"`) that maintains minimum touch target sizing (32px / 44px on coarse pointers).
+**Action:** When creating or refining search inputs, ensure `Escape` clears the text query first and expose an accessible clear button when text is present.

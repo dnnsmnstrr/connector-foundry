@@ -672,6 +672,22 @@ test("/ jumps to the Library's part search from any mode", async ({ page }) => {
   await search.press("ArrowRight");
   await search.press("/");
   await expect(search).toHaveValue("post/");
+  // When text is typed, the clear button appears in place of the "/" hint.
+  const clearBtn = page.getByRole("button", { name: "Clear search" });
+  await expect(clearBtn).toBeVisible();
+  await expect(page.locator(".part-search-hint")).toHaveCount(0);
+  // Pressing Escape while searching clears the query and restores the hint without losing focus.
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(clearBtn).toHaveCount(0);
+  await expect(page.locator(".part-search-hint")).toBeVisible();
+  // Clicking the clear button clears the query as well.
+  await search.fill("plate");
+  await expect(clearBtn).toBeVisible();
+  await clearBtn.click();
+  await expect(search).toHaveValue("");
+  await expect(clearBtn).toHaveCount(0);
+  await expect(page.locator(".part-search-hint")).toBeVisible();
   // From the Bench with the sidebar collapsed: back to the Library,
   // sidebar open, search focused.
   await search.blur();
