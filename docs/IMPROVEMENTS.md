@@ -67,8 +67,6 @@ found on the way and left for later:
   would skip them.
 - **A share target.** Installed on Android, the app could register as a Web Share Target for STL
   and 3MF files, so a model shared from another app opens on the Bench or in Holes.
-- **Landing page leftovers** at phone widths: `.text-link` and `.download-more a` (26 px tall),
-  `.hero-release` (35 px), the palette demo's field (27 px), the feature tabs' `1`/`2`/`3` key caps.
 - **Not verified on a real device:** downloads from an iOS home-screen app (one 2019 WebKit report
   says they open a preview page), the Prusa app's file picker taking a shared 3MF, Apple Pencil
   hover over the viewer, GPU frame times on an older iPad.

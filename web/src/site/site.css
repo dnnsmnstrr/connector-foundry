@@ -288,6 +288,15 @@ code {
   text-decoration: none;
 }
 
+@media (pointer: coarse) {
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0.35rem;
+  }
+}
+
 .text-link::after {
   content: "→";
   transition: transform 0.2s var(--ease-out);
