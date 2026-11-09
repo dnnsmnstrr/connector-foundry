@@ -340,6 +340,23 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await search.fill("openconnect");
   await expect(page.getByRole("option", { name: /^openConnect slot/ })).toHaveCount(3);
   await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveCount(0);
+
+  // When text is typed, the clear button appears; Escape or clicking it clears search.
+  const clearSearch = page.getByRole("button", { name: "Clear search" });
+  await expect(clearSearch).toBeVisible();
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(clearSearch).toHaveCount(0);
+  await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveCount(1);
+
+  await search.fill("openconnect");
+  await expect(clearSearch).toBeVisible();
+  await clearSearch.click();
+  await expect(search).toHaveValue("");
+  await expect(clearSearch).toHaveCount(0);
+  await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveCount(1);
+
+  await search.fill("openconnect");
   await page.getByRole("option", { name: /^openConnect slot$/ }).click();
   await search.fill("");
   await expect(page.getByRole("combobox", { name: "Lock nub" })).toHaveValue("left");
