@@ -372,7 +372,10 @@ textarea {
   pointer-events: none;
 }
 
-.part-search-clear {
+/* The ✕ in a search field that has text: the Library's part search and
+   the Holes tab's hole types (PresetPicker.jsx). */
+.part-search-clear,
+.holes-preset-search-clear {
   position: absolute;
   top: 50%;
   right: 0.4rem;
@@ -390,7 +393,8 @@ textarea {
   justify-content: center;
 }
 
-.part-search-clear:hover {
+.part-search-clear:hover,
+.holes-preset-search-clear:hover {
   color: #e6e6e6;
   background: #202126;
 }
@@ -3377,29 +3381,6 @@ a.bench-modal-header-button {
 .holes-preset-search-input {
   margin-bottom: 0;
   padding-right: 2.2rem;
-}
-
-.holes-preset-search-clear {
-  position: absolute;
-  top: 50%;
-  right: 0.4rem;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #8b8c91;
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 0.2rem 0.35rem;
-  border-radius: 4px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.holes-preset-search-clear:hover {
-  color: #e6e6e6;
-  background: #202126;
 }
 
 .holes-preset-group h4 {

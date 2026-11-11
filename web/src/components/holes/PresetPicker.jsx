@@ -1,4 +1,4 @@
-import { memo, useId, useMemo, useState } from "react";
+import { memo, useId, useMemo, useRef, useState } from "react";
 import { threadOf } from "../../lib/screwHoles.js";
 import { presetGroups } from "../../lib/screwPresets.js";
 import { getPresetGroupsOpen, setPresetGroupOpen } from "../../lib/uiPrefs.js";
@@ -23,6 +23,7 @@ import ScrewIcon from "./ScrewIcon.jsx";
 /** @param {{ value: string | null, onPick: (preset: any) => void }} props */
 function PresetPicker({ value, onPick }) {
   const id = useId();
+  const searchRef = useRef(null);
   const [query, setQuery] = useState("");
   const [openByHand, setOpenByHand] = useState(getPresetGroupsOpen);
   const groups = useMemo(() => presetGroups(), []);
@@ -40,6 +41,7 @@ function PresetPicker({ value, onPick }) {
     <div className="holes-presets">
       <div className="holes-preset-search">
         <input
+          ref={searchRef}
           type="search"
           className="search-input holes-preset-search-input"
           placeholder="Search hole types…"
@@ -60,7 +62,13 @@ function PresetPicker({ value, onPick }) {
             className="holes-preset-search-clear"
             aria-label="Clear search"
             title="Clear search (Esc)"
-            onClick={() => setQuery("")}
+            onClick={() => {
+              setQuery("");
+              // The button goes with the text it clears, and would take
+              // the focus with it: back to the field, where a native
+              // search field's own ✕ leaves it.
+              searchRef.current?.focus();
+            }}
           >
             ✕
           </button>

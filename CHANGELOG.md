@@ -138,6 +138,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   
 ### Holes tab
 
+- **The hole type search has a clear button.** A ✕ in the field empties it, as Escape does, and
+  leaves the cursor there.
 - **Multiboard threads.** Two new presets cut a Multiboard tile's big and small threaded holes into
   any part, so Multiboard's own bolts screw into it, and Measure steps them on Multiboard's 25 mm
   grid.

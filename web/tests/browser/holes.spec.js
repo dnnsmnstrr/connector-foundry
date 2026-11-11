@@ -354,6 +354,8 @@ test("a click on a face drills a snapped hole and the render carries it", async 
   await clearSearch.click();
   await expect(search).toHaveValue("");
   await expect(clearSearch).toHaveCount(0);
+  // The button is gone with the text; the focus is back in the field.
+  await expect(search).toBeFocused();
   await expect(page.getByRole("option", { name: /^M3 socket cap/ })).toHaveCount(1);
 
   await search.fill("openconnect");
