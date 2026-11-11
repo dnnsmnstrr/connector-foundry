@@ -407,9 +407,12 @@ export default function Library({
     [dimensions, pendingShown],
   );
 
-  function downloadStl() {
+  // `save` is where the file goes: downloadBlob() for the button and the
+  // palette, a desktop agent's own for its export (captureDownload()).
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  function downloadStl(save = downloadBlob) {
     if (!canDownload) return;
-    downloadBlob(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
+    save(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
   // "Print…" (components/PrintSheet.jsx), on a phone or tablet only (the
@@ -711,7 +714,7 @@ export default function Library({
                     <button
                       type="button"
                       className="download-button library-download"
-                      onClick={downloadStl}
+                      onClick={() => downloadStl()}
                       disabled={!canDownload}
                     >
                       Download STL

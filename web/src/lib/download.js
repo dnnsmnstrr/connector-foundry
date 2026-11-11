@@ -1,21 +1,28 @@
 import { showCommandHud } from "./commandHud.js";
 import { appFolderLabel, nativePlatform, saveToAppFolder } from "./nativeApp.js";
 
+/**
+ * What an export hands its file to: downloadBlob(), or the save function
+ * captureDownload() gives a command in its place. The data is a Blob, or
+ * what one is made of: a render's bytes (an ArrayBuffer or a view of one),
+ * or text.
+ * @typedef {(data: Blob | ArrayBuffer | ArrayBufferView | string, filename: string, type?: string) => void} SaveFile
+ */
+
+/** @param {Parameters<SaveFile>[0]} data @param {string} type */
+const asBlob = (data, type) =>
+  data instanceof Blob ? data : new Blob([/** @type {BlobPart} */ (data)], { type });
+
 // Hand the browser a file to save. Every export goes through here: the
 // Library's STL, the Bench's bodies, .scad and config, the Holes tab's
 // models, the settings backup and the print sheet's files. In the iOS and
 // Android store apps the file goes straight into the app's own folder
 // instead (lib/nativeApp.js), with no sheet asking where, and the HUD says
-// where it went. A coding agent's export in the desktop app is taken
-// before any of that (captureDownload()) and saved by the main process.
+// where it went. A coding agent's export in the desktop app never gets
+// here: its command is handed captureDownload()'s save function instead.
+/** @type {SaveFile} */
 export function downloadBlob(data, filename, type = "application/octet-stream") {
-  const blob = data instanceof Blob ? data : new Blob([data], { type });
-  if (capture) {
-    const take = capture;
-    capture = null;
-    take({ blob, filename });
-    return;
-  }
+  const blob = asBlob(data, type);
   const platform = nativePlatform();
   if (platform) {
     saveToAppFolder(blob, filename).then(
@@ -47,28 +54,29 @@ export function downloadBlob(data, filename, type = "application/octet-stream") 
   window.addEventListener("pagehide", revoke);
 }
 
-/** @type {((file: { blob: Blob, filename: string }) => void) | null} */
-let capture = null;
-
 /**
- * Runs `run` and resolves with the next file it hands downloadBlob(),
- * which then saves nothing itself. For a coding agent's export in the
- * desktop app (lib/webmcp.js's run_command): the file goes to the main
- * process, which saves it where the agent asked without a Save dialog.
- * Most exports render first, so the file can come a while after `run`
- * returns; one that fails says so in its tab and never comes, which is
- * why there is a limit.
- * @param {() => void} run
+ * Runs `run` with a save function to use in place of downloadBlob(), and
+ * resolves with the first file `run` hands it. For a coding agent's export
+ * in the desktop app (lib/webmcp.js's run_command): the file goes to the
+ * main process, which saves it where the agent asked without a Save
+ * dialog.
+ *
+ * The export gets its own save function rather than downloadBlob() being
+ * intercepted, because most exports render first and the file comes a
+ * while after `run` returns: a download the user starts in the meantime
+ * is theirs, with its Save dialog, and must not land where the agent
+ * asked in place of the agent's file. An export that fails says so in its
+ * tab and never hands over a file, which is why there is a limit; a file
+ * that comes after the limit, or a second one, is downloaded as any other.
+ * @param {(save: SaveFile) => void} run
  * @param {number} timeoutMs
  * @returns {Promise<{ blob: Blob, filename: string }>}
  */
 export function captureDownload(run, timeoutMs) {
-  if (capture)
-    return Promise.reject(new Error("Another export is still running; try again when it is done."));
   return new Promise((resolve, reject) => {
+    let waiting = true;
     const timer = setTimeout(() => {
-      if (capture !== take) return;
-      capture = null;
+      waiting = false;
       reject(
         new Error(
           `No file came within ${Math.round(timeoutMs / 1000)} s. The export may have failed (get_app_state ` +
@@ -76,17 +84,21 @@ export function captureDownload(run, timeoutMs) {
         ),
       );
     }, timeoutMs);
-    /** @param {{ blob: Blob, filename: string }} file */
-    const take = (file) => {
+    /** @type {SaveFile} */
+    const save = (data, filename, type = "application/octet-stream") => {
+      if (!waiting) {
+        downloadBlob(data, filename, type);
+        return;
+      }
+      waiting = false;
       clearTimeout(timer);
-      resolve(file);
+      resolve({ blob: asBlob(data, type), filename });
     };
-    capture = take;
     try {
-      run();
+      run(save);
     } catch (err) {
+      waiting = false;
       clearTimeout(timer);
-      if (capture === take) capture = null;
       reject(err);
     }
   });

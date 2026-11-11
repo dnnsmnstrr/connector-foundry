@@ -1167,9 +1167,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
   useEffect(() => () => printAbort.current?.abort(), []);
 
-  async function downloadStl() {
+  // `save` is where an export's file goes: downloadBlob() for the buttons
+  // and the palette, a desktop agent's own for its export
+  // (captureDownload()).
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  async function downloadStl(save = downloadBlob) {
     try {
-      downloadBlob(await holedBuffer(), exportFilename(exportName, "holes", ".stl"), "model/stl");
+      save(await holedBuffer(), exportFilename(exportName, "holes", ".stl"), "model/stl");
     } catch (err) {
       setRenderError(err.message);
     }
@@ -1183,10 +1187,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // The extents come from the current base, as holedBuffer()'s do, not
   // from the last render that finished: that may be the previous model's
   // (or none yet), which would size the through holes for the wrong part.
-  async function downloadScad() {
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  async function downloadScad(save = downloadBlob) {
     try {
       const extents = meshExtents(await baseBuffer(doc.source, catalogueById, globalOverrides));
-      downloadBlob(
+      save(
         holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, extents }),
         exportFilename(exportName, "holes", ".scad"),
         "text/plain",
@@ -1735,7 +1740,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <button
           type="button"
           className="download-button bench-export-button"
-          onClick={downloadStl}
+          onClick={() => downloadStl()}
           disabled={status === "error"}
         >
           Download STL
@@ -1762,7 +1767,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <button
           type="button"
           className="bench-export-link"
-          onClick={downloadScad}
+          onClick={() => downloadScad()}
           title="The base and the holes as OpenSCAD source"
         >
           Download .scad

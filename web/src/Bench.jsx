@@ -1261,11 +1261,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     return tags.some((t) => t !== tag && nameOf(t) === name) ? `${name} (${tag})` : name;
   }
 
-  function downloadBody(tag) {
+  // `save` is where an export's file goes: downloadBlob() for the buttons
+  // and the palette, a desktop agent's own for its export
+  // (captureDownload()). It stays with the export through the name
+  // prompt, so the file a named bench then makes is still that agent's.
+  /** @param {string} tag @param {import("./lib/download.js").SaveFile} [save] */
+  function downloadBody(tag, save = downloadBlob) {
     withName(async (name) => {
       try {
         const buf = await renderAssembly(tag);
-        downloadBlob(buf, exportFilename(name, tag, ".stl"), "model/stl");
+        save(buf, exportFilename(name, tag, ".stl"), "model/stl");
       } catch (err) {
         setRenderError(friendlyRenderError(err.message));
       }
@@ -1292,10 +1297,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // compileToScad() throws on a tree it can't express (a part missing
   // from the catalogue, say); shown where the STL exports show theirs,
   // rather than lost as an uncaught error in an event handler.
-  function downloadScad() {
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  function downloadScad(save = downloadBlob) {
     withName((name) => {
       try {
-        downloadBlob(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain");
+        save(compileToScad(assembly, partsById), exportFilename(name, null, ".scad"), "text/plain");
       } catch (err) {
         setRenderError(friendlyRenderError(err.message));
       }
@@ -1375,10 +1381,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // "Save" keeps it in the browser under a name, and loading either goes
   // through the same applyConfig().
 
-  function downloadConfig() {
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  function downloadConfig(save = downloadBlob) {
     withName((name) => {
       const doc = serializeBenchConfig(assembly, partsById, name);
-      downloadBlob(configToJson(doc), exportFilename(name, null, CONFIG_EXTENSION), "application/json");
+      save(configToJson(doc), exportFilename(name, null, CONFIG_EXTENSION), "application/json");
     });
   }
 
@@ -1629,7 +1636,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           id: `bench.downloadStl:${tag}`,
           title: `Download STL: ${tag}`,
           subtitle: tag === ROOT_ID ? rootPart?.name : nodeName(tag.replace(/_pin$/, "")),
-          run: () => downloadBody(tag),
+          run: (save) => downloadBody(tag, save),
         }),
       ),
       builtin("bench.print", { run: openPrintSheet }),
@@ -2007,7 +2014,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               <button
                 type="button"
                 className="download-button bench-export-button secondary-button"
-                onClick={downloadConfig}
+                onClick={() => downloadConfig()}
                 title="Save this bench as a file, imported meshes included, to open again later"
               >
                 Download config
@@ -2030,7 +2037,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                 Print with EasyPrint…
               </button>
               {/* Rarely wanted, so a link under the buttons rather than one of them. */}
-              <button type="button" className="bench-export-link" onClick={downloadScad}>
+              <button type="button" className="bench-export-link" onClick={() => downloadScad()}>
                 Download .scad
               </button>
             </div>
