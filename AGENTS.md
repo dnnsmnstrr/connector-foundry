@@ -116,6 +116,10 @@ anyone can write. Non-finite numbers must throw, not be emitted.
 still runs `hull()` through CGAL (which asserts on some BOSL2 rounded cuboids), and can run
 `callMain` once per instance. A part that renders natively can fail in the browser. Details and
 the measured numbers: `web/README.md`, "Known limit — nesting depth", and the worker's header.
+The browser's render also includes each file once (`web/src/lib/scadIncludes.js`; the CLI
+includes them as written), which is the same model unless a repeated `include` decides which
+file's definition of a name wins: put an override after the last include of what it overrides.
+`web/tests/unit/scad-includes.test.js` fails for a part that depends on the repeat.
 
 **Mirrored logic.** `web/src/lib/slots.js` mirrors `lib/slots.scad`; `scadLiteral.js` mirrors
 `openscad_value()`; `mount_offset` is evaluated in both `cli/foundry.py` and `slots.js`;

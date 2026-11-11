@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BufferGeometry } from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import SnapBar from "./components/holes/SnapBar.jsx";
 import HoleRow from "./components/holes/HoleRow.jsx";
@@ -56,6 +55,7 @@ import {
 import { getHolesSession, redoHoles, setHolesDoc, undoHoles } from "./lib/holesSession.js";
 import { hasCoarsePointer, ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
+import { weldVertices } from "./lib/meshWeld.js";
 import { renderPart } from "./lib/openscad-client.js";
 import {
   faceMeasurements,
@@ -363,7 +363,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const display = new STLLoader().parse(stlBuffer);
     const stripped = new BufferGeometry();
     stripped.setAttribute("position", display.getAttribute("position"));
-    const topo = mergeVertices(stripped, 1e-3);
+    const topo = weldVertices(stripped, 1e-3);
     return { display, topo };
   }, [stlBuffer]);
   useEffect(

@@ -42,7 +42,8 @@ import { getGridSnap } from "./lib/uiPrefs.js";
 
 // How long after the last parameter edit the preview re-renders: long
 // enough that typing "120" into a number field is one render, not three.
-// A result already in the render cache shows at once instead.
+// A result already in the render cache shows at once instead, and so
+// does a tick or a choice from a list (editParams()).
 const PARAM_RENDER_DELAY_MS = 400;
 
 // The render request for useRender's key.
@@ -160,6 +161,9 @@ export default function Library({
   // whether it renders at once, and the ghost of the size it asked for,
   // shown until that render lands.
   const [pending, setPending] = useState(null);
+  // The parameters a tick or a choice from a list just set (the very
+  // object, as `pending`'s): they render at once, see editParams().
+  const immediateParams = useRef(null);
   const globalOverrides = useGlobalOverrides();
 
   const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId]);
@@ -205,6 +209,15 @@ export default function Library({
         label: one ? `edit ${one}` : "edit parameters",
       });
     }
+    // A checkbox or a choice from a list is a finished edit, not one of a
+    // run of keystrokes, so there is nothing for the debounce to wait
+    // out: it was 400 of the 700 ms between a tick and a plate's new
+    // preview. Typed values (and a reset, which arrives like one) wait.
+    immediateParams.current =
+      changed.length > 0 &&
+      changed.every((key) => typeof next[key] === "boolean" || selected?.options?.[key] !== undefined)
+        ? next
+        : null;
     setParams(next);
     setPending(null);
   }
@@ -242,12 +255,13 @@ export default function Library({
   useEffect(() => subscribeLibraryRequest((request) => takeRequest.current(request)), []);
 
   // The preview follows the part, its parameters and the printer
-  // settings. A parameter edit waits PARAM_RENDER_DELAY_MS for the edits
-  // to pause; a new part, a settings change, Retry preview or a handle
-  // drag (or typed size) renders at once, and a result still in the
-  // render cache shows straight away. There is no Render button: the
-  // preview is always on its way to the current values, and the nav's
-  // status (RenderActivity.jsx) says when a render runs.
+  // settings. A typed parameter waits PARAM_RENDER_DELAY_MS for the edits
+  // to pause; a tick or a choice, a new part, a settings change, Retry
+  // preview or a handle drag (or typed size) renders at once, and a
+  // result still in the render cache shows straight away. There is no
+  // Render button: the preview is always on its way to the current
+  // values, and the nav's status (RenderActivity.jsx) says when a render
+  // runs.
   const renderKey = useMemo(
     () => (selected ? { part: selected, params, globalOverrides } : null),
     [selected, params, globalOverrides],
@@ -258,6 +272,7 @@ export default function Library({
       // The flag is the committed object itself, not a boolean to reset:
       // a commit that hits the cache never asks for a delay at all.
       if (pending?.immediate && key.params === pending.params) return 0;
+      if (immediateParams.current === key.params) return 0;
       return previous &&
         previous !== key &&
         previous.part === key.part &&

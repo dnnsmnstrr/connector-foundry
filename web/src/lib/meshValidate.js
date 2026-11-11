@@ -18,8 +18,8 @@
 // which is not something to silently patch over — surface it and
 // refuse.
 import * as THREE from "three";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildTopology, faceAdjacency } from "./meshTopology.js";
+import { weldVertices } from "./meshWeld.js";
 
 const WELD_TOLERANCE_MM = 1e-3;
 const MIN_COMPONENT_AREA_MM2 = 1e-6;
@@ -183,7 +183,9 @@ export function validateAndRepair(rawGeometry) {
   const stripped = rawGeometry.clone();
   stripped.deleteAttribute("normal");
   stripped.deleteAttribute("uv");
-  const geometry = mergeVertices(stripped, WELD_TOLERANCE_MM);
+  // weldVertices() is mergeVertices() with the same result, an order of
+  // magnitude sooner for what is left here: positions alone.
+  const geometry = weldVertices(stripped, WELD_TOLERANCE_MM);
   if (!geometry.index) {
     return {
       geometry,
