@@ -15,6 +15,7 @@
 import { createOpenSCAD } from "openscad-wasm";
 import { isOpenscadError } from "./openscadLog.js";
 import { fetchPublic } from "./publicAsset.js";
+import { includeOnce, indexIncludes, withoutCopyNames } from "./scadIncludes.js";
 import { callArgs, defineArgs, scadLiteral } from "./scadLiteral.js";
 
 // Where the source bundle is mounted inside the WASM filesystem. It
@@ -29,11 +30,17 @@ const REPO_MOUNT = "/repo";
 const BENCH_DIR = `${REPO_MOUNT}/assemblies`;
 const BENCH_MAIN = `${BENCH_DIR}/_bench.scad`;
 
-/** @type {Promise<[string, Uint8Array][]> | null} */
+/**
+ * @typedef {{
+ *   entries: [string, Uint8Array][],
+ *   index: import("./scadIncludes.js").IncludeIndex,
+ * }} PreparedBundle
+ */
+/** @type {Promise<PreparedBundle> | null} */
 let bundlePromise = null;
 
-// Resolves to the mounted-and-ready form of the bundle: [virtualPath,
-// bytes] pairs (see prepareBundle()).
+// Resolves to the mounted-and-ready form of the bundle (see
+// prepareBundle()).
 function getBundle() {
   if (!bundlePromise) {
     bundlePromise = fetchPublic("scad-bundle.json")
@@ -88,17 +95,27 @@ function base64ToBytes(base64) {
 // Emscripten's own character-by-character UTF-8 encoder over it, which
 // for ~5 MB of source was ~50 ms of every render; given bytes it just
 // copies them, and mounting the same bundle takes ~3 ms.
+//
+// The sources' include and use statements are indexed here too, once
+// (10-20 ms for the whole bundle), for the include-once pass each render
+// runs over its main file (scadIncludes.js): the index keeps the text of
+// the files that have such statements, 117 of the 158, 0.7 MB.
+/** @returns {PreparedBundle} */
 function prepareBundle(bundle) {
   const encoder = new TextEncoder();
   /** @type {[string, Uint8Array][]} */
   const entries = [];
+  /** @type {[string, string][]} */
+  const sources = [];
   for (const [relPath, content] of Object.entries(bundle.files)) {
-    entries.push([`${REPO_MOUNT}/${relPath}`, encoder.encode(/** @type {string} */ (content))]);
+    const source = /** @type {string} */ (content);
+    entries.push([`${REPO_MOUNT}/${relPath}`, encoder.encode(source)]);
+    sources.push([`${REPO_MOUNT}/${relPath}`, source]);
   }
   for (const [relPath, base64] of Object.entries(bundle.assets ?? {})) {
     entries.push([`${REPO_MOUNT}/${relPath}`, base64ToBytes(base64)]);
   }
-  return entries;
+  return { entries, index: indexIncludes(sources) };
 }
 
 // A fresh FS per render, so the set of created directories is per call.
@@ -153,11 +170,12 @@ export async function runOpenscad(
   const instance = await createOpenSCAD({
     print: () => {},
     printErr: (text) => {
-      if (isOpenscadError(text)) onError?.(text);
+      // A message about an include-once copy names the file it copies.
+      if (isOpenscadError(text)) onError?.(withoutCopyNames(text));
     },
   });
   const os = instance.getInstance();
-  mountBundle(os.FS, bundle);
+  mountBundle(os.FS, bundle.entries);
 
   // -D overrides that apply regardless of request shape: `part=` for
   // an assembly's body selector, plus any global settings (e.g.
@@ -174,9 +192,10 @@ export async function runOpenscad(
   // source (scadSource) for a Bench assembly — see
   // web/src/lib/assembly.js's compileToScad().
   let mainPath;
+  let mainSource;
   if (scadSource) {
     mainPath = BENCH_MAIN;
-    writeFileAt(os.FS, mainPath, scadSource);
+    mainSource = scadSource;
     // Imported STL files (compileToScad() generates
     // `import("imports/<id>.stl")` inside the module it writes for
     // each one) — same relative resolution rule as the .scad tree
@@ -189,8 +208,15 @@ export async function runOpenscad(
     }
   } else {
     mainPath = "/main.scad";
-    os.FS.writeFile(mainPath, `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`);
+    mainSource = `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`;
   }
+  // Each file included once (scadIncludes.js): the main file as rewritten,
+  // and the few files that lost a repeated include as copies beside the
+  // mounted ones. Under a millisecond a render, against the 110 ms (in
+  // Node on a laptop) that each repeated parse of BOSL2 costs.
+  const once = includeOnce(bundle.index, mainPath, mainSource);
+  for (const [path, source] of once.copies) os.FS.writeFile(path, source);
+  writeFileAt(os.FS, mainPath, once.main);
 
   await beforeRender?.();
 

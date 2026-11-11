@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BufferGeometry } from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import SnapBar from "./components/holes/SnapBar.jsx";
 import HoleRow from "./components/holes/HoleRow.jsx";
@@ -56,6 +55,7 @@ import {
 import { getHolesSession, redoHoles, setHolesDoc, undoHoles } from "./lib/holesSession.js";
 import { hasCoarsePointer, ignoresShortcut, isBehindOpenDialog } from "./lib/isEditableTarget.js";
 import { meshExtents } from "./lib/meshExtents.js";
+import { weldVertices } from "./lib/meshWeld.js";
 import { renderPart } from "./lib/openscad-client.js";
 import {
   faceMeasurements,
@@ -363,7 +363,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     const display = new STLLoader().parse(stlBuffer);
     const stripped = new BufferGeometry();
     stripped.setAttribute("position", display.getAttribute("position"));
-    const topo = mergeVertices(stripped, 1e-3);
+    const topo = weldVertices(stripped, 1e-3);
     return { display, topo };
   }, [stlBuffer]);
   useEffect(
@@ -1167,9 +1167,13 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   }
   useEffect(() => () => printAbort.current?.abort(), []);
 
-  async function downloadStl() {
+  // `save` is where an export's file goes: downloadBlob() for the buttons
+  // and the palette, a desktop agent's own for its export
+  // (captureDownload()).
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  async function downloadStl(save = downloadBlob) {
     try {
-      downloadBlob(await holedBuffer(), exportFilename(exportName, "holes", ".stl"), "model/stl");
+      save(await holedBuffer(), exportFilename(exportName, "holes", ".stl"), "model/stl");
     } catch (err) {
       setRenderError(err.message);
     }
@@ -1183,10 +1187,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   // The extents come from the current base, as holedBuffer()'s do, not
   // from the last render that finished: that may be the previous model's
   // (or none yet), which would size the through holes for the wrong part.
-  async function downloadScad() {
+  /** @param {import("./lib/download.js").SaveFile} [save] */
+  async function downloadScad(save = downloadBlob) {
     try {
       const extents = meshExtents(await baseBuffer(doc.source, catalogueById, globalOverrides));
-      downloadBlob(
+      save(
         holesToScad(doc, catalogueById, { throughLength: Math.hypot(...extents) + 2, extents }),
         exportFilename(exportName, "holes", ".scad"),
         "text/plain",
@@ -1735,7 +1740,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <button
           type="button"
           className="download-button bench-export-button"
-          onClick={downloadStl}
+          onClick={() => downloadStl()}
           disabled={status === "error"}
         >
           Download STL
@@ -1762,7 +1767,7 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         <button
           type="button"
           className="bench-export-link"
-          onClick={downloadScad}
+          onClick={() => downloadScad()}
           title="The base and the holes as OpenSCAD source"
         >
           Download .scad

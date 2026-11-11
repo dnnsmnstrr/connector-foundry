@@ -122,7 +122,10 @@ export function applySettings(entries, storage = window.localStorage) {
 
 // Settings' "Export settings…" and the command palette's: the backup as a
 // download named for today. Returns null, or a message for the user.
-export function downloadSettings() {
+// `save` is where the file goes: a desktop agent's export has its own
+// (captureDownload()).
+/** @param {import("./download.js").SaveFile} [save] */
+export function downloadSettings(save = downloadBlob) {
   let doc;
   try {
     doc = exportSettings();
@@ -130,7 +133,7 @@ export function downloadSettings() {
     return "This browser isn't letting the app read its storage, so there is nothing to export.";
   }
   const date = doc.exportedAt.slice(0, 10);
-  downloadBlob(settingsToJson(doc), `connector-foundry-${date}${SETTINGS_EXTENSION}`, "application/json");
+  save(settingsToJson(doc), `connector-foundry-${date}${SETTINGS_EXTENSION}`, "application/json");
   return null;
 }
 

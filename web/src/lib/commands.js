@@ -21,7 +21,8 @@
 /**
  * @typedef {object} CommandAction
  * @property {string} title what the footer and the Actions page call it ("Open in Bench")
- * @property {() => void} [run]
+ * @property {(save?: import("./download.js").SaveFile) => void} [run] a command that saves a file hands
+ *   it to `save` when it gets one (a desktop agent's export, lib/webmcp.js) rather than to downloadBlob()
  * @property {CommandFileAction} [file] pick a file instead of running (the palette's own file input)
  * @property {string[][]} [keys] a key hint for this action alone (shortcuts.js tokens)
  */

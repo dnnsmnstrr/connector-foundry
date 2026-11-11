@@ -78,7 +78,8 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   // flat), turned counter-clockwise as
   // seen from outside the face. Quarter turns cover every orientation
   // a mount is likely to need; any angle is accepted. A rectangle or a
-  // 2020 socket steps by 45° instead, for a cutout set at an angle.
+  // 2020 socket steps by 45° instead, for a cutout set at an angle, and
+  // an octagon by 22.5°, the only turn of it that shows.
   // The same field and quarter-turn buttons as a Bench part's rotation
   // (components/RotationInput.jsx).
   const spinTitle =
@@ -96,7 +97,9 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
                 ? "Where the thread starts, so which way a bolt's head ends up turned once it is screwed in. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
                 : spec.kind === "thread"
                   ? "Which way the head of a screw points once it is screwed in — up, for an openConnect head, the way a slotted item slides on. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°."
-                  : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
+                  : spec.kind === "octagon"
+                    ? "Which way the socket's octagon is turned: at 0 its flats face up and across — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 22.5°, corners where the flats were."
+                    : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
     <label className="field holes-direction-field" htmlFor={`${id}-spin`} title={spinTitle}>
       <span className="field-label">Direction (°)</span>
@@ -108,7 +111,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         onRotate={onRotate}
         name={directionName(spec.kind, count)}
         viewedFrom="outside the face"
-        step={spec.kind === "rectangle" || spec.kind === "octagon" || spec.kind === "extrusion" ? 45 : 90}
+        // An octagon turned 45° is the same octagon: the one turn that shows
+        // is the half of it, corners where the flats were.
+        step={
+          spec.kind === "octagon" ? 22.5 : spec.kind === "rectangle" || spec.kind === "extrusion" ? 45 : 90
+        }
       />
     </label>
   );

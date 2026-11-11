@@ -513,7 +513,8 @@ export const BUILTIN_COMMANDS = Object.freeze({
  * @property {string} [section] another heading, on a page of its own (a picker's "History")
  * @property {string} [subtitle]
  * @property {string[]} [keywords] added to the catalogue's
- * @property {() => void} [run] the whole behaviour, as its only action
+ * @property {(save?: import("./download.js").SaveFile) => void} [run] the whole behaviour, as its only
+ *   action; a download's takes the save function its file goes to (CommandAction)
  * @property {CommandAction[]} [actions]
  * @property {() => import("./commands.js").CommandPage} [page]
  * @property {boolean} [checked]

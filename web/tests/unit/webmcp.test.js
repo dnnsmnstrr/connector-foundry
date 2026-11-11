@@ -256,7 +256,10 @@ test("the desktop app's agents save a Download command's file, with no dialog, a
       id: "library.downloadStl",
       title: "Download STL",
       section: "Library",
-      actions: [{ title: "Download", run: () => setTimeout(() => downloadBlob("solid x", "bin.stl"), 5) }],
+      // Its file goes to the save function it is given, as the tabs' exports' do.
+      actions: [
+        { title: "Download", run: (save = downloadBlob) => setTimeout(() => save("solid x", "bin.stl"), 5) },
+      ],
     },
   ]);
   const { deps } = sampleDeps({ registry });

@@ -451,14 +451,27 @@ export default function CommandPalette({
         )}
         <div className="command-palette-header">
           {depth > 0 && (
-            <button type="button" className="command-palette-back" onClick={pop} aria-label="Back">
+            <button
+              type="button"
+              className="command-palette-back"
+              onClick={pop}
+              aria-label="Back"
+              title="Back (Esc)"
+            >
               ‹
             </button>
           )}
           <h2 id={titleId} className="command-palette-title">
             {current.title}
           </h2>
-          <button type="button" className="command-palette-close" onClick={dismiss} aria-label="Close">
+          <button
+            type="button"
+            className="command-palette-close"
+            onClick={dismiss}
+            aria-label="Close"
+            // Escape goes back a page first; it closes from the first one.
+            title={depth > 0 ? "Close" : "Close (Esc)"}
+          >
             ✕
           </button>
         </div>

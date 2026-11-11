@@ -38,10 +38,22 @@ running in a Web Worker.
    into the new instance's virtual filesystem at `/repo/...` (mirroring the real repo layout, since
    every `.scad` file uses relative `include`s), writes a one-line stub —
    `include </repo/parts/.../x.scad>; module_name(args);` — and calls OpenSCAD with
-   `--backend=Manifold`.
+   `--backend=Manifold`. Before it does, `src/lib/scadIncludes.js` makes the render include each
+   file once: OpenSCAD's `include` has no guard, and a part includes BOSL2, then `lib/slots.scad`
+   and `lib/util.scad`, which include it again, so a plain plate parsed BOSL2's 1.1 MB nearly three
+   times (293 ms of `callMain()` in Node, 116 ms with the repeats gone; a plate with one part
+   attached on the Bench 806 ms against 164 ms). The repeats are deleted in copies written beside
+   the mounted files (`slots.once1.scad`), per translation unit (a `use`d file keeps its own
+   includes), and the sources on disk, the CLI and a downloaded `.scad` are untouched. It changes
+   no model as long as no repeat decides which of two files' definitions of a name wins, which
+   `tests/unit/scad-includes.test.js` checks for every catalogue part.
 4. The resulting STL bytes — binary STL, a fifth the size of OpenSCAD's default ASCII export and
    far quicker to parse — come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
+   A typed parameter renders 400 ms after the last keystroke (`Library.jsx`'s
+   `PARAM_RENDER_DELAY_MS`; the Bench and Holes wait 250 ms), so "120" is one render and not
+   three. A checkbox or a choice from a list in the Library is a finished edit and renders at
+   once, as a part switch, a handle drag or a typed size does.
 5. `src/lib/openscad-client.js` keeps each result, keyed on the exact (file, module, parameters)
    triple, so switching back to a part — or to parameters tried a moment ago — is instant instead
    of a fresh multi-second compile. The cache is capped at 64 MB of meshes (32 MB where the browser
@@ -366,7 +378,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchFold.js` | Fold for printing: a part's `fold` cut and direction (`foldSpec()`), the body a node is in (`bodyTagOf()`), and `foldPlan()`, which measures that body's unfolded render to pose it for `lib/fold.scad`'s `fold_print()` — the cut on y = 0, the hinge on the far end, where the cut face has to reach for a fold |
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
-| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js`, `meshWeld.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, the edge/adjacency builders those two share, and `weldVertices()`: three's `mergeVertices()` for a position-only geometry, the same result to the bit from an integer hash table instead of a string per vertex (10 ms against 174 ms for 200k triangles), which the gate and every Holes preview weld with |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js`, `src/lib/openscadRun.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker; `openscadRun.js` is one render (bundle mounted, `callMain()`, STL read back), which the worker runs and the client runs on the main thread when the worker ran out of stack (Safari, see "Known limit — nesting depth") |
@@ -376,6 +388,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
 | `src/lib/nativeApp.js`, `capacitor.config.json`, `ios/`, `android/`, `scripts/native-assets.mjs` | The iOS and Android store apps (Capacitor, docs/MOBILE.md): whether the page runs in one, and saving an export into the app's own folder (Files › Foundry on iOS, Documents › Connector Foundry on Android) through the Filesystem plugin, imported only there; the native projects; their icons and launch screens from `desktop/icon.svg` |
 | `src/lib/webApp.js`, `hooks/useWebApp.js`, `components/InstallSheet.jsx`, `scripts/ios-splash.mjs`, `scripts/vite-plugin-ios-splash.mjs` | The installed web app: the worker's registration, update checks for an app left open and the build it took over from (`__BUILD_ID__`), the install offer (Chromium's prompt, or the platform's steps); iOS launch screens rendered at build time (see "Phones, tablets and offline") |
+| `src/lib/scadIncludes.js` | Include-once for a render (see "How it works", step 3): `scanIncludes()` finds a source's `include` and `use` statements, `indexIncludes()` does that once for the whole bundle, `includeOnce()` rewrites one render's main file and returns the copies to write beside the mounted sources, `withoutCopyNames()` puts a copy's source name back into an OpenSCAD message |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout (`isDrawerLayout()`, live through the hook), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which of the Library's tabs shows; `DrawerTabs` is the tab list on the drawer's handle (Parameters / Parts, Holes / Hole types) and the panel under it |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
@@ -1212,7 +1225,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   instead of stacking a second marker on it. Both `meshValidate.js` and `faceCluster.js` build
   their edge/adjacency structures through `src/lib/meshTopology.js`, which keys edges on a packed
   number rather than a string; `faceCluster.js` also caches the adjacency per geometry, so only
-  the first click on an imported mesh pays for building it. The uploaded/repaired bytes travel to
+  the first click on an imported mesh pays for building it. The weld that comes before any of it
+  is `src/lib/meshWeld.js`'s `weldVertices()`, not three's `mergeVertices()` (the module table
+  says why). The uploaded/repaired bytes travel to
   the worker as a `Map` in the render request (`importedFiles`), written into the WASM filesystem
   right next to the generated `.scad` before it compiles.
 
