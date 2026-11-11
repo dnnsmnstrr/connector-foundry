@@ -378,7 +378,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchFold.js` | Fold for printing: a part's `fold` cut and direction (`foldSpec()`), the body a node is in (`bodyTagOf()`), and `foldPlan()`, which measures that body's unfolded render to pose it for `lib/fold.scad`'s `fold_print()` — the cut on y = 0, the hinge on the far end, where the cut face has to reach for a fold |
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
-| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, and the edge/adjacency builders those two share |
+| `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js`, `meshWeld.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, the edge/adjacency builders those two share, and `weldVertices()`: three's `mergeVertices()` for a position-only geometry, the same result to the bit from an integer hash table instead of a string per vertex (10 ms against 174 ms for 200k triangles), which the gate and every Holes preview weld with |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js`, `src/lib/openscadRun.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker; `openscadRun.js` is one render (bundle mounted, `callMain()`, STL read back), which the worker runs and the client runs on the main thread when the worker ran out of stack (Safari, see "Known limit — nesting depth") |
@@ -1225,7 +1225,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   instead of stacking a second marker on it. Both `meshValidate.js` and `faceCluster.js` build
   their edge/adjacency structures through `src/lib/meshTopology.js`, which keys edges on a packed
   number rather than a string; `faceCluster.js` also caches the adjacency per geometry, so only
-  the first click on an imported mesh pays for building it. The uploaded/repaired bytes travel to
+  the first click on an imported mesh pays for building it. The weld that comes before any of it
+  is `src/lib/meshWeld.js`'s `weldVertices()`, not three's `mergeVertices()` (the module table
+  says why). The uploaded/repaired bytes travel to
   the worker as a `Map` in the render request (`importedFiles`), written into the WASM filesystem
   right next to the generated `.scad` before it compiles.
 

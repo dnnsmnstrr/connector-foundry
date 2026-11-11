@@ -18,6 +18,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each
   Bench edit about a third (attaching a part 1.2 s → 0.5 s); a phone saves several times those
   amounts. The models are the same.
+- **Large imported models freeze the page for less long.** Importing a detailed STL, STEP or 3MF
+  and drilling holes into it merges the mesh's corners about seventeen times faster: for a
+  200,000-triangle model on a phone-class processor, the pause after **Use this mesh** went from
+  0.9 s to 0.3 s and the one after each new hole from 0.6 s to 0.15 s.
 - **A tick or a choice renders at once.** In the Library, ticking a checkbox or picking from a
   list starts the preview straight away instead of after the 0.4 s pause that typing a number
   waits for.
