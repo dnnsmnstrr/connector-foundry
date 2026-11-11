@@ -3370,7 +3370,36 @@ a.bench-modal-header-button {
 }
 
 .holes-preset-search {
+  position: relative;
   margin-bottom: 0.35rem;
+}
+
+.holes-preset-search-input {
+  margin-bottom: 0;
+  padding-right: 2.2rem;
+}
+
+.holes-preset-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #8b8c91;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.holes-preset-search-clear:hover {
+  color: #e6e6e6;
+  background: #202126;
 }
 
 .holes-preset-group h4 {
@@ -3677,6 +3706,7 @@ a.bench-modal-header-button {
 
   .bench-remove,
   .part-search-clear,
+  .holes-preset-search-clear,
   .holes-preset-button,
   .spin-button,
   .bench-rotate-pill,
