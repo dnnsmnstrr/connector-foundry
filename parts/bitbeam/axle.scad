@@ -9,10 +9,18 @@
 // `length` is in Technic units (7.8mm), so 4 is LEGO's 3705.
 // Functional face is BOTTOM; "mount" on TOP. Prints standing up.
 include <../../vendor/BOSL2/std.scad>
+include <../../lib/constants.scad>
 include <../../lib/slots.scad>
 include <../../vendor/technic.scad/Technic.scad>
 
-// Same reset as pin.scad — see there.
+// Technic.scad sets $fa = 1, $fs = 0.05 at its top level, which would
+// stand for every part of a Bench assembly that includes this file:
+// reset them (lib/constants.scad, at DETAIL_FA, says why to these
+// values). constants.scad has to be included before Technic.scad:
+// OpenSCAD evaluates a reassigned variable where it was first assigned,
+// and if that were Technic.scad's `$fa = 1`, DETAIL_FA would not exist
+// yet there. Both then come out undef and are clamped to 0.01, and a
+// 10mm sphere elsewhere in the assembly has 19.7 million facets.
 $fa = DETAIL_FA;
 $fs = DETAIL_FS;
 
