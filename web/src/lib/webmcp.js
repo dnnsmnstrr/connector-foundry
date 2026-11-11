@@ -41,10 +41,12 @@
 // Only the desktop app's agents can export without a person: a browser's
 // download asks the user, and an agent there has nowhere to save but the
 // page. Through the desktop bridge, run_command on a Download command
-// takes the file downloadBlob() would have saved (captureDownload()) and
-// hands it to the main process, which saves it to the folder or file the
-// agent named in `saveTo`, or to the export folder Settings shows — no
-// Save dialog — and the result says where it went.
+// gives the command a save function of its own in downloadBlob()'s place
+// (captureDownload()) and hands the file it gets to the main process,
+// which saves it to the folder or file the agent named in `saveTo`, or to
+// the export folder Settings shows — no Save dialog — and the result says
+// where it went. Only that command's file: a download the user starts
+// while the agent's export renders keeps its own Save dialog.
 
 import { JOINTS, MAX_ATTACHED } from "./assembly.js";
 import { checkBenchConfig, isParamSet, serializeBenchConfig } from "./benchConfig.js";
@@ -939,12 +941,12 @@ export function createAppTools(get) {
 /**
  * Runs a Download command and saves the file it makes through the desktop
  * app, rather than letting downloadBlob() open a Save dialog.
- * @param {() => void} run
+ * @param {NonNullable<import("./commands.js").CommandAction["run"]>} run
  * @param {NonNullable<ToolHost["saveFile"]>} saveFile
  * @returns {Promise<string>} where it went
  */
 async function saveDownload(run, saveFile) {
-  const file = await captureDownload(run, DOWNLOAD_WAIT_MS);
+  const file = await captureDownload((save) => run(save), DOWNLOAD_WAIT_MS);
   return saveFile(await file.blob.arrayBuffer(), file.filename);
 }
 

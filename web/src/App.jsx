@@ -848,7 +848,7 @@ export default function App() {
         subtitle: benchFollows ? "On" : "Off",
         run: () => setBenchFollowsLibrary(!benchFollows),
       }),
-      builtin("app.exportSettings", { run: () => report(downloadSettings()) }),
+      builtin("app.exportSettings", { run: (save) => report(downloadSettings(save)) }),
       builtin("app.importSettings", {
         actions: [
           {
