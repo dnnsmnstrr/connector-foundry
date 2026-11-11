@@ -38,7 +38,15 @@ running in a Web Worker.
    into the new instance's virtual filesystem at `/repo/...` (mirroring the real repo layout, since
    every `.scad` file uses relative `include`s), writes a one-line stub —
    `include </repo/parts/.../x.scad>; module_name(args);` — and calls OpenSCAD with
-   `--backend=Manifold`.
+   `--backend=Manifold`. Before it does, `src/lib/scadIncludes.js` makes the render include each
+   file once: OpenSCAD's `include` has no guard, and a part includes BOSL2, then `lib/slots.scad`
+   and `lib/util.scad`, which include it again, so a plain plate parsed BOSL2's 1.1 MB nearly three
+   times (293 ms of `callMain()` in Node, 116 ms with the repeats gone; a plate with one part
+   attached on the Bench 806 ms against 164 ms). The repeats are deleted in copies written beside
+   the mounted files (`slots.once1.scad`), per translation unit (a `use`d file keeps its own
+   includes), and the sources on disk, the CLI and a downloaded `.scad` are untouched. It changes
+   no model as long as no repeat decides which of two files' definitions of a name wins, which
+   `tests/unit/scad-includes.test.js` checks for every catalogue part.
 4. The resulting STL bytes — binary STL, a fifth the size of OpenSCAD's default ASCII export and
    far quicker to parse — come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
@@ -376,6 +384,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/sw.js`, `scripts/vite-plugin-sw.mjs`, `public/gate.js`, `scripts/check-dist-compat.mjs`, `public/app/manifest.webmanifest`, `scripts/web-icons.mjs` | The service worker and its build step (`sw.js` at the base, `__PUBLIC_VERSIONS__`), the unsupported-browser gate and the build-output check for the same floor, the web app manifest and its icons (see "Phones, tablets and offline") |
 | `src/lib/nativeApp.js`, `capacitor.config.json`, `ios/`, `android/`, `scripts/native-assets.mjs` | The iOS and Android store apps (Capacitor, docs/MOBILE.md): whether the page runs in one, and saving an export into the app's own folder (Files › Foundry on iOS, Documents › Connector Foundry on Android) through the Filesystem plugin, imported only there; the native projects; their icons and launch screens from `desktop/icon.svg` |
 | `src/lib/webApp.js`, `hooks/useWebApp.js`, `components/InstallSheet.jsx`, `scripts/ios-splash.mjs`, `scripts/vite-plugin-ios-splash.mjs` | The installed web app: the worker's registration, update checks for an app left open and the build it took over from (`__BUILD_ID__`), the install offer (Chromium's prompt, or the platform's steps); iOS launch screens rendered at build time (see "Phones, tablets and offline") |
+| `src/lib/scadIncludes.js` | Include-once for a render (see "How it works", step 3): `scanIncludes()` finds a source's `include` and `use` statements, `indexIncludes()` does that once for the whole bundle, `includeOnce()` rewrites one render's main file and returns the copies to write beside the mounted sources, `withoutCopyNames()` puts a copy's source name back into an OpenSCAD message |
 | `src/lib/scadLiteral.js` | The one OpenSCAD-literal formatter (codegen and worker both use it; mirrors `cli/foundry.py`'s `openscad_value()`) |
 | `src/lib/drawer.js`, `hooks/useDrawerLayout.js`, `components/DrawerTabs.jsx` | The phone layout's bottom drawer (see "Phones, tablets and offline"): whether the page is in that layout (`isDrawerLayout()`, live through the hook), the sheet's rests, which one a released drag lands on, how much of the view's foot what sits over it keeps clear of, and which of the Library's tabs shows; `DrawerTabs` is the tab list on the drawer's handle (Parameters / Parts, Holes / Hole types) and the panel under it |
 | `src/lib/userOverrides.js`, `uiPrefs.js` | localStorage-backed state: saved parameter overrides (and `resolveParams()` / `resolveAttachedParams()`, the catalogue-default → saved-override → instance merge, the latter with the catalogue's `attached_defaults` for a part the Bench attaches to another); sidebar collapsed, "Bench follows Library", system-heading order, hidden systems and parts, the sidebar's width (`hooks/useSidebarWidth.js` reads it live), the Grid that resize drags, handle and nudge steps and Holes placements snap to (`hooks/useGridSnap.js`; Off, 0.1–5 mm, default 0.5), the command palette's recent commands |
