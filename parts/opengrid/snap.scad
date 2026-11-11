@@ -2,9 +2,14 @@
 // board.scad). Functional face is BOTTOM; mates through the "mount"
 // anchor on TOP, for stacking any other part onto a board.
 //
-// As with board.scad, this is a thin wrapper — openGridSnap() from
-// QuackWorks (vendor/QuackWorks), openGrid design by David D, OpenSCAD
-// snap implementation by metasyntactic.
+// The geometry is QuackWorks' openGridSnap() (vendor/QuackWorks),
+// openGrid design by David D, OpenSCAD snap implementation by
+// metasyntactic — through lib/ogsnap.scad, which builds the same solid
+// without upstream's nesting: openGridSnap() is 68 module levels deep,
+// two short of where the browser's OpenSCAD runs out of stack, so the
+// snap rendered alone and failed attached to anything on the Bench
+// (lib/ogsnap.scad's header has the numbers; references.yaml holds it
+// to upstream's render).
 //
 // LICENSE: CC-BY-NC-SA 4.0, not MIT. See board.scad's header and the
 // README "Licensing" section.
@@ -17,7 +22,7 @@
 include <../../vendor/BOSL2/std.scad>
 include <../../lib/constants.scad>
 include <../../lib/slots.scad>
-use <../../vendor/QuackWorks/openGrid/opengrid-snap.scad>
+use <../../lib/ogsnap.scad>
 
 module og_snap(variant = "full", directional = false,
                anchor = BOTTOM, spin = 0, orient = UP) {
@@ -31,12 +36,12 @@ module og_snap(variant = "full", directional = false,
              variant == "lite" ? OG_SNAP_H_LITE : OG_SNAP_H_FULL];
 
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)]) {
-        // The directional variant grows on +X only, so upstream's own
-        // envelope sits half of that off-centre; recentre it or every
+        // The solid stands on z = 0, centred on its 24.8 mm body. The
+        // directional variant grows on +X only, so the body sits half
+        // of that off the envelope's centre; recentre it or every
         // anchor on this part is out by OG_SNAP_DIR_EXTRA / 2.
-        left(extra / 2)
-            openGridSnap(lite = variant == "lite", directional = directional,
-                         anchor = CENTER, spin = 0, orient = UP);
+        translate([-extra / 2, 0, -size.z / 2])
+            og_snap_solid(lite = variant == "lite", directional = directional);
         children();
     }
 }

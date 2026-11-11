@@ -545,6 +545,30 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
 });
 
+// The openGrid snap used to be QuackWorks' module called as it is, 68
+// module levels deep where this OpenSCAD build's stack ends at 70: it
+// rendered alone and trapped ("nests too deep") attached to anything.
+// lib/ogsnap.scad builds the same solid three levels deep. The real
+// catalogue and the real worker, on the part people put it on.
+test("an openGrid snap attached to a Gridfinity bin base renders", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  const doc = config({ partId: "gridfinity/base", params: { gx: 1, gy: 1, magnets: false, screws: false } });
+  doc.nodes.push({
+    id: "snap",
+    parentId: "root",
+    partId: "opengrid/snap",
+    params: { variant: "full", directional: true },
+    slotName: "mount",
+  });
+  await importConfig(page, doc);
+  const exported = page.waitForEvent("download", { timeout: 90_000 });
+  await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
+  // The base's 41.5 mm square and 7 mm, the snap's 6.8 mm on top of it.
+  expect(extents(await downloadBytes(await exported))).toEqual([41.5, 41.5, 13.8]);
+});
+
 // Fold for printing renders the body twice for real: once as it stands,
 // to find the hinge's edge (benchFold.js's foldPlan()), then laid out
 // through lib/fold.scad. The real catalogue, for the openConnect head's

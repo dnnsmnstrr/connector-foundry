@@ -26,10 +26,7 @@
 
 // Each attached part is no bigger across than the base it lands on (a
 // unit test holds them to that): a pair should look like a mount on
-// something, not a plate balanced on a peg. The openGrid snaps are always
-// the base, never the attached part: deep enough already that one
-// attached to another part runs out of WASM stack (web/README.md, "Known
-// limit — nesting depth").
+// something, not a plate balanced on a peg.
 /** @type {HeroPair[]} */
 export const HERO_PAIRS = [
   {

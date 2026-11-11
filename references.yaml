@@ -43,17 +43,19 @@ sources:
     license: CC-BY-NC-SA-4.0
     url: https://github.com/AndyLevesque/QuackWorks
     note: >
-      Vendored as a submodule, and parts/opengrid/board.scad and
-      snap.scad and lib/underware.scad (parts/underware/*.scad) call it
-      directly — so those parts are CC-BY-NC-SA, not MIT. See the
+      Vendored as a submodule. parts/opengrid/board.scad and
+      lib/underware.scad (parts/underware/*.scad) call it directly, and
+      lib/ogsnap.scad (parts/opengrid/snap.scad) re-expresses its
+      openGridSnap() — so those parts are CC-BY-NC-SA, not MIT. See the
       per-part `license` field in catalogue.yaml and the README
       "Licensing" section. openGrid design by David D; OpenSCAD
       implementation by Andy (BlackjackDuck), snap by metasyntactic;
       Underware by Hands on Katie and BlackjackDuck.
       Because our parts are wrappers, the shape checks below are
       guarding the wrapper (envelope, anchors, restated constants, the
-      sweeps and mounting holes lib/underware.scad re-expresses) rather
-      than re-deriving upstream's geometry.
+      sweeps and mounting holes lib/underware.scad re-expresses, the
+      snap lib/ogsnap.scad writes out flat) rather than re-deriving
+      upstream's geometry.
 
   monokini:
     kind: submodule
@@ -646,6 +648,94 @@ shape_checks:
       max_surface_rms_mm: 0.01
       max_surface_max_mm: 0.01
       min_section_iou: 0.999
+
+  # The openGrid snap against QuackWorks' own openGridSnap(), all four
+  # of its shapes. lib/ogsnap.scad builds upstream's snap without
+  # upstream's nesting (which the browser's OpenSCAD could not render
+  # attached to anything; its header has the numbers), from upstream's
+  # numbers and BOSL2's own shape functions, so the two should agree to
+  # the mesher's rounding — the tolerances are that tight on purpose:
+  # a slip in the rewrite is a snap that does not hold in a board. Ours
+  # recentres the directional snap on its envelope (0.2 mm on X, for
+  # the deeper front nub), so it is moved back into upstream's frame.
+  - id: opengrid/snap-vs-quackworks
+    part: opengrid/snap
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      og_snap(anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.5, 2.5, 3.7, 4.5, 5.0, 5.4, 5.8, 6.2, 6.6]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-lite
+    part: opengrid/snap
+    params: {variant: lite}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      og_snap(variant = "lite", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(lite = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.1, 1.6, 2.0, 2.4, 2.8, 3.2]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-directional
+    part: opengrid/snap
+    params: {directional: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      translate([0.2, 0, 0]) og_snap(directional = true, anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(directional = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.5, 2.5, 3.7, 4.5, 5.0, 5.4, 5.8, 6.2, 6.6]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-lite-directional
+    part: opengrid/snap
+    params: {variant: lite, directional: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      translate([0.2, 0, 0]) og_snap(variant = "lite", directional = true, anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(lite = true, directional = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.1, 1.6, 2.0, 2.4, 2.8, 3.2]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
 
   # The openGrid connector parts against openGrid-projects' own snap
   # generator with the same choices (text label off). This is the check

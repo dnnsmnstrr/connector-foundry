@@ -106,10 +106,13 @@ varying by what the overflow lands on (`memory access out of bounds`, `table ind
 `$parent_modules` echoed from an instrumented BOSL2 `attachable()` to count the levels. It is the
 one cause behind every Bench render failure the READMEs blame on bolted/snap/pin joints
 (`src/lib/assembly.js`'s `emitJointChild()`, `src/lib/renderError.js`'s `friendlyRenderError()`): each
-`attach()` / joint flange / rounded cuboid adds levels, and the deep parts (openGrid's snap, the
-openConnect and MultiConnect snaps) start near the limit — `lib/opengrid.scad`'s header says what
-was done so those two render here at all (65 levels), and why they will not survive being a
-Bench child. Their `body: screw` and the Holes tab's openGrid thread go through
+`attach()` / joint flange / rounded cuboid adds levels (a fused Bench child sits 13 below its
+parent), and the deep parts (the openConnect and MultiConnect snaps with their snap body) start
+near the limit — `lib/opengrid.scad`'s header says what was done so those two render here at all
+(65 levels), and why they will not survive being a Bench child. The openGrid snap was the same,
+QuackWorks' module being 68 levels deep, until `lib/ogsnap.scad` wrote the same solid out flat
+(three levels): it attaches like any other part now, and a browser test puts one on a Gridfinity
+bin base. Their `body: screw` and the Holes tab's openGrid thread go through
 `lib/ogthread.scad`, which rewrites upstream's thread for the same reason (upstream's screw is 94
 levels deep; this one 52, the thread cutter alone 41). There is no knob for it: the stack size is fixed when the WASM is linked, and no
 newer `openscad-wasm` exists on npm.
@@ -315,9 +318,7 @@ page in a modal `<dialog>`, as the app does.
 
 The hero's 3D view shows real parts: four pairs (`src/site/heroPairs.js`), each a base part with
 a smaller part attached to its `"mount"` slot — a mount on something, never a plate balanced on
-a peg, which a unit test holds them to. The openGrid snaps are only ever the base: attached to
-another part they would be too deeply nested for the browser's OpenSCAD (see "Known limit —
-nesting depth"). `scripts/hero-parts.mjs` renders the pairs through openscad-wasm in Node into
+a peg, which a unit test holds them to. `scripts/hero-parts.mjs` renders the pairs through openscad-wasm in Node into
 `src/site/assets/hero-parts.bin` (about 80 KB, a base shared by two pairs stored once;
 `src/site/heroMeshes.js` has the format). That file is committed, like the gallery renders in
 `docs/img/`: after changing a hero part or the pair list, run
