@@ -108,7 +108,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
         onRotate={onRotate}
         name={directionName(spec.kind, count)}
         viewedFrom="outside the face"
-        step={spec.kind === "rectangle" || spec.kind === "octagon" || spec.kind === "extrusion" ? 45 : 90}
+        // An octagon turned 45° is the same octagon: the one turn that shows
+        // is the half of it, corners where the flats were.
+        step={
+          spec.kind === "octagon" ? 22.5 : spec.kind === "rectangle" || spec.kind === "extrusion" ? 45 : 90
+        }
       />
     </label>
   );
