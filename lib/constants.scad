@@ -195,15 +195,16 @@ DOVETAIL_WALL_T          = 2.4; // channel only
 // this section stays the one place that can change them. The plate
 // (parts/bitbeam/plate.scad) is bitbeam-lib's cube_base() the same way.
 // bitbeam-lib has no pin or axle: pin dimensions are in
-// lib/bitbeam_pin.scad, while the axle still uses technic.scad below.
+// lib/bitbeam_pin.scad, while the axle is still technic.scad's.
 // ============================================================
 
 BITBEAM_UNIT      = 8;    // beam cross-section and hole pitch
 BITBEAM_HOLE_DIA  = 4.8;  // through-hole in a beam, LEGO Technic-compatible
 
 // The pin's published dimensions are in lib/bitbeam_pin.scad. The axle
-// still wraps vendor/technic.scad (cfinke, MIT), since the BitBeam axle
-// uses that Technic-compatible profile.
+// is still vendor/technic.scad's (cfinke, MIT), since the BitBeam axle
+// uses that Technic-compatible profile: parts/bitbeam/axle.scad builds
+// it from that file's dimensions.
 
 // ============================================================
 // System pitches — printer- or project-specific XY unit dimensions.

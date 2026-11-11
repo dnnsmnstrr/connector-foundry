@@ -9,6 +9,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts and Holes
 
+- **The BitBeam axle renders in a third of a second in the browser, every time.** At some lengths
+  (which ones changed from build to build) it took nearly four seconds: the browser's OpenSCAD failed
+  on the way the axle's edges were rounded and started over with its slow method. The same shape is
+  now built without that step.
 - Added a Multiboard **Peg** and a matching adjustable octagonal socket preset in Holes.
 - **The BitBeam axle no longer resets curve detail to nothing.** It set OpenSCAD's `$fa` and `$fs`
   from constants it never loaded, so every render of it warned about unknown variables, and a bench

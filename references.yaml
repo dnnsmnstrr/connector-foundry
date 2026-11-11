@@ -134,9 +134,10 @@ sources:
     note: >
       Vendored as a plain copy of the one file used (see
       vendor/technic.scad/UPSTREAM for the commit and why it is not a
-      submodule). parts/bitbeam/axle.scad calls its technic_axle()
-      directly; the pin follows BitBeam's own published dimensions and
-      forked-end design instead.
+      submodule). parts/bitbeam/axle.scad builds its technic_axle()
+      from the file's own dimensions, without the minkowski() (that
+      part's header says why); the pin follows BitBeam's own published
+      dimensions and forked-end design instead.
 
   # A CAD file you supply yourself — the usual shape of a real supplier
   # reference, since manufacturer STEP downloads sit behind logins and
