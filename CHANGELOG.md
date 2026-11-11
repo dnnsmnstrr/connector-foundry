@@ -10,6 +10,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 ### Parts and Holes
 
 - Added a Multiboard **Peg** and a matching adjustable octagonal socket preset in Holes.
+- **The BitBeam axle no longer resets curve detail to nothing.** It set OpenSCAD's `$fa` and `$fs`
+  from constants it never loaded, so every render of it warned about unknown variables, and a bench
+  or script that included the axle before any other part drew every curve in 0.01 mm facets (a
+  10 mm sphere: 19.7 million triangles, a minute and a half). The axle's own shape is unchanged.
 
 ### App
 
