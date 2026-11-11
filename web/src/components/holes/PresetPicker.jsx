@@ -38,21 +38,34 @@ function PresetPicker({ value, onPick }) {
 
   return (
     <div className="holes-presets">
-      <input
-        type="search"
-        className="search-input holes-preset-search"
-        placeholder="Search hole types…"
-        aria-label="Search hole types"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape" && query) {
-            e.preventDefault();
-            e.stopPropagation();
-            setQuery("");
-          }
-        }}
-      />
+      <div className="holes-preset-search">
+        <input
+          type="search"
+          className="search-input holes-preset-search-input"
+          placeholder="Search hole types…"
+          aria-label="Search hole types"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && query) {
+              e.preventDefault();
+              e.stopPropagation();
+              setQuery("");
+            }
+          }}
+        />
+        {query && (
+          <button
+            type="button"
+            className="holes-preset-search-clear"
+            aria-label="Clear search"
+            title="Clear search (Esc)"
+            onClick={() => setQuery("")}
+          >
+            ✕
+          </button>
+        )}
+      </div>
       {shown.length === 0 && (
         <p className="muted no-results" role="status">
           No hole types match "{query}".
