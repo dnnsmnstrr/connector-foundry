@@ -50,6 +50,10 @@ running in a Web Worker.
 4. The resulting STL bytes — binary STL, a fifth the size of OpenSCAD's default ASCII export and
    far quicker to parse — come back to the main thread and render via `three.js`
    (`src/components/StlViewer.jsx`), or download directly.
+   A typed parameter renders 400 ms after the last keystroke (`Library.jsx`'s
+   `PARAM_RENDER_DELAY_MS`; the Bench and Holes wait 250 ms), so "120" is one render and not
+   three. A checkbox or a choice from a list in the Library is a finished edit and renders at
+   once, as a part switch, a handle drag or a typed size does.
 5. `src/lib/openscad-client.js` keeps each result, keyed on the exact (file, module, parameters)
    triple, so switching back to a part — or to parameters tried a moment ago — is instant instead
    of a fresh multi-second compile. The cache is capped at 64 MB of meshes (32 MB where the browser

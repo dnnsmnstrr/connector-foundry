@@ -57,7 +57,7 @@ async function mockWorker(page, auto = false) {
           // The client's warm-ups (at boot, after an abort) are not jobs
           // and get no answer; left out, every entry in `jobs` is a render.
           if (request?.type === "warm") return;
-          const index = window.__renders.jobs.push({ request, worker: this }) - 1;
+          const index = window.__renders.jobs.push({ request, worker: this, at: performance.now() }) - 1;
           if (window.__renders.auto) queueMicrotask(() => window.__renders.finish(index));
         }
         terminate() {
@@ -295,6 +295,49 @@ test("parameter edits re-render on their own and cancel obsolete previews", asyn
   await field.fill("60");
   await expect(download).toBeEnabled();
   expect(await jobCount(page)).toBe(4);
+});
+
+test("a tick or a choice renders at once; a typed value waits for the edits to pause", async ({ page }) => {
+  const board = {
+    id: "opengrid/board",
+    name: "Board",
+    system: "openGrid",
+    confidence: "exact",
+    file: "parts/opengrid/board.scad",
+    module: "og_board",
+    defaults: { cells_x: 2, variant: "full", chamfer: false },
+    options: { variant: ["full", "lite"] },
+    labels: { cells_x: "Cells", variant: "Variant", chamfer: "Chamfer" },
+  };
+  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts: [board] } }));
+  await mockWorker(page, true);
+  // When each field last changed, on the page's own clock: the test's
+  // round trips to the page take longer than the debounce under load.
+  await page.addInitScript(() => {
+    window.__changedAt = 0;
+    const stamp = () => (window.__changedAt = performance.now());
+    document.addEventListener("change", stamp, true);
+    document.addEventListener("input", stamp, true);
+  });
+  await page.goto("/app/");
+  await expect.poll(() => jobCount(page)).toBe(1);
+  // How long after the last edit the newest render was posted.
+  const waited = () => page.evaluate(() => window.__renders.jobs.at(-1).at - window.__changedAt);
+
+  await page.getByRole("checkbox", { name: "Chamfer", exact: true }).check();
+  await expect.poll(() => jobCount(page)).toBe(2);
+  expect(await page.evaluate(() => window.__renders.jobs[1].request.params.chamfer)).toBe(true);
+  expect(await waited()).toBeLessThan(200);
+
+  await page.getByRole("combobox", { name: "Variant", exact: true }).selectOption("lite");
+  await expect.poll(() => jobCount(page)).toBe(3);
+  expect(await page.evaluate(() => window.__renders.jobs[2].request.params.variant)).toBe("lite");
+  expect(await waited()).toBeLessThan(200);
+
+  // A number is typed a key at a time: it still waits out the pause.
+  await page.getByRole("spinbutton", { name: "Cells", exact: true }).fill("3");
+  await expect.poll(() => jobCount(page)).toBe(4);
+  expect(await waited()).toBeGreaterThanOrEqual(390);
 });
 
 test("worker failure and user cancellation allow another render", async ({ page }) => {

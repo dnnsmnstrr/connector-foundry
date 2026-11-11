@@ -18,6 +18,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each
   Bench edit about a third (attaching a part 1.2 s → 0.5 s); a phone saves several times those
   amounts. The models are the same.
+- **A tick or a choice renders at once.** In the Library, ticking a checkbox or picking from a
+  list starts the preview straight away instead of after the 0.4 s pause that typing a number
+  waits for.
 - **Mobile touch target accessibility and UI improvements.** All landing page and website links (`.text-link`, `.download-more a`, `.hero-release`) and interactive inputs now meet the 44 px minimum touch target sizing on coarse pointer devices; desktop-only keyboard cues are hidden on touch screens.
 - **Bench joints no longer hit OpenSCAD stack limits.** Bolted, snap-fit, and pin joints un-nest intermediate flanges into sibling attachments off the parent slot, eliminating WebAssembly recursion crashes (`original is not a function`, `memory access out of bounds`) when bolting rounded parts like the Basics plate or stacking multiple joints.
 - **Holes keeps the view while editing.** Moving a hole no longer changes the camera position to fit the updated mesh.
