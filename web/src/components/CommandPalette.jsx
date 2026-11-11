@@ -469,7 +469,8 @@ export default function CommandPalette({
             className="command-palette-close"
             onClick={dismiss}
             aria-label="Close"
-            title="Close (Esc)"
+            // Escape goes back a page first; it closes from the first one.
+            title={depth > 0 ? "Close" : "Close (Esc)"}
           >
             ✕
           </button>

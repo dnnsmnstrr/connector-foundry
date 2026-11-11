@@ -70,6 +70,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   the keyboard appears, keeping the results visible.
 - **Settings has a custom gear icon.** The Settings button and command palette now use a drawn
   icon instead of a system emoji, so its appearance stays consistent across platforms.
+- **The command palette's Back and Close buttons have tooltips**, with the Escape key where it
+  does the same.
 - **Mobile releases build on EAS.** A version tag now starts cloud builds for iOS and Android, with
   the current web app synced into each Capacitor package.
 - **Coding agents export without a Save dialog.** In the desktop app, a Download or Export command an
