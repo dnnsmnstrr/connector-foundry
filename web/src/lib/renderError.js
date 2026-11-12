@@ -78,14 +78,14 @@ export function friendlyRenderError(message) {
   // overflow lands decides the wording, so the list below is every
   // symptom seen while measuring it (2026-10-06) — "Cannot convert 32
   // to a BigInt" and "null function or function signature mismatch"
-  // included, which an openGrid snap body attached as a child produces.
+  // included, which an openGrid snap body attached as a child produced
+  // (until lib/opengrid.scad and lib/ogsnap.scad built the snaps flat;
+  // the message used to send those to `body: none`).
   if (WASM_STACK_SYMPTOMS.test(message)) {
     return (
       "This combination nests too deep for this browser's OpenSCAD build to preview " +
-      "(a known limitation, not a bad model). An openGrid snap with its body, attached to another part, " +
-      'always does: set its body to "none" to attach just the connector head. Otherwise try "fused" ' +
-      "for a bolted/snap/pin joint, or fuse one of the joints in a stacked chain. The generated .scad still " +
-      "renders with a native OpenSCAD install."
+      '(a known limitation, not a bad model). Try "fused" for a bolted/snap/pin joint, or fuse one of ' +
+      "the joints in a stacked chain. The generated .scad still renders with a native OpenSCAD install."
     );
   }
   if (WASM_MEMORY_SYMPTOMS.test(message)) {

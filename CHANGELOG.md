@@ -9,11 +9,12 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts and Holes
 
-- **An openGrid snap can be attached to another part on the Bench.** On a Gridfinity bin base, or
-  on anything else, the preview failed with "This combination nests too deep for this browser's
-  OpenSCAD build" (in every browser and in the desktop and phone apps): the snap's model was nested
-  so deeply that it only just rendered on its own. It is now built flat. The shape is the same,
-  checked against the original in all four variants.
+- **The openGrid snaps can be attached to another part on the Bench**: the Snap, and the
+  openConnect and MultiConnect snaps with their snap body (set **Body** back from "none"). On a
+  Gridfinity bin base, or on anything else, the preview failed with "This combination nests too
+  deep for this browser's OpenSCAD build" (in every browser and in the desktop and phone apps):
+  the snaps' models were nested so deeply that they only just rendered on their own. They are now
+  built flat. The shapes are the same, checked against the originals in every variant.
 - **The BitBeam axle renders in a third of a second in the browser, every time.** At some lengths
   (which ones changed from build to build) it took nearly four seconds: the browser's OpenSCAD failed
   on the way the axle's edges were rounded and started over with its slow method. The same shape is

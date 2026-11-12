@@ -107,14 +107,16 @@ varying by what the overflow lands on (`memory access out of bounds`, `table ind
 one cause behind every Bench render failure the READMEs blame on bolted/snap/pin joints
 (`src/lib/assembly.js`'s `emitJointChild()`, `src/lib/renderError.js`'s `friendlyRenderError()`): each
 `attach()` / joint flange / rounded cuboid adds levels (a fused Bench child sits 13 below its
-parent), and the deep parts (the openConnect and MultiConnect snaps with their snap body) start
-near the limit — `lib/opengrid.scad`'s header says what was done so those two render here at all
-(65 levels), and why they will not survive being a Bench child. The openGrid snap was the same,
-QuackWorks' module being 68 levels deep, until `lib/ogsnap.scad` wrote the same solid out flat
-(three levels): it attaches like any other part now, and a browser test puts one on a Gridfinity
-bin base. Their `body: screw` and the Holes tab's openGrid thread go through
-`lib/ogthread.scad`, which rewrites upstream's thread for the same reason (upstream's screw is 94
-levels deep; this one 52, the thread cutter alone 41). There is no knob for it: the stack size is fixed when the WASM is linked, and no
+parent), so a part that is deep on its own cannot be attached to anything. The three openGrid
+snaps were: upstream's models are 68 levels deep (QuackWorks' snap; openGrid-projects' snap body
+under the openConnect and MultiConnect heads), which rendered alone and failed on any base.
+`lib/ogsnap.scad` and `lib/opengrid.scad` build the same solids flat, from BOSL2's function forms
+and plain `polyhedron()`s (three and seven levels; their headers say how, and `references.yaml`
+holds every variant to upstream's render), so the snaps attach like any other part, and a browser
+test puts each on a Gridfinity bin base. The openConnect snap is now as deep as its head (48,
+upstream's `openconnect_head()`), the MultiConnect snap 28. The connectors' `body: screw` and the
+Holes tab's openGrid thread go through `lib/ogthread.scad`, which rewrites upstream's thread for
+the same reason (upstream's screw is 94 levels deep; this one 52, the thread cutter alone 41). There is no knob for it: the stack size is fixed when the WASM is linked, and no
 newer `openscad-wasm` exists on npm.
 
 **Safari's workers have less stack still.** WebKit gives a worker the system's default thread

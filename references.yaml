@@ -102,16 +102,17 @@ sources:
     license: CC-BY-4.0
     url: https://github.com/mitufy/opengrid-projects
     note: >
-      Vendored. lib/opengrid.scad calls its snap feature modules and
-      lib/openconnect.scad its openConnect head and slot directly;
+      Vendored. lib/openconnect.scad calls its openConnect head and
+      slot directly, and lib/opengrid.scad builds its snap body —
+      base_snap() with its lugs, nubs, cuts and notch — as the same
+      solid without upstream's nesting, so the browser's OpenSCAD can
+      render the parts attached to something (its header says why);
       parts/opengrid/openconnect.scad and multiconnect.scad are
       wrappers over those. CC-BY 4.0 — attribution, no other
       restriction. The wrappers restate a few of its numbers
-      (lib/constants.scad OG_SNAP_*, OC_HEAD_*) for their envelopes,
-      and lib/opengrid.scad re-expresses base_snap()'s envelope and
-      uninstall notch shallower so the browser's OpenSCAD can render
-      the parts (its header says why) — the shape checks below are
-      what holds all of that to upstream's own generator output.
+      (lib/constants.scad OG_SNAP_*, OC_HEAD_*) for their envelopes —
+      the shape checks below are what holds all of that to upstream's
+      own generator output.
 
   bitbeam-lib:
     kind: submodule
@@ -739,8 +740,8 @@ shape_checks:
 
   # The openGrid connector parts against openGrid-projects' own snap
   # generator with the same choices (text label off). This is the check
-  # that lib/opengrid.scad's shallower re-expression of base_snap() —
-  # and its notch written as plain boxes — is the same solid, and that
+  # that lib/opengrid.scad's flat re-expression of base_snap() — every
+  # lug, nub and cut placed by arithmetic — is the same solid, and that
   # the restated OG_SNAP_*/OC_HEAD_* numbers have not drifted. Ours
   # recentres the directional body (0.2 mm on Y, for its deeper back
   # nub), so the reference is posed to match.
@@ -791,6 +792,57 @@ shape_checks:
   # Same for the MultiConnect snap — which also checks this repo's own
   # mc_head() (lib/multiconnect.scad) against the head upstream's
   # generator builds from the same published numbers.
+  # The other two bodies, so each of the four lib/opengrid.scad builds is
+  # held to upstream's: the lugs, nubs and cuts differ between them.
+  - id: opengrid/openconnect-symmetric
+    part: opengrid/openconnect
+    params: {body: symmetric}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      og_openconnect(body = "symmetric", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      snap_body_shape = "Symmetric";
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.1, 8.5, 9.2]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: opengrid/openconnect-lite-directional
+    part: opengrid/openconnect
+    params: {variant: lite}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      // Recentred for the deeper back nub, as the full one above.
+      translate([0, 0.2, 0]) og_openconnect(variant = "lite", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      snap_thickness = 3.4;
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 1.7, 3.0, 3.7, 5.1, 5.8]
+    # The surface maximum is loose for upstream's sake, not ours: its
+    # render of this body carries a skin of no thickness on the
+    # underside's plane (1.2 mm², past the front corner chamfers, where
+    # the feet of its slant wedges run out of the body), and a sample on
+    # that is up to 0.2 mm from any real surface. Ours has no such skin;
+    # volume, RMS and the sections are as tight as for the other bodies.
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.25
+      min_section_iou: 0.999
+
   - id: opengrid/multiconnect
     part: opengrid/multiconnect
     reference_source: opengrid-projects
