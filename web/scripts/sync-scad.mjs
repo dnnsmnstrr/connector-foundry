@@ -24,11 +24,18 @@
 // terms of QuackWorks and opengrid-projects, ...) must travel with the
 // source they cover.
 //
-// Bundle shape: { files: { "lib/x.scad": "<source>" }, assets: {
-// "parts/deckmate/universal_grip.stl": "<base64>" } } — `files` is
-// every .scad as text, `assets` every binary a part import()s, mounted
-// at the same relative paths by openscad-worker.js so a relative
-// import() resolves identically in the browser and on disk.
+// Bundle shape: scad-bundle.json is { files: { "lib/x.scad": "<source>" },
+// importers: ["parts/klippt/base.scad", ...] } — `files` is every .scad
+// as text, `importers` the ones whose own source import()s a bundled
+// asset. The assets themselves (every binary a part import()s, base64 at
+// its repo-relative path) are scad-assets.json's { assets: { ... } }, a
+// file of their own: seven STL meshes, 1.1 MB of the 2.9 MB the bundle
+// was, which only the DeckMate and KLIPPT parts (and the Holes sockets cut
+// from them) use. A render fetches them only when its include closure
+// reaches an importer (src/lib/openscadRun.js), so a phone that never
+// opens one of those parts never downloads them. Both are mounted at the
+// same relative paths, so a relative import() resolves identically in
+// the browser and on disk.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +63,9 @@ export const ROOT_DIRS = ["lib", "parts", "assemblies"];
 // (vite-plugin-scad-watch.mjs): the roots, and the vendor tree the
 // closure may reach into.
 export const SOURCE_DIRS = [...ROOT_DIRS, "vendor"];
+
+// `import("x.stl")` (or `import(file = "x.stl")`), with the path.
+const IMPORT = /\bimport\s*\(\s*(?:file\s*=\s*)?"([^"]+)"/g;
 
 // `include <x>` / `use <x>`, with the target. A leading `./`, `../` or
 // `/` makes it a path (resolved against the including file's directory);
@@ -254,11 +264,28 @@ function resolveIncludes(rel, source, roots) {
   return found;
 }
 
-// Reads the roots and follows includes until nothing new is reached.
-// Returns { files, assets } keyed by repo-relative path.
-function collect() {
+// Whether `rel`'s source import()s one of `assets` by a path relative to
+// its own directory (OpenSCAD resolves import() beside the file that
+// holds the call, as it does includes).
+export function importsAsset(rel, source, assets) {
+  const dir = path.posix.dirname(rel);
+  for (const match of stripComments(source).matchAll(IMPORT)) {
+    const target = match[1];
+    if (target.startsWith("/")) continue;
+    if (Object.hasOwn(assets, path.posix.normalize(path.posix.join(dir, target)))) return true;
+  }
+  return false;
+}
+
+// Reads the roots and follows includes until nothing new is reached
+// (exported for web/tests/unit/scad-assets.test.js; writes nothing).
+// Returns { files, assets, importers, missing }, keyed by repo-relative
+// path (`importers` sorted, so the bundle's bytes don't depend on the
+// walk's order).
+export function collect() {
   const files = {};
   const assets = {};
+  const importers = [];
   const roots = libraryRoots();
   const queue = [];
   const missing = new Set();
@@ -283,6 +310,7 @@ function collect() {
     }
     const source = fs.readFileSync(abs, "utf8");
     files[rel] = stripForBundle(source);
+    if (importsAsset(rel, source, assets)) importers.push(rel);
     for (const { resolved, shim } of resolveIncludes(rel, source, roots)) {
       if (shim && files[shim] === undefined) {
         const hop = path.posix.relative(path.posix.dirname(shim), resolved);
@@ -292,7 +320,7 @@ function collect() {
     }
   }
 
-  return { files, assets, missing: [...missing] };
+  return { files, assets, importers: importers.sort(), missing: [...missing] };
 }
 
 // A missing vendor file is almost always a submodule that was never
@@ -387,7 +415,7 @@ export function syncThumbnails(parts, { galleryDir = GALLERY_DIR, thumbnailDir =
 // render. The dev watcher calls this non-strict — a half-saved file
 // mid-edit must not take the dev server down — and only gets a warning.
 export function syncScad({ strict = false } = {}) {
-  const { files, assets, missing } = collect();
+  const { files, assets, importers, missing } = collect();
   if (missing.length) {
     const lines = describeMissing(missing);
     if (strict) throw new MissingIncludeError(lines.join("\n"));
@@ -395,7 +423,8 @@ export function syncScad({ strict = false } = {}) {
   }
 
   fs.mkdirSync(WEB_PUBLIC, { recursive: true });
-  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, assets }));
+  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-bundle.json"), JSON.stringify({ files, importers }));
+  fs.writeFileSync(path.join(WEB_PUBLIC, "scad-assets.json"), JSON.stringify({ assets }));
   const cat = catalogue();
   const thumbnails = syncThumbnails(cat.parts ?? []);
   fs.writeFileSync(path.join(WEB_PUBLIC, "catalogue.json"), JSON.stringify(cat));

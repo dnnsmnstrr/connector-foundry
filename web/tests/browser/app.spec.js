@@ -519,6 +519,12 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   page,
 }) => {
   test.setTimeout(120_000);
+  // Neither part import()s a mesh, so the bundle's assets file is never
+  // fetched (see the KLIPPT test below for one that is).
+  const assetFetches = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/scad-assets.json")) assetFetches.push(request.url());
+  });
   await catalogue(page);
   await page.goto("/app/");
   const libraryDownload = page.getByRole("button", { name: "Download STL", exact: true });
@@ -543,6 +549,27 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   const exported = page.waitForEvent("download", { timeout: 90_000 });
   await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
+  expect(assetFetches).toEqual([]);
+});
+
+// A KLIPPT base is the designer's mesh, import()ed from scad-assets.json,
+// which the render fetches because the part's closure reaches an importer
+// (openscadRun.js). Without the mesh OpenSCAD only warns, and the export
+// would be empty or fail.
+test("real WASM fetches the mesh assets for a part that imports one", async ({ page }) => {
+  test.setTimeout(120_000);
+  const assetFetches = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/scad-assets.json")) assetFetches.push(request.url());
+  });
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  await importConfig(page, config({ partId: "klippt/base", params: {} }));
+  const exported = page.waitForEvent("download", { timeout: 90_000 });
+  await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
+  const [x, y, z] = extents(await downloadBytes(await exported));
+  expect(Math.min(x, y, z)).toBeGreaterThan(1);
+  expect(assetFetches.length).toBeGreaterThan(0);
 });
 
 // The openGrid snaps used to be upstream's modules called as they are

@@ -53,6 +53,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each
   Bench edit about a third (attaching a part 1.2 s → 0.5 s); a phone saves several times those
   amounts. The models are the same.
+- **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
+  (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
+  Holes socket uses them, so a phone opening any other part skips them.
 - **Large imported models freeze the page for less long.** Importing a detailed STL, STEP or 3MF
   and drilling holes into it merges the mesh's corners about seventeen times faster: for a
   200,000-triangle model on a phone-class processor, the pause after **Use this mesh** went from

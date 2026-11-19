@@ -61,10 +61,6 @@ found on the way and left for later:
   device**); a Library part and its parameters do not, so sending one to a phone goes through Open
   in Bench. A `part=` / `params=` pair in the hash, checked like a user command's `open-part`,
   would let the Library share its link too.
-- **Imported STL assets mounted only where needed.** The bundle carries seven STL meshes (367 KB
-  gzipped) that only the DeckMate and KLIPPT parts, and the Holes tab's sockets cut from them,
-  import: shipped as files of their own and mounted per render, a phone loading any other part
-  would skip them.
 - **A share target.** Installed on Android, the app could register as a Web Share Target for STL
   and 3MF files, so a model shared from another app opens on the Bench or in Holes.
 - **Not verified on a real device:** downloads from an iOS home-screen app (one 2019 WebKit report

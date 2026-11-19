@@ -21,12 +21,17 @@ running in a Web Worker.
    otherwise just an unhelpful "can't open include" on the parts that need it, in a build that
    looked green. `SYNC_SCAD_ALLOW_MISSING=1` downgrades it to a warning; the dev server's file
    watcher only ever warns.
-   A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
-   under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
-   relative `import()` resolves in the browser exactly as it does on disk.
+   A binary a part `import()`s (the DeckMate and KLIPPT meshes, `parts/*/*.stl`) goes base64-encoded
+   into `public/scad-assets.json`, a file of its own, and the bundle lists under `importers` the
+   files that `import()` one. A render fetches the assets (once per thread) only when its include
+   closure reaches an importer (`openscadRun.js`, `scadIncludes.js`'s `reachableFiles()`), and
+   mounts them at the same repo-relative paths, so a part's relative `import()` resolves in the
+   browser exactly as it does on disk. They were 1.1 of the bundle's 2.9 MB, which every visitor
+   downloaded for the handful of parts that use them; `tests/unit/scad-assets.test.js` checks that
+   every catalogue part and Holes socket that imports a mesh reaches an importer.
    The sources go in without their comments (`stripForBundle()`, a scanner that knows string
-   literals): comments were 2.1 of the 3.6 MB of `.scad` text, so the bundle is 2.8 MB instead of
-   4.8 (0.72 MB gzipped instead of 1.21). A comment leaves the newlines it spanned, so an OpenSCAD
+   literals): comments were 2.1 of the 3.6 MB of `.scad` text, so the sources are 1.8 MB instead of
+   3.7. A comment leaves the newlines it spanned, so an OpenSCAD
    message still names the repository's line, and each file's leading comment block — an upstream's
    copyright and licence notice — stays.
 2. `src/hooks/useCatalogue.js` reads `catalogue.json` (the parsed `catalogue.yaml`) for the part list, default parameters, and
@@ -211,8 +216,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   went uncached (navigations outside `app/` pass through). GitHub Pages sends `max-age=600` with mtime ETags, so after every
   deploy (fifty in a month) a returning phone downloaded the whole engine and bundle again. The
   worker keeps, in Cache Storage: the page, network-first (current online, the last copy offline);
-  `assets/` (content-hashed) and `scad-bundle.json?v=<hash>` (`publicAsset.js` puts a hash of the
-  bundle's content in its URL, `__PUBLIC_VERSIONS__`), cache-first and never revalidated;
+  `assets/` (content-hashed), `scad-bundle.json?v=<hash>` and `scad-assets.json?v=<hash>`
+  (`publicAsset.js` puts a hash of each file's content in its URL, `__PUBLIC_VERSIONS__`), cache-first and never revalidated;
   `catalogue.json` and `global-defaults.json` network-first; thumbnails, icons, the manifest and
   `gate.js` stale-while-revalidate. Nothing is precached: the cache fills as the app is used, and a
   part rendered once renders again offline. Each build's cache is `cf-<build id>`, and two
