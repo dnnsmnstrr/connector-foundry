@@ -9,6 +9,14 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts and Holes
 
+- **A Bolt, in every system's thread** (Basics): one part whose **Thread** is openGrid's snap
+  thread, a Multiboard tile's big or small thread, GOEWS's M14 × 2 (the bolt that locks a hanger
+  plate) or a tripod's 1/4"-20 or 3/8"-16, at any length, under a hex, knurled or round head with
+  an optional screwdriver slot, or with no head at all: a threaded stud to fuse onto another part
+  (attached on the Bench, it starts that way), or with the slot a grub screw. The head is sized from the thread, so one **Head overhang** suits
+  them all; fuse a knob or a hook onto it on the Bench and it screws in with the bolt. Each thread
+  is checked in its system's hole (and the small Multiboard one in Underware's threaded mounting
+  hole); none has been tried against a printed part yet, so print one bolt before a batch.
 - **The openGrid snaps can be attached to another part on the Bench**: the Snap, and the
   openConnect and MultiConnect snaps with their snap body (set **Body** back from "none"). On a
   Gridfinity bin base, or on anything else, the preview failed with "This combination nests too

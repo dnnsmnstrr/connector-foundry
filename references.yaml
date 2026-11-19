@@ -2578,3 +2578,146 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.01]
+
+  # The bolt (parts/basics/bolt.scad) in each system's hole, as this
+  # repository cuts it or, for the tripod screws, in BOSL2's own nut. A
+  # bolt holding 3mm of something: its head 3mm off the surface, the rest
+  # of its 10mm in the thread, turned to where the two helices mesh. Each
+  # is free over about 35 degrees of turn or more, and the angle here is
+  # the middle of that; half a turn on, the threads overlap by 10mm3 (the
+  # 1/4" thread) to 60mm3 (openGrid's), so a thread of the wrong pitch or
+  # size does not pass.
+  - id: basics/bolt-in-opengrid-thread
+    part: basics/bolt
+    why: >
+      The openGrid bolt has to screw into the openGrid thread the Holes
+      tab cuts, which is the threaded snaps' own.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      translate([0, 0, -7]) basics_bolt(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/ogthread.scad>
+      difference() {{
+          translate([-15, -15, -10]) cube([30, 30, 10]);
+          og_thread_hole(depth = 8);
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.1, 0.4]
+
+  - id: basics/bolt-in-multiboard-big-thread
+    part: basics/bolt
+    params: {thread: multiboard-big}
+    why: >
+      The big Multiboard bolt has to screw through a tile's big hole, as
+      lib/multiboard.scad cuts it.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(250) translate([0, 0, -7]) basics_bolt(thread = "multiboard-big", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/multiboard.scad>
+      difference() {{
+          translate([-15, -15, -MB_TILE_T]) cube([30, 30, MB_TILE_T]);
+          mb_thread_hole("big");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.05, 0.4]
+
+  - id: basics/bolt-in-multiboard-small-thread
+    part: basics/bolt
+    params: {thread: multiboard-small}
+    why: >
+      The small Multiboard bolt has to screw through a tile's small hole.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(60) translate([0, 0, -7]) basics_bolt(thread = "multiboard-small", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/multiboard.scad>
+      difference() {{
+          translate([-15, -15, -MB_TILE_T]) cube([30, 30, MB_TILE_T]);
+          mb_thread_hole("small");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.05, 0.4]
+
+  # The same bolt in the hole an Underware channel base has for its
+  # threaded snap connector, from underneath: the claim that the small
+  # Multiboard thread is the one it takes.
+  - id: basics/bolt-in-underware-snap-thread
+    part: basics/bolt
+    params: {thread: multiboard-small}
+    reference_source: quackworks
+    why: >
+      The small Multiboard bolt is said to fit Underware's Threaded Snap
+      Connector mounting; it has to turn into the hole upstream's script
+      cuts for that connector.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(240) translate([0, 0, -10]) basics_bolt(thread = "multiboard-small", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/underware.scad>
+      rotate([180, 0, 0]) difference() {{
+          translate([-10, -10, 0]) cube([20, 20, 5.9]);
+          uw_mounting_hole("Threaded Snap Connector");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+
+  # In our tile with a hanger plate hung in it (goews/hanger-in-tile's
+  # pose): through the plate's notch into the thread above the window, the
+  # head down on the plate, the tip 0.15mm short of the wall.
+  - id: basics/bolt-locks-goews-hanger
+    part: basics/bolt
+    params: {thread: goews, length: 9, head: knurled, overhang: 2}
+    why: >
+      The GOEWS bolt has to pass the hanger plate's notch, screw into the
+      tile's thread and seat on the plate without reaching the wall.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      translate([0, GOEWS_THREAD_Y, 9 - GOEWS_PLATE_T - GOEWS_HANGER_GAP]) rotate(240) rotate([180, 0, 0])
+          basics_bolt(thread = "goews", length = 9, head = "knurled", overhang = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      include <{repo}/parts/goews/hanger.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]
+
+  - id: basics/bolt-in-quarter-inch-nut
+    part: basics/bolt
+    params: {thread: tripod-1/4}
+    reference_source: bosl2
+    why: >
+      The 1/4"-20 bolt goes into cameras, which are metal cut to the
+      standard: it has to turn into a standard nut.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(130) translate([0, 0, -7]) basics_bolt(thread = "tripod-1/4", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/screws.scad>
+      nut("1/4-20", thickness = "normal", anchor = TOP, $fn = 48);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.02, 0.3]
+
+  - id: basics/bolt-in-three-eighths-nut
+    part: basics/bolt
+    params: {thread: tripod-3/8}
+    reference_source: bosl2
+    why: >
+      The same for the 3/8"-16 bolt and a tripod head's thread.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(30) translate([0, 0, -7]) basics_bolt(thread = "tripod-3/8", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/screws.scad>
+      nut("3/8-16", thickness = "normal", anchor = TOP, $fn = 48);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.02, 0.3]

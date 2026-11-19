@@ -4,6 +4,55 @@
 # moving when nobody meant to move it. It does NOT say a part is
 # correct — a wrong part has a perfectly stable bounding box.
 # Correctness lives in references.yaml (`make verify`).
+basics/bolt:
+  default:
+    bbox:
+    - 25.403
+    - 22.0
+    - 14.0
+    volume_mm3: 3408.66
+  goews:
+    bbox:
+    - 17.8
+    - 17.8
+    - 13.0
+    volume_mm3: 2003.64
+  headless:
+    bbox:
+    - 15.999
+    - 15.999
+    - 10.0
+    volume_mm3: 1743.69
+  multiboard-big:
+    bbox:
+    - 32.62
+    - 28.25
+    - 14.0
+    volume_mm3: 6408.46
+  multiboard-small:
+    bbox:
+    - 14.751
+    - 12.775
+    - 14.0
+    volume_mm3: 879.12
+  round-slotted:
+    bbox:
+    - 22.0
+    - 22.0
+    - 14.0
+    volume_mm3: 3142.11
+  tripod-quarter:
+    bbox:
+    - 12.2
+    - 12.2
+    - 14.0
+    volume_mm3: 656.28
+  tripod-three-eighths:
+    bbox:
+    - 15.375
+    - 15.375
+    - 14.0
+    volume_mm3: 1219.6
 basics/dovetail_channel:
   default:
     bbox:

@@ -1852,6 +1852,98 @@ parts:
       - name: bored
         params: { bore: 4 }
 
+  # One bolt for every thread the systems here use (lib/threads.scad):
+  # each variant is that system's own male thread under the same head.
+  # CC-BY because the openGrid thread is openGrid-projects' and the GOEWS
+  # one is sized from MrExo3D's tile; the others are measurements and
+  # BOSL2's standard profiles.
+  - id: basics/bolt
+    system: Basics
+    name: Bolt
+    file: parts/basics/bolt.scad
+    module: basics_bolt
+    confidence: parametric
+    license: CC-BY-4.0
+    source: >-
+      lib/threads.scad: each system's thread as this catalogue already
+      builds it — openGrid's snap thread (openGrid-projects, mitufy,
+      CC-BY 4.0), a Multiboard tile's two (the community's measurements,
+      lib/multiboard.scad), GOEWS's M14 x 2 (MrExo3D, CC-BY 4.0) and the
+      tripod screws (BOSL2's UTS threads). Each is checked in its own
+      hole here (references.yaml); none against a printed part yet.
+    keywords: [screw, thread, thumbscrew, knob, stud, opengrid, multiboard, goews, tripod, camera, underware, m14]
+    print_note: >-
+      Print it head down, thread up: no supports. thread picks the hole it
+      screws into: opengrid a threaded openGrid snap or the Holes tab's
+      openGrid thread; multiboard-big and multiboard-small a Multiboard
+      tile's holes (the small one also fits Underware's Threaded Snap
+      Connector mounting); goews a GOEWS tile's M14 x 2, which locks a
+      hanger plate; tripod-1/4 and tripod-3/8 a camera or a tripod head.
+      length is the thread under the head: what the bolt clamps plus its
+      reach into the hole. overhang is how far the head stands out beyond
+      the thread, so one value suits every thread; keep a GOEWS head under
+      19mm across (knurled, overhang 2) so a hanger plate passes it.
+      clearance takes that much more off the thread's diameter if it
+      binds; a negative one fattens a thread that wobbles. Fuse a knob or
+      a hook onto "mount", the head's face. head none leaves the thread
+      alone, a stud to fuse onto another part's face (or, with slot, a
+      grub screw); head height and overhang then do nothing. Attached to
+      another part on the Bench it starts headless, as that stud.
+    anchors: [bot]
+    # On something, the bolt is a stud that part screws in by: the part
+    # is its head. Picked as a bench root it keeps a head to turn it by.
+    attached_defaults:
+      head: none
+    # parts/basics/bolt.scad asserts all of these.
+    minimums:
+      length: 1
+      head_h: 1
+      overhang: 0
+      clearance: -0.5
+    maximums:
+      clearance: 1
+    labels:
+      length: Thread length (mm)
+      head_h: Head height (mm)
+      overhang: Head overhang (mm)
+      slot: Screwdriver slot
+      clearance: Extra clearance (mm)
+    defaults:
+      thread: opengrid
+      length: 10
+      head: hex
+      head_h: 4
+      overhang: 3
+      slot: false
+      clearance: 0
+    options:
+      thread: [opengrid, multiboard-big, multiboard-small, goews, tripod-1/4, tripod-3/8]
+      head: [hex, knurled, round, none]
+    # The head is `overhang` beyond the thread all round, so the diameter
+    # grows 2mm per mm of it — on a round head only: a hex head's corners
+    # grow faster than its flats. The thread is the render time, and it
+    # follows the length: openGrid's, the slowest, renders in 2.9s in
+    # openscad-wasm at 10mm, 5.5s at 20 and 7.1s at 30 (1.7s natively at
+    # 10); a Multiboard big thread in 3.9s at 30, a tripod's in 1.5s.
+    resize:
+      xy: { param: overhang, per: 2, when: { head: round } }
+      z: { param: length, max: 30 }
+    variants:
+      - name: multiboard-big
+        params: { thread: multiboard-big }
+      - name: multiboard-small
+        params: { thread: multiboard-small }
+      - name: goews
+        params: { thread: goews, length: 9, head: knurled, overhang: 2 }
+      - name: tripod-quarter
+        params: { thread: tripod-1/4, head: knurled }
+      - name: tripod-three-eighths
+        params: { thread: tripod-3/8, head: knurled }
+      - name: round-slotted
+        params: { head: round, slot: true }
+      - name: headless
+        params: { head: none }
+
   - id: basics/dovetail_rail
     system: Basics
     name: Dovetail rail

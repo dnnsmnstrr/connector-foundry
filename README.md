@@ -36,7 +36,7 @@ only the slot convention:
 | [GoProScad](https://github.com/ridercz/GoProScad) | MIT | `gopro/*` |
 | [QuackWorks](https://github.com/AndyLevesque/QuackWorks) | CC-BY-NC-SA 4.0 | `opengrid/board`, `opengrid/snap` |
 | [Monokini](https://github.com/pleite/Monokini) | CC-BY-NC-SA 4.0 (its files; the repository's LICENSE says AGPL-3.0) | `underware/opengrid_i_channel`, `underware/opengrid_l_channel` |
-| [openGrid-projects](https://github.com/mitufy/opengrid-projects) | CC-BY 4.0 | `opengrid/openconnect`, `opengrid/multiconnect`, the Holes tab's openConnect slot and openGrid thread |
+| [openGrid-projects](https://github.com/mitufy/opengrid-projects) | CC-BY 4.0 | `opengrid/openconnect`, `opengrid/multiconnect`, `basics/bolt` (its openGrid thread), the Holes tab's openConnect slot and openGrid thread |
 | [3d-scad-hsw-customizable](https://github.com/geru/3d-scad-hsw-customizable) | CC-BY 4.0 | `hsw/wall` |
 | [3d-scad-hsw-clip](https://github.com/geru/3d-scad-hsw-clip) | MIT | `hsw/insert` |
 | [bitbeam-lib](https://github.com/ondratu/bitbeam-lib) | BSD-3-Clause | `bitbeam/beam`, `bitbeam/plate` |
@@ -190,6 +190,7 @@ designed to print more reliably than fine Technic ridges.
 | ![Plate](docs/img/bitbeam_plate.png)<br>Plate | BitBeam | exact | BSD-3-Clause | [bitbeam-lib (ondratu, BSD-3-Clause), vendored; dimensions per bitbeam.cc. Nobody publishes a model of a plate like this, so there is no reference geometry to check against.](https://github.com/ondratu/bitbeam-lib) | Flat on the bed, no supports. Every hole is a real BitBeam hole, top and side. Side holes need height 1 (8mm); go thinner and turn side_holes off. Sizes are in 8mm units. |
 | ![Flat plate](docs/img/basics_plate.png)<br>Flat plate | Basics | exact | MIT | Generic geometry, not tied to an external spec | Flat on the bed, no supports. Anchors on all six faces. 42 x 42mm with 4mm corners by default — one Gridfinity unit, so it lines up with a Gridfinity base or baseplate. |
 | ![Round post](docs/img/basics_post.png)<br>Round post | Basics | exact | MIT | Generic geometry, not tied to an external spec | Stands on its flat end ("bot"), no supports. |
+| ![Bolt](docs/img/basics_bolt.png)<br>Bolt | Basics | parametric | CC-BY-4.0 | lib/threads.scad: each system's thread as this catalogue already builds it — openGrid's snap thread (openGrid-projects, mitufy, CC-BY 4.0), a Multiboard tile's two (the community's measurements, lib/multiboard.scad), GOEWS's M14 x 2 (MrExo3D, CC-BY 4.0) and the tripod screws (BOSL2's UTS threads). Each is checked in its own hole here (references.yaml); none against a printed part yet. | Print it head down, thread up: no supports. thread picks the hole it screws into: opengrid a threaded openGrid snap or the Holes tab's openGrid thread; multiboard-big and multiboard-small a Multiboard tile's holes (the small one also fits Underware's Threaded Snap Connector mounting); goews a GOEWS tile's M14 x 2, which locks a hanger plate; tripod-1/4 and tripod-3/8 a camera or a tripod head. length is the thread under the head: what the bolt clamps plus its reach into the hole. overhang is how far the head stands out beyond the thread, so one value suits every thread; keep a GOEWS head under 19mm across (knurled, overhang 2) so a hanger plate passes it. clearance takes that much more off the thread's diameter if it binds; a negative one fattens a thread that wobbles. Fuse a knob or a hook onto "mount", the head's face. head none leaves the thread alone, a stud to fuse onto another part's face (or, with slot, a grub screw); head height and overhang then do nothing. Attached to another part on the Bench it starts headless, as that stud. |
 | ![Dovetail rail](docs/img/basics_dovetail_rail.png)<br>Dovetail rail | Basics | exact | MIT | Generic geometry, not tied to an external spec | Tip down, no supports. A generic dovetail, not DeckMate-compatible — import Mechanism's own model for that. |
 | ![Dovetail channel](docs/img/basics_dovetail_channel.png)<br>Dovetail channel | Basics | exact | MIT | Generic geometry, not tied to an external spec | Mouth down, no supports. Mates with the dovetail rail. |
 | ![T-slot tab (hammer-head)](docs/img/extrusion2020_tab.png)<br>T-slot tab (hammer-head) | 2020 Extrusion | parametric | MIT | [Slot geometry measured off NopSCADlib's E2020t (GPL-3.0 — measured against, not vendored)](https://github.com/nophead/NopSCADlib) | Check EX_* in lib/constants.scad against your rail. tab_len up to 6mm drops into the slot face-first and twists to lock; a longer head feeds in from an open end. |
@@ -220,7 +221,7 @@ measure: [docs/ACCURACY.md](docs/ACCURACY.md).
 
 ## Licensing
 
-This repository's own files are MIT. Twenty-eight parts are not, and each catalogue entry says so:
+This repository's own files are MIT. Twenty-nine parts are not, and each catalogue entry says so:
 
 | Parts | Licence | Why |
 | --- | --- | --- |
@@ -235,6 +236,7 @@ This repository's own files are MIT. Twenty-eight parts are not, and each catalo
 | `bitbeam/pin`, `bitbeam/pin-joint`, `bitbeam/half-pin`; the BitBeam-style fork option in `modgrid/connector` | **CC BY-NC-SA 4.0** | BitBeam's published pin shape and dimensions ([official guide](https://bitbeam.cc/en/how-to/screws-pins-shafts)), adapted here. NonCommercial applies to the pin files and prints; ShareAlike applies to adaptations. |
 | `hsw/wall` | **CC-BY 4.0** | It runs `vendor/hsw-customizable` code (Xander, EdwinEesting, geru). Attribution, nothing else. |
 | `goews/tile`, `goews/hanger` | **CC-BY 4.0** | GOEWS by MrExo3D ([goews.ws](https://goews.ws/), [Printables model 1090032](https://www.printables.com/model/1090032-goews-greatly-over-engineered-wall-system)): rebuilt from measurements of the designer's own STLs (none of which ships here), so adaptations of the design under its terms. Attribution to MrExo3D, nothing else; commercial use is fine. |
+| `basics/bolt` | **CC-BY 4.0** | One bolt in every system's thread (`lib/threads.scad`). Its openGrid thread is `lib/ogthread.scad`, rewritten from `vendor/opengrid-projects` (mitufy), and its GOEWS thread is sized from MrExo3D's tile (`lib/goews.scad`). Attribution to both, nothing else. Its Multiboard threads are the community's measurements and its tripod threads BOSL2's standard profiles, which carry no terms of their own. |
 | `bitbeam/beam`, `bitbeam/plate` | **BSD-3-Clause** | Call into `vendor/bitbeam-lib`. Permissive, just not MIT. |
 | `extrusion2020/rail` | **Apache-2.0** | Calls into `vendor/AluminumExtrusionProfile`. Permissive, just not MIT. |
 | everything else | MIT | — |

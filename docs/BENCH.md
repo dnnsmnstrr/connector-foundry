@@ -56,6 +56,7 @@ attached part has:
   `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone
   (`body: none`), the thing you fuse onto a plate to hang it, while the version picked as a base
   keeps its snap body (set **Body** back to directional or symmetric to attach the whole snap).
+  The Bolt attaches headless (`head: none`), a threaded stud the part it is on screws in by.
   A saved user default for the parameter still wins. The openConnect head
   also starts turned so its slide direction points up when it lands on a side face, the way it
   hangs on a wall (the catalogue's `attached_up`); the Rotation field turns it from there.
