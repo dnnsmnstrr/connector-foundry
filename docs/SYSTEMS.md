@@ -89,7 +89,8 @@ CC BY 4.0. It meets [Gridfinity every 84 mm](#opengrid-and-gridfinity-84-mm).
 [openGrid Intro – 3D printed open board ecosystem — David D](https://www.youtube.com/watch?v=2mDBue4fw3U)
 
 - **In the catalogue:** `opengrid/board`, `opengrid/snap`, `opengrid/openconnect`,
-  `opengrid/multiconnect`; the Holes tab cuts openConnect slots and openGrid threads.
+  `opengrid/multiconnect`; the Holes tab cuts openConnect slots and openGrid threads, and
+  `basics/bolt` (thread `opengrid`) screws into those threads and into a threaded snap.
 - **Home:** [opengrid.world](https://www.opengrid.world/), and the
   [openGrid docs](https://github.com/openGrid-3D/openGrid-docs) on GitHub.
 - **Original files:**
@@ -123,7 +124,8 @@ catalogue. What is here only carries the tile's two threads, made from the commu
 measurements, so a part of ours screws into a tile and a hole of ours takes Multiboard's bolts.
 
 - **In the catalogue:** `multiboard/snap` (the big thread, under a head to fuse a part onto),
-  `multiboard/peg` (the small thread); the Holes tab cuts both threads as the tile does.
+  `multiboard/peg` (the small thread); `basics/bolt` in either thread, at any length and with a
+  hex, knurled or round head or none; the Holes tab cuts both threads as the tile does.
   `opengrid/multiconnect` and the Holes tab's MultiConnect slot hang Multiboard's MultiConnect
   accessories. Both are `parametric`: the thread numbers are not yet checked against a printed
   tile.
@@ -149,7 +151,9 @@ take Gridfinity bins. CC BY 4.0, with commercial use explicitly allowed.
 
 - **In the catalogue:** `goews/tile` (hex or grid, any number of cells each way) and
   `goews/hanger` (the hanger plate, any number of units wide, to fuse onto any part so it hangs on a
-  GOEWS wall), rebuilt from the designer's STLs and checked against them.
+  GOEWS wall), rebuilt from the designer's STLs and checked against them. `basics/bolt` with thread
+  `goews` is the M14 × 2 bolt that locks a plate: checked in our tile and plate, not yet against the
+  designer's bolt.
 - **Home:** [goews.ws](https://goews.ws/), with a [Part Builder](https://build.goews.ws/) and
   [Anything GOEWS](https://anything.goews.ws/), which turns any STL into a GOEWS accessory.
 - **Original files:**
@@ -299,8 +303,8 @@ Two standards: the tripod screw (1/4"-20 on cameras, 3/8"-16 on tripod heads, IS
 Arca-Swiss-style dovetail of quick-release plates, which no one has published as a standard and
 makers vary by tenths of a millimetre.
 
-- **In the catalogue:** `camera/arca_plate`, `camera/tripod_socket`; the Holes tab traps tripod
-  nuts.
+- **In the catalogue:** `camera/arca_plate`, `camera/tripod_socket`; `basics/bolt` in both tripod
+  threads, a printed camera screw; the Holes tab traps tripod nuts.
 - **Reference:** Wimberley's
   [Arca-Swiss style geometry](https://www.tripodhead.com/products/product-details2.cfm?product=arca-swiss-geometry)
   and [compatibility notes](https://www.tripodhead.com/products/WH-Compatibility.cfm);
@@ -367,7 +371,9 @@ fittings here are `parametric`.
 [BOSL2](https://github.com/BelfrySCAD/BOSL2) is what every part here is built on: its attachments
 are the slot convention. [r/openscad](https://www.reddit.com/r/openscad/) is the place to ask about
 OpenSCAD itself. The `basics/*` parts belong to no system: plain plates, posts and a dovetail to
-build between the others.
+build between the others, and `basics/bolt`, one bolt whose **Thread** is any of the systems' own:
+openGrid's snap thread, a Multiboard tile's big or small one (the small one also fits Underware's
+Threaded Snap Connector mounting), GOEWS's M14 × 2, or a tripod's 1/4"-20 or 3/8"-16.
 
 ## Shared units
 

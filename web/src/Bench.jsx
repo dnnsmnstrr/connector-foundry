@@ -1818,6 +1818,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // place the frames can't tell. Not an imported part, which has no size
   // parameters at all.
   const resizeHint = selectedPart && selectedPart.kind !== "imported" && !handleAxes.length;
+  // The selected part's own size, beside the whole bench's: its
+  // standalone render's box, in its own frame (W along its X, H out of
+  // its mount face), so it reads as the Library would show the part, not
+  // as its turned outline on the bench. None until that render is in, or
+  // when it failed (`unmeasured`), and none in the folded view, whose
+  // line is the folded body's.
+  const selectedDimensions =
+    selectedNode && !layoutShown ? outsideDimensions(nodeExtents.get(selectedNode.id) ?? null) : null;
 
   // The selected part's scene controls: its name, Crop and Deselect, and
   // for an attached part its turn, move and remove buttons. The root has
@@ -2081,10 +2089,25 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
             {dimensions && (
               <p
                 className="outside-dimensions"
-                aria-label={`${layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"} dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres`}
+                aria-label={
+                  `${layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"} dimensions: width ${dimensions.width} millimetres, height ${dimensions.height} millimetres, depth ${dimensions.depth} millimetres` +
+                  (selectedDimensions
+                    ? `; ${selectedPart.name} on its own: width ${selectedDimensions.width} millimetres, height ${selectedDimensions.height} millimetres, depth ${selectedDimensions.depth} millimetres`
+                    : "")
+                }
               >
                 {layoutShown ? FOLD_MODE_LABELS[fold.mode] : "Outside"}: W {dimensions.width} × H{" "}
                 {dimensions.height} × D {dimensions.depth} mm
+                {/* On the same line, not one of its own: a line that came
+                    and went with the selection would move the viewer
+                    under the pointer that made it. */}
+                {selectedDimensions && (
+                  <span className="selected-dimensions">
+                    {" "}
+                    · {selectedPart.name}: W {selectedDimensions.width} × H {selectedDimensions.height} × D{" "}
+                    {selectedDimensions.depth} mm
+                  </span>
+                )}
               </p>
             )}
             <p className="print-note" aria-live="polite">

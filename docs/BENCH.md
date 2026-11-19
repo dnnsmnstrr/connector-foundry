@@ -22,7 +22,10 @@ attached part has:
 - **Rotation (°)** — turn it on its slot. Click a part in the scene (or its name in the sidebar) to
   select it; ↺/↻ buttons above it turn it in 90° steps, the field takes any angle. Only the part
   turns, never a joint's flanges. Parts whose place in the scene can be computed (catalogue parts
-  on top slots) are clickable; imported or side-mounted ones are selected from the sidebar.
+  on top slots) are clickable; imported or side-mounted ones are selected from the sidebar. While
+  a part is selected, the header gives its own size after the whole bench's ("Outside: … · Bolt:
+  W 16 × H 10 × D 16 mm"): the part as it renders on its own, H out of the face it attaches by,
+  whichever way it is turned on the bench.
 - **Move** and **delete**, from the same controls over the selected part. "Move" (or `M`) arms a
   move: the next open slot marker clicked is where the part goes — another slot on the same part or
   a free anchor on a different one — taking its joint, rotation, and anything stacked on it along.
@@ -55,7 +58,9 @@ attached part has:
   to another may start from different values than the same part on its own (the catalogue's
   `attached_defaults`): the openConnect and MultiConnect snaps attach as their head alone
   (`body: none`), the thing you fuse onto a plate to hang it, while the version picked as a base
-  keeps its snap body. A saved user default for the parameter still wins. The openConnect head
+  keeps its snap body (set **Body** back to directional or symmetric to attach the whole snap).
+  The Bolt attaches headless (`head: none`), a threaded stud the part it is on screws in by.
+  A saved user default for the parameter still wins. The openConnect head
   also starts turned so its slide direction points up when it lands on a side face, the way it
   hangs on a wall (the catalogue's `attached_up`); the Rotation field turns it from there.
 

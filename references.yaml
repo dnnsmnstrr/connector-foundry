@@ -43,17 +43,19 @@ sources:
     license: CC-BY-NC-SA-4.0
     url: https://github.com/AndyLevesque/QuackWorks
     note: >
-      Vendored as a submodule, and parts/opengrid/board.scad and
-      snap.scad and lib/underware.scad (parts/underware/*.scad) call it
-      directly — so those parts are CC-BY-NC-SA, not MIT. See the
+      Vendored as a submodule. parts/opengrid/board.scad and
+      lib/underware.scad (parts/underware/*.scad) call it directly, and
+      lib/ogsnap.scad (parts/opengrid/snap.scad) re-expresses its
+      openGridSnap() — so those parts are CC-BY-NC-SA, not MIT. See the
       per-part `license` field in catalogue.yaml and the README
       "Licensing" section. openGrid design by David D; OpenSCAD
       implementation by Andy (BlackjackDuck), snap by metasyntactic;
       Underware by Hands on Katie and BlackjackDuck.
       Because our parts are wrappers, the shape checks below are
       guarding the wrapper (envelope, anchors, restated constants, the
-      sweeps and mounting holes lib/underware.scad re-expresses) rather
-      than re-deriving upstream's geometry.
+      sweeps and mounting holes lib/underware.scad re-expresses, the
+      snap lib/ogsnap.scad writes out flat) rather than re-deriving
+      upstream's geometry.
 
   monokini:
     kind: submodule
@@ -100,16 +102,17 @@ sources:
     license: CC-BY-4.0
     url: https://github.com/mitufy/opengrid-projects
     note: >
-      Vendored. lib/opengrid.scad calls its snap feature modules and
-      lib/openconnect.scad its openConnect head and slot directly;
+      Vendored. lib/openconnect.scad calls its openConnect head and
+      slot directly, and lib/opengrid.scad builds its snap body —
+      base_snap() with its lugs, nubs, cuts and notch — as the same
+      solid without upstream's nesting, so the browser's OpenSCAD can
+      render the parts attached to something (its header says why);
       parts/opengrid/openconnect.scad and multiconnect.scad are
       wrappers over those. CC-BY 4.0 — attribution, no other
       restriction. The wrappers restate a few of its numbers
-      (lib/constants.scad OG_SNAP_*, OC_HEAD_*) for their envelopes,
-      and lib/opengrid.scad re-expresses base_snap()'s envelope and
-      uninstall notch shallower so the browser's OpenSCAD can render
-      the parts (its header says why) — the shape checks below are
-      what holds all of that to upstream's own generator output.
+      (lib/constants.scad OG_SNAP_*, OC_HEAD_*) for their envelopes —
+      the shape checks below are what holds all of that to upstream's
+      own generator output.
 
   bitbeam-lib:
     kind: submodule
@@ -647,10 +650,98 @@ shape_checks:
       max_surface_max_mm: 0.01
       min_section_iou: 0.999
 
+  # The openGrid snap against QuackWorks' own openGridSnap(), all four
+  # of its shapes. lib/ogsnap.scad builds upstream's snap without
+  # upstream's nesting (which the browser's OpenSCAD could not render
+  # attached to anything; its header has the numbers), from upstream's
+  # numbers and BOSL2's own shape functions, so the two should agree to
+  # the mesher's rounding — the tolerances are that tight on purpose:
+  # a slip in the rewrite is a snap that does not hold in a board. Ours
+  # recentres the directional snap on its envelope (0.2 mm on X, for
+  # the deeper front nub), so it is moved back into upstream's frame.
+  - id: opengrid/snap-vs-quackworks
+    part: opengrid/snap
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      og_snap(anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.5, 2.5, 3.7, 4.5, 5.0, 5.4, 5.8, 6.2, 6.6]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-lite
+    part: opengrid/snap
+    params: {variant: lite}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      og_snap(variant = "lite", anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(lite = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.1, 1.6, 2.0, 2.4, 2.8, 3.2]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-directional
+    part: opengrid/snap
+    params: {directional: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      translate([0.2, 0, 0]) og_snap(directional = true, anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(directional = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.5, 2.5, 3.7, 4.5, 5.0, 5.4, 5.8, 6.2, 6.6]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
+  - id: opengrid/snap-vs-quackworks-lite-directional
+    part: opengrid/snap
+    params: {variant: lite, directional: true}
+    reference_source: quackworks
+    ours: |
+      include <{repo}/parts/opengrid/snap.scad>
+      translate([0.2, 0, 0]) og_snap(variant = "lite", directional = true, anchor = BOTTOM);
+    reference: |
+      include <BOSL2/std.scad>
+      use <{quackworks}/openGrid/opengrid-snap.scad>
+      openGridSnap(lite = true, directional = true, anchor = BOTTOM);
+    align: none
+    sections_z: [0.3, 1.1, 1.6, 2.0, 2.4, 2.8, 3.2]
+    tolerances:
+      max_bbox_mm: 0.001
+      max_volume_pct: 0.001
+      max_surface_rms_mm: 0.001
+      max_surface_max_mm: 0.001
+      min_section_iou: 0.9999
+
   # The openGrid connector parts against openGrid-projects' own snap
   # generator with the same choices (text label off). This is the check
-  # that lib/opengrid.scad's shallower re-expression of base_snap() —
-  # and its notch written as plain boxes — is the same solid, and that
+  # that lib/opengrid.scad's flat re-expression of base_snap() — every
+  # lug, nub and cut placed by arithmetic — is the same solid, and that
   # the restated OG_SNAP_*/OC_HEAD_* numbers have not drifted. Ours
   # recentres the directional body (0.2 mm on Y, for its deeper back
   # nub), so the reference is posed to match.
@@ -701,6 +792,57 @@ shape_checks:
   # Same for the MultiConnect snap — which also checks this repo's own
   # mc_head() (lib/multiconnect.scad) against the head upstream's
   # generator builds from the same published numbers.
+  # The other two bodies, so each of the four lib/opengrid.scad builds is
+  # held to upstream's: the lugs, nubs and cuts differ between them.
+  - id: opengrid/openconnect-symmetric
+    part: opengrid/openconnect
+    params: {body: symmetric}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      og_openconnect(body = "symmetric", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      snap_body_shape = "Symmetric";
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 2.0, 3.4, 5.0, 6.5, 7.1, 8.5, 9.2]
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.05
+      min_section_iou: 0.999
+
+  - id: opengrid/openconnect-lite-directional
+    part: opengrid/openconnect
+    params: {variant: lite}
+    reference_source: opengrid-projects
+    ours: |
+      include <{repo}/parts/opengrid/openconnect.scad>
+      // Recentred for the deeper back nub, as the full one above.
+      translate([0, 0.2, 0]) og_openconnect(variant = "lite", anchor = BOTTOM);
+    reference: |
+      include <{opengrid-projects}/opengrid_parametric_snap.scad>
+      generate_snap = "openConnect";
+      snap_thickness = 3.4;
+      text_depth = 0;
+    align: none
+    sections_z: [0.5, 1.7, 3.0, 3.7, 5.1, 5.8]
+    # The surface maximum is loose for upstream's sake, not ours: its
+    # render of this body carries a skin of no thickness on the
+    # underside's plane (1.2 mm², past the front corner chamfers, where
+    # the feet of its slant wedges run out of the body), and a sample on
+    # that is up to 0.2 mm from any real surface. Ours has no such skin;
+    # volume, RMS and the sections are as tight as for the other bodies.
+    tolerances:
+      max_bbox_mm: 0.01
+      max_volume_pct: 0.1
+      max_surface_rms_mm: 0.01
+      max_surface_max_mm: 0.25
+      min_section_iou: 0.999
+
   - id: opengrid/multiconnect
     part: opengrid/multiconnect
     reference_source: opengrid-projects
@@ -2436,3 +2578,146 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.0, 0.01]
+
+  # The bolt (parts/basics/bolt.scad) in each system's hole, as this
+  # repository cuts it or, for the tripod screws, in BOSL2's own nut. A
+  # bolt holding 3mm of something: its head 3mm off the surface, the rest
+  # of its 10mm in the thread, turned to where the two helices mesh. Each
+  # is free over about 35 degrees of turn or more, and the angle here is
+  # the middle of that; half a turn on, the threads overlap by 10mm3 (the
+  # 1/4" thread) to 60mm3 (openGrid's), so a thread of the wrong pitch or
+  # size does not pass.
+  - id: basics/bolt-in-opengrid-thread
+    part: basics/bolt
+    why: >
+      The openGrid bolt has to screw into the openGrid thread the Holes
+      tab cuts, which is the threaded snaps' own.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      translate([0, 0, -7]) basics_bolt(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/ogthread.scad>
+      difference() {{
+          translate([-15, -15, -10]) cube([30, 30, 10]);
+          og_thread_hole(depth = 8);
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.1, 0.4]
+
+  - id: basics/bolt-in-multiboard-big-thread
+    part: basics/bolt
+    params: {thread: multiboard-big}
+    why: >
+      The big Multiboard bolt has to screw through a tile's big hole, as
+      lib/multiboard.scad cuts it.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(250) translate([0, 0, -7]) basics_bolt(thread = "multiboard-big", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/multiboard.scad>
+      difference() {{
+          translate([-15, -15, -MB_TILE_T]) cube([30, 30, MB_TILE_T]);
+          mb_thread_hole("big");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.05, 0.4]
+
+  - id: basics/bolt-in-multiboard-small-thread
+    part: basics/bolt
+    params: {thread: multiboard-small}
+    why: >
+      The small Multiboard bolt has to screw through a tile's small hole.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(60) translate([0, 0, -7]) basics_bolt(thread = "multiboard-small", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/multiboard.scad>
+      difference() {{
+          translate([-15, -15, -MB_TILE_T]) cube([30, 30, MB_TILE_T]);
+          mb_thread_hole("small");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.05, 0.4]
+
+  # The same bolt in the hole an Underware channel base has for its
+  # threaded snap connector, from underneath: the claim that the small
+  # Multiboard thread is the one it takes.
+  - id: basics/bolt-in-underware-snap-thread
+    part: basics/bolt
+    params: {thread: multiboard-small}
+    reference_source: quackworks
+    why: >
+      The small Multiboard bolt is said to fit Underware's Threaded Snap
+      Connector mounting; it has to turn into the hole upstream's script
+      cuts for that connector.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(240) translate([0, 0, -10]) basics_bolt(thread = "multiboard-small", anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/underware.scad>
+      rotate([180, 0, 0]) difference() {{
+          translate([-10, -10, 0]) cube([20, 20, 5.9]);
+          uw_mounting_hole("Threaded Snap Connector");
+      }}
+    expect:
+      max_interference_mm3: 0.01
+
+  # In our tile with a hanger plate hung in it (goews/hanger-in-tile's
+  # pose): through the plate's notch into the thread above the window, the
+  # head down on the plate, the tip 0.15mm short of the wall.
+  - id: basics/bolt-locks-goews-hanger
+    part: basics/bolt
+    params: {thread: goews, length: 9, head: knurled, overhang: 2}
+    why: >
+      The GOEWS bolt has to pass the hanger plate's notch, screw into the
+      tile's thread and seat on the plate without reaching the wall.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      translate([0, GOEWS_THREAD_Y, 9 - GOEWS_PLATE_T - GOEWS_HANGER_GAP]) rotate(240) rotate([180, 0, 0])
+          basics_bolt(thread = "goews", length = 9, head = "knurled", overhang = 2, anchor = BOTTOM);
+    b: |
+      include <{repo}/parts/goews/tile.scad>
+      include <{repo}/parts/goews/hanger.scad>
+      goews_tile(cols = 1, rows = 1, anchor = BOTTOM);
+      translate([0, GOEWS_WIN_Y0 + GOEWS_PLATE_H / 2, GOEWS_FLANK]) rotate([0, 180, 0]) goews_hanger(anchor = BOTTOM);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.0, 0.01]
+
+  - id: basics/bolt-in-quarter-inch-nut
+    part: basics/bolt
+    params: {thread: tripod-1/4}
+    reference_source: bosl2
+    why: >
+      The 1/4"-20 bolt goes into cameras, which are metal cut to the
+      standard: it has to turn into a standard nut.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(130) translate([0, 0, -7]) basics_bolt(thread = "tripod-1/4", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/screws.scad>
+      nut("1/4-20", thickness = "normal", anchor = TOP, $fn = 48);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.02, 0.3]
+
+  - id: basics/bolt-in-three-eighths-nut
+    part: basics/bolt
+    params: {thread: tripod-3/8}
+    reference_source: bosl2
+    why: >
+      The same for the 3/8"-16 bolt and a tripod head's thread.
+    a: |
+      include <{repo}/parts/basics/bolt.scad>
+      rotate(30) translate([0, 0, -7]) basics_bolt(thread = "tripod-3/8", anchor = BOTTOM);
+    b: |
+      include <BOSL2/std.scad>
+      include <BOSL2/screws.scad>
+      nut("3/8-16", thickness = "normal", anchor = TOP, $fn = 48);
+    expect:
+      max_interference_mm3: 0.01
+      clearance_mm: [0.02, 0.3]

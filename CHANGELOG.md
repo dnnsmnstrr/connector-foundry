@@ -9,6 +9,20 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts and Holes
 
+- **A Bolt, in every system's thread** (Basics): one part whose **Thread** is openGrid's snap
+  thread, a Multiboard tile's big or small thread, GOEWS's M14 × 2 (the bolt that locks a hanger
+  plate) or a tripod's 1/4"-20 or 3/8"-16, at any length, under a hex, knurled or round head with
+  an optional screwdriver slot, or with no head at all: a threaded stud to fuse onto another part
+  (attached on the Bench, it starts that way), or with the slot a grub screw. The head is sized from the thread, so one **Head overhang** suits
+  them all; fuse a knob or a hook onto it on the Bench and it screws in with the bolt. Each thread
+  is checked in its system's hole (and the small Multiboard one in Underware's threaded mounting
+  hole); none has been tried against a printed part yet, so print one bolt before a batch.
+- **The openGrid snaps can be attached to another part on the Bench**: the Snap, and the
+  openConnect and MultiConnect snaps with their snap body (set **Body** back from "none"). On a
+  Gridfinity bin base, or on anything else, the preview failed with "This combination nests too
+  deep for this browser's OpenSCAD build" (in every browser and in the desktop and phone apps):
+  the snaps' models were nested so deeply that they only just rendered on their own. They are now
+  built flat. The shapes are the same, checked against the originals in every variant.
 - **The BitBeam axle renders in a third of a second in the browser, every time.** At some lengths
   (which ones changed from build to build) it took nearly four seconds: the browser's OpenSCAD failed
   on the way the axle's edges were rounded and started over with its slow method. The same shape is
@@ -21,6 +35,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **The Bench gives the selected part's size too.** With a part selected, the line under the
+  Bench's title follows the whole bench's outside size with that part's own: "Outside: W 25.58 ×
+  H 16.8 × D 25.58 mm · Bolt: W 16 × H 10 × D 16 mm".
 - **Previews render sooner, most of all on a phone and on the Bench.** A render used to read the
   BOSL2 library once for every file that includes it; now once. A simple part's preview takes
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each

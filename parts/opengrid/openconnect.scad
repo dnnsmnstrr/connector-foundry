@@ -97,9 +97,11 @@ module og_openconnect_on_snap(variant, body, anchor, spin, orient) {
     size = [OG_SNAP_BODY + 2 * OG_SNAP_NUB, OG_SNAP_BODY + 2 * OG_SNAP_NUB + dir_extra, t + OC_HEAD_H];
 
     // keep_color skips BOSL2's colour layer around the shape (two module
-    // levels; nothing an STL can see) and the transforms are builtins, not
-    // BOSL2's (one level each, not two) — see lib/opengrid.scad on why
-    // every level counts here.
+    // levels; nothing an STL can see), and the transforms are OpenSCAD's
+    // own rather than BOSL2's up() and yrot() (a level less each) — the
+    // head is the deep half of this part, and every level it sits under
+    // is one fewer for whatever the part is attached to on the Bench
+    // (web/README.md, "Known limit — nesting depth").
     attachable(anchor, spin, orient, size = size, anchors = [mount_anchor(size.z / 2)], keep_color = true) {
         translate([0, -dir_extra / 2, -size.z / 2]) {
             og_snap_body(t, body);
