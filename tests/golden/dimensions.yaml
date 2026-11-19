@@ -302,6 +302,59 @@ extrusion2020/tab:
     - 10.7
     - 10.0
     volume_mm3: 476.43
+flic/button_holder:
+  default:
+    bbox:
+    - 34.299
+    - 34.299
+    - 10.652
+    volume_mm3: 3448.56
+  plain-pocket:
+    bbox:
+    - 34.299
+    - 34.299
+    - 10.62
+    volume_mm3: 3596.59
+flic/duo_holder:
+  default:
+    bbox:
+    - 55.32
+    - 33.73
+    - 10.666
+    volume_mm3: 4776.31
+  plain-pocket:
+    bbox:
+    - 55.32
+    - 33.73
+    - 10.15
+    volume_mm3: 5571.53
+flic/hub_lr_holder:
+  default:
+    bbox:
+    - 88.14
+    - 70.3
+    - 16.59
+    volume_mm3: 20405.29
+flic/hub_mini_holder:
+  default:
+    bbox:
+    - 52.299
+    - 52.299
+    - 15.76
+    volume_mm3: 8316.36
+  plain-pocket:
+    bbox:
+    - 52.299
+    - 52.299
+    - 14.91
+    volume_mm3: 8065.56
+flic/twist_holder:
+  default:
+    bbox:
+    - 66.158
+    - 66.158
+    - 5.0
+    volume_mm3: 8372.92
 goews/hanger:
   default:
     bbox:

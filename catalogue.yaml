@@ -1627,6 +1627,208 @@ parts:
       - name: donut
         params: { recess: ring, hole: 36 }
 
+  - id: flic/button_holder
+    system: Flic
+    name: Flic 2 button holder
+    file: parts/flic/button_holder.scad
+    module: flic_button_holder
+    confidence: parametric
+    source: >-
+      lib/flic.scad, sized from Flic's own outside model of the Flic 2
+      (flic.io/3d-print-community, 2026), which the fit checks in
+      references.yaml seat in it. The lip and slits are this repo's design.
+    source_url: https://flic.io/3d-print-community
+    print_note: >-
+      A cup a Flic 2 snaps into face out; "mount" on top is its back, where
+      it is fused to a board or a wall plate. Print it mouth up (flip it in
+      the slicer): the lip's underside is a 45° overhang. The lip catches
+      the button's rounded front edge, and slits let it spring open as the
+      button goes in; the notch is where a fingernail levers it out. lip 0
+      makes a plain pocket for the button's adhesive pad or a press fit.
+    keywords: [flic, smart button, button, holder, mount, shortcut labs]
+    holes_guides: { round: true }
+    anchors: [bot]
+    # lib/flic.scad's flic_cup() asserts these.
+    minimums:
+      wall: 1.2
+      floor: 1
+      lip: 0
+    maximums:
+      lip: 1
+    labels:
+      wall: Wall (mm)
+      floor: Floor (mm)
+      lip: Lip (mm)
+      notch: Finger notch
+    defaults:
+      wall: 2
+      floor: 2
+      lip: 0.5
+      notch: true
+    variants:
+      - name: plain-pocket
+        params: { lip: 0, notch: false }
+
+  - id: flic/duo_holder
+    system: Flic
+    name: Flic Duo holder
+    file: parts/flic/duo_holder.scad
+    module: flic_duo_holder
+    confidence: parametric
+    source: >-
+      lib/flic.scad, sized from Flic's own outside models of the Duo (its
+      housing is the Cue's and the Mic's too) and of its steel wall plate
+      (flic.io/3d-print-community, 2026), which the fit checks in
+      references.yaml seat in it. The lip and slits are this repo's design.
+    source_url: https://flic.io/3d-print-community
+    print_note: >-
+      A cup a Flic Duo, Cue or Mic snaps into face out; "mount" on top is its
+      back. Print it mouth up (flip it in the slicer). plate cuts a
+      pocket in the floor for the steel wall plate the Duo comes with: glue
+      it in flush, and the Duo's magnets hold on to it as on a wall. The lip
+      catches the Duo's rounded front edge, and four slits let it spring
+      open as the Duo goes in; lip 0 leaves the plate (or a press fit) to
+      hold it.
+    keywords: [flic, duo, cue, mic, smart button, holder, mount, shortcut labs]
+    anchors: [bot]
+    # lib/flic.scad's flic_cup() asserts these; parts/flic/duo_holder.scad
+    # wants 0.6mm of floor behind the plate's 0.8mm pocket.
+    minimums:
+      wall: 1.2
+      floor: 1.5
+      lip: 0
+    maximums:
+      lip: 1
+    labels:
+      wall: Wall (mm)
+      floor: Floor (mm)
+      lip: Lip (mm)
+      plate: Wall plate pocket
+    defaults:
+      wall: 2
+      floor: 2
+      lip: 0.5
+      plate: true
+    variants:
+      - name: plain-pocket
+        params: { lip: 0, plate: false }
+
+  - id: flic/twist_holder
+    system: Flic
+    name: Flic Twist holder
+    file: parts/flic/twist_holder.scad
+    module: flic_twist_holder
+    confidence: parametric
+    source: >-
+      lib/flic.scad, sized from Flic's own outside model of the Twist
+      (flic.io/3d-print-community, 2026), which the fit check in
+      references.yaml stands in it.
+    source_url: https://flic.io/3d-print-community
+    print_note: >-
+      A shallow ring the Twist's stationary core stands in, so it stays put
+      while its ring turns; "mount" on top is its back. Prints either way
+      up. depth is how much of the core's 3.75mm band below the ring it
+      takes: at most 3.2, so the rim never rubs the ring. It holds by
+      friction, enough to twist against; on a wall, glue the Twist in.
+    keywords: [flic, twist, smart button, knob, dial, holder, stand, shortcut labs]
+    holes_guides: { round: true }
+    anchors: [bot]
+    # parts/flic/twist_holder.scad and lib/flic.scad's flic_cup() assert
+    # these.
+    minimums:
+      wall: 1.2
+      floor: 1
+      depth: 0.5
+    maximums:
+      depth: 3.2
+    labels:
+      wall: Wall (mm)
+      floor: Floor (mm)
+      depth: Rim height (mm)
+    defaults:
+      wall: 2.5
+      floor: 2
+      depth: 3
+
+  - id: flic/hub_mini_holder
+    system: Flic
+    name: Flic Hub Mini holder
+    file: parts/flic/hub_mini_holder.scad
+    module: flic_hub_mini_holder
+    confidence: parametric
+    source: >-
+      lib/flic.scad, sized from Flic's own outside model of the Hub Mini
+      (flic.io/3d-print-community, 2026), which the fit checks in
+      references.yaml seat in it. The lip, slits and cable slot are this
+      repo's design.
+    source_url: https://flic.io/3d-print-community
+    print_note: >-
+      A cup the Hub Mini snaps into face out, with a slot (+Y) for its USB-C
+      cable; "mount" on top is its back. Print it mouth up (flip it in the
+      slicer). Turn the hub so the cable channel under it meets the slot; on
+      a wall, put the slot at the bottom. cable is the slot's width: the
+      hub's own channel is 9.9mm, and a plug's overmould can be wider.
+    keywords: [flic, hub, hub mini, smart home, holder, mount, shortcut labs]
+    holes_guides: { round: true }
+    anchors: [bot]
+    # parts/flic/hub_mini_holder.scad and lib/flic.scad's flic_cup() assert
+    # these.
+    minimums:
+      wall: 1.2
+      floor: 1
+      lip: 0
+      cable: 9.9
+    maximums:
+      lip: 1
+      cable: 24
+    labels:
+      wall: Wall (mm)
+      floor: Floor (mm)
+      lip: Lip (mm)
+      cable: Cable slot (mm)
+    defaults:
+      wall: 2
+      floor: 2
+      lip: 0.5
+      cable: 12
+    variants:
+      - name: plain-pocket
+        params: { lip: 0 }
+
+  - id: flic/hub_lr_holder
+    system: Flic
+    name: Flic Hub LR holder
+    file: parts/flic/hub_lr_holder.scad
+    module: flic_hub_lr_holder
+    confidence: parametric
+    source: >-
+      lib/flic.scad, sized from Flic's own outside model of the Hub LR
+      (flic.io/3d-print-community, 2026), which the fit check in
+      references.yaml slides into it.
+    source_url: https://flic.io/3d-print-community
+    print_note: >-
+      A sleeve the Hub LR slides into face out, lips over the edges of its
+      face; "mount" on top is its back. Open at +X, where all the hub's ports
+      are. Print it standing on its closed end, so the lips need no support.
+      On a wall, put the open end up or to one side.
+    keywords: [flic, hub, hub lr, smart home, holder, mount, sleeve, shortcut labs]
+    anchors: [bot]
+    # parts/flic/hub_lr_holder.scad asserts these.
+    minimums:
+      wall: 1.2
+      floor: 1
+      lip: 1
+    maximums:
+      lip: 3.3
+    labels:
+      wall: Wall (mm)
+      floor: Floor (mm)
+      lip: Lip (mm)
+    defaults:
+      wall: 2
+      floor: 2
+      lip: 2.5
+
   - id: bitbeam/beam
     system: BitBeam
     name: Beam

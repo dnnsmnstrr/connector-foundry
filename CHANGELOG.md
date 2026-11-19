@@ -9,6 +9,16 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### Parts and Holes
 
+- **Holders for every Flic device** (Flic): the Flic 2 button, the Duo (and the Cue and Mic,
+  which share its housing), the Twist, the Hub Mini and the Hub LR. Each one is sized from the
+  model Flic published of that device, and each device's model has been checked to fit in its
+  holder. The button, Duo and Hub Mini snap into a cup whose lip catches the device's rounded
+  front edge. The Duo's cup has a pocket for the steel wall plate its magnets hold on to, and the
+  Hub Mini's has a slot for its USB-C cable. The Twist stands in a low ring that stops short of
+  its turning ring. The Hub LR slides into a sleeve that is open at the end with its ports.
+  Attach any of them to a board, a wall plate or another part on the Bench. None has been
+  printed yet.
+
 - **A Bolt, in every system's thread** (Basics): one part whose **Thread** is openGrid's snap
   thread, a Multiboard tile's big or small thread, GOEWS's M14 × 2 (the bolt that locks a hanger
   plate) or a tripod's 1/4"-20 or 3/8"-16, at any length, under a hex, knurled or round head with

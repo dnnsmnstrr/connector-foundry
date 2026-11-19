@@ -328,6 +328,21 @@ standard built on it.
 - **OpenSCAD:** [magsafe.scad](https://github.com/vaaski/magsafe.scad),
   [magsafe-mount-openscad](https://github.com/matthewfcarlson/magsafe-mount-openscad).
 
+### Flic
+
+Shortcut Labs' smart buttons and hubs: the round Flic 2, the Duo (whose housing the Cue and Mic
+share), the Twist knob, and the Hub Mini and Hub LR. In November 2026 Flic published simplified
+outside models of every device, STEP and STL, for people to design holders around, with a gallery
+of community holders. The page states no licence for the files, so this repository measures them
+and fetches them for its fit checks, but does not ship them.
+
+- **In the catalogue:** `flic/button_holder`, `flic/duo_holder`, `flic/twist_holder`,
+  `flic/hub_mini_holder`, `flic/hub_lr_holder`.
+- **Reference:** Flic's [3D print community page](https://flic.io/3d-print-community) (the
+  device models and the community designs); the
+  [Flic 2 developer documentation](https://github.com/50ButtonsEach/flic2-documentation).
+- **Community:** the #makers channel of Flic's Discord, linked from the same page.
+
 ## Building systems
 
 ### BitBeam
