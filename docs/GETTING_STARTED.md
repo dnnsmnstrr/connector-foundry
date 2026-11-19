@@ -4,7 +4,7 @@ From opening the app to a part on your print bed: the three tabs, and how to sav
 
 Connector Foundry is a catalogue of printable mounting parts — Gridfinity bins and baseplates,
 openGrid snaps, Skådis pegs, Honeycomb Storage Wall inserts, MOLLE panels, GoPro buckles, Arca
-plates, tripod sockets, MagSafe mounts, 2020 extrusion fittings and more — written as parametric
+plates, tripod sockets, MagSafe mounts, Flic button holders, 2020 extrusion fittings and more — written as parametric
 OpenSCAD. Every part follows the same slot convention, so any of them can be attached to any other:
 a GoPro buckle on a Gridfinity base, an openConnect head on a Honeycomb Storage Wall insert. You set
 the sizes, check the part in 3D and download an STL for your slicer.

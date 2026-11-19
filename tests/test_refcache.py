@@ -38,3 +38,27 @@ def test_the_checks_skip_a_missing_hand_supplied_file_too():
     available, unavailable = refcache.resolve_available(config)
     assert "gone" not in available
     assert "file you supply yourself" in unavailable["gone"]
+
+
+def test_closed_bodies_drops_the_open_ones(tmp_path, monkeypatch):
+    """A vendor model with a hole in one body (Flic's Twist: its ring) keeps
+    the closed ones, which OpenSCAD can intersect, and nothing else."""
+    import trimesh
+
+    closed = trimesh.creation.box((2, 2, 2))
+    # A cylinder 10mm along without its top: a hole bigger than the
+    # triangles and quads trimesh fills by itself when it splits a mesh.
+    cylinder = trimesh.creation.cylinder(radius=1, height=2, sections=16)
+    sides = cylinder.face_normals[:, 2] < 0.9
+    open_ = trimesh.Trimesh(vertices=cylinder.vertices, faces=cylinder.faces[sides])
+    open_.apply_translation((10, 0, 0))
+    source = tmp_path / "model.stl"
+    trimesh.util.concatenate([closed, open_]).export(source)
+    monkeypatch.setattr(refcache, "MESH_CACHE", tmp_path / "mesh")
+
+    out = refcache.resolve_source("model", {"kind": "file", "path": str(source), "closed_bodies": True})
+    kept = trimesh.load(out)
+    assert kept.is_watertight
+    assert kept.bounds.tolist() == closed.bounds.tolist()
+    # Without the option an STL is used as it is.
+    assert refcache.resolve_source("model", {"kind": "file", "path": str(source)}) == source

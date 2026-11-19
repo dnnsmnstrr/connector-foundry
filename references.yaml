@@ -158,6 +158,8 @@ sources:
   # `kind: file` also takes `url` + `sha256` instead of `path`, and a
   # `scale` override for files that are not in millimetres. STEP needs
   # the `cascadio` package (installed by the `dev` extra).
+  # `closed_bodies: true` keeps only the model's closed bodies, for a
+  # vendor file with an open one OpenSCAD will not intersect.
   #
   # supplier_rail:
   #   kind: file
@@ -311,6 +313,62 @@ sources:
       for the camera parts: its threaded_rod() follows the UTS thread
       profile and its screws.scad has the UTS hex nut table, the
       standards tripod threads (ISO 1222) are.
+
+  # Flic's own outside models of their devices (flic.io/3d-print-community,
+  # published November 2026 "as a starting point" for holders). The page
+  # states no licence, so they are fetched here by URL and checksum, never
+  # committed: parts/flic/ is sized from measurements of them (lib/flic.scad
+  # says which), and the fit checks below seat each device in its holder.
+  # Some of the meshes have a hole in them, which OpenSCAD will not
+  # intersect: the Flic 2's model is closed once its vertices are welded
+  # (closed_bodies does that), the Twist's core is closed but its turning
+  # ring is not, and the Hub LR's one body is open. The checks say what
+  # stands in for each.
+  flic-button:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_2_outer.stl
+    sha256: c8d40fde6ab579c7411d90ea4ecab1ed8a61f665cadb92d0739217cfa662b6d1
+    closed_bodies: true
+    license: none stated (Flic / Shortcut Labs)
+
+  flic-duo:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Duo_Cue_Mic_outer.stl
+    sha256: c599c6ea0670142fa2666db8200fa1e2793afeebe8132c7e175414b1b16e5e6a
+    license: none stated (Flic / Shortcut Labs)
+
+  flic-duo-plate:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Duo_wall_plate.stl
+    sha256: 2d811d50d4c858b25d7edbdbe8375f828df0834f96ab8f58f32a953c88364b5a
+    license: none stated (Flic / Shortcut Labs)
+
+  # The Twist twice: its closed bodies (the core, the centre button), and
+  # the whole model, whose hull above the core stands in for the open ring.
+  flic-twist:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Twist_outer.stl
+    sha256: 3a27f688ad6796dbc83957e1c6bb7daa85507440913545b840d36aa6ece17c69
+    closed_bodies: true
+    license: none stated (Flic / Shortcut Labs)
+
+  flic-twist-whole:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Twist_outer.stl
+    sha256: 3a27f688ad6796dbc83957e1c6bb7daa85507440913545b840d36aa6ece17c69
+    license: none stated (Flic / Shortcut Labs)
+
+  flic-hub-mini:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Hub_Mini_outer.stl
+    sha256: 2253e90aa7f03c21a5683a8a8fa667e4ba8b429e5e1d8f9f69b2382bae1ba036
+    license: none stated (Flic / Shortcut Labs)
+
+  flic-hub-lr:
+    kind: file
+    url: https://misc-scl-cdn.s3.us-east-1.amazonaws.com/3d-models/Flic_Hub_LR_outer.stl
+    sha256: 6ca085b915d4889d6abc282c81c35c6e329f9801a277ad928e66d8f2906ac83b
+    license: none stated (Flic / Shortcut Labs)
 
 # ---------------------------------------------------------------------
 # Shape checks: is our part the same solid as the reference?
@@ -2721,3 +2779,131 @@ fit_checks:
     expect:
       max_interference_mm3: 0.01
       clearance_mm: [0.02, 0.3]
+
+  # Flic's devices in their holders. Each device's model lies on its back
+  # with Z up; turned face out (half a turn about X, or about Y for the Hub
+  # Mini, whose cable channel then stays on +Y with the slot), it rests on
+  # the holder's floor, centred on the pocket. Nothing of the holder may
+  # touch it but the floor: the lips stand wholly in front of each face, so
+  # any overlap is a pocket too small or a lip in the wrong place.
+  - id: flic/button-in-holder
+    part: flic/button_holder
+    reference_source: flic-button
+    why: >
+      A Flic 2 has to go in and sit on the floor, its rounded front edge
+      behind the lip and clear of it.
+    a: |
+      include <{repo}/parts/flic/button_holder.scad>
+      flic_button_holder(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/flic.scad>
+      // The model's back is at z = -1.215, its centre at (-0.071, 0.0595).
+      translate([0.071, 0.0595, flic_button_depth(0.5) - 1.215])
+          rotate([180, 0, 0]) import("{flic-button}");
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
+
+  - id: flic/duo-in-holder
+    part: flic/duo_holder
+    reference_source: flic-duo
+    why: >
+      A Duo has to go in and sit on the floor, its front edge behind the
+      lip and clear of it.
+    a: |
+      include <{repo}/parts/flic/duo_holder.scad>
+      flic_duo_holder(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/flic.scad>
+      translate([0, 0, flic_duo_depth(0.5)]) rotate([180, 0, 0]) import("{flic-duo}");
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
+
+  # The Duo's steel plate in the floor's pocket, flush, and the Duo lying
+  # on it: the plate has to fit the pocket and not stand proud of it.
+  - id: flic/duo-plate-in-holder
+    part: flic/duo_holder
+    reference_source: flic-duo-plate
+    why: >
+      The wall plate goes in the floor's pocket, and the Duo still lies
+      flat on the floor and the plate.
+    a: |
+      include <{repo}/parts/flic/duo_holder.scad>
+      flic_duo_holder(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/flic.scad>
+      d = flic_duo_depth(0.5);
+      translate([0, 0, d + FLIC_DUO_PLATE.z]) rotate([180, 0, 0]) import("{flic-duo-plate}");
+      translate([0, 0, d]) rotate([180, 0, 0]) import("{flic-duo}");
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
+
+  - id: flic/twist-in-holder
+    part: flic/twist_holder
+    reference_source: flic-twist
+    why: >
+      The Twist's core stands in the ring, and the rim stops short of the
+      turning ring above it.
+    a: |
+      include <{repo}/parts/flic/twist_holder.scad>
+      flic_twist_holder(anchor = BOTTOM);
+    # The core as it is; the ring as the whole model's hull from just
+    # under the ring up, which is the ring's own outside and no more.
+    b: |
+      include <{repo}/lib/flic.scad>
+      translate([0, 0, 3]) rotate([180, 0, 0]) {{
+          import("{flic-twist}");
+          intersection() {{
+              hull() import("{flic-twist-whole}");
+              translate([-50, -50, FLIC_TWIST_RING_Z - 0.05]) cube([100, 100, 30]);
+          }}
+      }}
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
+
+  - id: flic/hub-mini-in-holder
+    part: flic/hub_mini_holder
+    reference_source: flic-hub-mini
+    why: >
+      A Hub Mini has to go in and sit on the floor, its front edge behind
+      the lip and clear of it, its cable channel at the slot.
+    a: |
+      include <{repo}/parts/flic/hub_mini_holder.scad>
+      flic_hub_mini_holder(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/flic.scad>
+      // The model's centre is at (0, -0.003).
+      translate([0, 0.003, flic_hub_mini_depth(0.5)]) rotate([0, 180, 0])
+          import("{flic-hub-mini}");
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
+
+  # The Hub LR slid home: its back on the floor, its closed end against
+  # the sleeve's end wall, its port end flush with the open end (the light
+  # pipe standing 0.6mm out of it).
+  - id: flic/hub-lr-in-holder
+    part: flic/hub_lr_holder
+    reference_source: flic-hub-lr
+    why: >
+      The Hub LR has to slide in under the lips and stop against the
+      closed end with its ports clear.
+    a: |
+      include <{repo}/parts/flic/hub_lr_holder.scad>
+      flic_hub_lr_holder(anchor = BOTTOM);
+    b: |
+      include <{repo}/lib/flic.scad>
+      // The model's body runs from x = -43.37; the sleeve's end wall is at
+      // -(FLIC_HUB_LR.x + FIT_CLEARANCE + 2) / 2 + 2.
+      end = -(FLIC_HUB_LR.x + FIT_CLEARANCE + 2) / 2 + 2;
+      // Its hull, as its own mesh is open: a box, so the hull only fills
+      // the port holes and the panel inset in its face, which nothing of
+      // the sleeve reaches into.
+      translate([end + 43.37, 0, 1.6 + FLIC_HUB_LR.z + 2 * FIT_CLEARANCE]) rotate([180, 0, 0])
+          hull() import("{flic-hub-lr}");
+    expect:
+      max_interference_mm3: 0.5
+      clearance_mm: [0.0, 0.1]
