@@ -22,7 +22,10 @@ attached part has:
 - **Rotation (°)** — turn it on its slot. Click a part in the scene (or its name in the sidebar) to
   select it; ↺/↻ buttons above it turn it in 90° steps, the field takes any angle. Only the part
   turns, never a joint's flanges. Parts whose place in the scene can be computed (catalogue parts
-  on top slots) are clickable; imported or side-mounted ones are selected from the sidebar.
+  on top slots) are clickable; imported or side-mounted ones are selected from the sidebar. While
+  a part is selected, the header gives its own size after the whole bench's ("Outside: … · Bolt:
+  W 16 × H 10 × D 16 mm"): the part as it renders on its own, H out of the face it attaches by,
+  whichever way it is turned on the bench.
 - **Move** and **delete**, from the same controls over the selected part. "Move" (or `M`) arms a
   move: the next open slot marker clicked is where the part goes — another slot on the same part or
   a free anchor on a different one — taking its joint, rotation, and anything stacked on it along.

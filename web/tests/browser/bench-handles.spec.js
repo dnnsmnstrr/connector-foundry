@@ -220,6 +220,25 @@ test("the root is selected from the sidebar or the scene, and shows its handles"
   await expect(page.getByRole("slider", { name: "Height (t)" })).toBeVisible();
 });
 
+test("the selected part's own size follows the bench's, and goes with the selection", async ({ page }) => {
+  await openBench(page, boardConfig);
+  // Every render here is the mock's 10 × 10 × 4 cube: the assembly's and
+  // each part's own alike.
+  const line = page.locator(".outside-dimensions");
+  await expect(line).toHaveText("Outside: W 10 × H 4 × D 10 mm");
+
+  await page.locator(".bench-node-name", { hasText: "Flat plate" }).click();
+  await expect(line).toHaveText("Outside: W 10 × H 4 × D 10 mm · Flat plate: W 10 × H 4 × D 10 mm");
+  await expect(line).toHaveAttribute("aria-label", /; Flat plate on its own: width 10 millimetres/);
+
+  await selectRoot(page).click();
+  await expect(line).toHaveText("Outside: W 10 × H 4 × D 10 mm · Board: W 10 × H 4 × D 10 mm");
+
+  await page.keyboard.press("Escape");
+  await expect(selectRoot(page)).toHaveAttribute("aria-pressed", "false");
+  await expect(line).toHaveText("Outside: W 10 × H 4 × D 10 mm");
+});
+
 test("an attached part with no resize floats its pill over it and says where it is resized", async ({
   page,
 }) => {

@@ -35,6 +35,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **The Bench gives the selected part's size too.** With a part selected, the line under the
+  Bench's title follows the whole bench's outside size with that part's own: "Outside: W 25.58 ×
+  H 16.8 × D 25.58 mm · Bolt: W 16 × H 10 × D 16 mm".
 - **Previews render sooner, most of all on a phone and on the Bench.** A render used to read the
   BOSL2 library once for every file that includes it; now once. A simple part's preview takes
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each
