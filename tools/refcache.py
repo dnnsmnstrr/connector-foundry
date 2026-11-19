@@ -208,17 +208,20 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
             _download(url, sha256, source)
 
     suffix = source.suffix.lower()
-    if suffix == ".stl":
+    closed = bool(spec.get("closed_bodies"))
+    if suffix == ".stl" and not closed:
         return source
 
     scale = spec.get("scale", DEFAULT_SCALE.get(suffix, 1.0))
-    out = MESH_CACHE / f"file-{name}-{_file_key(source, scale)}.stl"
+    out = MESH_CACHE / f"file-{name}-{_file_key(source, scale, closed)}.stl"
     if out.exists():
         return out
 
     MESH_CACHE.mkdir(parents=True, exist_ok=True)
     mesh = _load_cad(source, suffix)
     mesh.apply_scale(scale)
+    if closed:
+        mesh = _closed_bodies(name, mesh)
     # The existence check above is the cache, so the export goes to a
     # temp name first: an interrupted export must not leave a truncated
     # STL at `out` to be served as the reference from then on.
@@ -231,10 +234,31 @@ def _resolve_file_source(name: str, spec: dict, offline: bool = False) -> Path:
     return out
 
 
-def _file_key(source: Path, scale: float) -> str:
+def _file_key(source: Path, scale: float, closed: bool = False) -> str:
     digest = hashlib.sha256(source.read_bytes())
     digest.update(str(scale).encode())
+    if closed:
+        digest.update(b"closed_bodies")
     return digest.hexdigest()[:16]
+
+
+def _closed_bodies(name: str, mesh):
+    """Only the closed bodies of a model that has some open ones.
+
+    OpenSCAD's Manifold backend refuses to intersect a mesh with a hole in
+    it, and a vendor's export can leave one in a body a check does not
+    need (Flic's Twist: its turning ring is open, the core a holder grips
+    is closed). `closed_bodies: true` keeps the rest usable; the recipe
+    stands in for what was dropped, if anything, and says how. trimesh's
+    split() fills a body's holes of a triangle or a quad as it goes, which
+    is what closes the Flic 2's model; a body with a bigger hole is dropped.
+    """
+    import trimesh
+
+    bodies = [b for b in mesh.split(only_watertight=False) if b.is_watertight]
+    if not bodies:
+        raise RefError(f"source {name}: closed_bodies is set, but no body of it is closed")
+    return trimesh.util.concatenate(bodies)
 
 
 def _load_cad(source: Path, suffix: str):
