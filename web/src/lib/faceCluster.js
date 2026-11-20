@@ -32,17 +32,32 @@ const neighborsByGeometry = new WeakMap();
 // the same index: handed over here, the first slot click on a large
 // import costs what every later one does, instead of a second pass over
 // every edge. `neighbors`: face index -> [neighbouring face indices], in
-// the order of `geometry.index` as it is now.
+// the order of `geometry.index` as it is now — or the same lists packed
+// as `{ offsets, faces }` (face t's are faces[offsets[t]] up to
+// faces[offsets[t + 1]]), which is how they come back from the import
+// gate's worker (meshValidate.js's validationFromMessage()): unpacking
+// 200k small arrays there was 0.1-0.2 s of main thread for nothing.
 export function primeNeighbors(geometry, neighbors) {
   if (!geometry.index || !neighbors) return;
-  neighborsByGeometry.set(geometry, { index: geometry.index, neighbors });
+  neighborsByGeometry.set(geometry, { index: geometry.index, neighbors: neighborLists(neighbors) });
+}
+
+/**
+ * Face t's neighbours, from either form primeNeighbors() takes.
+ * @param {number[][] | { offsets: Uint32Array, faces: Uint32Array }} neighbors
+ * @returns {(t: number) => Iterable<number>}
+ */
+function neighborLists(neighbors) {
+  if (Array.isArray(neighbors)) return (t) => neighbors[t];
+  const { offsets, faces } = neighbors;
+  return (t) => faces.subarray(offsets[t], offsets[t + 1]);
 }
 
 function neighborsFor(geometry) {
   const index = geometry.index;
   const cached = neighborsByGeometry.get(geometry);
   if (cached && cached.index === index) return cached.neighbors;
-  const neighbors = triangleNeighbors(index.array, geometry.attributes.position.count);
+  const neighbors = neighborLists(triangleNeighbors(index.array, geometry.attributes.position.count));
   neighborsByGeometry.set(geometry, { index, neighbors });
   return neighbors;
 }
@@ -101,7 +116,7 @@ export function clusterFace(geometry, faceIndex, options = {}) {
   const stack = [faceIndex];
   while (stack.length) {
     const t = stack.pop();
-    for (const nb of neighbors[t]) {
+    for (const nb of neighbors(t)) {
       if (visited.has(nb)) continue;
       if (triNormal(position, index, nb, normal).dot(startNormal) < cosTol) continue;
       triCentroid(position, index, nb, centroid);

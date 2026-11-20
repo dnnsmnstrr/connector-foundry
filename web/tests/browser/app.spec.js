@@ -51,7 +51,12 @@ async function mockWorker(page, auto = false) {
           });
         },
       };
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         terminated = false;
         postMessage(request) {
           // The client's warm-ups (at boot, after an abort) are not jobs

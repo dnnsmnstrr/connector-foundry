@@ -56,6 +56,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
   (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
   Holes socket uses them, so a phone opening any other part skips them.
+- **Importing a large model no longer freezes the page while it is checked.** The watertightness
+  and winding check (over a second for a 200,000-triangle scan on a phone) runs in the background,
+  so the "Checking…" message shows and the page keeps responding.
 - **Large imported models freeze the page for less long.** Importing a detailed STL, STEP or 3MF
   and drilling holes into it merges the mesh's corners about seventeen times faster: for a
   200,000-triangle model on a phone-class processor, the pause after **Use this mesh** went from

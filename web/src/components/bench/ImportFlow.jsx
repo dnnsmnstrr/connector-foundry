@@ -8,7 +8,7 @@ import {
   nextAnchorName,
   removeAnchor,
 } from "../../lib/importedPart.js";
-import { validateAndRepair } from "../../lib/meshValidate.js";
+import { validateAndRepairAsync } from "../../lib/meshValidateClient.js";
 import { tessellateStep } from "../../lib/stepImport.js";
 import {
   MESH_FILE_ACCEPT,
@@ -124,10 +124,20 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
     setStage("rejected");
   }
 
-  // The gate every mesh passes through, whichever file it came from.
-  function validate(rawGeometry, name) {
+  // The gate every mesh passes through, whichever file it came from. It
+  // runs in a worker (meshValidateClient.js), so the status below paints
+  // and the page stays live on a large mesh; `current` tells a result
+  // that another file or body was picked meanwhile, and it drops itself.
+  async function validate(rawGeometry, name, current) {
     setStage("validating");
-    const result = validateAndRepair(rawGeometry);
+    let result;
+    try {
+      result = await validateAndRepairAsync(rawGeometry);
+    } catch (err) {
+      if (current()) reject([`Couldn't check this mesh: ${err.message}`]);
+      return;
+    }
+    if (!current()) return;
     setValidation(result);
     if (result.ok) {
       setPart(createImportedPart(name, result));
@@ -155,7 +165,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
       // solid, so let the user pick before it gets the chance to.
       const acceptBodies = (read) => {
         if (read.length === 0) reject(["No mesh found in this file."]);
-        else if (read.length === 1) validate(geometryFromBodies(read), file.name);
+        else if (read.length === 1) validate(geometryFromBodies(read), file.name, current);
         else {
           setBodies(read);
           setStage("bodies");
@@ -172,7 +182,7 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
         acceptBodies(read3mf(buffer));
       } else {
         setStage("validating");
-        validate(new STLLoader().parse(buffer), file.name);
+        await validate(new STLLoader().parse(buffer), file.name, current);
       }
     } catch (err) {
       if (current()) reject([`Couldn't read this file: ${err.message}`]);
@@ -192,8 +202,9 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
 
   function acceptPickedBodies() {
     const chosen = bodyChoice === ALL_BODIES ? bodies : [bodies[Number(bodyChoice)]];
+    const seq = ++fileSeq.current;
     try {
-      validate(geometryFromBodies(chosen), fileName);
+      validate(geometryFromBodies(chosen), fileName, () => seq === fileSeq.current);
     } catch (err) {
       reject([`Couldn't build a mesh from this body: ${err.message}`]);
     }

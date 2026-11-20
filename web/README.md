@@ -387,6 +387,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js`, `meshWeld.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, the edge/adjacency builders those two share, and `weldVertices()`: three's `mergeVertices()` for a position-only geometry, the same result to the bit from an integer hash table instead of a string per vertex (10 ms against 174 ms for 200k triangles), which the gate and every Holes preview weld with |
+| `src/lib/meshValidateClient.js`, `src/worker/mesh-worker.js` | The import gate off the main thread: `validateAndRepairAsync()` runs `meshValidate.js`'s `validateAndRepair()` in a worker (0.6-0.7 s per 200k triangles on a laptop, over a second on a phone, which froze the page before the "Checking…" status could paint) and rebuilds its result from transferred arrays (`validationToMessage()` / `validationFromMessage()`; the face adjacency stays packed, which `faceCluster.js`'s `primeNeighbors()` reads as it is); where no worker runs, the same gate runs on the main thread. The browser tests' `Worker` mocks hand this one to the real `Worker` |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js`, `src/lib/openscadRun.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker; `openscadRun.js` is one render (bundle mounted, `callMain()`, STL read back), which the worker runs and the client runs on the main thread when the worker ran out of stack (Safari, see "Known limit — nesting depth") |
@@ -1216,7 +1217,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   (inch → 25.4, centimeter → 10, …) before validation. Colours, materials and print-ticket data
   are dropped; a Bench part is one solid.
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
-  parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
+  parsed with three.js's `STLLoader`, welded and topology-checked in a worker
+  (`meshValidateClient.js`; a bench or Holes document restored from storage or a link still runs
+  the same gate on the main thread, since that path is synchronous) (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
   reimplemented in JS because the Bench has no Python available, not because the criteria
   differ), then — if it passes — becomes an `attachable()` wrapper module generated inline in the

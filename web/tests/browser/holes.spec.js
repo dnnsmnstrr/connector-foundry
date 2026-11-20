@@ -36,7 +36,12 @@ async function mockWorker(page, { failing = null, bytes = cubeBytes } = {}) {
   await page.addInitScript(
     ({ bytes, failing }) => {
       window.__renders = { jobs: [] };
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         postMessage(request) {
           // A warm-up is not a job and gets no answer (see app.spec.js).
           if (request?.type === "warm") return;
@@ -443,7 +448,12 @@ test("deleting a hole while the guide lines are on the holed mesh doesn't crash 
   await page.addInitScript(
     ({ plain, holed }) => {
       window.__renders = { jobs: [] };
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         postMessage(request) {
           // Not a job, as in mockWorker() above.
           if (request?.type === "warm") return;

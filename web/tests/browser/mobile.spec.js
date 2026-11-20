@@ -38,7 +38,12 @@ async function setUp(page, { auto = true } = {}) {
   await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts } }));
   await page.addInitScript(
     ({ bytes, auto }) => {
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         postMessage(request) {
           if (request?.type === "warm" || !auto) return;
           queueMicrotask(() =>

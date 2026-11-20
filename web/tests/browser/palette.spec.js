@@ -50,7 +50,12 @@ async function catalogue(page, parts = [plate, post, board]) {
 async function mockWorker(page) {
   await page.addInitScript(
     ({ bytes }) => {
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         postMessage(request) {
           // The client's warm-ups are not jobs and get no answer.
           if (request?.type === "warm") return;
