@@ -10,7 +10,7 @@ import UndoRedoButtons from "./components/UndoRedoButtons.jsx";
 import { downloadBlob } from "./lib/download.js";
 import { getCachedRender, renderPart } from "./lib/openscad-client.js";
 import { resolveParams } from "./lib/userOverrides.js";
-import { listedParts, slugify } from "./lib/catalogueUtils.js";
+import { isFinishedEdit, listedParts, slugify } from "./lib/catalogueUtils.js";
 import { useGlobalOverrides } from "./hooks/useGlobalOverrides.js";
 import { useRender } from "./hooks/useRender.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
@@ -209,15 +209,9 @@ export default function Library({
         label: one ? `edit ${one}` : "edit parameters",
       });
     }
-    // A checkbox or a choice from a list is a finished edit, not one of a
-    // run of keystrokes, so there is nothing for the debounce to wait
-    // out: it was 400 of the 700 ms between a tick and a plate's new
-    // preview. Typed values (and a reset, which arrives like one) wait.
-    immediateParams.current =
-      changed.length > 0 &&
-      changed.every((key) => typeof next[key] === "boolean" || selected?.options?.[key] !== undefined)
-        ? next
-        : null;
+    // A checkbox or a choice from a list renders at once (catalogueUtils.js's
+    // isFinishedEdit()). Typed values (and a reset, which arrives like one) wait.
+    immediateParams.current = isFinishedEdit(selected, params, next) ? next : null;
     setParams(next);
     setPending(null);
   }

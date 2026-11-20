@@ -49,7 +49,7 @@ const SOURCE = path.join(WEB, "src", "sw.js");
 const PUBLIC = path.join(WEB, "public");
 
 // The public files whose URL carries their content's hash (see above).
-export const VERSIONED_PUBLIC_FILES = Object.freeze(["scad-bundle.json"]);
+export const VERSIONED_PUBLIC_FILES = Object.freeze(["scad-bundle.json", "scad-assets.json"]);
 
 /**
  * `{ name: hash }` for the versioned public files that exist in `dir`: the

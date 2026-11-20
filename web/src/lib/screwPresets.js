@@ -737,8 +737,6 @@ export const SCREW_PRESETS = [
   extrusion("ex-socket-plain", "2020 socket, plain square", "Plain", false),
 ];
 
-export const DEFAULT_PRESET_ID = "m3-cap";
-
 const byId = new Map(SCREW_PRESETS.map((p) => [p.id, p]));
 
 export function getPreset(id) {

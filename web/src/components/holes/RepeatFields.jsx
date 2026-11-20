@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { SKADIS_SPACING, STANDARD_SPACINGS, matchSpacing, spacingLabel } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
+import FieldHint from "../FieldHint.jsx";
 
 // The selected hole's "Repeat…" form: a row, a grid or a circle of
 // copies (screwHoles.js's repeatHole(), whose option names these fields
@@ -42,7 +43,10 @@ export default function RepeatFields({
    */
   const number = (key, label, { min, step = 1, title } = {}) => (
     <label className="field" htmlFor={`${id}-${key}`} title={title}>
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        {label}
+        <FieldHint text={title} />
+      </span>
       <DecimalInput
         id={`${id}-${key}`}
         min={min}
@@ -53,11 +57,20 @@ export default function RepeatFields({
     </label>
   );
   // Row and grid alike: the pattern round this hole, or from it.
+  const centeredHint =
+    "Lay the pattern out round this hole's spot instead of from it as a corner. This hole stays put if a hole of the pattern lands on its spot (the middle of an odd row or an odd × odd grid); otherwise it moves to the pattern's first corner.";
+  const alongHint = "Across the face, or up it: straight up on a wall, the part's Y on a face lying flat.";
+  const standardHint =
+    "A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts.";
+  const staggerHint = "Every other row shifted half a spacing across, the way a Skådis board has its slots.";
+  const skadisHint = `Fill the circle with a Skådis board's pattern instead of a ring: ${SKADIS_SPACING.across} mm across, ${SKADIS_SPACING.up} mm up, every other row shifted ${SKADIS_SPACING.across / 2} mm, centred on this hole.`;
+  const keepCenterHint =
+    "Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole.";
   const centered = (
     <label
       className="field field-checkbox holes-through-field"
       htmlFor={`${id}-centered`}
-      title="Lay the pattern out round this hole's spot instead of from it as a corner. This hole stays put if a hole of the pattern lands on its spot (the middle of an odd row or an odd × odd grid); otherwise it moves to the pattern's first corner."
+      title={centeredHint}
     >
       <input
         id={`${id}-centered`}
@@ -65,7 +78,10 @@ export default function RepeatFields({
         checked={Boolean(options.centered)}
         onChange={(e) => onChange({ centered: e.target.checked })}
       />
-      <span className="field-label">Centre on this hole</span>
+      <span className="field-label">
+        Centre on this hole
+        <FieldHint text={centeredHint} />
+      </span>
     </label>
   );
   return (
@@ -91,12 +107,11 @@ export default function RepeatFields({
             step: 0.5,
             title: "Centre to centre. Negative runs the row the other way.",
           })}
-          <label
-            className="field"
-            htmlFor={`${id}-along`}
-            title="Across the face, or up it: straight up on a wall, the part's Y on a face lying flat."
-          >
-            <span className="field-label">Direction</span>
+          <label className="field" htmlFor={`${id}-along`} title={alongHint}>
+            <span className="field-label">
+              Direction
+              <FieldHint text={alongHint} />
+            </span>
             <select
               id={`${id}-along`}
               value={options.along}
@@ -125,12 +140,11 @@ export default function RepeatFields({
       )}
       {options.pattern === "grid" && (
         <>
-          <label
-            className="field"
-            htmlFor={`${id}-standard`}
-            title="A system's hole pattern, the same spacings Measure shows round a hole: Gridfinity's magnet and screw holes (a cell's 2 × 2), openGrid, Skådis (every other row shifted), Multiboard, US pegboard, MOD-GRID, BitBeam, MOLLE panels and VESA monitor mounts."
-          >
-            <span className="field-label">Standard spacing</span>
+          <label className="field" htmlFor={`${id}-standard`} title={standardHint}>
+            <span className="field-label">
+              Standard spacing
+              <FieldHint text={standardHint} />
+            </span>
             <select
               id={`${id}-standard`}
               value={matchSpacing(options, spacings)?.id ?? ""}
@@ -156,7 +170,7 @@ export default function RepeatFields({
           <label
             className="field field-checkbox holes-through-field"
             htmlFor={`${id}-stagger`}
-            title="Every other row shifted half a spacing across, the way a Skådis board has its slots."
+            title={staggerHint}
           >
             <input
               id={`${id}-stagger`}
@@ -164,7 +178,10 @@ export default function RepeatFields({
               checked={options.stagger}
               onChange={(e) => onChange({ stagger: e.target.checked })}
             />
-            <span className="field-label">Stagger rows</span>
+            <span className="field-label">
+              Stagger rows
+              <FieldHint text={staggerHint} />
+            </span>
           </label>
           {centered}
         </>
@@ -185,7 +202,7 @@ export default function RepeatFields({
           <label
             className="field field-checkbox holes-through-field"
             htmlFor={`${id}-skadis`}
-            title={`Fill the circle with a Skådis board's pattern instead of a ring: ${SKADIS_SPACING.across} mm across, ${SKADIS_SPACING.up} mm up, every other row shifted ${SKADIS_SPACING.across / 2} mm, centred on this hole.`}
+            title={skadisHint}
           >
             <input
               id={`${id}-skadis`}
@@ -193,13 +210,16 @@ export default function RepeatFields({
               checked={options.skadisFill}
               onChange={(e) => onChange({ skadisFill: e.target.checked })}
             />
-            <span className="field-label">Skådis spacing, filling the circle</span>
+            <span className="field-label">
+              Skådis spacing, filling the circle
+              <FieldHint text={skadisHint} />
+            </span>
           </label>
           {!options.skadisFill && (
             <label
               className="field field-checkbox holes-through-field"
               htmlFor={`${id}-center`}
-              title="Keep this hole where it is, in the middle of the circle. Off, it moves onto the circle as its first hole."
+              title={keepCenterHint}
             >
               <input
                 id={`${id}-center`}
@@ -207,7 +227,10 @@ export default function RepeatFields({
                 checked={options.keepCenter}
                 onChange={(e) => onChange({ keepCenter: e.target.checked })}
               />
-              <span className="field-label">Keep this hole in the centre</span>
+              <span className="field-label">
+                Keep this hole in the centre
+                <FieldHint text={keepCenterHint} />
+              </span>
             </label>
           )}
         </>

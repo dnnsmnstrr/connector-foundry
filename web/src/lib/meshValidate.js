@@ -310,3 +310,68 @@ export function validateAndRepair(rawGeometry) {
   const neighbors = adjacency.map((links) => links.map((link) => link.face));
   return { geometry, ok, report, extents, center, neighbors };
 }
+
+// validateAndRepair()'s result as a worker message (src/worker/
+// mesh-worker.js) and back (meshValidateClient.js): the geometry as its
+// typed arrays, and `neighbors` packed into two typed arrays (`offsets`,
+// one entry per face plus one, into `faces`), so every array moves as a
+// transfer instead of being cloned — on a 200k-triangle import the
+// adjacency alone is 200k small arrays, which a structured clone copies
+// one by one.
+/**
+ * @param {ReturnType<typeof validateAndRepair>} result
+ * @returns {{ message: Record<string, any>, transfer: ArrayBuffer[] }}
+ */
+export function validationToMessage({ geometry, ok, report, extents, center, neighbors }) {
+  const position = /** @type {Float32Array} */ (geometry.attributes.position.array);
+  const normal = /** @type {Float32Array | undefined} */ (geometry.attributes.normal?.array);
+  const index = geometry.index ? /** @type {Uint16Array | Uint32Array} */ (geometry.index.array) : null;
+  let offsets = null;
+  let faces = null;
+  if (neighbors) {
+    offsets = new Uint32Array(neighbors.length + 1);
+    let total = 0;
+    for (let f = 0; f < neighbors.length; f++) {
+      offsets[f] = total;
+      total += neighbors[f].length;
+    }
+    offsets[neighbors.length] = total;
+    faces = new Uint32Array(total);
+    for (let f = 0, k = 0; f < neighbors.length; f++) {
+      for (const n of neighbors[f]) faces[k++] = n;
+    }
+  }
+  const arrays = [position, normal, index, offsets, faces].filter(Boolean);
+  return {
+    message: { ok, report, extents, center, position, normal: normal ?? null, index, offsets, faces },
+    // A buffer listed twice fails the post; the arrays here never share one.
+    transfer: arrays.map((a) => /** @type {ArrayBuffer} */ (a.buffer)),
+  };
+}
+
+/**
+ * The inverse of validationToMessage(): the same result validateAndRepair()
+ * returned in the worker.
+ * @param {Record<string, any>} message
+ */
+export function validationFromMessage({
+  ok,
+  report,
+  extents,
+  center,
+  position,
+  normal,
+  index,
+  offsets,
+  faces,
+}) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
+  if (normal) geometry.setAttribute("normal", new THREE.BufferAttribute(normal, 3));
+  if (index) geometry.setIndex(new THREE.BufferAttribute(index, 1));
+  if (position.length) geometry.computeBoundingBox();
+  // `neighbors` stays packed: faceCluster.js's primeNeighbors() takes it
+  // so, and unpacking it into arrays was 0.1-0.2 s per 200k triangles.
+  const neighbors = offsets && faces ? { offsets, faces } : undefined;
+  return { geometry, ok, report, extents, center, neighbors };
+}

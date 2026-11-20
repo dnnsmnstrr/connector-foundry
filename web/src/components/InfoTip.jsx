@@ -4,8 +4,10 @@ import { useEffect, useId, useRef, useState } from "react";
 // focus, or — since a finger can do neither — toggled by a tap: open, it
 // stays until a tap elsewhere, Escape, or another tap on it. A real
 // button so it can be focused; the text is its accessible description.
-/** @param {{ text: string, label?: string }} props */
-export default function InfoTip({ text, label = "More information" }) {
+// `focusable` false keeps the button out of the tab order (FieldHint.jsx,
+// whose tip a screen reader already has as the field's description).
+/** @param {{ text: string, label?: string, focusable?: boolean }} props */
+export default function InfoTip({ text, label = "More information", focusable = true }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
@@ -40,6 +42,7 @@ export default function InfoTip({ text, label = "More information" }) {
         aria-label={label}
         aria-describedby={id}
         aria-expanded={open}
+        tabIndex={focusable ? undefined : -1}
         // A click inside a <label> would otherwise toggle the checkbox or
         // focus the field the label belongs to.
         onClick={(e) => {

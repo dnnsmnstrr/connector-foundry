@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import FieldHint from "./components/FieldHint.jsx";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
 import NameBenchModal from "./components/bench/NameBenchModal.jsx";
@@ -51,7 +52,7 @@ import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
-import { partSections } from "./lib/catalogueUtils.js";
+import { isFinishedEdit, partSections } from "./lib/catalogueUtils.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { CONFIG_EXTENSION, configToJson, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
 import {
@@ -139,6 +140,12 @@ function measuredNow(measured, assembly) {
 // memos that follow the axes don't rebuild on each of them.
 /** @type {import("./lib/resize.js").ResizeAxis[]} */
 const NO_AXES = [];
+
+// The sidebar fields' explanations, shared by each field's hover title
+// and its touch-screen hint so the two cannot drift apart.
+const benchNameHint =
+  "What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export.";
+const rootCropHint = "Cut away anything attached that sticks out past this part's outline";
 
 // Arrow keys step the selected part to the next open slot that way,
 // in root's own x/y frame (see nudgeSelected()).
@@ -296,6 +303,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // its root's own extents first, instead of waiting out the typing
   // debounce. Read by the effects that schedule those renders.
   const immediateTree = useRef(null);
+  // The tree a sidebar tick or list choice made: its preview renders at
+  // once, its extents after the debounce (nodeActions.setParams()).
+  const immediatePreview = useRef(null);
   // The sidebar, for revealing a node's parameters (revealParams()).
   const sidebarRef = useRef(null);
 
@@ -476,7 +486,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     renderKey,
     (key, signal) => renderBody(key.assembly, key.partsById, key.globalOverrides, "all", { signal }),
     {
-      delay: (key) => (key.assembly === immediateTree.current ? 0 : RENDER_DEBOUNCE_MS),
+      delay: (key) =>
+        key.assembly === immediateTree.current || key.assembly === immediatePreview.current
+          ? 0
+          : RENDER_DEBOUNCE_MS,
       cached: cachedPreview,
       formatError: (err) =>
         err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message),
@@ -1177,8 +1190,20 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta), { label: "rotate part" }),
     // `step` names the undo step when the caller knows better than a diff
     // (a handle's "resize W"); else it comes from what changed.
-    setParams: (id, params, step = paramsStep(id, params)) =>
-      setAssembly((a) => updateNodeParams(a, id, params), step),
+    // A tick or a choice from a list renders the preview at once, as in
+    // the Library (isFinishedEdit()); a typed value waits out the
+    // debounce. Only the preview (immediatePreview): the node's own
+    // extents render keeps its debounce, so it queues behind the preview
+    // rather than ahead of it (see the extents effect).
+    setParams: (id, params, step = paramsStep(id, params)) => {
+      const node = getNode(assembly, id);
+      setAssembly((a) => updateNodeParams(a, id, params), step);
+      const next = getBenchSession().assembly;
+      immediatePreview.current =
+        node && next !== assembly && isFinishedEdit(partsById.get(node.partId), node.params, params)
+          ? next
+          : null;
+    },
     // `on` false only clears the crop if it's this node's — unticking one
     // part never drops a crop that belongs to another.
     setCrop: (id, on) =>
@@ -1937,11 +1962,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               </button>
             </div>
             <p className="muted">Base part. Click a marker in the scene to attach a part to it.</p>
-            <label
-              className="field bench-name-field"
-              title="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export."
-            >
-              <span className="field-label">Name</span>
+            <label className="field bench-name-field" title={benchNameHint}>
+              <span className="field-label">
+                Name
+                <FieldHint text={benchNameHint} />
+              </span>
               <input
                 type="text"
                 placeholder={defaultBenchName(assembly, partsById)}
@@ -1958,16 +1983,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               Start over
             </button>
 
-            <label
-              className="field field-checkbox bench-crop-field"
-              title="Cut away anything attached that sticks out past this part's outline"
-            >
+            <label className="field field-checkbox bench-crop-field" title={rootCropHint}>
               <input
                 type="checkbox"
                 checked={assembly.cropTo === ROOT_ID}
                 onChange={(e) => nodeActions.setCrop(ROOT_ID, e.target.checked)}
               />
-              <span className="field-label">Crop attached parts to this outline</span>
+              <span className="field-label">
+                Crop attached parts to this outline
+                <FieldHint text={rootCropHint} />
+              </span>
             </label>
             {foldSpec(rootPart, assembly.root.params) && (
               <FoldSelect

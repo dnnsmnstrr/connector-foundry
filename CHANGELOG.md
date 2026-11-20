@@ -53,6 +53,23 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
   about half as long (a plate 300 ms → 125 ms on a laptop, a GoPro mount 235 → 140 ms), and each
   Bench edit about a third (attaching a part 1.2 s → 0.5 s); a phone saves several times those
   amounts. The models are the same.
+- **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
+  (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
+  Holes socket uses them, so a phone opening any other part skips them.
+- **Hole sizes read whole on a phone.** The Holes fields sat three to a row beside their finger-sized
+  + and − buttons, which left room for one digit: a 20 mm width read "2". They are two to a row on
+  touch screens now.
+- **Field explanations on phones and tablets.** About fifty fields in Holes and on the Bench explained
+  themselves only on mouse hover, which a touch screen never shows; there they now have a "?" to tap.
+- **A tick or a choice in the Bench's sidebar renders at once**, as it already did in the Library;
+  a typed value still waits a moment for the next keystroke.
+- **Bench and Holes edits render sooner in Safari** (on iPhone and iPad too). Safari's background
+  renderer runs out of room on most benches and Holes models, so the app has been rendering those
+  a second time on the page; it now goes straight there for the rest of the session once a bench
+  has needed it, about a fifth sooner per edit.
+- **Importing a large model no longer freezes the page while it is checked.** The watertightness
+  and winding check (over a second for a 200,000-triangle scan on a phone) runs in the background,
+  so the "Checking…" message shows and the page keeps responding.
 - **Large imported models freeze the page for less long.** Importing a detailed STL, STEP or 3MF
   and drilling holes into it merges the mesh's corners about seventeen times faster: for a
   200,000-triangle model on a phone-class processor, the pause after **Use this mesh** went from

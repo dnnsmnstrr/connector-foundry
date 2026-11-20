@@ -50,7 +50,12 @@ async function catalogue(page, parts = [plate, post, board]) {
 async function mockWorker(page) {
   await page.addInitScript(
     ({ bytes }) => {
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         postMessage(request) {
           // The client's warm-ups are not jobs and get no answer.
           if (request?.type === "warm") return;
@@ -596,11 +601,14 @@ test("the Library's palette refuses a dropped file rather than opening it", asyn
   await page.goto("/app/");
   await expect(page.getByRole("heading", { name: "Flat plate", exact: true })).toBeVisible();
   await openPalette(page);
+  // The app's own origin, whichever port this run serves it on (a
+  // second run beside `npm run test:browser` uses another).
+  const { origin } = new URL(page.url());
   const dragged = await dropModel(page, palette(page));
   await expect(palette(page).locator(".command-palette-drop")).toHaveCount(0);
   await dragged.drop();
   await expect(palette(page)).toHaveCount(1);
-  expect(page.url()).toMatch(/^http:\/\/127\.0\.0\.1:4175\/app\//);
+  expect(page.url().startsWith(`${origin}/app/`)).toBe(true);
 });
 
 test("a model dropped on the attach picker is imported to attach on that slot", async ({ page }) => {

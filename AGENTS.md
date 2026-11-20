@@ -11,7 +11,7 @@ One set of OpenSCAD sources, three consumers:
 ```
 catalogue.yaml ──┬─> cli/foundry.py ──> openscad (native, Manifold backend) ──> STL / PNG
  (what exists,   ├─> tests/*.py      ──> renders every catalogue entry and probes it
-  its defaults)  └─> web/scripts/sync-scad.mjs ──> web/public/{scad-bundle,catalogue}.json
+  its defaults)  └─> web/scripts/sync-scad.mjs ──> web/public/{scad-bundle,scad-assets,catalogue}.json
                                                       └─> web app: openscad-wasm in a Worker
 lib/*.scad ──── shared conventions (slots, joints, constants), included by parts/
 parts/<system>/*.scad ── one file per part; thin wrappers around vendor/ where an upstream exists

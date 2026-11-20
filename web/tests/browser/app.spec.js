@@ -51,7 +51,12 @@ async function mockWorker(page, auto = false) {
           });
         },
       };
+      // The import gate's worker (lib/meshValidateClient.js) stays real.
+      const RealWorker = window.Worker;
       window.Worker = class {
+        constructor(url, options) {
+          if (String(url).includes("mesh-worker")) return new RealWorker(url, options);
+        }
         terminated = false;
         postMessage(request) {
           // The client's warm-ups (at boot, after an abort) are not jobs
@@ -340,6 +345,58 @@ test("a tick or a choice renders at once; a typed value waits for the edits to p
   expect(await waited()).toBeGreaterThanOrEqual(390);
 });
 
+// The Bench's sidebar does the same (catalogueUtils.js's isFinishedEdit()),
+// against its own 250 ms debounce.
+test("on the Bench too, a tick renders at once and a typed value waits", async ({ page }) => {
+  const board = {
+    id: "opengrid/board",
+    name: "Board",
+    system: "openGrid",
+    confidence: "exact",
+    file: "parts/opengrid/board.scad",
+    module: "og_board",
+    defaults: { cells_x: 2, chamfer: false },
+    labels: { cells_x: "Cells", chamfer: "Chamfer" },
+  };
+  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts: [board] } }));
+  await mockWorker(page, true);
+  await page.addInitScript(() => {
+    window.__changedAt = 0;
+    const stamp = () => (window.__changedAt = performance.now());
+    document.addEventListener("change", stamp, true);
+    document.addEventListener("input", stamp, true);
+  });
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  await acceptReplace(page);
+  await importConfig(page, config({ partId: "opengrid/board", params: { cells_x: 2, chamfer: false } }));
+  // How long after the last edit the first assembly render matching `pattern` was posted.
+  const waitedFor = (pattern) =>
+    page.evaluate((source) => {
+      const job = window.__renders.jobs.find((j) => new RegExp(source).test(j.request.scadSource ?? ""));
+      return job ? job.at - window.__changedAt : null;
+    }, pattern.source);
+  await page.locator("[data-node-params=root] > summary").click();
+
+  await page.getByRole("checkbox", { name: "Chamfer", exact: true }).check();
+  await expect.poll(() => waitedFor(/chamfer\s*=\s*true/)).not.toBeNull();
+  expect(await waitedFor(/chamfer\s*=\s*true/)).toBeLessThan(150);
+  // The preview goes first: the part's own extents render, which would
+  // only make the preview wait behind it, keeps its debounce.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const after = window.__renders.jobs.filter((j) => j.at >= window.__changedAt);
+        return after.map((j) => (j.request.scadSource ? "assembly" : "part"));
+      }),
+    )
+    .toEqual(["assembly", "part"]);
+
+  await page.getByRole("spinbutton", { name: "Cells", exact: true }).fill("3");
+  await expect.poll(() => waitedFor(/cells_x\s*=\s*3/)).not.toBeNull();
+  expect(await waitedFor(/cells_x\s*=\s*3/)).toBeGreaterThanOrEqual(240);
+});
+
 test("worker failure and user cancellation allow another render", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);
@@ -519,6 +576,12 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   page,
 }) => {
   test.setTimeout(120_000);
+  // Neither part import()s a mesh, so the bundle's assets file is never
+  // fetched (see the KLIPPT test below for one that is).
+  const assetFetches = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/scad-assets.json")) assetFetches.push(request.url());
+  });
   await catalogue(page);
   await page.goto("/app/");
   const libraryDownload = page.getByRole("button", { name: "Download STL", exact: true });
@@ -543,6 +606,27 @@ test("real WASM renders Library and generated Bench assembly to the expected dim
   const exported = page.waitForEvent("download", { timeout: 90_000 });
   await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
   expect(extents(await downloadBytes(await exported))).toEqual([40, 40, 10]);
+  expect(assetFetches).toEqual([]);
+});
+
+// A KLIPPT base is the designer's mesh, import()ed from scad-assets.json,
+// which the render fetches because the part's closure reaches an importer
+// (openscadRun.js). Without the mesh OpenSCAD only warns, and the export
+// would be empty or fail.
+test("real WASM fetches the mesh assets for a part that imports one", async ({ page }) => {
+  test.setTimeout(120_000);
+  const assetFetches = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/scad-assets.json")) assetFetches.push(request.url());
+  });
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  await importConfig(page, config({ partId: "klippt/base", params: {} }));
+  const exported = page.waitForEvent("download", { timeout: 90_000 });
+  await page.locator(".bench-export").getByRole("button", { name: "Download STL", exact: true }).click();
+  const [x, y, z] = extents(await downloadBytes(await exported));
+  expect(Math.min(x, y, z)).toBeGreaterThan(1);
+  expect(assetFetches.length).toBeGreaterThan(0);
 });
 
 // The openGrid snaps used to be upstream's modules called as they are

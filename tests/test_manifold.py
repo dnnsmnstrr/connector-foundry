@@ -29,6 +29,12 @@ from conftest import render_variant
 
 # Below this a "body" is an export artifact, not geometry.
 MIN_BODY_AREA_MM2 = 1e-6
+# And below this a "solid" is one too: a sliver no printer could lay down
+# on its own (one 0.4 x 0.4 x 0.2 mm bead of filament is 0.032 mm³).
+# OpenSCAD snapshot 2026.11.18 exports the ModGrid connector and bit
+# holder with such shells beside the body, under 0.005 mm³ each, where
+# 2026.11.11 exported none; the parts themselves had not changed.
+MIN_SOLID_VOLUME_MM3 = 0.01
 
 
 def cases():
@@ -57,8 +63,8 @@ def test_part_is_a_single_sound_solid(part, params, tag, render_dir):
     assert mesh.volume > 0, f"{part['id']} [{tag}] has non-positive volume"
 
     components = [b for b in mesh.split(only_watertight=False) if b.area > MIN_BODY_AREA_MM2]
-    solids = [b for b in components if b.volume > 0]
-    cavities = len(components) - len(solids)
+    solids = [b for b in components if b.volume > MIN_SOLID_VOLUME_MM3]
+    cavities = sum(1 for b in components if b.volume < 0)
 
     expected = expected_solids(params)
     assert len(solids) == expected, (

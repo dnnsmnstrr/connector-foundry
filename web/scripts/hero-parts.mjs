@@ -39,11 +39,13 @@ function readPublic(name) {
 }
 
 const bundle = readPublic("scad-bundle.json");
+// Every asset is mounted for every render here: a build script, not a phone.
+const { assets } = readPublic("scad-assets.json");
 const catalogue = readPublic("catalogue.json");
 const encoder = new TextEncoder();
 const bundleEntries = [
   ...Object.entries(bundle.files).map(([rel, text]) => [`${REPO_MOUNT}/${rel}`, encoder.encode(text)]),
-  ...Object.entries(bundle.assets ?? {}).map(([rel, base64]) => [
+  ...Object.entries(assets ?? {}).map(([rel, base64]) => [
     `${REPO_MOUNT}/${rel}`,
     new Uint8Array(Buffer.from(base64, "base64")),
   ]),

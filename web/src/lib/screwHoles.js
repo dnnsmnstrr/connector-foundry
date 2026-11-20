@@ -1009,13 +1009,6 @@ export function setDocName(doc, name) {
   return { ...doc, name };
 }
 
-// The hole within `toleranceMm` of `point`, if any — a click on a face
-// spot that already has one selects it instead of drilling a second
-// hole through the first.
-export function findHoleNear(doc, point, toleranceMm) {
-  return doc.holes.find((h) => distance(h.point, point) < toleranceMm) ?? null;
-}
-
 // How far from its point a hole reaches, in the plane: what the
 // "already a hole here" test and the marker ring (plus its margin) use.
 export function holeFootprintRadius(spec) {

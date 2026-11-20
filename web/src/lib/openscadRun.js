@@ -15,7 +15,7 @@
 import { createOpenSCAD } from "openscad-wasm";
 import { isOpenscadError } from "./openscadLog.js";
 import { fetchPublic } from "./publicAsset.js";
-import { includeOnce, indexIncludes, withoutCopyNames } from "./scadIncludes.js";
+import { includeOnce, indexIncludes, reachableFiles, withoutCopyNames } from "./scadIncludes.js";
 import { callArgs, defineArgs, scadLiteral } from "./scadLiteral.js";
 
 // Where the source bundle is mounted inside the WASM filesystem. It
@@ -34,10 +34,13 @@ const BENCH_MAIN = `${BENCH_DIR}/_bench.scad`;
  * @typedef {{
  *   entries: [string, Uint8Array][],
  *   index: import("./scadIncludes.js").IncludeIndex,
+ *   importers: Set<string>,
  * }} PreparedBundle
  */
 /** @type {Promise<PreparedBundle> | null} */
 let bundlePromise = null;
+/** @type {Promise<[string, Uint8Array][]> | null} */
+let assetsPromise = null;
 
 // Resolves to the mounted-and-ready form of the bundle (see
 // prepareBundle()).
@@ -54,6 +57,28 @@ function getBundle() {
       });
   }
   return bundlePromise;
+}
+
+// The binary assets a part import()s (sync-scad.mjs's scad-assets.json),
+// decoded to [virtualPath, bytes] pairs, fetched the first time a render
+// needs them and kept for every later one on this thread.
+function getAssets() {
+  if (!assetsPromise) {
+    assetsPromise = fetchPublic("scad-assets.json")
+      .then((res) => res.json())
+      .then((data) =>
+        Object.entries(data.assets ?? {}).map(
+          ([relPath, base64]) =>
+            /** @type {[string, Uint8Array]} */ ([`${REPO_MOUNT}/${relPath}`, base64ToBytes(base64)]),
+        ),
+      )
+      .catch((err) => {
+        // As getBundle(): a failed fetch is tried again by the next render.
+        assetsPromise = null;
+        throw err;
+      });
+  }
+  return assetsPromise;
 }
 
 // Creates every missing directory on the way to `dirPath`. `made` (a Set
@@ -89,8 +114,9 @@ function base64ToBytes(base64) {
 }
 
 // See sync-scad.mjs for the bundle shape: .scad sources as text under
-// `files`, binaries a part import()s (base64) under `assets`, both at
-// their repo-relative paths. Turned into [virtualPath, bytes] pairs ONCE,
+// `files` at their repo-relative paths, and under `importers` the ones
+// that import() a binary asset (which live in scad-assets.json, see
+// getAssets()). Turned into [virtualPath, bytes] pairs ONCE,
 // here, rather than on every mount: FS.writeFile() given a string runs
 // Emscripten's own character-by-character UTF-8 encoder over it, which
 // for ~5 MB of source was ~50 ms of every render; given bytes it just
@@ -112,10 +138,10 @@ function prepareBundle(bundle) {
     entries.push([`${REPO_MOUNT}/${relPath}`, encoder.encode(source)]);
     sources.push([`${REPO_MOUNT}/${relPath}`, source]);
   }
-  for (const [relPath, base64] of Object.entries(bundle.assets ?? {})) {
-    entries.push([`${REPO_MOUNT}/${relPath}`, base64ToBytes(base64)]);
-  }
-  return { entries, index: indexIncludes(sources) };
+  const importers = new Set(
+    (Array.isArray(bundle.importers) ? bundle.importers : []).map((rel) => `${REPO_MOUNT}/${rel}`),
+  );
+  return { entries, index: indexIncludes(sources), importers };
 }
 
 // A fresh FS per render, so the set of created directories is per call.
@@ -167,6 +193,17 @@ export async function runOpenscad(
   { onError, beforeRender } = {},
 ) {
   const bundle = await getBundle();
+  // The main source is known before the instance exists, so whether this
+  // render reaches a file that import()s an asset is too: only then is
+  // scad-assets.json fetched (once per thread), in parallel with the
+  // instance being set up.
+  const mainPath = scadSource ? BENCH_MAIN : "/main.scad";
+  const mainSource = scadSource ?? `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`;
+  const reached = reachableFiles(bundle.index, mainPath, mainSource);
+  const assets = [...reached].some((path) => bundle.importers.has(path)) ? getAssets() : null;
+  // Handled here so a render that fails before awaiting it leaves no
+  // unhandled rejection behind; the await below still throws.
+  assets?.catch(() => {});
   const instance = await createOpenSCAD({
     print: () => {},
     printErr: (text) => {
@@ -176,6 +213,7 @@ export async function runOpenscad(
   });
   const os = instance.getInstance();
   mountBundle(os.FS, bundle.entries);
+  if (assets) mountBundle(os.FS, await assets);
 
   // -D overrides that apply regardless of request shape: `part=` for
   // an assembly's body selector, plus any global settings (e.g.
@@ -191,11 +229,7 @@ export async function runOpenscad(
   // params -> `include <..>; module(args);`), or a fully generated
   // source (scadSource) for a Bench assembly — see
   // web/src/lib/assembly.js's compileToScad().
-  let mainPath;
-  let mainSource;
   if (scadSource) {
-    mainPath = BENCH_MAIN;
-    mainSource = scadSource;
     // Imported STL files (compileToScad() generates
     // `import("imports/<id>.stl")` inside the module it writes for
     // each one) — same relative resolution rule as the .scad tree
@@ -206,9 +240,6 @@ export async function runOpenscad(
         : new Uint8Array(bytes);
       writeFileAt(os.FS, `${BENCH_DIR}/${relPath}`, view);
     }
-  } else {
-    mainPath = "/main.scad";
-    mainSource = `include <${REPO_MOUNT}/${scadFile}>\n${module}(${callArgs(params)});\n`;
   }
   // Each file included once (scadIncludes.js): the main file as rewritten,
   // and the few files that lost a repeated include as copies beside the

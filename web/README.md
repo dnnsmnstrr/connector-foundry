@@ -21,12 +21,17 @@ running in a Web Worker.
    otherwise just an unhelpful "can't open include" on the parts that need it, in a build that
    looked green. `SYNC_SCAD_ALLOW_MISSING=1` downgrades it to a warning; the dev server's file
    watcher only ever warns.
-   A binary a part `import()`s (the `parts/deckmate/*.stl` meshes) rides along base64-encoded
-   under the bundle's `assets` key and is mounted at the same repo-relative path, so the part's
-   relative `import()` resolves in the browser exactly as it does on disk.
+   A binary a part `import()`s (the DeckMate and KLIPPT meshes, `parts/*/*.stl`) goes base64-encoded
+   into `public/scad-assets.json`, a file of its own, and the bundle lists under `importers` the
+   files that `import()` one. A render fetches the assets (once per thread) only when its include
+   closure reaches an importer (`openscadRun.js`, `scadIncludes.js`'s `reachableFiles()`), and
+   mounts them at the same repo-relative paths, so a part's relative `import()` resolves in the
+   browser exactly as it does on disk. They were 1.1 of the bundle's 2.9 MB, which every visitor
+   downloaded for the handful of parts that use them; `tests/unit/scad-assets.test.js` checks that
+   every catalogue part and Holes socket that imports a mesh reaches an importer.
    The sources go in without their comments (`stripForBundle()`, a scanner that knows string
-   literals): comments were 2.1 of the 3.6 MB of `.scad` text, so the bundle is 2.8 MB instead of
-   4.8 (0.72 MB gzipped instead of 1.21). A comment leaves the newlines it spanned, so an OpenSCAD
+   literals): comments were 2.1 of the 3.6 MB of `.scad` text, so the sources are 1.8 MB instead of
+   3.7. A comment leaves the newlines it spanned, so an OpenSCAD
    message still names the repository's line, and each file's leading comment block — an upstream's
    copyright and licence notice — stays.
 2. `src/hooks/useCatalogue.js` reads `catalogue.json` (the parsed `catalogue.yaml`) for the part list, default parameters, and
@@ -128,6 +133,11 @@ exceeded` (some parts did too, on a cold start). `openscad-client.js` therefore 
 whose worker run ended in the engine's own stack overflow (`renderError.js`'s
 `isNativeStackOverflow()`) again on the main thread, through the same `src/lib/openscadRun.js`.
 That reaches about 80 levels in Safari, like Chromium's worker; the page freezes while it runs.
+The worker's failed try is not free (140-230 ms in Playwright's WebKit on a laptop, before it
+overflows), so the client remembers the shape of a request that overflowed — the source with its
+numbers blanked, `renderShape()`, since a parameter edit almost never changes how deep it nests —
+and sends the next render of that shape straight to the main thread: a Bench edit there went from
+1.06 s to 0.87 s. A new shape (another part attached) gets its own try in the worker.
 
 If the worker itself dies (a script error, a message that can't be deserialised), every render
 waiting on it is rejected with a message saying so and the worker is discarded, so the next
@@ -189,7 +199,9 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   render's error, under the form elsewhere, is in the part header there.
 - **Touch** (`(pointer: coarse)` blocks, wherever the screen size): 44 px targets for every control
   a finger uses, 16 px text in every field (iOS zooms into anything smaller), no double-tap zoom on
-  controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap.
+  controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap,
+  and a field that explains itself in a `title` (hover only) shows a `FieldHint` "?" beside its label
+  on a coarse pointer, with a 44 px target; a mouse gets nothing new and keeps the `title`.
   In the viewer a tap that misses every slot marker picks the nearest one within 22 px
   (`TOUCH_PICK_PX`) unless the model is in front of it, and the Holes tab's snap points take a tap
   within 22 px (the viewer reports millimetres per pixel at the hit). What a mouse does by hovering
@@ -211,8 +223,8 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   went uncached (navigations outside `app/` pass through). GitHub Pages sends `max-age=600` with mtime ETags, so after every
   deploy (fifty in a month) a returning phone downloaded the whole engine and bundle again. The
   worker keeps, in Cache Storage: the page, network-first (current online, the last copy offline);
-  `assets/` (content-hashed) and `scad-bundle.json?v=<hash>` (`publicAsset.js` puts a hash of the
-  bundle's content in its URL, `__PUBLIC_VERSIONS__`), cache-first and never revalidated;
+  `assets/` (content-hashed), `scad-bundle.json?v=<hash>` and `scad-assets.json?v=<hash>`
+  (`publicAsset.js` puts a hash of each file's content in its URL, `__PUBLIC_VERSIONS__`), cache-first and never revalidated;
   `catalogue.json` and `global-defaults.json` network-first; thumbnails, icons, the manifest and
   `gate.js` stale-while-revalidate. Nothing is precached: the cache fills as the app is used, and a
   part rendered once renders again offline. Each build's cache is `cf-<build id>`, and two
@@ -364,6 +376,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
 | `src/lib/rotateDial.js` | The rotate dial an Alt-drag on a handle shows (see "3D viewer"): the angle the pointer turns about an axis, carried past ±180°, the snap (15° ticks on the dial, whole degrees past it, to absolute angles), turning a point about a line, and the dial's lines |
+| `src/components/FieldHint.jsx` | A field's `title` explanation where a finger can reach it: on a coarse pointer an `InfoTip` "?" inside the field's label (the label, `.field` / `.field-checkbox` / `.has-info-tip`, is what the tip spans), hidden from assistive technology and the tab order, since in a label its name would join the field's and a screen reader already has the `title` as the description; nothing with a mouse. Put it after the label text with the same text as the `title` (a shared const) |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus, or toggled by a tap or a click until a tap elsewhere or Escape (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |
@@ -382,6 +395,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/benchOrientation.js` | The rotation BOSL2's `attach()` gives each node, chained from the root; `nodeSpinAxis()`, the line its spin turns it about; `nodeWorldMount()` / `nodeWorldFrame()`, where its "mount" anchor and its centre are in world space (slot point, joint flanges and Offset, shift, mount offset; checked against renders in `bench-resize.test.js`); and `uprightSpin()`: the starting spin that turns a part's `attached_up` axis up on a side face |
 | `src/lib/slots.js` | Slot enumeration for a catalogue part (mirror of `lib/slots.scad`) |
 | `src/lib/importedPart.js`, `meshValidate.js`, `faceCluster.js`, `meshTopology.js`, `meshWeld.js` | STL/STEP/3MF import: the part record, the validate/repair gate, face-center snapping, the edge/adjacency builders those two share, and `weldVertices()`: three's `mergeVertices()` for a position-only geometry, the same result to the bit from an integer hash table instead of a string per vertex (10 ms against 174 ms for 200k triangles), which the gate and every Holes preview weld with |
+| `src/lib/meshValidateClient.js`, `src/worker/mesh-worker.js` | The import gate off the main thread: `validateAndRepairAsync()` runs `meshValidate.js`'s `validateAndRepair()` in a worker (0.6-0.7 s per 200k triangles on a laptop, over a second on a phone, which froze the page before the "Checking…" status could paint) and rebuilds its result from transferred arrays (`validationToMessage()` / `validationFromMessage()`; the face adjacency stays packed, which `faceCluster.js`'s `primeNeighbors()` reads as it is); where no worker runs, the same gate runs on the main thread. The browser tests' `Worker` mocks hand this one to the real `Worker` |
 | `src/lib/stepMesh.js`, `stepImport.js`, `src/worker/step-worker.js` | STEP import: file detection, tessellation settings and body/geometry conversion (pure, Node-testable); the promise wrapper; OpenCASCADE WASM (`occt-import-js`) in its own worker |
 | `src/lib/threeMfMesh.js` | 3MF import: detection, the file's unit (read from the zip, since three.js's `ThreeMFLoader` parses it but never applies it), and the loader's Group flattened into the same bodies a STEP tessellates to, scaled to millimetres |
 | `src/lib/openscad-client.js`, `src/worker/openscad-worker.js`, `src/lib/openscadRun.js` | The render pipeline: promise wrapper + cache (bounded by bytes only) + the worker warm-up (`warmRenderer()`) on the main thread, OpenSCAD WASM in the worker; `openscadRun.js` is one render (bundle mounted, `callMain()`, STL read back), which the worker runs and the client runs on the main thread when the worker ran out of stack (Safari, see "Known limit — nesting depth") |
@@ -1211,7 +1225,9 @@ a part actually has anchors left over. A few implementation notes that don't bel
   (inch → 25.4, centimeter → 10, …) before validation. Colours, materials and print-ticket data
   are dropped; a Bench part is one solid.
 - **STL import** (`src/lib/importedPart.js`, `src/lib/meshValidate.js`): an uploaded mesh is
-  parsed with three.js's `STLLoader`, welded and topology-checked (`meshValidate.js` — mirrors
+  parsed with three.js's `STLLoader`, welded and topology-checked in a worker
+  (`meshValidateClient.js`; a bench or Holes document restored from storage or a link still runs
+  the same gate on the main thread, since that path is synchronous) (`meshValidate.js` — mirrors
   the watertightness/winding checks `tests/test_manifold.py` runs via trimesh on the Python side;
   reimplemented in JS because the Bench has no Python available, not because the criteria
   differ), then — if it passes — becomes an `attachable()` wrapper module generated inline in the

@@ -130,6 +130,34 @@ export function indexIncludes(files) {
 }
 
 /**
+ * Every indexed file a main source reaches through include and use,
+ * transitively (the main file itself not counted). A render uses it to
+ * decide whether it needs the bundle's binary assets (openscadRun.js): a
+ * file that import()s one is only ever reached this way.
+ * @param {IncludeIndex} index the mounted sources
+ * @param {string} mainPath absolute path the main source is written to
+ * @param {string} mainSource
+ * @returns {Set<string>}
+ */
+export function reachableFiles(index, mainPath, mainSource) {
+  /** @type {Set<string>} */
+  const reached = new Set();
+  /** @type {[string, IncludeStatement[]][]} */
+  const queue = [[mainPath, scanIncludes(mainSource)]];
+  while (queue.length) {
+    const [path, statements] = /** @type {[string, IncludeStatement[]]} */ (queue.pop());
+    for (const st of statements) {
+      const target = resolveInclude(path, st.target);
+      if (!index.paths.has(target) || reached.has(target)) continue;
+      reached.add(target);
+      const entry = index.withStatements.get(target);
+      if (entry) queue.push([target, entry.statements]);
+    }
+  }
+  return reached;
+}
+
+/**
  * Rewrites one render's main source so that every file is included once
  * per translation unit (see the header). A statement whose file is not in
  * the index is left alone.

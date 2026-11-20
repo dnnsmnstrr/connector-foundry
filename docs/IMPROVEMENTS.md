@@ -49,11 +49,6 @@ finished, not on each keystroke as the field does now.
 The app works on a phone (web/README.md, "Phones, tablets and offline"); these were measured or
 found on the way and left for later:
 
-- **Help text on touch.** About fifty field explanations exist only as `title=` tooltips, which a
-  touch screen never shows: the Holes spec fields (`HoleSpecFields.jsx`, 23; `RepeatFields.jsx`, 6),
-  the Bench's node tree (7), the Holes and Bench sidebars (11 and 9). `InfoTip` now opens on a tap;
-  a small `FieldLabel({ children, hint })` that renders the label with an `InfoTip` would route them
-  all through it.
 - **The first tap in Holes is blind.** A finger never hovers, so the face's snap points and guides
   only show after the first hole is drilled. A first tap that only picks the face (snap points
   appear, "Tap again to drill") would change the drill gesture on touch and wants its own decision.
@@ -61,10 +56,6 @@ found on the way and left for later:
   device**); a Library part and its parameters do not, so sending one to a phone goes through Open
   in Bench. A `part=` / `params=` pair in the hash, checked like a user command's `open-part`,
   would let the Library share its link too.
-- **Imported STL assets mounted only where needed.** The bundle carries seven STL meshes (367 KB
-  gzipped) that only the DeckMate and KLIPPT parts, and the Holes tab's sockets cut from them,
-  import: shipped as files of their own and mounted per render, a phone loading any other part
-  would skip them.
 - **A share target.** Installed on Android, the app could register as a Web Share Target for STL
   and 3MF files, so a model shared from another app opens on the Bench or in Holes.
 - **Not verified on a real device:** downloads from an iOS home-screen app (one 2019 WebKit report
