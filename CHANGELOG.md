@@ -56,6 +56,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
   (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
   Holes socket uses them, so a phone opening any other part skips them.
+- **A tick or a choice in the Bench's sidebar renders at once**, as it already did in the Library;
+  a typed value still waits a moment for the next keystroke.
 - **Bench and Holes edits render sooner in Safari** (on iPhone and iPad too). Safari's background
   renderer runs out of room on most benches and Holes models, so the app has been rendering those
   a second time on the page; it now goes straight there for the rest of the session once a bench

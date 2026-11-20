@@ -345,6 +345,48 @@ test("a tick or a choice renders at once; a typed value waits for the edits to p
   expect(await waited()).toBeGreaterThanOrEqual(390);
 });
 
+// The Bench's sidebar does the same (catalogueUtils.js's isFinishedEdit()),
+// against its own 250 ms debounce.
+test("on the Bench too, a tick renders at once and a typed value waits", async ({ page }) => {
+  const board = {
+    id: "opengrid/board",
+    name: "Board",
+    system: "openGrid",
+    confidence: "exact",
+    file: "parts/opengrid/board.scad",
+    module: "og_board",
+    defaults: { cells_x: 2, chamfer: false },
+    labels: { cells_x: "Cells", chamfer: "Chamfer" },
+  };
+  await page.route("**/catalogue.json", (route) => route.fulfill({ json: { parts: [board] } }));
+  await mockWorker(page, true);
+  await page.addInitScript(() => {
+    window.__changedAt = 0;
+    const stamp = () => (window.__changedAt = performance.now());
+    document.addEventListener("change", stamp, true);
+    document.addEventListener("input", stamp, true);
+  });
+  await page.goto("/app/");
+  await page.getByTitle("Bench (2)").click();
+  await acceptReplace(page);
+  await importConfig(page, config({ partId: "opengrid/board", params: { cells_x: 2, chamfer: false } }));
+  // How long after the last edit the first assembly render matching `pattern` was posted.
+  const waitedFor = (pattern) =>
+    page.evaluate((source) => {
+      const job = window.__renders.jobs.find((j) => new RegExp(source).test(j.request.scadSource ?? ""));
+      return job ? job.at - window.__changedAt : null;
+    }, pattern.source);
+  await page.locator("[data-node-params=root] > summary").click();
+
+  await page.getByRole("checkbox", { name: "Chamfer", exact: true }).check();
+  await expect.poll(() => waitedFor(/chamfer\s*=\s*true/)).not.toBeNull();
+  expect(await waitedFor(/chamfer\s*=\s*true/)).toBeLessThan(150);
+
+  await page.getByRole("spinbutton", { name: "Cells", exact: true }).fill("3");
+  await expect.poll(() => waitedFor(/cells_x\s*=\s*3/)).not.toBeNull();
+  expect(await waitedFor(/cells_x\s*=\s*3/)).toBeGreaterThanOrEqual(240);
+});
+
 test("worker failure and user cancellation allow another render", async ({ page }) => {
   await catalogue(page);
   await mockWorker(page);

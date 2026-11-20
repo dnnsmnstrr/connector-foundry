@@ -88,3 +88,23 @@ export function matchesSearch(part, query) {
     (part.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(q))
   );
 }
+
+/**
+ * Whether a parameter edit is a finished one: every value that changed is
+ * a tick (a boolean) or a choice from the part's list (`options`), not one
+ * of a run of keystrokes. Such an edit renders at once instead of waiting
+ * out the typing debounce (the Library's and the Bench's sidebars): that
+ * wait was 400 of the 700 ms between a tick and a plate's new preview in
+ * the Library, and is 250 ms of every Bench render. Nothing changed is not
+ * an edit.
+ * @param {{ options?: Record<string, any> } | null | undefined} part
+ * @param {Record<string, any>} before
+ * @param {Record<string, any>} next
+ */
+export function isFinishedEdit(part, before, next) {
+  const changed = Object.keys({ ...before, ...next }).filter((key) => before[key] !== next[key]);
+  return (
+    changed.length > 0 &&
+    changed.every((key) => typeof next[key] === "boolean" || part?.options?.[key] !== undefined)
+  );
+}

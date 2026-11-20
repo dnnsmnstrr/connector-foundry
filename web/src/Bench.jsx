@@ -51,7 +51,7 @@ import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { useFileDrop } from "./hooks/useFileDrop.js";
 import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
-import { partSections } from "./lib/catalogueUtils.js";
+import { isFinishedEdit, partSections } from "./lib/catalogueUtils.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
 import { CONFIG_EXTENSION, configToJson, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
 import {
@@ -1177,8 +1177,18 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta), { label: "rotate part" }),
     // `step` names the undo step when the caller knows better than a diff
     // (a handle's "resize W"); else it comes from what changed.
-    setParams: (id, params, step = paramsStep(id, params)) =>
-      setAssembly((a) => updateNodeParams(a, id, params), step),
+    // A tick or a choice from a list renders at once, as in the Library
+    // (isFinishedEdit()); a typed value waits out the debounce. A handle's
+    // commit sets immediateTree itself, after this.
+    setParams: (id, params, step = paramsStep(id, params)) => {
+      const node = getNode(assembly, id);
+      setAssembly((a) => updateNodeParams(a, id, params), step);
+      const next = getBenchSession().assembly;
+      immediateTree.current =
+        node && next !== assembly && isFinishedEdit(partsById.get(node.partId), node.params, params)
+          ? next
+          : null;
+    },
     // `on` false only clears the crop if it's this node's — unticking one
     // part never drops a crop that belongs to another.
     setCrop: (id, on) =>
