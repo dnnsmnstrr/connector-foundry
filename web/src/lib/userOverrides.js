@@ -133,10 +133,6 @@ export function getGlobalOverrides() {
   return overrides;
 }
 
-export function setGlobalOverrides(params) {
-  setOverrides(GLOBAL_ID, params);
-}
-
 export function updateGlobalOverrides(params) {
   setOverrides(GLOBAL_ID, { ...getGlobalOverrides(), ...params });
   return getGlobalOverrides();
