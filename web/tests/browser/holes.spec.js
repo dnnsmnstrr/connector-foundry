@@ -833,7 +833,23 @@ test("a hole's focused handle steps its size, a run of steps one undo step; a cl
   // at x = -10, the handle keeps the focus, and the run renders once.
   const right = page.getByRole("slider", { name: "Hole 1 width (right edge)" });
   await right.focus();
-  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
+  // The three presses timed on the page, 40 ms apart (a held key repeats
+  // about that fast): sent one at a time from here, a loaded machine (a
+  // parallel run) spaced them past the 250 ms debounce, and the app
+  // rightly rendered a step in the middle (main failed this 2 runs in 3
+  // at four workers). Apart, so each lands on the size the last one set.
+  await right.evaluate(async (el) => {
+    const init = { key: "ArrowRight", code: "ArrowRight", bubbles: true, cancelable: true };
+    for (let i = 0; i < 3; i++) {
+      if (i) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 40);
+        });
+      }
+      el.dispatchEvent(new KeyboardEvent("keydown", init));
+      el.dispatchEvent(new KeyboardEvent("keyup", init));
+    }
+  });
   await expect(width).toHaveValue("21.5");
   expect(await holePoint(page)).toEqual([0.8, 0, 2]);
   await expect(right).toBeFocused();
