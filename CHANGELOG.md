@@ -56,6 +56,9 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
   (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
   Holes socket uses them, so a phone opening any other part skips them.
+- **Hole sizes read whole on a phone.** The Holes fields sat three to a row beside their finger-sized
+  + and − buttons, which left room for one digit: a 20 mm width read "2". They are two to a row on
+  touch screens now.
 - **Field explanations on phones and tablets.** About fifty fields in Holes and on the Bench explained
   themselves only on mouse hover, which a touch screen never shows; there they now have a "?" to tap.
 - **A tick or a choice in the Bench's sidebar renders at once**, as it already did in the Library;

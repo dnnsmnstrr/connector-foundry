@@ -3524,6 +3524,15 @@ a.bench-modal-header-button {
   gap: 0 0.5rem;
 }
 
+/* On touch each number field carries two finger-sized steppers (about
+   90 px together), so a 7rem column left the value 23 px: "20" read as
+   "2". 150 px leaves it 60 px; a phone's drawer fits two columns. */
+@media (pointer: coarse) {
+  .holes-spec-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  }
+}
+
 .holes-spec-grid > .field {
   min-width: 0;
 }

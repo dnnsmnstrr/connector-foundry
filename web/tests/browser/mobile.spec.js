@@ -344,6 +344,34 @@ test.describe("on a phone", () => {
     expect(small).toEqual([]);
   });
 
+  // Two finger-sized steppers beside a value in a narrow column left
+  // room for one digit ("20" read as "2"). Every value shown whole.
+  test("no number field on a phone cuts its value short", async ({ page }) => {
+    await setUp(page);
+    const clipped = (scope) =>
+      page
+        .locator(scope)
+        .locator('input[type="text"]')
+        .evaluateAll((els) =>
+          els
+            .filter((el) => el.getClientRects().length > 0 && el.value)
+            .filter((el) => el.scrollWidth > el.clientWidth + 1)
+            .map((el) => `${el.getAttribute("aria-label") || el.id}: ${el.value}`),
+        );
+    await page.goto("/app/");
+    await page.locator(".sidebar-toggle").tap();
+    expect(await clipped(".sidebar")).toEqual([]);
+    await page.goto("/app/#mode=holes");
+    await page.getByRole("option", { name: "Flat plate exact", exact: true }).tap();
+    for (const type of ["rectangular", "openconnect", "magsafe", "klippt", "peg", "m3"]) {
+      await page.getByRole("tab", { name: "Hole types", exact: true }).tap();
+      await page.getByRole("searchbox", { name: "Search hole types" }).fill(type);
+      await page.getByRole("option").first().tap();
+      await expect(page.locator(".holes-spec-grid").first()).toBeVisible();
+      expect(await clipped(".holes-sidebar"), type).toEqual([]);
+    }
+  });
+
   // A field that explains itself in a `title` (hover only) gets a "?" on
   // touch (components/FieldHint.jsx); this one is a Holes cutout's width.
   test("a field's hover explanation is a tap away on touch, inside the screen", async ({ page }) => {
