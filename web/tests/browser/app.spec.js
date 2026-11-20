@@ -381,6 +381,16 @@ test("on the Bench too, a tick renders at once and a typed value waits", async (
   await page.getByRole("checkbox", { name: "Chamfer", exact: true }).check();
   await expect.poll(() => waitedFor(/chamfer\s*=\s*true/)).not.toBeNull();
   expect(await waitedFor(/chamfer\s*=\s*true/)).toBeLessThan(150);
+  // The preview goes first: the part's own extents render, which would
+  // only make the preview wait behind it, keeps its debounce.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const after = window.__renders.jobs.filter((j) => j.at >= window.__changedAt);
+        return after.map((j) => (j.request.scadSource ? "assembly" : "part"));
+      }),
+    )
+    .toEqual(["assembly", "part"]);
 
   await page.getByRole("spinbutton", { name: "Cells", exact: true }).fill("3");
   await expect.poll(() => waitedFor(/cells_x\s*=\s*3/)).not.toBeNull();

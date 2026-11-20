@@ -143,7 +143,22 @@ export function renderShape({ scadFile, module, scadSource }) {
 // nothing else is posted to the worker meanwhile, and its deadline still
 // applies up to the synchronous render. A job that was cancelled while
 // the instance was set up is not rendered.
-async function renderOnMainThread(job) {
+//
+// Main-thread renders run one at a time (mainThreadQueue): a cancelled
+// one is still setting up its instance when the next job starts, and two
+// createOpenSCAD() calls in flight on one thread corrupt each other (the
+// worker serialises its own for the same reason, see its header). Before
+// renders could start here directly (renderShape()), the next job always
+// went to the worker, another thread.
+let mainThreadQueue = Promise.resolve();
+
+function renderOnMainThread(job) {
+  job.onMainThread = true;
+  const run = mainThreadQueue.then(() => (pending.has(job.id) ? runOnMainThread(job) : undefined));
+  mainThreadQueue = run.catch(() => {});
+}
+
+async function runOnMainThread(job) {
   try {
     const { runOpenscad } = await import("./openscadRun.js");
     const stl = await runOpenscad(job.request, {
@@ -181,7 +196,9 @@ function getWorker() {
     const fail = (detail) => {
       if (worker !== created) return;
       stopWorker();
-      if (active) finish(active, new Error(`OpenSCAD worker failed: ${detail}`));
+      // A job rendering on the main thread never used this worker (a
+      // warm-up worker that failed to load, say): it is not this failure's.
+      if (active && !active.onMainThread) finish(active, new Error(`OpenSCAD worker failed: ${detail}`));
     };
     created.onerror = (event) => fail(event.message || "script error");
     created.onmessageerror = () => fail("message could not be deserialised");

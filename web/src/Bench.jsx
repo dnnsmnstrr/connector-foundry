@@ -296,6 +296,9 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
   // its root's own extents first, instead of waiting out the typing
   // debounce. Read by the effects that schedule those renders.
   const immediateTree = useRef(null);
+  // The tree a sidebar tick or list choice made: its preview renders at
+  // once, its extents after the debounce (nodeActions.setParams()).
+  const immediatePreview = useRef(null);
   // The sidebar, for revealing a node's parameters (revealParams()).
   const sidebarRef = useRef(null);
 
@@ -476,7 +479,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     renderKey,
     (key, signal) => renderBody(key.assembly, key.partsById, key.globalOverrides, "all", { signal }),
     {
-      delay: (key) => (key.assembly === immediateTree.current ? 0 : RENDER_DEBOUNCE_MS),
+      delay: (key) =>
+        key.assembly === immediateTree.current || key.assembly === immediatePreview.current
+          ? 0
+          : RENDER_DEBOUNCE_MS,
       cached: cachedPreview,
       formatError: (err) =>
         err.name === "AbortError" ? "Render cancelled." : friendlyRenderError(err.message),
@@ -1177,14 +1183,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     rotate: (id, delta) => setAssembly((a) => rotateChild(a, id, delta), { label: "rotate part" }),
     // `step` names the undo step when the caller knows better than a diff
     // (a handle's "resize W"); else it comes from what changed.
-    // A tick or a choice from a list renders at once, as in the Library
-    // (isFinishedEdit()); a typed value waits out the debounce. A handle's
-    // commit sets immediateTree itself, after this.
+    // A tick or a choice from a list renders the preview at once, as in
+    // the Library (isFinishedEdit()); a typed value waits out the
+    // debounce. Only the preview (immediatePreview): the node's own
+    // extents render keeps its debounce, so it queues behind the preview
+    // rather than ahead of it (see the extents effect).
     setParams: (id, params, step = paramsStep(id, params)) => {
       const node = getNode(assembly, id);
       setAssembly((a) => updateNodeParams(a, id, params), step);
       const next = getBenchSession().assembly;
-      immediateTree.current =
+      immediatePreview.current =
         node && next !== assembly && isFinishedEdit(partsById.get(node.partId), node.params, params)
           ? next
           : null;

@@ -419,3 +419,20 @@ test("a shape that overflowed the worker's stack skips the worker next time; oth
   workers[0].result();
   await other;
 });
+
+test("a worker that fails while a job renders on the main thread leaves that job alone", async () => {
+  const overflow = "Maximum call stack size exceeded.";
+  const deep = (t) => ({ scadSource: `include <../parts/basics/plate.scad>\nplate(t=${t});\n` });
+  const first = client.renderPart(deep(4));
+  await tick();
+  workers[0].onmessage({ data: { id: workers[0].messages[0].id, type: "error", message: overflow } });
+  await assert.rejects(first);
+  const second = client.renderPart(deep(6));
+  // Once it is active on the main thread, the idle worker dies.
+  await Promise.resolve();
+  await Promise.resolve();
+  workers[0].onerror({ message: "script error" });
+  // Under Node the main-thread render fails on its own (no engine to
+  // load); what matters is that it isn't failed as the worker's.
+  await assert.rejects(second, (err) => !/OpenSCAD worker failed/.test(err.message));
+});

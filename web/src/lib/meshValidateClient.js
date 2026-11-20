@@ -9,6 +9,7 @@
 // fails to start or dies), it runs here instead, on the main thread, as it
 // always did before: slower to the eye, never a failed import. A worker
 // that died is dropped, so the next import tries a fresh one.
+import * as THREE from "three";
 import { validateAndRepair, validationFromMessage } from "./meshValidate.js";
 
 /** @type {Worker | null} */
@@ -50,6 +51,18 @@ function ensureWorker() {
 }
 
 /**
+ * A geometry with `source`'s positions and index and nothing else, sharing
+ * their arrays (validateAndRepair() clones before it changes anything).
+ * @param {import("three").BufferGeometry} source
+ */
+function positionsOnly(source) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", source.attributes.position);
+  if (source.index) geometry.setIndex(source.index);
+  return geometry;
+}
+
+/**
  * validateAndRepair() for `rawGeometry` (a non-indexed or indexed
  * BufferGeometry with a position attribute), in the worker when there is
  * one. The geometry's arrays are copied, not transferred: the caller's
@@ -58,7 +71,11 @@ function ensureWorker() {
  * @returns {Promise<ReturnType<typeof validateAndRepair>>}
  */
 export function validateAndRepairAsync(rawGeometry) {
-  const onMainThread = () => validateAndRepair(rawGeometry);
+  // The same input the worker gets, positions and index only: a coloured
+  // binary STL also carries a `color` attribute (three's STLLoader), and
+  // validateAndRepair() given it welds by colour too, so a file the worker
+  // passes would be refused here.
+  const onMainThread = () => validateAndRepair(positionsOnly(rawGeometry));
   if (typeof Worker === "undefined") return Promise.resolve().then(onMainThread);
   return new Promise((resolve, reject) => {
     const fallback = () => {

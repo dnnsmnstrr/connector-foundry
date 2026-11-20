@@ -139,11 +139,19 @@ export default function ImportFlow({ mode, onCancel, onConfirm, initialFile = nu
     }
     if (!current()) return;
     setValidation(result);
-    if (result.ok) {
+    if (!result.ok) {
+      setStage("rejected");
+      return;
+    }
+    // Two of the three callers start this without awaiting it, so a
+    // throw here (the part's STL export running out of memory on a phone)
+    // would otherwise be an unhandled rejection and leave the status on
+    // "Checking…" for good.
+    try {
       setPart(createImportedPart(name, result));
       setStage(mode === "mesh" ? "ready" : "placing");
-    } else {
-      setStage("rejected");
+    } catch (err) {
+      reject([`Couldn't prepare this mesh: ${err.message}`]);
     }
   }
 

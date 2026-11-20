@@ -5,7 +5,7 @@
 // client's main-thread fallback.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BoxGeometry, SphereGeometry } from "three";
+import { BoxGeometry, BufferAttribute, SphereGeometry } from "three";
 
 import { validateAndRepair, validationFromMessage, validationToMessage } from "../../src/lib/meshValidate.js";
 import { validateAndRepairAsync } from "../../src/lib/meshValidateClient.js";
@@ -86,4 +86,18 @@ test("a slot click finds the same face from the worker's packed neighbours", () 
     assert.ok(found && found.triangleCount > 1, `face ${face} is a cluster`);
     assert.deepEqual(found, clusterFace(direct.geometry, face), `face ${face}`);
   }
+});
+
+test("the main-thread fallback ignores an STL's colours, as the worker does", async () => {
+  // A box whose faces alternate colours, the way STLLoader reads a
+  // coloured binary STL: welded by colour too, its seams would be open.
+  const geometry = new BoxGeometry(20, 10, 4).toNonIndexed();
+  const count = geometry.attributes.position.count;
+  const colors = new Float32Array(count * 3);
+  for (let v = 0; v < count; v++) colors[3 * v] = Math.floor(v / 3) % 2;
+  geometry.setAttribute("color", new BufferAttribute(colors, 3));
+  const result = await validateAndRepairAsync(geometry);
+  assert.equal(result.ok, true, result.report.join(" "));
+  assert.equal(result.geometry.attributes.color, undefined);
+  assert.ok(geometry.attributes.color, "the caller's geometry keeps its colours");
 });
