@@ -8,6 +8,7 @@ import HoleSpecFields from "./components/holes/HoleSpecFields.jsx";
 import PresetPicker from "./components/holes/PresetPicker.jsx";
 import RepeatFields from "./components/holes/RepeatFields.jsx";
 import ScrewIcon from "./components/holes/ScrewIcon.jsx";
+import FieldHint from "./components/FieldHint.jsx";
 import ParamsEditor from "./components/ParamsEditor.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 import { DrawerTabPanel } from "./components/DrawerTabs.jsx";
@@ -1566,6 +1567,9 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
   const cataloguePart = doc.source.kind === "catalogue" ? catalogueById.get(doc.source.partId) : null;
   const selectedPreset = selected ? getPreset(selected.presetId) : null;
 
+  const nameHint = "What the exports are called — <name>_holes.stl and <name>_holes.scad";
+  const flipHint =
+    "Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it.";
   // The sidebar: the whole of it beside the view, the Holes tab's share in a
   // phone's drawer (the hole types are their own tab there).
   const holesPanel = (
@@ -1577,11 +1581,11 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           ? "Tap a face to see its guides, then again to drill a hole."
           : "Click a face in the scene to drill a hole."}
       </p>
-      <label
-        className="field bench-name-field"
-        title="What the exports are called — <name>_holes.stl and <name>_holes.scad"
-      >
-        <span className="field-label">Name</span>
+      <label className="field bench-name-field" title={nameHint}>
+        <span className="field-label">
+          Name
+          <FieldHint text={nameHint} />
+        </span>
         <input
           type="text"
           placeholder={sourceStem(doc.source, catalogueById)}
@@ -1614,16 +1618,16 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           </>
         ) : (
           <>
-            <label
-              className="field field-checkbox bench-crop-field"
-              title="Turn the mesh over, for a file saved the way it prints rather than the way it's used. Holes already placed turn with it."
-            >
+            <label className="field field-checkbox bench-crop-field" title={flipHint}>
               <input
                 type="checkbox"
                 checked={Boolean(doc.source.flip)}
                 onChange={(e) => setFlip(e.target.checked)}
               />
-              <span className="field-label">Flip upside down</span>
+              <span className="field-label">
+                Flip upside down
+                <FieldHint text={flipHint} />
+              </span>
             </label>
             <p className="muted holes-params-note">
               An imported mesh has no other parameters. To change it, edit the original file, or the bench it

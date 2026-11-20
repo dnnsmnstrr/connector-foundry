@@ -199,7 +199,9 @@ The app is meant to work on a phone or a tablet "in a pinch": find a part, size 
   render's error, under the form elsewhere, is in the part header there.
 - **Touch** (`(pointer: coarse)` blocks, wherever the screen size): 44 px targets for every control
   a finger uses, 16 px text in every field (iOS zooms into anything smaller), no double-tap zoom on
-  controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap.
+  controls, no text selection or callout on the viewer's chrome. An `InfoTip`'s "?" opens on a tap,
+  and a field that explains itself in a `title` (hover only) shows a `FieldHint` "?" beside its label
+  on a coarse pointer, with a 44 px target; a mouse gets nothing new and keeps the `title`.
   In the viewer a tap that misses every slot marker picks the nearest one within 22 px
   (`TOUCH_PICK_PX`) unless the model is in front of it, and the Holes tab's snap points take a tap
   within 22 px (the viewer reports millimetres per pixel at the hit). What a mouse does by hovering
@@ -374,6 +376,7 @@ Shared UI pieces live in `src/components/`; everything with no React in it lives
 | `src/lib/resize.js` | Resize handles for catalogue parts (Library, the Bench): catalogue `resize` → axes and bounds, handles on a box, a drag / typed size / arrow step → the new parameters and the predicted box, the ghost's edges and label, ready-made handles for the viewer (mirrored by `tests/conftest.py`, see "3D viewer") |
 | `src/lib/dragMath.js` | Where the pointer's ray meets a handle's line or plane, the 15° edge-on guard, and the screen-space fallback for a drag that goes edge-on |
 | `src/lib/rotateDial.js` | The rotate dial an Alt-drag on a handle shows (see "3D viewer"): the angle the pointer turns about an axis, carried past ±180°, the snap (15° ticks on the dial, whole degrees past it, to absolute angles), turning a point about a line, and the dial's lines |
+| `src/components/FieldHint.jsx` | A field's `title` explanation where a finger can reach it: on a coarse pointer an `InfoTip` "?" inside the field's label (the label, `.field` / `.field-checkbox` / `.has-info-tip`, is what the tip spans), hidden from assistive technology and the tab order, since in a label its name would join the field's and a screen reader already has the `title` as the description; nothing with a mouse. Put it after the label text with the same text as the `title` (a shared const) |
 | `src/components/Modal.jsx`, `SettingsModal.jsx`, `InfoTip.jsx`, `ParamField.jsx`, `SidebarToggle.jsx`, `FileDropzone.jsx` | The rest of the shared UI; `InfoTip` is the "?" beside a label whose detail shows on hover or keyboard focus, or toggled by a tap or a click until a tap elsewhere or Escape (the Settings dialog keeps its labels short and puts the rest there); `FileDropzone` is the STL/STEP/3MF picker — a dashed drop target with the real file input stretched invisibly over it, so a click opens the chooser natively and a dropped file goes to the same handler (`hooks/useFileDrop.js`, shared with the command palette and the empty Bench and Holes tabs) |
 | `src/components/bench/` | Bench-only: `ImportFlow` (STL/STEP/3MF upload, body picker, slot placement), `NodeTree` (the "Attached" tree), `PresetsPanel` (saved setups + config import), `JointSelect` |
 | `src/lib/assembly.js` | The Bench's tree model and `.scad` codegen |

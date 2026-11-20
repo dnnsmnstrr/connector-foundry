@@ -344,6 +344,41 @@ test.describe("on a phone", () => {
     expect(small).toEqual([]);
   });
 
+  // A field that explains itself in a `title` (hover only) gets a "?" on
+  // touch (components/FieldHint.jsx); this one is a Holes cutout's width.
+  test("a field's hover explanation is a tap away on touch, inside the screen", async ({ page }) => {
+    await setUp(page);
+    await page.goto("/app/#mode=holes");
+    await page.getByRole("option", { name: "Flat plate exact", exact: true }).tap();
+    await page.getByRole("tab", { name: "Hole types", exact: true }).tap();
+    await page.getByRole("searchbox", { name: "Search hole types" }).fill("rectangular");
+    await page.getByRole("option", { name: /^Rectangular cutout/ }).tap();
+    const field = page.locator('.holes-sidebar label.field[title="Across, square to its direction."]');
+    // The field's name stays its own: the "?" is hidden from assistive
+    // technology, which has the title as the field's description.
+    await expect(page.getByRole("spinbutton", { name: "Width (mm)", exact: true })).toBeVisible();
+    const hint = field.locator(".info-tip-button");
+    const text = field.locator(".info-tip-text");
+    await expect(text).toBeHidden();
+    await hint.tap();
+    await expect(text).toBeVisible();
+    await expect(text).toHaveText(/^Across, square to its direction\.$/);
+    const tipBox = await box(text);
+    expect(tipBox.x).toBeGreaterThanOrEqual(0);
+    expect(tipBox.x + tipBox.width).toBeLessThanOrEqual(390);
+    // The "?" takes a finger, not only its small circle: a point 18 px to
+    // either side of its centre (inside a 44 px target) still lands on
+    // it. Below it the field's input is on top, and keeps its own taps.
+    const hits = await hint.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const [cx, cy] = [r.left + r.width / 2, r.top + r.height / 2];
+      return [18, -18].map((dx) => el.contains(document.elementFromPoint(cx + dx, cy)));
+    });
+    expect(hits).toEqual([true, true]);
+    await page.getByRole("heading", { name: "Holes", level: 2 }).tap();
+    await expect(text).toBeHidden();
+  });
+
   test("a tap on a ? opens its explanation, and a tap elsewhere closes it", async ({ page }) => {
     await setUp(page);
     await page.goto("/app/");
@@ -560,4 +595,13 @@ test("the desktop layout keeps the phone-only buttons out of sight", async ({ pa
   await expect(page.getByRole("button", { name: "Hide sidebar" })).toBeVisible();
   await page.getByRole("button", { name: "Open in Bench", exact: true }).click();
   await expect(page.locator(".part-header-print")).toBeHidden();
+});
+
+test("with a mouse a field keeps its hover explanation and gets no ?", async ({ page }) => {
+  await setUp(page);
+  await page.goto("/app/#mode=holes");
+  await page.getByRole("option", { name: "Flat plate exact", exact: true }).click();
+  await expect(page.locator(".holes-sidebar label.field").first()).toBeVisible();
+  await expect(page.locator(".holes-sidebar .field-hint")).toHaveCount(0);
+  await expect(page.locator(".holes-sidebar label.field[title]").first()).toBeVisible();
 });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import FieldHint from "./components/FieldHint.jsx";
 import ImportFlow from "./components/bench/ImportFlow.jsx";
 import JointSelect from "./components/bench/JointSelect.jsx";
 import NameBenchModal from "./components/bench/NameBenchModal.jsx";
@@ -139,6 +140,12 @@ function measuredNow(measured, assembly) {
 // memos that follow the axes don't rebuild on each of them.
 /** @type {import("./lib/resize.js").ResizeAxis[]} */
 const NO_AXES = [];
+
+// The sidebar fields' explanations, shared by each field's hover title
+// and its touch-screen hint so the two cannot drift apart.
+const benchNameHint =
+  "What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export.";
+const rootCropHint = "Cut away anything attached that sticks out past this part's outline";
 
 // Arrow keys step the selected part to the next open slot that way,
 // in root's own x/y frame (see nudgeSelected()).
@@ -1955,11 +1962,11 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               </button>
             </div>
             <p className="muted">Base part. Click a marker in the scene to attach a part to it.</p>
-            <label
-              className="field bench-name-field"
-              title="What this bench's exports are called — <name>_<body>.stl, <name>.scad, <name>.bench.json. Left empty, you're asked before the first export."
-            >
-              <span className="field-label">Name</span>
+            <label className="field bench-name-field" title={benchNameHint}>
+              <span className="field-label">
+                Name
+                <FieldHint text={benchNameHint} />
+              </span>
               <input
                 type="text"
                 placeholder={defaultBenchName(assembly, partsById)}
@@ -1976,16 +1983,16 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
               Start over
             </button>
 
-            <label
-              className="field field-checkbox bench-crop-field"
-              title="Cut away anything attached that sticks out past this part's outline"
-            >
+            <label className="field field-checkbox bench-crop-field" title={rootCropHint}>
               <input
                 type="checkbox"
                 checked={assembly.cropTo === ROOT_ID}
                 onChange={(e) => nodeActions.setCrop(ROOT_ID, e.target.checked)}
               />
-              <span className="field-label">Crop attached parts to this outline</span>
+              <span className="field-label">
+                Crop attached parts to this outline
+                <FieldHint text={rootCropHint} />
+              </span>
             </label>
             {foldSpec(rootPart, assembly.root.params) && (
               <FoldSelect

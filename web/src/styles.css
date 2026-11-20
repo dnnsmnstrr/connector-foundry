@@ -720,11 +720,38 @@ textarea {
    (.has-info-tip is that field), so it never runs off the edge of a
    dialog the way a tip pinned to the "?" would at the end of a long
    label. */
-.has-info-tip {
+.has-info-tip,
+.field,
+.field-checkbox {
   position: relative;
 }
 
-.info-tip {
+/* On touch the "?" is a finger's target (components/FieldHint.jsx): the
+   circle stays small, the area that takes the tap does not. */
+@media (pointer: coarse) {
+  .info-tip-button {
+    position: relative;
+    flex-shrink: 0;
+    width: 1.2rem;
+    height: 1.2rem;
+    font-size: 0.75rem;
+  }
+
+  /* 44 px across, the touch target Apple and WCAG ask for, centred on
+     the circle whatever its size. */
+  .info-tip-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.info-tip,
+.field-hint {
   display: inline-flex;
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { HEAD_STYLES, LOCK_SIDES, MAGSAFE_INSERT_OPTIONS, getPreset } from "../../lib/screwPresets.js";
 import { DECKMATE, EXTRUSION, KLIPPT, PINHOLE, THREAD, isPill, threadOf } from "../../lib/screwHoles.js";
 import DecimalInput from "../DecimalInput.jsx";
+import FieldHint from "../FieldHint.jsx";
 import RotationInput from "../RotationInput.jsx";
 
 // The numeric side of a hole. For a screw hole: shank diameter, through
@@ -102,7 +103,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
                     : "Which way the head travels to seat — up on the wall. 0 is up — straight up on a vertical face, the part's Y on a face lying flat — turned counter-clockwise as seen from outside the face; the arrows step by 90°.";
   const spinField = (
     <label className="field holes-direction-field" htmlFor={`${id}-spin`} title={spinTitle}>
-      <span className="field-label">Direction (°)</span>
+      <span className="field-label">
+        Direction (°)
+        <FieldHint text={spinTitle} />
+      </span>
       <RotationInput
         id={`${id}-spin`}
         value={isMixed("spin") ? "" : spec.spin}
@@ -121,6 +125,7 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   );
 
   if (spec.kind === "openconnect") {
+    const sideGapHint = "Added around the head, per side. Increase if the slot feels too tight.";
     return (
       <div className="holes-spec">
         <label className="field" htmlFor={`${id}-lock`}>
@@ -134,16 +139,18 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           />
         </label>
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-side`}
-            title="Added around the head, per side. Increase if the slot feels too tight."
-          >
-            <span className="field-label">Side gap (mm)</span>
+          <label className="field" htmlFor={`${id}-side`} title={sideGapHint}>
+            <span className="field-label">
+              Side gap (mm)
+              <FieldHint text={sideGapHint} />
+            </span>
             <DecimalInput id={`${id}-side`} min="0" step="0.05" {...numberProps("sideClearance")} />
           </label>
           <label className="field" htmlFor={`${id}-depth`} title="Added under the head's pocket.">
-            <span className="field-label">Depth gap (mm)</span>
+            <span className="field-label">
+              Depth gap (mm)
+              <FieldHint text="Added under the head's pocket." />
+            </span>
             <DecimalInput id={`${id}-depth`} min="0" step="0.05" {...numberProps("depthClearance")} />
           </label>
         </div>
@@ -159,19 +166,20 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   if (spec.kind === "thread") {
     const thread = threadOf(spec);
     const openGrid = thread === THREAD;
+    const depthHint = openGrid
+      ? `How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`
+      : `How deep the thread runs. A tile's is ${thread.fullLength} mm; a bolt's thread is longer, so through is usual.`;
+    const clearanceHint = openGrid
+      ? `Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`
+      : `Added to the thread's ${thread.diameter} mm diameter. 0 cuts it as a tile does; more if the bolt is hard to turn.`;
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-depth`}
-            title={
-              openGrid
-                ? `How deep the thread runs. A full-size screw's thread is ${THREAD.fullLength} mm long, a lite one's ${THREAD.liteLength} mm; a little more lets it seat on its head.`
-                : `How deep the thread runs. A tile's is ${thread.fullLength} mm; a bolt's thread is longer, so through is usual.`
-            }
-          >
-            <span className="field-label">Depth (mm)</span>
+          <label className="field" htmlFor={`${id}-depth`} title={depthHint}>
+            <span className="field-label">
+              Depth (mm)
+              <FieldHint text={depthHint} />
+            </span>
             <DecimalInput
               id={`${id}-depth`}
               min="0"
@@ -181,16 +189,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
               disabled={through}
             />
           </label>
-          <label
-            className="field"
-            htmlFor={`${id}-clear`}
-            title={
-              openGrid
-                ? `Added to the thread's ${THREAD.diameter} mm diameter. ${THREAD.clearance} mm is upstream's; more if the screw is hard to turn.`
-                : `Added to the thread's ${thread.diameter} mm diameter. 0 cuts it as a tile does; more if the bolt is hard to turn.`
-            }
-          >
-            <span className="field-label">Clearance (mm)</span>
+          <label className="field" htmlFor={`${id}-clear`} title={clearanceHint}>
+            <span className="field-label">
+              Clearance (mm)
+              <FieldHint text={clearanceHint} />
+            </span>
             <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
         </div>
@@ -224,44 +227,50 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   }
 
   if (spec.kind === "multiconnect") {
+    const channelHint =
+      "How far the channel runs down from the round end the head rests in. 28 mm is one openGrid cell; Multiboard spaces its slots 25 mm apart.";
+    const extraGapHint = "Added to every radius. The published slot already has 0.15 mm on the head.";
+    const onRampHint =
+      "A funnel at the channel's far end to push the head in through. Without it the channel is open-ended, for an item that slides on from its edge.";
+    const rampEveryHint =
+      "For an item hung on several heads one above the other, 28 mm apart: an on-ramp every 28 mm down the channel, so the item is pushed onto all the heads at once and slid down one cell. Make the channel a multiple of 28 mm long.";
+    const detentHint =
+      "The v2 detent: the channel narrows 0.4 mm just below the round end so a seated head clicks in. Off for a quick-release mount.";
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-length`}
-            title="How far the channel runs down from the round end the head rests in. 28 mm is one openGrid cell; Multiboard spaces its slots 25 mm apart."
-          >
-            <span className="field-label">Channel (mm)</span>
+          <label className="field" htmlFor={`${id}-length`} title={channelHint}>
+            <span className="field-label">
+              Channel (mm)
+              <FieldHint text={channelHint} />
+            </span>
             <DecimalInput id={`${id}-length`} min="1" step="1" {...numberProps("length")} />
           </label>
-          <label
-            className="field"
-            htmlFor={`${id}-clear`}
-            title="Added to every radius. The published slot already has 0.15 mm on the head."
-          >
-            <span className="field-label">Extra gap (mm)</span>
+          <label className="field" htmlFor={`${id}-clear`} title={extraGapHint}>
+            <span className="field-label">
+              Extra gap (mm)
+              <FieldHint text={extraGapHint} />
+            </span>
             <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
         </div>
         {spinField}
-        <label
-          className="field field-checkbox holes-through-field"
-          htmlFor={`${id}-ramp`}
-          title="A funnel at the channel's far end to push the head in through. Without it the channel is open-ended, for an item that slides on from its edge."
-        >
+        <label className="field field-checkbox holes-through-field" htmlFor={`${id}-ramp`} title={onRampHint}>
           <MixedCheckbox
             id={`${id}-ramp`}
             checked={spec.onRamp}
             mixed={isMixed("onRamp")}
             onChange={(onRamp) => set({ onRamp })}
           />
-          <span className="field-label">On-ramp at the entry</span>
+          <span className="field-label">
+            On-ramp at the entry
+            <FieldHint text={onRampHint} />
+          </span>
         </label>
         <label
           className="field field-checkbox holes-through-field"
           htmlFor={`${id}-ramp-every`}
-          title="For an item hung on several heads one above the other, 28 mm apart: an on-ramp every 28 mm down the channel, so the item is pushed onto all the heads at once and slid down one cell. Make the channel a multiple of 28 mm long."
+          title={rampEveryHint}
         >
           <MixedCheckbox
             id={`${id}-ramp-every`}
@@ -270,12 +279,15 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             disabled={!isMixed("onRamp") && !spec.onRamp}
             onChange={(rampEvery) => set({ rampEvery })}
           />
-          <span className="field-label">On-ramp every 28 mm</span>
+          <span className="field-label">
+            On-ramp every 28 mm
+            <FieldHint text={rampEveryHint} />
+          </span>
         </label>
         <label
           className="field field-checkbox holes-through-field"
           htmlFor={`${id}-detent`}
-          title="The v2 detent: the channel narrows 0.4 mm just below the round end so a seated head clicks in. Off for a quick-release mount."
+          title={detentHint}
         >
           <MixedCheckbox
             id={`${id}-detent`}
@@ -283,7 +295,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             mixed={isMixed("detent")}
             onChange={(detent) => set({ detent })}
           />
-          <span className="field-label">Detent</span>
+          <span className="field-label">
+            Detent
+            <FieldHint text={detentHint} />
+          </span>
         </label>
         <p className="muted holes-params-note">
           The point you click is the round end the head rests in; the channel runs down from it. The slot
@@ -308,32 +323,39 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   );
   // Print options. A chamfer on any cutout with an open mouth; a
   // teardrop on a round hole, which matters only on a wall.
+  const chamferHint =
+    "A 45° bevel this deep round the opening: a lead-in for whatever goes in, and room for the slightly flared first layers of a hole printed opening-down. 0 for none.";
   const chamferField = (
-    <label
-      className="field"
-      htmlFor={`${id}-chamfer`}
-      title="A 45° bevel this deep round the opening: a lead-in for whatever goes in, and room for the slightly flared first layers of a hole printed opening-down. 0 for none."
-    >
-      <span className="field-label">Chamfer (mm)</span>
+    <label className="field" htmlFor={`${id}-chamfer`} title={chamferHint}>
+      <span className="field-label">
+        Chamfer (mm)
+        <FieldHint text={chamferHint} />
+      </span>
       <DecimalInput id={`${id}-chamfer`} min="0" step="0.25" {...numberProps("chamfer")} />
     </label>
   );
-  const teardropField = (what, disabled = false) => (
-    <label
-      className="field field-checkbox holes-through-field"
-      htmlFor={`${id}-teardrop`}
-      title={`On a wall, ${what} as a teardrop with a 45° point at the top, so it prints without its top sagging. A hole in a face lying flat is vertical and stays round. Up is the model's +Z, the way it prints.`}
-    >
-      <MixedCheckbox
-        id={`${id}-teardrop`}
-        checked={spec.teardrop}
-        mixed={isMixed("teardrop")}
-        disabled={disabled}
-        onChange={(teardrop) => set({ teardrop })}
-      />
-      <span className="field-label">Teardrop on walls</span>
-    </label>
-  );
+  const teardropField = (what, disabled = false) => {
+    const teardropHint = `On a wall, ${what} as a teardrop with a 45° point at the top, so it prints without its top sagging. A hole in a face lying flat is vertical and stays round. Up is the model's +Z, the way it prints.`;
+    return (
+      <label
+        className="field field-checkbox holes-through-field"
+        htmlFor={`${id}-teardrop`}
+        title={teardropHint}
+      >
+        <MixedCheckbox
+          id={`${id}-teardrop`}
+          checked={spec.teardrop}
+          mixed={isMixed("teardrop")}
+          disabled={disabled}
+          onChange={(teardrop) => set({ teardrop })}
+        />
+        <span className="field-label">
+          Teardrop on walls
+          <FieldHint text={teardropHint} />
+        </span>
+      </label>
+    );
+  };
   const throughField = (
     <label className="field field-checkbox holes-through-field" htmlFor={`${id}-through`}>
       <MixedCheckbox
@@ -364,12 +386,17 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   }
 
   if (spec.kind === "klippt") {
+    const pocketHint =
+      "A pocket at the channel's entry that the base drops into before sliding along to seat — for a channel in the middle of a face. Off, the channel runs out past its entry instead, for one cut at an edge.";
+    const klipptClearanceHint =
+      "Added to each side of the channel. A KLIPPT clip grips the base's neck by bending its lips, which a rigid part can't: 0 is the clip exactly; 0.3 seats the base free, with a small bump at the entry that holds it in; 0.45 and more slides freely, held only one way by the lock.";
+    const runoutHint = `How far the channel runs on past its entry, its lips held clear of the base's neck — far enough to leave the part's edge. At least ${KLIPPT.minRunout} mm.`;
     return (
       <div className="holes-spec">
         <label
           className="field field-checkbox holes-through-field"
           htmlFor={`${id}-pocket`}
-          title="A pocket at the channel's entry that the base drops into before sliding along to seat — for a channel in the middle of a face. Off, the channel runs out past its entry instead, for one cut at an edge."
+          title={pocketHint}
         >
           <MixedCheckbox
             id={`${id}-pocket`}
@@ -377,15 +404,17 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             mixed={isMixed("pocket")}
             onChange={(pocket) => set({ pocket })}
           />
-          <span className="field-label">Drop-in pocket</span>
+          <span className="field-label">
+            Drop-in pocket
+            <FieldHint text={pocketHint} />
+          </span>
         </label>
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-klippt-clear`}
-            title="Added to each side of the channel. A KLIPPT clip grips the base's neck by bending its lips, which a rigid part can't: 0 is the clip exactly; 0.3 seats the base free, with a small bump at the entry that holds it in; 0.45 and more slides freely, held only one way by the lock."
-          >
-            <span className="field-label">Clearance (mm)</span>
+          <label className="field" htmlFor={`${id}-klippt-clear`} title={klipptClearanceHint}>
+            <span className="field-label">
+              Clearance (mm)
+              <FieldHint text={klipptClearanceHint} />
+            </span>
             <DecimalInput
               id={`${id}-klippt-clear`}
               min="0"
@@ -395,12 +424,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             />
           </label>
           {!isMixed("pocket") && !spec.pocket && (
-            <label
-              className="field"
-              htmlFor={`${id}-runout`}
-              title={`How far the channel runs on past its entry, its lips held clear of the base's neck — far enough to leave the part's edge. At least ${KLIPPT.minRunout} mm.`}
-            >
-              <span className="field-label">Run-out (mm)</span>
+            <label className="field" htmlFor={`${id}-runout`} title={runoutHint}>
+              <span className="field-label">
+                Run-out (mm)
+                <FieldHint text={runoutHint} />
+              </span>
               <DecimalInput id={`${id}-runout`} min={KLIPPT.minRunout} step="1" {...numberProps("runout")} />
             </label>
           )}
@@ -416,15 +444,16 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   }
 
   if (spec.kind === "deckmate") {
+    const extraDepthHint =
+      "How much deeper the floor goes than an Innie's, the lips left as they are. Seated in an Innie, the Outie's rail meets the plate with no room to spare, so a print a hair thick won't seat: 0 is the Innie exactly; raise it if the Outie won't go all the way in.";
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-dm-depth`}
-            title="How much deeper the floor goes than an Innie's, the lips left as they are. Seated in an Innie, the Outie's rail meets the plate with no room to spare, so a print a hair thick won't seat: 0 is the Innie exactly; raise it if the Outie won't go all the way in."
-          >
-            <span className="field-label">Extra depth (mm)</span>
+          <label className="field" htmlFor={`${id}-dm-depth`} title={extraDepthHint}>
+            <span className="field-label">
+              Extra depth (mm)
+              <FieldHint text={extraDepthHint} />
+            </span>
             <DecimalInput id={`${id}-dm-depth`} min="0" max="2" step="0.1" {...numberProps("extraDepth")} />
           </label>
         </div>
@@ -445,6 +474,18 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     const insertMixed = isMixed("insert");
     const puck = !insertMixed && spec.insert === "puck";
     const ring = !insertMixed && spec.insert === "ring";
+    const insertHint =
+      "What goes in the pocket: Apple's MagSafe charger, its cable run out through a channel, or a metal or magnet ring that a MagSafe phone or case holds on to. Switching takes that insert's usual size.";
+    const diameterHint =
+      "The pocket across: the insert's own size plus the fit (a little more for a charger that comes out again).";
+    const innerDiameterHint =
+      "The middle left standing inside the ring: its inside diameter, less the fit. 0 cuts the whole disc, for a steel disc.";
+    const depthHint =
+      "How deep the pocket goes: the insert's thickness and a little, so it sits flush or a hair below.";
+    const cableHint =
+      "The cable channel's width, as deep as the pocket: wide enough for the cable where it leaves the puck. 0 for none.";
+    const cableLengthHint =
+      "How far the channel runs on past the pocket's rim — far enough to leave the part's edge.";
     // A switch of insert brings that insert's sizes along (its first
     // preset's): a charger puck's pocket is no size for a ring.
     const setInsert = (insert) => {
@@ -458,12 +499,11 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     };
     return (
       <div className="holes-spec">
-        <label
-          className="field"
-          htmlFor={`${id}-insert`}
-          title="What goes in the pocket: Apple's MagSafe charger, its cable run out through a channel, or a metal or magnet ring that a MagSafe phone or case holds on to. Switching takes that insert's usual size."
-        >
-          <span className="field-label">Insert</span>
+        <label className="field" htmlFor={`${id}-insert`} title={insertHint}>
+          <span className="field-label">
+            Insert
+            <FieldHint text={insertHint} />
+          </span>
           <MixedSelect
             id={`${id}-insert`}
             value={spec.insert}
@@ -473,49 +513,44 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
           />
         </label>
         <div className="holes-spec-grid">
-          <label
-            className="field"
-            htmlFor={`${id}-ms-d`}
-            title="The pocket across: the insert's own size plus the fit (a little more for a charger that comes out again)."
-          >
-            <span className="field-label">Diameter (mm)</span>
+          <label className="field" htmlFor={`${id}-ms-d`} title={diameterHint}>
+            <span className="field-label">
+              Diameter (mm)
+              <FieldHint text={diameterHint} />
+            </span>
             <DecimalInput id={`${id}-ms-d`} min="0.1" step="0.1" {...numberProps("diameter")} />
           </label>
           {ring && (
-            <label
-              className="field"
-              htmlFor={`${id}-ms-id`}
-              title="The middle left standing inside the ring: its inside diameter, less the fit. 0 cuts the whole disc, for a steel disc."
-            >
-              <span className="field-label">Inner diameter (mm)</span>
+            <label className="field" htmlFor={`${id}-ms-id`} title={innerDiameterHint}>
+              <span className="field-label">
+                Inner diameter (mm)
+                <FieldHint text={innerDiameterHint} />
+              </span>
               <DecimalInput id={`${id}-ms-id`} min="0" step="0.1" {...numberProps("innerDiameter")} />
             </label>
           )}
-          <label
-            className="field"
-            htmlFor={`${id}-ms-depth`}
-            title="How deep the pocket goes: the insert's thickness and a little, so it sits flush or a hair below."
-          >
-            <span className="field-label">Depth (mm)</span>
+          <label className="field" htmlFor={`${id}-ms-depth`} title={depthHint}>
+            <span className="field-label">
+              Depth (mm)
+              <FieldHint text={depthHint} />
+            </span>
             <DecimalInput id={`${id}-ms-depth`} min="0.1" step="0.1" {...numberProps("depth")} />
           </label>
           {puck && (
-            <label
-              className="field"
-              htmlFor={`${id}-ms-cable`}
-              title="The cable channel's width, as deep as the pocket: wide enough for the cable where it leaves the puck. 0 for none."
-            >
-              <span className="field-label">Cable channel (mm)</span>
+            <label className="field" htmlFor={`${id}-ms-cable`} title={cableHint}>
+              <span className="field-label">
+                Cable channel (mm)
+                <FieldHint text={cableHint} />
+              </span>
               <DecimalInput id={`${id}-ms-cable`} min="0" step="0.5" {...numberProps("cable")} />
             </label>
           )}
           {puck && (
-            <label
-              className="field"
-              htmlFor={`${id}-ms-run`}
-              title="How far the channel runs on past the pocket's rim — far enough to leave the part's edge."
-            >
-              <span className="field-label">Channel length (mm)</span>
+            <label className="field" htmlFor={`${id}-ms-run`} title={cableLengthHint}>
+              <span className="field-label">
+                Channel length (mm)
+                <FieldHint text={cableLengthHint} />
+              </span>
               <DecimalInput id={`${id}-ms-run`} min="0" step="1" {...numberProps("cableLength")} />
             </label>
           )}
@@ -547,39 +582,36 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
   }
 
   if (spec.kind === "extrusion") {
+    const clearanceHint = `Added to each side of the ${EXTRUSION.profile} mm square, and taken off each side of the keys. More if the rail is hard to push in.`;
+    const keysHint = `A key into each of the rail's four slots — ${EXTRUSION.slotOpen} mm mouths, ${EXTRUSION.keyReach} mm in — so it can't turn in the socket. Off for a plain square.`;
+    const boltHint = `An M5 clearance hole (Ø${EXTRUSION.boltDiameter}) from the socket's floor out through the far side of the part, for a bolt into the rail's centre bore — tapped M5 on most 20-series profiles. Needs a blind socket: a through one has no floor to pull the rail onto.`;
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
           {depthField}
-          <label
-            className="field"
-            htmlFor={`${id}-clear`}
-            title={`Added to each side of the ${EXTRUSION.profile} mm square, and taken off each side of the keys. More if the rail is hard to push in.`}
-          >
-            <span className="field-label">Clearance (mm)</span>
+          <label className="field" htmlFor={`${id}-clear`} title={clearanceHint}>
+            <span className="field-label">
+              Clearance (mm)
+              <FieldHint text={clearanceHint} />
+            </span>
             <DecimalInput id={`${id}-clear`} min="0" step="0.05" {...numberProps("clearance")} />
           </label>
           {chamferField}
         </div>
         {throughField}
-        <label
-          className="field field-checkbox holes-through-field"
-          htmlFor={`${id}-keys`}
-          title={`A key into each of the rail's four slots — ${EXTRUSION.slotOpen} mm mouths, ${EXTRUSION.keyReach} mm in — so it can't turn in the socket. Off for a plain square.`}
-        >
+        <label className="field field-checkbox holes-through-field" htmlFor={`${id}-keys`} title={keysHint}>
           <MixedCheckbox
             id={`${id}-keys`}
             checked={spec.keys}
             mixed={isMixed("keys")}
             onChange={(keys) => set({ keys })}
           />
-          <span className="field-label">Keys into the slots</span>
+          <span className="field-label">
+            Keys into the slots
+            <FieldHint text={keysHint} />
+          </span>
         </label>
-        <label
-          className="field field-checkbox holes-through-field"
-          htmlFor={`${id}-bolt`}
-          title={`An M5 clearance hole (Ø${EXTRUSION.boltDiameter}) from the socket's floor out through the far side of the part, for a bolt into the rail's centre bore — tapped M5 on most 20-series profiles. Needs a blind socket: a through one has no floor to pull the rail onto.`}
-        >
+        <label className="field field-checkbox holes-through-field" htmlFor={`${id}-bolt`} title={boltHint}>
           <MixedCheckbox
             id={`${id}-bolt`}
             checked={spec.bolt}
@@ -587,7 +619,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             disabled={through}
             onChange={(bolt) => set({ bolt })}
           />
-          <span className="field-label">M5 bolt hole through the floor</span>
+          <span className="field-label">
+            M5 bolt hole through the floor
+            <FieldHint text={boltHint} />
+          </span>
         </label>
         {teardropField("cut the bolt hole", through || (!isMixed("bolt") && !spec.bolt))}
         {spinField}
@@ -610,7 +645,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             htmlFor={`${id}-af`}
             title="Distance between opposite flat sides of the octagon."
           >
-            <span className="field-label">Across flats (mm)</span>
+            <span className="field-label">
+              Across flats (mm)
+              <FieldHint text="Distance between opposite flat sides of the octagon." />
+            </span>
             <DecimalInput id={`${id}-af`} min="0.1" step="0.1" {...numberProps("acrossFlats")} />
           </label>
           <label
@@ -618,7 +656,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             htmlFor={`${id}-clearance`}
             title="Extra width added across the flats for a looser fit."
           >
-            <span className="field-label">Clearance (mm)</span>
+            <span className="field-label">
+              Clearance (mm)
+              <FieldHint text="Extra width added across the flats for a looser fit." />
+            </span>
             <DecimalInput id={`${id}-clearance`} min="0" step="0.1" {...numberProps("clearance")} />
           </label>
           {depthField}
@@ -634,23 +675,29 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
     // when the holes agree on their size, since that sets the radius.
     const sizeMixed = isMixed("width") || isMixed("height");
     const pill = !sizeMixed && !isMixed("cornerRadius") && isPill(spec);
+    const cornerRadiusHint = "Rounds the corners. Half the narrower side makes a pill; more is cut as that.";
     return (
       <div className="holes-spec">
         <div className="holes-spec-grid">
           <label className="field" htmlFor={`${id}-w`} title="Across, square to its direction.">
-            <span className="field-label">Width (mm)</span>
+            <span className="field-label">
+              Width (mm)
+              <FieldHint text="Across, square to its direction." />
+            </span>
             <DecimalInput id={`${id}-w`} min="0.1" step="0.5" {...numberProps("width")} />
           </label>
           <label className="field" htmlFor={`${id}-h`} title="Along its direction — up, unturned.">
-            <span className="field-label">Height (mm)</span>
+            <span className="field-label">
+              Height (mm)
+              <FieldHint text="Along its direction — up, unturned." />
+            </span>
             <DecimalInput id={`${id}-h`} min="0.1" step="0.5" {...numberProps("height")} />
           </label>
-          <label
-            className="field"
-            htmlFor={`${id}-r`}
-            title="Rounds the corners. Half the narrower side makes a pill; more is cut as that."
-          >
-            <span className="field-label">Corner radius (mm)</span>
+          <label className="field" htmlFor={`${id}-r`} title={cornerRadiusHint}>
+            <span className="field-label">
+              Corner radius (mm)
+              <FieldHint text={cornerRadiusHint} />
+            </span>
             <DecimalInput id={`${id}-r`} min="0" step="0.5" {...numberProps("cornerRadius")} />
           </label>
           {depthField}
@@ -669,7 +716,10 @@ export default function HoleSpecFields({ spec, mixed = NOTHING_MIXED, onChange, 
             disabled={sizeMixed}
             onChange={(on) => set({ cornerRadius: on ? Math.min(spec.width, spec.height) / 2 : 0 })}
           />
-          <span className="field-label">Pill (round ends)</span>
+          <span className="field-label">
+            Pill (round ends)
+            <FieldHint text="Round ends: the corner radius at half the narrower side." />
+          </span>
         </label>
         {spinField}
       </div>
