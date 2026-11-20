@@ -56,6 +56,10 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 - **The app downloads a third less before its first preview.** The DeckMate and KLIPPT meshes
   (1.1 of the 2.9 MB of OpenSCAD sources the app fetched) now load only when a part, a bench or a
   Holes socket uses them, so a phone opening any other part skips them.
+- **Bench and Holes edits render sooner in Safari** (on iPhone and iPad too). Safari's background
+  renderer runs out of room on most benches and Holes models, so the app has been rendering those
+  a second time on the page; it now goes straight there for the rest of the session once a bench
+  has needed it, about a fifth sooner per edit.
 - **Importing a large model no longer freezes the page while it is checked.** The watertightness
   and winding check (over a second for a 200,000-triangle scan on a phone) runs in the background,
   so the "Checking…" message shows and the page keeps responding.

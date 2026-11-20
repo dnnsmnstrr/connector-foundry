@@ -382,3 +382,40 @@ test("a cached result outlives a long pause: the cache is bounded by bytes, not 
     Date.now = realNow;
   }
 });
+
+test("a render's shape ignores its numbers but not its identifiers or its parts", () => {
+  const source = (t, extra = "") =>
+    `include <../parts/gopro/male2.scad>\nplate(w=40, t=${t}, r=-0.5e-1);\n${extra}translate([0,0,${t}]) m3();\n`;
+  assert.equal(
+    client.renderShape({ scadSource: source(4) }),
+    client.renderShape({ scadSource: source(6.25) }),
+  );
+  assert.match(client.renderShape({ scadSource: source(4) }), /male2\.scad/);
+  assert.match(client.renderShape({ scadSource: source(4) }), /m3\(\)/);
+  assert.notEqual(
+    client.renderShape({ scadSource: source(4) }),
+    client.renderShape({ scadSource: source(4, "post();\n") }),
+  );
+  assert.equal(client.renderShape(request(1)), client.renderShape(request(2)));
+  assert.notEqual(client.renderShape(request(1)), client.renderShape({ ...request(1), module: "post" }));
+});
+
+test("a shape that overflowed the worker's stack skips the worker next time; others still use it", async () => {
+  const overflow = "Maximum call stack size exceeded.";
+  const deep = (t) => ({ scadSource: `include <../parts/basics/plate.scad>\nplate(t=${t});\n` });
+  // The main-thread rerun can't load the engine under Node, so it fails;
+  // what matters is where each job was sent.
+  const first = client.renderPart(deep(4));
+  await tick();
+  assert.equal(workers[0].messages.length, 1);
+  workers[0].onmessage({ data: { id: workers[0].messages[0].id, type: "error", message: overflow } });
+  await assert.rejects(first);
+  const second = client.renderPart(deep(6));
+  await assert.rejects(second);
+  assert.equal(workers[0].messages.length, 1, "the same shape went straight to the main thread");
+  const other = client.renderPart(request(3));
+  await tick();
+  assert.equal(workers[0].messages.length, 2, "another shape still renders in the worker");
+  workers[0].result();
+  await other;
+});

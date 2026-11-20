@@ -133,6 +133,11 @@ exceeded` (some parts did too, on a cold start). `openscad-client.js` therefore 
 whose worker run ended in the engine's own stack overflow (`renderError.js`'s
 `isNativeStackOverflow()`) again on the main thread, through the same `src/lib/openscadRun.js`.
 That reaches about 80 levels in Safari, like Chromium's worker; the page freezes while it runs.
+The worker's failed try is not free (140-230 ms in Playwright's WebKit on a laptop, before it
+overflows), so the client remembers the shape of a request that overflowed — the source with its
+numbers blanked, `renderShape()`, since a parameter edit almost never changes how deep it nests —
+and sends the next render of that shape straight to the main thread: a Bench edit there went from
+1.06 s to 0.87 s. A new shape (another part attached) gets its own try in the worker.
 
 If the worker itself dies (a script error, a message that can't be deserialised), every render
 waiting on it is rejected with a message saying so and the worker is discarded, so the next

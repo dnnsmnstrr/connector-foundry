@@ -83,8 +83,55 @@ function onWorkerMessage(event) {
   const job = pending.get(id);
   if (!job || job !== active) return;
   if (type === "result") finish(job, null, event.data.stl);
-  else if (isNativeStackOverflow(event.data.message)) renderOnMainThread(job);
-  else finish(job, new Error(event.data.message));
+  else if (isNativeStackOverflow(event.data.message)) {
+    rememberMainThreadShape(job.request);
+    renderOnMainThread(job);
+  } else finish(job, new Error(event.data.message));
+}
+
+// The shapes of render that ran out of stack in the worker, so the next
+// render of the same shape goes straight to the main thread instead of
+// failing in the worker first. Measured in Playwright's WebKit on a
+// laptop: every Bench assembly overflows a Safari worker (as do an
+// openGrid board and a Multiboard peg on their own), 140-230 ms in before
+// it fails, a fifth of each edit's render (a plate with a GoPro mount and
+// a post: 1.0 s through the worker first, 0.79 s on the main thread
+// alone), and a phone pays several times that. A shape is the request
+// with its numbers blanked (renderShape()): editing a parameter almost
+// never changes how deep the source nests, attaching another part does,
+// and a new shape gets its own try in the worker. Bounded, as a session
+// can see any number of shapes; the oldest goes first.
+const MAIN_THREAD_SHAPES_MAX = 64;
+const mainThreadShapes = new Set();
+
+function rememberMainThreadShape(request) {
+  const shape = renderShape(request);
+  mainThreadShapes.delete(shape);
+  mainThreadShapes.add(shape);
+  if (mainThreadShapes.size > MAIN_THREAD_SHAPES_MAX) {
+    mainThreadShapes.delete(mainThreadShapes.values().next().value);
+  }
+}
+
+// An identifier or a number. Identifiers are matched only to step over
+// them whole, so the digits in one (`m3`, `gopro_male2`, a node id `c2`)
+// are never taken for a number; no lookbehind, which Safari before 16.4
+// cannot parse (tests/unit/no-lookbehind.test.js).
+const IDENTIFIER_OR_NUMBER = /[A-Za-z_$][\w$]*|(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+const blankNumber = (/** @type {string} */ token) => (/^[\d.]/.test(token) ? "#" : token);
+
+/**
+ * What a render request is apart from its numbers: the part file and
+ * module for a part render (its parameters are what an edit changes), the
+ * source with every number blanked for a generated one (a Bench assembly,
+ * a Holes model). Exported for the unit tests.
+ * @param {{ scadFile?: string, module?: string, scadSource?: string }} request
+ */
+export function renderShape({ scadFile, module, scadSource }) {
+  if (typeof scadSource === "string") {
+    return `source:${scadSource.replace(IDENTIFIER_OR_NUMBER, blankNumber)}`;
+  }
+  return `part:${scadFile}:${module}`;
 }
 
 // A render the worker ran out of native stack for, run again on the main
@@ -208,6 +255,11 @@ function pump() {
     );
     warmAfterStop();
   }, RENDER_TIMEOUT_MS);
+  // A shape that overflowed the worker before would only overflow again.
+  if (mainThreadShapes.has(renderShape(job.request))) {
+    renderOnMainThread(job);
+    return;
+  }
   try {
     // Clone imported buffers: exports and later previews still need them.
     getWorker().postMessage({ ...job.request, id: job.id });
