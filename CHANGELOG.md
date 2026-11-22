@@ -7,6 +7,8 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ## Unreleased
 
+## 0.6.0 — 2026-11-22
+
 ### Parts and Holes
 
 - **Holders for every Flic device** (Flic): the Flic 2 button, the Duo (and the Cue and Mic,
@@ -45,6 +47,11 @@ runs the latest `main` at https://dnnsmnstrr.github.io/connector-foundry/app/.
 
 ### App
 
+- **Open in Slicer and direct 3MF export.** The desktop app now has **Open in Slicer** in the Library,
+  Bench and Holes (and in the command palette), writing a temporary 3MF — with every body in one file
+  on the Bench — and opening it directly in your default or installed slicer without a Save dialog.
+  The web and desktop apps also offer **Download 3MF** directly in the Bench, Holes and the command
+  palette, and `foundry render` accepts `--open` and `--slicer` on the command line.
 - **The Bench gives the selected part's size too.** With a part selected, the line under the
   Bench's title follows the whole bench's outside size with that part's own: "Outside: W 25.58 ×
   H 16.8 × D 25.58 mm · Bolt: W 16 × H 10 × D 16 mm".
