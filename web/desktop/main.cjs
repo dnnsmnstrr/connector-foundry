@@ -1,9 +1,10 @@
-const { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { setupMcp } = require("./mcp.cjs");
 const { APP_URL, assetPath, isAppURL } = require("./paths.cjs");
+const { openModelInSlicer } = require("./slicer.cjs");
 const { setupUpdates } = require("./updates.cjs");
 
 const isMac = process.platform === "darwin";
@@ -200,6 +201,17 @@ function start() {
           "Export failed",
           "The file could not be saved. Check the destination and available disk space, then try again.",
         );
+    });
+  });
+  ipcMain.handle("slicer:open", (event, payload) => {
+    if (!window || event.sender !== window.webContents || !isAppURL(event.senderFrame?.url ?? "")) {
+      return { ok: false, error: "Not allowed." };
+    }
+    return openModelInSlicer({
+      bytes: payload?.bytes,
+      filename: payload?.filename,
+      tempRoot: app.getPath("temp"),
+      openPath: (filePath) => shell.openPath(filePath),
     });
   });
   updates = setupUpdates({ getWindow: () => window ?? null, isAppURL });

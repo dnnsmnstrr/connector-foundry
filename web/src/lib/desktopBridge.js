@@ -1,7 +1,8 @@
 // The desktop app's window.foundryDesktop (desktop/preload.cjs): where the
 // page registers its tools for coding agents (lib/webmcp.js), the
 // Settings switch for the MCP server that serves them (desktop/mcp.cjs),
-// and the updater (desktop/updates.cjs, read through lib/desktopUpdates.js).
+// the updater (desktop/updates.cjs, read through lib/desktopUpdates.js),
+// and the direct slicer hand-off (desktop/slicer.cjs).
 // Absent in a browser.
 
 /**
@@ -52,10 +53,22 @@
  * @property {(listener: (status: DesktopUpdateStatus) => void) => () => void} onStatus
  */
 /**
+ * @typedef {object} DesktopSlicerResult
+ * @property {boolean} ok
+ * @property {string} [path]
+ * @property {string} [slicer]
+ * @property {string} [error]
+ */
+/**
+ * @typedef {object} DesktopSlicer
+ * @property {(bytes: ArrayBuffer | Uint8Array, filename: string) => Promise<DesktopSlicerResult>} open
+ */
+/**
  * @typedef {object} DesktopBridge
  * @property {{ registerTool: (tool: object) => { unregister: () => void } }} modelContext
  * @property {DesktopMcp} mcp
  * @property {DesktopUpdates} updates
+ * @property {DesktopSlicer} [slicer]
  */
 
 /**
@@ -65,6 +78,33 @@
 export function desktopBridge() {
   const bridge = /** @type {any} */ (globalThis).foundryDesktop;
   return bridge && typeof bridge === "object" ? bridge : null;
+}
+
+/**
+ * Whether the desktop app's direct slicer hand-off is available.
+ * @returns {boolean}
+ */
+export function hasDesktopSlicer() {
+  return typeof desktopBridge()?.slicer?.open === "function";
+}
+
+/**
+ * Writes `bytes` to a temporary file named `filename` (.3mf or .stl) and
+ * opens it in the user's desktop slicer without a Save dialog.
+ * @param {ArrayBuffer | Uint8Array} bytes
+ * @param {string} filename
+ * @returns {Promise<DesktopSlicerResult>}
+ */
+export async function openInDesktopSlicer(bytes, filename) {
+  const open = desktopBridge()?.slicer?.open;
+  if (typeof open !== "function") {
+    throw new Error("Opening directly in a slicer is only available in the desktop app.");
+  }
+  const result = await open(bytes, filename);
+  if (!result?.ok) {
+    throw new Error(result?.error || "Couldn't open the model in a slicer.");
+  }
+  return result;
 }
 
 /**

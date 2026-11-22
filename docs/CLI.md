@@ -106,6 +106,8 @@ folders of their own, or the second overwrites the first.
 | Option | Does |
 | --- | --- |
 | `-o`, `--out DIR` | where the STL goes (default `out/`, created if missing) |
+| `--open` | open the rendered STL in your slicer (or the one in `FOUNDRY_SLICER`) |
+| `--slicer APP_OR_PATH` | open the rendered STL in a specific slicer app or executable (implies `--open`) |
 | `--set NAME=VALUE` | sets any parameter; repeat it for more than one |
 | `--gx N`, `--gy N` | shorthand for `--set gx=N`, `--set gy=N` (the Gridfinity parts) |
 | `--magnets`, `--no-magnets`, `--screws`, `--no-screws` | shorthand for the Gridfinity hole options |

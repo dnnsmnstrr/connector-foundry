@@ -159,3 +159,47 @@ def test_a_malformed_file_reads_as_empty_but_is_never_overwritten(config_home, c
     # Clearing everything is an explicit "delete it", so it is allowed.
     userconfig.clear_overrides("gridfinity/base")
     assert not path.exists()
+
+
+# -------------------------------------------------------------- slicer
+
+
+def test_open_in_slicer_invokes_system_or_named_slicer(monkeypatch, tmp_path):
+    stl = tmp_path / "gridfinity_base.stl"
+    stl.write_bytes(b"solid")
+
+    calls = []
+
+    class DummyResult:
+        returncode = 0
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        calls.append(("run", cmd))
+        return DummyResult()
+
+    def fake_popen(cmd, **kwargs):
+        calls.append(("popen", cmd))
+
+    monkeypatch.setattr(foundry.subprocess, "run", fake_run)
+    monkeypatch.setattr(foundry.subprocess, "Popen", fake_popen)
+
+    # Default open on macOS uses `open <file>`.
+    monkeypatch.setattr(foundry.sys, "platform", "darwin")
+    monkeypatch.delenv("FOUNDRY_SLICER", raising=False)
+    foundry.open_in_slicer(stl)
+    assert calls[-1] == ("run", ["open", str(stl.resolve())])
+
+    # Named macOS .app bundle uses `open -a <app> <file>`.
+    foundry.open_in_slicer(stl, "OrcaSlicer.app")
+    assert calls[-1] == ("run", ["open", "-a", "OrcaSlicer.app", str(stl.resolve())])
+
+    # Default open on Linux uses `xdg-open <file>`.
+    monkeypatch.setattr(foundry.sys, "platform", "linux")
+    foundry.open_in_slicer(stl)
+    assert calls[-1] == ("run", ["xdg-open", str(stl.resolve())])
+
+    # Named binary on Linux or FOUNDRY_SLICER launches it directly.
+    monkeypatch.setenv("FOUNDRY_SLICER", "/usr/bin/prusa-slicer")
+    foundry.open_in_slicer(stl)
+    assert calls[-1] == ("popen", ["/usr/bin/prusa-slicer", str(stl.resolve())])

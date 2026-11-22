@@ -19,6 +19,10 @@
 // switches for automatic checks and interface updates, the restart (or
 // reload) that installs a downloaded update, and the page's word that it
 // started, which an interface update has to give in time to be kept.
+//
+// `slicer` opens a rendered model (.3mf or .stl) directly in the user's
+// desktop slicer via a temporary file (slicer.cjs), skipping the Save
+// dialog.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
@@ -108,5 +112,8 @@ contextBridge.exposeInMainWorld("foundryDesktop", {
       ipcRenderer.on("updates:status", handler);
       return () => ipcRenderer.removeListener("updates:status", handler);
     },
+  },
+  slicer: {
+    open: (bytes, filename) => ipcRenderer.invoke("slicer:open", { bytes, filename }),
   },
 });

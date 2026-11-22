@@ -22,9 +22,11 @@ import { setDrawerTab } from "./lib/drawer.js";
 import { useWebMcpTab } from "./hooks/useWebMcp.js";
 import { builtin, linkActions, partCommand } from "./lib/commandCatalog.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
+import { SLICER_OPEN_TITLE, useSlicerOpen } from "./hooks/useSlicerOpen.js";
 import { recordLibrary, redoLibrary, subscribeLibraryRequest, undoLibrary } from "./lib/librarySession.js";
 import { meshBounds, meshExtents } from "./lib/meshExtents.js";
 import { outsideDimensions } from "./lib/outsideDimensions.js";
+import { stlBodiesTo3mf } from "./lib/threeMfWrite.js";
 import {
   axisLetter,
   boxEdges,
@@ -424,6 +426,22 @@ export default function Library({
     save(stlBuffer, `${slugify(selected.id)}.stl`, "model/stl");
   }
 
+  function download3mf() {
+    if (!canDownload) return;
+    try {
+      const bytes = stlBodiesTo3mf([{ name: selected.name, stl: stlBuffer }]);
+      downloadBlob(bytes, `${slugify(selected.id)}.3mf`, "model/3mf");
+    } catch (err) {
+      preview.setError(err.message);
+    }
+  }
+
+  const slicer = useSlicerOpen(preview.setError);
+  function openInSlicer() {
+    if (!canDownload) return;
+    slicer.open([{ name: selected.name, stlBuffer }], `${slugify(selected.id)}.3mf`);
+  }
+
   // "Print…" (components/PrintSheet.jsx), on a phone or tablet only (the
   // narrow layout, `drawer`): there it takes Download STL's place beside
   // the title, as the Bench's and Holes' Print… do, and the sheet's Share
@@ -475,7 +493,14 @@ export default function Library({
           disabled: status === "rendering" && "Rendering…",
           run: preview.retry,
         }),
+      selected &&
+        builtin("library.openInSlicer", {
+          when: slicer.available,
+          disabled: waiting,
+          run: openInSlicer,
+        }),
       selected && builtin("library.downloadStl", { disabled: waiting, run: downloadStl }),
+      selected && builtin("library.download3mf", { disabled: waiting, run: download3mf }),
       selected &&
         builtin("library.print", {
           when: drawer,
@@ -718,6 +743,17 @@ export default function Library({
                     >
                       {layerling.label}
                     </button>
+                    {slicer.available && (
+                      <button
+                        type="button"
+                        className="download-button secondary-button slicer-button"
+                        onClick={openInSlicer}
+                        disabled={!canDownload || slicer.opening}
+                        title={SLICER_OPEN_TITLE}
+                      >
+                        {slicer.label}
+                      </button>
+                    )}
                     {/* Under 900 px the header's Print… is in its place
                         (styles.css), the sheet's Download one tap on. */}
                     <button

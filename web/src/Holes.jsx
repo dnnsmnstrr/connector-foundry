@@ -36,6 +36,8 @@ import PrintSheet from "./components/PrintSheet.jsx";
 import { chordText } from "./lib/shortcuts.js";
 import { downloadBlob } from "./lib/download.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
+import { SLICER_OPEN_TITLE, useSlicerOpen } from "./hooks/useSlicerOpen.js";
+import { stlBodiesTo3mf } from "./lib/threeMfWrite.js";
 import {
   NUDGE_OFF_MM,
   dragHoleResize,
@@ -1180,6 +1182,24 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
     }
   }
 
+  async function download3mf() {
+    try {
+      const stl = await holedBuffer();
+      const bytes = stlBodiesTo3mf([{ name: exportName || "Holes", stl }]);
+      downloadBlob(bytes, exportFilename(exportName, "holes", ".3mf"), "model/3mf");
+    } catch (err) {
+      setRenderError(err.message);
+    }
+  }
+
+  const slicer = useSlicerOpen(setRenderError);
+  function openInSlicer() {
+    slicer.open(
+      holedBuffer().then((stlBuffer) => [{ name: exportName || "Holes", stlBuffer }]),
+      exportFilename(exportName, "holes", ".3mf"),
+    );
+  }
+
   const layerling = useLayerlingCopy(setRenderError);
   function copyToLayerling() {
     layerling.copy(holedBuffer().then((stlBuffer) => [{ name: exportName || "Holes", stlBuffer }]));
@@ -1408,7 +1428,12 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
         checked: Boolean(doc.source.flip),
         run: () => setFlip(!doc.source.flip),
       }),
+      builtin("holes.openInSlicer", {
+        when: slicer.available,
+        run: openInSlicer,
+      }),
       builtin("holes.downloadStl", { run: downloadStl }),
+      builtin("holes.download3mf", { run: download3mf }),
       builtin("holes.print", { run: openPrintSheet }),
       builtin("holes.downloadScad", { run: downloadScad }),
       builtin("holes.layerling", { run: copyToLayerling }),
@@ -1741,6 +1766,17 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
 
       <h3>Export</h3>
       <div className="bench-export">
+        {slicer.available && (
+          <button
+            type="button"
+            className="download-button bench-export-button"
+            onClick={openInSlicer}
+            disabled={status === "error" || slicer.opening}
+            title={SLICER_OPEN_TITLE}
+          >
+            {slicer.label}
+          </button>
+        )}
         <button
           type="button"
           className="download-button bench-export-button"
@@ -1748,6 +1784,15 @@ export default function Holes({ parts, sidebarCollapsed, onToggleSidebar, librar
           disabled={status === "error"}
         >
           Download STL
+        </button>
+        <button
+          type="button"
+          className="download-button bench-export-button secondary-button"
+          onClick={download3mf}
+          disabled={status === "error"}
+          title="Save the model as a 3MF: a fifth of the size of the STL, with its units and name"
+        >
+          Download 3MF
         </button>
         <button
           type="button"

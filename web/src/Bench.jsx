@@ -54,6 +54,7 @@ import { useHiddenLibrary } from "./hooks/useHiddenLibrary.js";
 import { useSystemOrder } from "./hooks/useSystemOrder.js";
 import { isFinishedEdit, partSections } from "./lib/catalogueUtils.js";
 import { LAYERLING_COPY_TITLE, useLayerlingCopy } from "./hooks/useLayerlingCopy.js";
+import { SLICER_OPEN_TITLE, useSlicerOpen } from "./hooks/useSlicerOpen.js";
 import { CONFIG_EXTENSION, configToJson, parseBenchConfig, serializeBenchConfig } from "./lib/benchConfig.js";
 import {
   centeredToWorld,
@@ -123,6 +124,7 @@ import { FOLD_MODE_LABELS, activeFold, bodyTagOf, foldPlan, foldSpec } from "./l
 import { rotateAbout } from "./lib/rotateDial.js";
 import { askConfirm } from "./lib/confirm.js";
 import { slotLabel } from "./lib/labels.js";
+import { stlBodiesTo3mf } from "./lib/threeMfWrite.js";
 
 // Debounce between the last assembly edit and the re-render it triggers,
 // so typing a parameter value doesn't compile once per keystroke.
@@ -1302,21 +1304,45 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
     });
   }
 
-  // Every body in one copy, each its own mesh in Layerling, placed as on
-  // the bench. Needs no bench name: nothing lands in a downloads folder.
-  const layerling = useLayerlingCopy((message) => setRenderError(friendlyRenderError(message)));
-  function copyToLayerling() {
+  function renderAllBodies() {
     const nodesById = new Map(assembly.nodes.map((n) => [n.id, n]));
-    const bodyName = (tag) => {
+    const labelOf = (tag) => {
       if (tag === ROOT_ID) return benchName(assembly) ?? rootPart.name;
       const node = nodesById.get(tag.replace(/_pin$/, ""));
       const name = partsById.get(node?.partId)?.name ?? tag;
       return tag.endsWith("_pin") ? `${name} pin` : name;
     };
     const tags = bodyTags(assembly);
-    layerling.copy(
-      Promise.all(tags.map(async (tag) => ({ name: bodyName(tag), stlBuffer: await renderAssembly(tag) }))),
+    return Promise.all(
+      tags.map(async (tag) => ({ name: labelOf(tag), stlBuffer: await renderAssembly(tag) })),
     );
+  }
+
+  function download3mf() {
+    withName(async (name) => {
+      try {
+        const bodies = await renderAllBodies();
+        const bytes = stlBodiesTo3mf(
+          bodies.map(({ name: body, stlBuffer }) => ({ name: body, stl: stlBuffer })),
+        );
+        downloadBlob(bytes, exportFilename(name, null, ".3mf"), "model/3mf");
+      } catch (err) {
+        setRenderError(friendlyRenderError(err.message));
+      }
+    });
+  }
+
+  const slicer = useSlicerOpen((message) => setRenderError(friendlyRenderError(message)));
+  function openInSlicer() {
+    const name = benchName(assembly) ?? defaultBenchName(assembly, partsById);
+    slicer.open(renderAllBodies(), exportFilename(name, null, ".3mf"));
+  }
+
+  // Every body in one copy, each its own mesh in Layerling, placed as on
+  // the bench. Needs no bench name: nothing lands in a downloads folder.
+  const layerling = useLayerlingCopy((message) => setRenderError(friendlyRenderError(message)));
+  function copyToLayerling() {
+    layerling.copy(renderAllBodies());
   }
 
   // compileToScad() throws on a tree it can't express (a part missing
@@ -1656,6 +1682,10 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
         checked: showingLayout,
         run: toggleLayoutView,
       }),
+      builtin("bench.openInSlicer", {
+        when: slicer.available,
+        run: openInSlicer,
+      }),
       ...bodyTags(assembly).map((tag) =>
         builtin("bench.downloadStl", {
           id: `bench.downloadStl:${tag}`,
@@ -1664,6 +1694,7 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
           run: (save) => downloadBody(tag, save),
         }),
       ),
+      builtin("bench.download3mf", { run: download3mf }),
       builtin("bench.print", { run: openPrintSheet }),
       builtin("bench.shareLink", {
         actions: [
@@ -2034,6 +2065,17 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
 
             <h3>Export</h3>
             <div className="bench-export">
+              {slicer.available && (
+                <button
+                  type="button"
+                  className="download-button bench-export-button"
+                  onClick={openInSlicer}
+                  disabled={slicer.opening}
+                  title={SLICER_OPEN_TITLE}
+                >
+                  {slicer.label}
+                </button>
+              )}
               {bodyTags(assembly).map((tag, _, tags) => (
                 <button
                   type="button"
@@ -2044,6 +2086,14 @@ export default function Bench({ parts, sidebarCollapsed, onToggleSidebar }) {
                   {tags.length === 1 ? "Download STL" : `STL: ${bodyName(tag, tags)}`}
                 </button>
               ))}
+              <button
+                type="button"
+                className="download-button bench-export-button secondary-button"
+                onClick={download3mf}
+                title="Save every body of this bench in one 3MF file, with its units and names, for your slicer"
+              >
+                Download 3MF
+              </button>
               <button
                 type="button"
                 className="download-button bench-export-button secondary-button"

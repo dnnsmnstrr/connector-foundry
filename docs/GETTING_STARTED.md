@@ -59,7 +59,10 @@ The app has three tabs, at the top of the window (or the keys `1`, `2` and `3`):
 3. **Check the outside dimensions** under the part's name: width, height and depth in millimetres, as
    rendered.
 4. **Download STL** (under the 3D view) and open the file in your slicer, or upload it to EasyPrint
-   to print it from a phone (below). On a phone or tablet, **Print…** beside the part's name has
+   to print it from a phone (below). In the [desktop app](DESKTOP.md), **Open in Slicer** opens the
+   model directly in your slicer without saving a file first; in a browser, **Download 3MF** (on the
+   Bench, Holes and in Cmd/Ctrl+K) saves a compact `.3mf` with millimetre units and part names (all
+   bodies in one file on the Bench). On a phone or tablet, **Print…** beside the part's name has
    the download. With
    [Layerling](https://layerling.com/), **Copy for Layerling** skips the file and pastes the part in
    directly.

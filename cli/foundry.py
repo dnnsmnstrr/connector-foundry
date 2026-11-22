@@ -26,7 +26,9 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -481,6 +483,41 @@ def render_part(
     return out_stl
 
 
+def open_in_slicer(model_path: Path, slicer: str | None = None) -> None:
+    """Hand `model_path` to the user's slicer: the application or binary
+    named by `slicer` (or the FOUNDRY_SLICER environment variable), else the
+    operating system's registered handler for the file."""
+    model_path = Path(model_path).resolve()
+    target = (slicer or os.environ.get("FOUNDRY_SLICER", "")).strip() or None
+    try:
+        if target is not None:
+            if sys.platform == "darwin" and (target.endswith(".app") or not shutil.which(target)):
+                result = subprocess.run(
+                    ["open", "-a", target, str(model_path)], check=False, capture_output=True, text=True
+                )
+                if result.returncode != 0:
+                    raise OpenSCADError(
+                        result.stderr.strip() or f"could not open {model_path} with {target!r}"
+                    )
+            else:
+                subprocess.Popen([target, str(model_path)], start_new_session=True)
+            return
+        if sys.platform == "darwin":
+            result = subprocess.run(["open", str(model_path)], check=False, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise OpenSCADError(result.stderr.strip() or f"could not open {model_path}")
+        elif sys.platform == "win32":
+            os.startfile(model_path)  # type: ignore[attr-defined]
+        else:
+            result = subprocess.run(
+                ["xdg-open", str(model_path)], check=False, capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                raise OpenSCADError(result.stderr.strip() or f"could not open {model_path}")
+    except OSError as exc:
+        raise OpenSCADError(f"could not launch slicer{f' {target!r}' if target else ''}: {exc}") from exc
+
+
 def render_preview(part: dict, out_dir: Path) -> Path:
     """Render one catalogue part at its defaults to <out_dir>/<slug>.png,
     on a transparent background (see PREVIEW_SCHEMES)."""
@@ -597,6 +634,17 @@ def render(
         help="Any other module parameter, repeatable: --set thumbscrew=true",
     ),
     out: Path = typer.Option(Path("out"), "-o", "--out"),
+    open_slicer: bool = typer.Option(
+        False,
+        "--open",
+        help="Open the rendered STL in your slicer (or the one named by --slicer / FOUNDRY_SLICER).",
+    ),
+    slicer: str = typer.Option(
+        None,
+        "--slicer",
+        metavar="APP_OR_PATH",
+        help="Slicer app or executable to open the rendered STL in (implies --open).",
+    ),
     no_user_config: bool = typer.Option(
         False,
         "--no-user-config",
@@ -615,6 +663,10 @@ def render(
     overrides = _collect_overrides(gx, gy, magnets, screws, set_)
     stl_path = render_part(part, overrides, out, use_user_config=not no_user_config)
     typer.echo(f"wrote {stl_path}")
+    if open_slicer or slicer:
+        open_in_slicer(stl_path, slicer)
+        chosen = (slicer or os.environ.get("FOUNDRY_SLICER", "")).strip() or "slicer"
+        typer.echo(f"opened {stl_path} in {chosen}")
 
 
 defaults_app = typer.Typer(

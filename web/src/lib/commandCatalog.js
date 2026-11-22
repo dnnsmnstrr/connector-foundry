@@ -186,6 +186,18 @@ export const BUILTIN_COMMANDS = Object.freeze({
     keywords: ["export", "save", "print"],
     action: "Download",
   },
+  "library.download3mf": {
+    title: "Download 3MF",
+    section: "Library",
+    keywords: ["export", "save", "print", "slicer"],
+    action: "Download",
+  },
+  "library.openInSlicer": {
+    title: "Open in Slicer",
+    section: "Library",
+    keywords: ["slice", "prusaslicer", "orcaslicer", "bambu", "cura", "3mf", "print"],
+    action: "Open",
+  },
   "library.print": {
     title: "Print with EasyPrint…",
     section: "Library",
@@ -286,6 +298,18 @@ export const BUILTIN_COMMANDS = Object.freeze({
     section: "Bench",
     keywords: ["export", "save", "print", "body"],
     action: "Download",
+  },
+  "bench.download3mf": {
+    title: "Download 3MF",
+    section: "Bench",
+    keywords: ["export", "save", "print", "slicer", "bodies"],
+    action: "Download",
+  },
+  "bench.openInSlicer": {
+    title: "Open in Slicer",
+    section: "Bench",
+    keywords: ["slice", "prusaslicer", "orcaslicer", "bambu", "cura", "3mf", "print", "bodies"],
+    action: "Open",
   },
   "bench.downloadScad": {
     title: "Download .scad",
@@ -392,6 +416,18 @@ export const BUILTIN_COMMANDS = Object.freeze({
     section: "Holes",
     keywords: ["export", "save", "print"],
     action: "Download",
+  },
+  "holes.download3mf": {
+    title: "Download 3MF",
+    section: "Holes",
+    keywords: ["export", "save", "print", "slicer"],
+    action: "Download",
+  },
+  "holes.openInSlicer": {
+    title: "Open in Slicer",
+    section: "Holes",
+    keywords: ["slice", "prusaslicer", "orcaslicer", "bambu", "cura", "3mf", "print"],
+    action: "Open",
   },
   "holes.downloadScad": {
     title: "Download .scad",

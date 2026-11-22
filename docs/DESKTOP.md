@@ -123,8 +123,12 @@ says what each release changed.
 - **Offline.** Everything the app needs is inside it: the interface, the OpenSCAD engine, the part
   sources and the meshes some parts are built from. It never goes online to render; the only thing
   it fetches is its own updates, from GitHub, which you can turn off.
+- **Open in Slicer.** Every tab has an **Open in Slicer** button (and a command palette entry): it
+  writes the model as a temporary `.3mf` file — on the Bench, every body in one file — and opens it
+  straight in your default slicer (or an installed copy of OrcaSlicer, Bambu Studio, PrusaSlicer,
+  SuperSlicer or UltiMaker Cura), with no Save dialog.
 - **Native file dialogs.** **Import STL / STEP / 3MF…** and **Import config…** open your system's file
-  picker, and every export (**Download STL**, **Download .scad**, **Download config**) opens a Save
+  picker, and every export (**Download STL**, **Download 3MF**, **Download .scad**, **Download config**) opens a Save
   dialog where you choose the name and the folder. The folder of the last export is offered again
   until you quit. A coding agent's exports skip the dialog (see below).
 - **Its own storage.** Preferences, saved defaults and presets are kept by the app, not by your
